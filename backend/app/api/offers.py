@@ -9,7 +9,7 @@ from ..schemas.negotiation import NegotiationCreate, NegotiationResponse
 from ..services.notification_service import send_notification
 from datetime import datetime, timedelta
 
-router = APIRouter(prefix="/api/offers", tags=["Offers"])
+router = APIRouter(prefix="/offers", tags=["Offers"])
 
 @router.post("/create", status_code=status.HTTP_201_CREATED)
 async def create_offer(

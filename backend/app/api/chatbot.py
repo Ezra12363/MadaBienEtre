@@ -8,7 +8,7 @@ from ..models.user import User
 from ..schemas.ai import ChatbotRequest, ChatbotResponse
 from ..services.ai.chatbot_service import get_chatbot_response
 
-router = APIRouter(prefix="/api/chatbot", tags=["Chatbot AI"])
+router = APIRouter(prefix="/chatbot", tags=["Chatbot AI"])
 
 @router.post("/message", response_model=ChatbotResponse)
 async def chatbot_message(

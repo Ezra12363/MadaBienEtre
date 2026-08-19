@@ -13,7 +13,7 @@ from ..schemas.sos import SOSCreate, SOSResponse, SOSResolveRequest, SOSStatsRes
 from ..services.notification_service import send_notification, send_sms  # ✅ Maintenant disponible
 from ..services.email_service import send_emergency_email
 
-router = APIRouter(prefix="/api/sos", tags=["SOS"])
+router = APIRouter(prefix="/sos", tags=["SOS"])
 
 @router.post("/create", status_code=status.HTTP_201_CREATED)
 async def create_sos_alert(

@@ -27,7 +27,7 @@ from ..services.ai.fraud_detection import detect_fraud
 from ..services.ai.prediction import predict_acceptance_probability, predict_revenue, predict_demand
 from ..services.ai.chatbot_service import get_chatbot_response
 
-router = APIRouter(prefix="/api/ai", tags=["AI"])
+router = APIRouter(prefix="/ai", tags=["AI"])
 
 @router.post("/recommend-therapist", response_model=List[AIRecommendationResponse])
 async def recommend_therapist(

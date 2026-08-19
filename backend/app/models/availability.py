@@ -1,3 +1,4 @@
+# app/models/availability.py
 from sqlalchemy import Column, Integer, String, Boolean, TIMESTAMP, Time, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -117,20 +118,3 @@ class BookingSlot(Base):
         Index('idx_booking_slots_is_booked', 'is_booked'),
         UniqueConstraint('therapist_id', 'slot_date', name='unique_slot'),
     )
-    
-    def __repr__(self):
-        return f"<BookingSlot(therapist_id={self.therapist_id}, slot={self.slot_date}, available={self.is_available})>"
-    
-    @property
-    def is_free(self):
-        return self.is_available and not self.is_booked
-    
-    def book(self, booking_id: int):
-        self.is_booked = True
-        self.is_available = False
-        self.booking_id = booking_id
-    
-    def release(self):
-        self.is_booked = False
-        self.is_available = True
-        self.booking_id = None

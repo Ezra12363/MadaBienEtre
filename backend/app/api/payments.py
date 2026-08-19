@@ -32,7 +32,7 @@ from ..services.payment_service import (
 )
 from ..services.notification_service import send_notification
 
-router = APIRouter(prefix="/api/payments", tags=["Payments"])
+router = APIRouter(prefix="/payments", tags=["Payments"])
 
 @router.post("/create", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED)
 async def create_payment(

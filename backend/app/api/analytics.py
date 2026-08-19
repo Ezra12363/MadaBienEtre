@@ -10,7 +10,7 @@ from ..models.review import Review
 from ..models.sos import SOSAlert
 from datetime import datetime, timedelta
 
-router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
+router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 @router.get("/dashboard")
 async def get_dashboard_stats(

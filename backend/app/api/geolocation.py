@@ -8,7 +8,7 @@ from ..models.booking import Booking
 from geoalchemy2 import functions as geo_func
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/api/geolocation", tags=["Geolocation"])
+router = APIRouter(prefix="/geolocation", tags=["Geolocation"])
 
 class LocationUpdate(BaseModel):
     latitude: float

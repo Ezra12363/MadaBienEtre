@@ -199,7 +199,7 @@ async def logout(current_user: User = Depends(get_current_user)):
 async def get_me(current_user: User = Depends(get_current_active_user)):
     """Obtenir les informations de l'utilisateur connecté"""
     return {
-        "id": current_user.id,
+       "id": current_user.id,
         "fullname": current_user.fullname,
         "email": current_user.email,
         "phone": current_user.phone,
@@ -211,7 +211,18 @@ async def get_me(current_user: User = Depends(get_current_active_user)):
         "verification_status": current_user.verification_status,
         "created_at": current_user.created_at,
         "is_online": current_user.is_online,
-        "is_available": current_user.is_available
+        "is_available": current_user.is_available,
+        "bio": current_user.bio,
+        "experience_years": current_user.experience_years or 0,
+        "base_price": float(current_user.base_price) if current_user.base_price else 0,
+        "latitude": float(current_user.latitude) if current_user.latitude else None,
+        "longitude": float(current_user.longitude) if current_user.longitude else None,
+        "address": current_user.address, 
+        "service_radius": current_user.service_radius,
+        "commission_rate": float(current_user.commission_rate) if current_user.commission_rate else 10.0,
+        "identity_document_url": current_user.identity_document_url,
+        "certificate_url": current_user.certificate_url,
+        "cin_number": current_user.cin_number,
     }
 
 

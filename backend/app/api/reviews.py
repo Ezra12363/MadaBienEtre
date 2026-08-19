@@ -10,7 +10,7 @@ from ..schemas.review import ReviewCreate, ReviewResponse, ReviewUpdate
 from ..services.rating_service import update_therapist_rating
 from ..services.notification_service import send_notification
 
-router = APIRouter(prefix="/api/reviews", tags=["Reviews"])
+router = APIRouter(prefix="/reviews", tags=["Reviews"])
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_review(

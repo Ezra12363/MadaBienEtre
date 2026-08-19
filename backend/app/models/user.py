@@ -33,12 +33,17 @@ class User(Base):
     identity_document_url = Column(String(255), nullable=True)
     certificate_url = Column(String(255), nullable=True)
     
+    # ✅ SAHA CIN_NUMBER
+    cin_number = Column(String(30), nullable=True)
+    
     commission_rate = Column(DECIMAL(5,2), default=10.0)
     subscription_type = Column(String(20), default='standard')
     subscription_end_date = Column(TIMESTAMP, nullable=True)
     
     otp_code = Column(String(6), nullable=True)
     otp_expires_at = Column(TIMESTAMP, nullable=True)
+    
+    address = Column(Text, nullable=True)
     
     latitude = Column(DECIMAL(10,8), nullable=True)
     longitude = Column(DECIMAL(11,8), nullable=True)
@@ -48,7 +53,7 @@ class User(Base):
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
     deleted_at = Column(TIMESTAMP, nullable=True)
     
-    # ✅ Relations avec foreign_keys explicites
+    # Relations
     bookings_as_client = relationship("Booking", foreign_keys="Booking.client_id", back_populates="client")
     bookings_as_therapist = relationship("Booking", foreign_keys="Booking.therapist_id", back_populates="therapist")
     reviews_given = relationship("Review", foreign_keys="Review.reviewer_id", back_populates="reviewer")
@@ -61,8 +66,6 @@ class User(Base):
     blocked_dates = relationship("BlockedDate", back_populates="therapist")
     negotiations = relationship("Negotiation", foreign_keys="Negotiation.user_id", back_populates="user")
     emergency_contacts = relationship("EmergencyContact", back_populates="user")
-    
-    # ✅ Relations pour les gains et retraits
     earnings = relationship("TherapistEarnings", foreign_keys="TherapistEarnings.therapist_id", back_populates="therapist", uselist=False)
     withdrawals = relationship("Withdrawal", foreign_keys="Withdrawal.therapist_id", back_populates="therapist")
     
@@ -126,5 +129,7 @@ class User(Base):
             "rating": self.get_rating(),
             "total_reviews": self.total_reviews,
             "verification_status": self.verification_status,
+            "address": self.address,
+            "cin_number": self.cin_number,  # ✅
             "created_at": self.created_at
         }

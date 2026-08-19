@@ -1,8 +1,8 @@
-"""initial_migration_clean
+"""add therapist certificates
 
-Revision ID: 6e57c65c8e0e
-Revises: 2ec850a3bc2e
-Create Date: 2026-07-06 18:15:20.374864
+Revision ID: 4ff209132fb3
+Revises:
+Create Date: 2026-08-10 22:43:22.281742
 
 """
 
@@ -11,8 +11,8 @@ import sqlalchemy as sa
 import geoalchemy2
 
 # Revision identifiers, used by Alembic.
-revision = "6e57c65c8e0e"
-down_revision = "2ec850a3bc2e"
+revision = "4ff209132fb3"
+down_revision = None
 branch_labels = None
 depends_on = None
 

@@ -7,7 +7,7 @@ from ..models.booking import Booking
 from ..models.user import User
 from ..services.ai.pricing_service import calculate_dynamic_price
 
-router = APIRouter(prefix="/api/pricing", tags=["Dynamic Pricing"])
+router = APIRouter(prefix="/pricing", tags=["Dynamic Pricing"])
 
 @router.post("/suggest")
 async def suggest_price(

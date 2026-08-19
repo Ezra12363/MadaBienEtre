@@ -8,6 +8,7 @@ from pydantic import ConfigDict
 load_dotenv()
 
 class Settings(BaseSettings):
+    BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
     # Application
     APP_NAME: str = "Mada Bien-être API"
     ENVIRONMENT: str = "development"
@@ -72,11 +73,19 @@ class Settings(BaseSettings):
     WS_PING_INTERVAL: int = 30
     WS_PING_TIMEOUT: int = 10
     
-    # CORS
+    # ✅ CORS — ajout de l'IP locale (10.230.25.30) pour permettre
+    # au téléphone / émulateur d'accéder au backend en développement
     CORS_ORIGINS: List[str] = [
-        "http://localhost:3000",
+         "http://localhost:3000",
         "http://localhost:8081",
         "http://localhost:19000",
+        "http://localhost:8000",
+        "http://10.147.58.30:3000",
+        "http://10.147.58.30:8081",
+        "http://10.147.58.30:19000",
+        "http://10.147.58.30:8000",
+        "exp://10.147.58.30:19000",
+        "exp://10.147.58.30:8081",
         "https://mada-bienetre.com",
         "https://*.mada-bienetre.com"
     ]
@@ -99,9 +108,9 @@ class Settings(BaseSettings):
     BOOKING_EXPIRY_MINUTES: int = 30
     OFFER_EXPIRY_MINUTES: int = 15
     
-    # ✅ Logging
-    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")  # Ajouté
-    LOG_FILE: str = os.getenv("LOG_FILE", "app.log")  # Ajouté
+    # Logging
+    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    LOG_FILE: str = os.getenv("LOG_FILE", "app.log")
     
     # Features
     FEATURE_PAYMENTS: bool = True
