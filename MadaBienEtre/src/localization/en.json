@@ -1,0 +1,42 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "close": "Close",
+    "search": "Search",
+    "filter": "Filter",
+    "view": "View",
+    "see_all": "See all",
+    "select": "Select",
+    "optional": "Optional"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout",
+    "email": "Email",
+    "password": "Password",
+    "confirm_password": "Confirm password",
+    "forgot_password": "Forgot password?",
+    "reset_password": "Reset password",
+    "otp_verification": "OTP Verification",
+    "enter_otp": "Enter OTP code",
+    "resend_otp": "Resend code",
+    "welcome_back": "Welcome back",
+    "create_account": "Create account",
+    "already_have_account": "Already have an account?",
+    "no_account": "Don't have an account?",
+    "login_success": "Login successful",
+    "register_success": "Registration successful",
+    "verify_success": "Account verified"
+  }
+}

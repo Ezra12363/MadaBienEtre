@@ -1,0 +1,34 @@
+# .easignore
+# ============================================
+# ✅ Fichier/dossier TSY tokony ho ao anaty tarball alefa any EAS Build.
+# EAS dia mampiasa .gitignore raha tsy misy .easignore, fa satria ny
+# backend (Python) dia tsy ilaina mihitsy ho an'ny build Expo/mobile,
+# dia atao mazava tsara eto ny fanilihana azy.
+# ============================================
+
+# ✅ Backend Python (venv) — io no nahatonga ny error EPERM torch_cpu.lib
+backend/venv
+backend/.venv
+venv
+.venv
+**/venv
+**/.venv
+**/site-packages
+
+# ✅ Python caches
+**/__pycache__
+*.pyc
+
+# ✅ Node
+node_modules
+**/node_modules
+
+# ✅ Build outputs natifs (haforonin'i Expo prebuild)
+android
+ios
+
+# ✅ Fichier hafa tsy ilaina
+.git
+.expo
+.vscode
+*.log
