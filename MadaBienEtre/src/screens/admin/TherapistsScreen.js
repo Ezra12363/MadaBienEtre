@@ -2509,7 +2509,7 @@ const TherapistsScreen = ({ navigation }) => {
                   : 'Aucun thérapeute trouvé.'}
               </Text>
             </View>
-          ) : IS_WEB ? (
+          ) : isDesktop ? (
             renderWebTable()
           ) : (
             renderMobileList()

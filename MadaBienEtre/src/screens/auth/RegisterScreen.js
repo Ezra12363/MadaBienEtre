@@ -1,4 +1,19 @@
 // src/screens/auth/RegisterScreen.js
+// ============================================================
+// REGISTER SCREEN — RESPONSIVE WEB / MOBILE
+// ============================================================
+// ✅ Desktop Web >= 1100px : interface 2 colonnes
+// ✅ Web < 1100px          : interface Mobile / Android-like
+// ✅ Android / iOS         : interface Mobile
+// ✅ Responsive width / height
+// ✅ ScrollView stable
+// ✅ Keyboard handling Android
+// ✅ Toast responsive
+// ✅ Validation
+// ✅ Password strength
+// ✅ Role selection
+// ✅ Dark mode
+// ============================================================
 
 import React, {
   useState,
@@ -26,6 +41,7 @@ import {
   Dimensions,
   Easing,
   InteractionManager,
+  useWindowDimensions,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -35,12 +51,17 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, typography } from '../../theme';
 
-const { width } = Dimensions.get('window');
+// ============================================================
+// PLATFORM
+// ============================================================
 
 const isWeb = Platform.OS === 'web';
 const isAndroid = Platform.OS === 'android';
 const isIOS = Platform.OS === 'ios';
-const isDesktop = isWeb && width >= 900;
+
+// Desktop réel uniquement à partir de 1100px.
+// En dessous : version mobile même sur navigateur web.
+const DESKTOP_BREAKPOINT = 1100;
 
 // ============================================================
 // CUSTOM TOAST
@@ -51,6 +72,7 @@ const CustomToast = ({
   type = 'info',
   message,
   onDismiss,
+  isDark = false,
 }) => {
   const translateY = useRef(
     new Animated.Value(-90)
@@ -68,41 +90,41 @@ const CustomToast = ({
     success: {
       icon: 'checkmark-circle',
       title: 'Succès',
-      background: '#ECFDF5',
-      border: '#A7F3D0',
-      iconBackground: '#D1FAE5',
+      background: isDark ? '#10251D' : '#ECFDF5',
+      border: isDark ? '#176044' : '#A7F3D0',
+      iconBackground: isDark ? '#123C2C' : '#D1FAE5',
       iconColor: '#059669',
-      textColor: '#065F46',
+      textColor: isDark ? '#A7F3D0' : '#065F46',
     },
 
     error: {
       icon: 'alert-circle',
       title: 'Erreur',
-      background: '#FEF2F2',
-      border: '#FECACA',
-      iconBackground: '#FEE2E2',
+      background: isDark ? '#2B1515' : '#FEF2F2',
+      border: isDark ? '#6B2525' : '#FECACA',
+      iconBackground: isDark ? '#451B1B' : '#FEE2E2',
       iconColor: '#DC2626',
-      textColor: '#991B1B',
+      textColor: isDark ? '#FECACA' : '#991B1B',
     },
 
     info: {
       icon: 'information-circle',
       title: 'Information',
-      background: '#EFF6FF',
-      border: '#BFDBFE',
-      iconBackground: '#DBEAFE',
+      background: isDark ? '#142039' : '#EFF6FF',
+      border: isDark ? '#284B82' : '#BFDBFE',
+      iconBackground: isDark ? '#1C3155' : '#DBEAFE',
       iconColor: '#2563EB',
-      textColor: '#1E40AF',
+      textColor: isDark ? '#BFDBFE' : '#1E40AF',
     },
 
     warning: {
       icon: 'warning',
       title: 'Attention',
-      background: '#FFFBEB',
-      border: '#FDE68A',
-      iconBackground: '#FEF3C7',
+      background: isDark ? '#2B2412' : '#FFFBEB',
+      border: isDark ? '#695416' : '#FDE68A',
+      iconBackground: isDark ? '#433714' : '#FEF3C7',
       iconColor: '#D97706',
-      textColor: '#92400E',
+      textColor: isDark ? '#FDE68A' : '#92400E',
     },
   };
 
@@ -225,7 +247,7 @@ const CustomToast = ({
                 color: current.textColor,
               },
             ]}
-            numberOfLines={3}
+            numberOfLines={4}
           >
             {message}
           </Text>
@@ -275,7 +297,9 @@ const PasswordStrength = ({
       score++;
     }
 
-    if (/\d/.test(password)) score++;
+    if (/\d/.test(password)) {
+      score++;
+    }
 
     if (/[^a-zA-Z0-9]/.test(password)) {
       score++;
@@ -354,7 +378,7 @@ const PasswordStrength = ({
 };
 
 // ============================================================
-// STEPS
+// STEPS INDICATOR
 // ============================================================
 
 const StepsIndicator = ({
@@ -463,8 +487,6 @@ const StepsIndicator = ({
 
 // ============================================================
 // INPUT FIELD
-// IMPORTANT:
-// Tsy misy focused state intsony eto.
 // ============================================================
 
 const Field = ({
@@ -523,7 +545,6 @@ const Field = ({
             backgroundColor: isDark
               ? '#252535'
               : '#F9FAFB',
-
             borderColor,
           },
         ]}
@@ -531,7 +552,11 @@ const Field = ({
         <Ionicons
           name={icon}
           size={20}
-          color={error ? '#EF4444' : '#9CA3AF'}
+          color={
+            error
+              ? '#EF4444'
+              : '#9CA3AF'
+          }
         />
 
         <TextInput
@@ -726,6 +751,39 @@ const RoleCard = ({
 const RegisterScreen = ({
   navigation,
 }) => {
+  const window = useWindowDimensions();
+
+  const screenWidth =
+    window?.width ||
+    Dimensions.get('window').width;
+
+  const screenHeight =
+    window?.height ||
+    Dimensions.get('window').height;
+
+  // ==========================================================
+  // RESPONSIVE MODE
+  // ==========================================================
+
+  const isDesktop =
+    isWeb &&
+    screenWidth >= DESKTOP_BREAKPOINT;
+
+  const isMobileLayout =
+    !isDesktop;
+
+  const isVerySmall =
+    screenWidth <= 380;
+
+  const isTabletWeb =
+    isWeb &&
+    screenWidth >= 600 &&
+    screenWidth < DESKTOP_BREAKPOINT;
+
+  // ==========================================================
+  // FORM STATE
+  // ==========================================================
+
   const [formData, setFormData] =
     useState({
       fullname: '',
@@ -781,6 +839,10 @@ const RegisterScreen = ({
   const toastTimer =
     useRef(null);
 
+  // ==========================================================
+  // SCROLL REFS
+  // ==========================================================
+
   const mobileScrollRef =
     useRef(null);
 
@@ -798,7 +860,7 @@ const RegisterScreen = ({
   const confirmPasswordRef = useRef(null);
 
   // ==========================================================
-  // ANIMATION
+  // SCREEN ANIMATION
   // ==========================================================
 
   useEffect(() => {
@@ -829,7 +891,9 @@ const RegisterScreen = ({
   // ==========================================================
 
   useEffect(() => {
-    if (!isAndroid) return;
+    if (!isAndroid && !isWeb) {
+      return undefined;
+    }
 
     const showSubscription =
       Keyboard.addListener(
@@ -898,14 +962,19 @@ const RegisterScreen = ({
 
   const scrollToInput = useCallback(
     inputRef => {
-      if (!isAndroid || !inputRef?.current) {
+      if (
+        !inputRef?.current ||
+        !isMobileLayout
+      ) {
         return;
       }
 
       const scrollView =
         mobileScrollRef.current;
 
-      if (!scrollView) return;
+      if (!scrollView) {
+        return;
+      }
 
       InteractionManager.runAfterInteractions(
         () => {
@@ -920,18 +989,42 @@ const RegisterScreen = ({
               ) {
                 responder.scrollResponderScrollNativeHandleToKeyboard(
                   inputRef.current,
-                  90,
+                  isAndroid ? 100 : 80,
                   true
                 );
 
                 return;
               }
 
-              // Fallback
-              scrollView.scrollTo({
-                y: 100,
-                animated: true,
-              });
+              // Web fallback
+              if (isWeb) {
+                try {
+                  inputRef.current?.measureInWindow?.(
+                    (x, y, width, height) => {
+                      const visibleHeight =
+                        screenHeight * 0.72;
+
+                      if (
+                        y + height >
+                        visibleHeight
+                      ) {
+                        scrollView.scrollTo({
+                          y: Math.max(
+                            0,
+                            y -
+                              visibleHeight +
+                              height +
+                              80
+                          ),
+                          animated: true,
+                        });
+                      }
+                    }
+                  );
+                } catch (e) {
+                  // ignore fallback error
+                }
+              }
             } catch (error) {
               console.log(
                 'Scroll input error:',
@@ -942,27 +1035,39 @@ const RegisterScreen = ({
         }
       );
     },
-    []
+    [
+      isMobileLayout,
+      screenHeight,
+    ]
   );
 
   // ==========================================================
   // FIELD FOCUS
-  // Tsy misy focused state intsony.
   // ==========================================================
 
   const handleFieldFocus =
-    useCallback(inputRef => {
-      if (isAndroid) {
-        scrollToInput(inputRef);
-      }
-    }, [scrollToInput]);
+    useCallback(
+      inputRef => {
+        if (isMobileLayout) {
+          scrollToInput(inputRef);
+        }
+      },
+      [
+        isMobileLayout,
+        scrollToInput,
+      ]
+    );
 
   // ==========================================================
-  // VALIDATION
+  // VALIDATE FIELD
   // ==========================================================
 
   const validateField = useCallback(
-    (field, value, passwordValue = formData.password) => {
+    (
+      field,
+      value,
+      passwordValue = formData.password
+    ) => {
       let message = '';
 
       switch (field) {
@@ -1063,9 +1168,6 @@ const RegisterScreen = ({
 
   // ==========================================================
   // UPDATE FIELD
-  // IMPORTANT:
-  // Tsy manao validation rehefa manoratra.
-  // Izany dia misoroka ny re-render tsy ilaina.
   // ==========================================================
 
   const updateField = useCallback(
@@ -1075,8 +1177,6 @@ const RegisterScreen = ({
         [field]: value,
       }));
 
-      // Raha efa misy erreur dia afaka
-      // esorina rehefa manomboka manitsy.
       setErrors(prev => {
         if (!prev[field]) {
           return prev;
@@ -1114,6 +1214,7 @@ const RegisterScreen = ({
       const confirmPassword =
         formData.confirmPassword;
 
+      // FULLNAME
       if (!fullname.trim()) {
         newErrors.fullname =
           'Le nom complet est requis.';
@@ -1124,6 +1225,7 @@ const RegisterScreen = ({
           'Le nom doit contenir au moins 2 caractères.';
       }
 
+      // EMAIL
       const emailRegex =
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -1139,6 +1241,7 @@ const RegisterScreen = ({
           'Veuillez saisir une adresse email valide.';
       }
 
+      // PHONE
       const cleanPhone =
         phone.replace(/\s/g, '');
 
@@ -1154,6 +1257,7 @@ const RegisterScreen = ({
           'Veuillez saisir un numéro valide.';
       }
 
+      // PASSWORD
       if (!password) {
         newErrors.password =
           'Le mot de passe est requis.';
@@ -1164,6 +1268,7 @@ const RegisterScreen = ({
           'Le mot de passe doit contenir au moins 8 caractères.';
       }
 
+      // CONFIRM PASSWORD
       if (!confirmPassword) {
         newErrors.confirmPassword =
           'Veuillez confirmer votre mot de passe.';
@@ -1182,6 +1287,25 @@ const RegisterScreen = ({
     }, [formData]);
 
   // ==========================================================
+  // SCROLL TO TOP WHEN VALIDATION FAILS
+  // ==========================================================
+
+  const scrollToTop =
+    useCallback(() => {
+      if (isMobileLayout) {
+        mobileScrollRef.current?.scrollTo({
+          y: 0,
+          animated: true,
+        });
+      } else {
+        desktopScrollRef.current?.scrollTo({
+          y: 0,
+          animated: true,
+        });
+      }
+    }, [isMobileLayout]);
+
+  // ==========================================================
   // REGISTER
   // ==========================================================
 
@@ -1196,10 +1320,7 @@ const RegisterScreen = ({
         );
 
         setTimeout(() => {
-          mobileScrollRef.current?.scrollTo({
-            y: 0,
-            animated: true,
-          });
+          scrollToTop();
         }, 150);
 
         return;
@@ -1286,6 +1407,12 @@ const RegisterScreen = ({
     <Animated.View
       style={[
         styles.formCard,
+        isDesktop &&
+          styles.formCardDesktop,
+        isTabletWeb &&
+          styles.formCardTablet,
+        isVerySmall &&
+          styles.formCardSmall,
         {
           backgroundColor: isDark
             ? '#1E1E2E'
@@ -1301,7 +1428,9 @@ const RegisterScreen = ({
         },
       ]}
     >
-      {/* HEADER */}
+      {/* ====================================================
+          HEADER
+      ==================================================== */}
 
       <View style={styles.formHeader}>
         <View
@@ -1324,6 +1453,8 @@ const RegisterScreen = ({
         <Text
           style={[
             styles.formTitle,
+            isVerySmall &&
+              styles.formTitleSmall,
             {
               color: isDark
                 ? '#FFFFFF'
@@ -1350,14 +1481,18 @@ const RegisterScreen = ({
         </Text>
       </View>
 
-      {/* STEPS */}
+      {/* ====================================================
+          STEPS
+      ==================================================== */}
 
       <StepsIndicator
         currentStep={currentStep}
         isDark={isDark}
       />
 
-      {/* NOM */}
+      {/* ====================================================
+          FULL NAME
+      ==================================================== */}
 
       <Field
         inputRef={fullnameRef}
@@ -1390,7 +1525,9 @@ const RegisterScreen = ({
         }
       />
 
-      {/* EMAIL */}
+      {/* ====================================================
+          EMAIL
+      ==================================================== */}
 
       <Field
         inputRef={emailRef}
@@ -1425,7 +1562,9 @@ const RegisterScreen = ({
         }
       />
 
-      {/* PHONE */}
+      {/* ====================================================
+          PHONE
+      ==================================================== */}
 
       <Field
         inputRef={phoneRef}
@@ -1459,7 +1598,9 @@ const RegisterScreen = ({
         }
       />
 
-      {/* PASSWORD */}
+      {/* ====================================================
+          PASSWORD
+      ==================================================== */}
 
       <Field
         inputRef={passwordRef}
@@ -1503,7 +1644,9 @@ const RegisterScreen = ({
         isDark={isDark}
       />
 
-      {/* CONFIRM PASSWORD */}
+      {/* ====================================================
+          CONFIRM PASSWORD
+      ==================================================== */}
 
       <Field
         inputRef={confirmPasswordRef}
@@ -1545,7 +1688,9 @@ const RegisterScreen = ({
         }
       />
 
-      {/* ROLE */}
+      {/* ====================================================
+          ROLE
+      ==================================================== */}
 
       <View style={styles.roleSection}>
         <View style={styles.sectionHeader}>
@@ -1579,7 +1724,7 @@ const RegisterScreen = ({
         <View
           style={[
             styles.roleList,
-            isWeb &&
+            isDesktop &&
               styles.roleListWeb,
           ]}
         >
@@ -1619,7 +1764,9 @@ const RegisterScreen = ({
         </View>
       </View>
 
-      {/* CTA */}
+      {/* ====================================================
+          CTA
+      ==================================================== */}
 
       <TouchableOpacity
         style={[
@@ -1685,7 +1832,9 @@ const RegisterScreen = ({
         </LinearGradient>
       </TouchableOpacity>
 
-      {/* TERMS */}
+      {/* ====================================================
+          TERMS
+      ==================================================== */}
 
       <Text
         style={[
@@ -1703,7 +1852,9 @@ const RegisterScreen = ({
         de confidentialité.
       </Text>
 
-      {/* LOGIN */}
+      {/* ====================================================
+          LOGIN
+      ==================================================== */}
 
       <View style={styles.loginContainer}>
         <Text
@@ -1744,7 +1895,7 @@ const RegisterScreen = ({
   );
 
   // ==========================================================
-  // MOBILE
+  // MOBILE / TABLET WEB
   // ==========================================================
 
   const renderMobile = () => (
@@ -1759,7 +1910,14 @@ const RegisterScreen = ({
       keyboardVerticalOffset={
         isIOS ? 0 : 0
       }
-      style={styles.keyboardView}
+      style={[
+        styles.keyboardView,
+        {
+          backgroundColor: isDark
+            ? '#121212'
+            : '#F8FAFC',
+        },
+      ]}
     >
       <TouchableWithoutFeedback
         onPress={Keyboard.dismiss}
@@ -1767,33 +1925,52 @@ const RegisterScreen = ({
       >
         <ScrollView
           ref={mobileScrollRef}
-          style={styles.mobileScrollView}
+          style={[
+            styles.mobileScrollView,
+            {
+              backgroundColor: isDark
+                ? '#121212'
+                : '#F8FAFC',
+            },
+          ]}
           contentContainerStyle={[
             styles.mobileScroll,
+            isTabletWeb &&
+              styles.mobileScrollTablet,
             {
               paddingBottom:
                 keyboardVisible
-                  ? 260
-                  : 45,
+                  ? 300
+                  : isVerySmall
+                  ? 35
+                  : 50,
             },
           ]}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator={
+            false
+          }
           keyboardShouldPersistTaps="always"
           keyboardDismissMode={
             isIOS
               ? 'interactive'
               : 'on-drag'
           }
-          nestedScrollEnabled={true}
+          nestedScrollEnabled
           removeClippedSubviews={false}
           scrollEventThrottle={16}
-          bounces={true}
+          bounces
         >
-          {/* MOBILE BRAND HEADER */}
+          {/* ==================================================
+              MOBILE HEADER
+          ================================================== */}
 
           <View
             style={[
               styles.mobileHeader,
+              isVerySmall &&
+                styles.mobileHeaderSmall,
+              isTabletWeb &&
+                styles.mobileHeaderTablet,
               {
                 backgroundColor:
                   colors.primary,
@@ -1853,9 +2030,11 @@ const RegisterScreen = ({
               }
             >
               <Text
-                style={
-                  styles.mobileHeaderTitle
-                }
+                style={[
+                  styles.mobileHeaderTitle,
+                  isVerySmall &&
+                    styles.mobileHeaderTitleSmall,
+                ]}
               >
                 Créer un compte
               </Text>
@@ -1871,6 +2050,7 @@ const RegisterScreen = ({
             </View>
           </View>
 
+          {/* FORM */}
           {renderForm()}
         </ScrollView>
       </TouchableWithoutFeedback>
@@ -1892,7 +2072,9 @@ const RegisterScreen = ({
         },
       ]}
     >
-      {/* LEFT */}
+      {/* ====================================================
+          LEFT BRAND PANEL
+      ==================================================== */}
 
       <View
         style={[
@@ -2062,7 +2244,9 @@ const RegisterScreen = ({
         </LinearGradient>
       </View>
 
-      {/* RIGHT */}
+      {/* ====================================================
+          RIGHT FORM
+      ==================================================== */}
 
       <View
         style={[
@@ -2168,7 +2352,28 @@ const RegisterScreen = ({
         type={toast.type}
         message={toast.message}
         onDismiss={dismissToast}
+        isDark={isDark}
       />
+
+      {/* ======================================================
+          IMPORTANT RESPONSIVE RULE
+          
+          Desktop web >= 1100px
+              => renderDesktop()
+
+          Tout le reste
+              => renderMobile()
+
+          Donc :
+          - Web 1920px  => Desktop
+          - Web 1366px  => Desktop
+          - Web 1099px  => Mobile
+          - Web 900px   => Mobile
+          - Web 768px   => Mobile
+          - Web 600px   => Mobile
+          - Android     => Mobile
+          - iPhone      => Mobile
+      ====================================================== */}
 
       {isDesktop
         ? renderDesktop()
@@ -2188,11 +2393,14 @@ const styles = StyleSheet.create({
 
   safeArea: {
     flex: 1,
+    width: '100%',
+    height: '100%',
   },
 
   keyboardView: {
     flex: 1,
     minHeight: 0,
+    width: '100%',
   },
 
   // ==========================================================
@@ -2239,12 +2447,14 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
 
   toastContent: {
     flex: 1,
     marginLeft: 11,
     marginRight: 7,
+    minWidth: 0,
   },
 
   toastTitle: {
@@ -2267,22 +2477,34 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
 
   // ==========================================================
-  // MOBILE
+  // MOBILE SCROLL
   // ==========================================================
 
   mobileScrollView: {
     flex: 1,
+    width: '100%',
   },
 
   mobileScroll: {
     flexGrow: 1,
     minHeight: '100%',
+    width: '100%',
   },
 
+  mobileScrollTablet: {
+    alignItems: 'center',
+  },
+
+  // ==========================================================
+  // MOBILE HEADER
+  // ==========================================================
+
   mobileHeader: {
+    width: '100%',
     minHeight: 235,
     paddingHorizontal: 22,
     paddingTop:
@@ -2292,6 +2514,18 @@ const styles = StyleSheet.create({
     paddingBottom: 34,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
+  },
+
+  mobileHeaderTablet: {
+    paddingHorizontal: 40,
+    paddingTop: 35,
+  },
+
+  mobileHeaderSmall: {
+    minHeight: 215,
+    paddingHorizontal: 18,
+    paddingTop: 28,
+    paddingBottom: 28,
   },
 
   mobileBackButton: {
@@ -2335,14 +2569,21 @@ const styles = StyleSheet.create({
   mobileHeaderTitle: {
     color: '#FFFFFF',
     fontSize: 27,
+    lineHeight: 33,
     fontFamily:
       typography.fontFamily.bold,
+  },
+
+  mobileHeaderTitleSmall: {
+    fontSize: 24,
+    lineHeight: 30,
   },
 
   mobileHeaderSubtitle: {
     color:
       'rgba(255,255,255,0.82)',
     fontSize: 14,
+    lineHeight: 20,
     fontFamily:
       typography.fontFamily.regular,
     marginTop: 5,
@@ -2357,6 +2598,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 27,
     paddingBottom: 40,
+  },
+
+  formCardDesktop: {
+    paddingHorizontal: 0,
+    paddingTop: 15,
+    paddingBottom: 40,
+  },
+
+  formCardTablet: {
+    maxWidth: 760,
+    alignSelf: 'center',
+    paddingHorizontal: 32,
+  },
+
+  formCardSmall: {
+    paddingHorizontal: 17,
+    paddingTop: 23,
+    paddingBottom: 32,
   },
 
   formHeader: {
@@ -2380,6 +2639,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
 
+  formTitleSmall: {
+    fontSize: 23,
+    lineHeight: 29,
+  },
+
   formDescription: {
     fontSize: 14,
     lineHeight: 21,
@@ -2395,12 +2659,14 @@ const styles = StyleSheet.create({
   steps: {
     flexDirection: 'row',
     alignItems: 'center',
+    width: '100%',
     marginBottom: 22,
   },
 
   step: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
   },
 
   stepCircle: {
@@ -2423,6 +2689,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 1,
     marginHorizontal: 8,
+    minWidth: 10,
   },
 
   // ==========================================================
@@ -2431,6 +2698,7 @@ const styles = StyleSheet.create({
 
   fieldGroup: {
     marginBottom: 15,
+    width: '100%',
   },
 
   fieldLabelRow: {
@@ -2447,6 +2715,7 @@ const styles = StyleSheet.create({
   },
 
   inputWrapper: {
+    width: '100%',
     minHeight: 54,
     borderRadius: 12,
     borderWidth: 1,
@@ -2457,6 +2726,7 @@ const styles = StyleSheet.create({
 
   input: {
     flex: 1,
+    minWidth: 0,
     fontSize: 15,
     fontFamily:
       typography.fontFamily.regular,
@@ -2467,23 +2737,26 @@ const styles = StyleSheet.create({
     ...(Platform.OS === 'web'
       ? {
           outlineStyle: 'none',
+          outlineWidth: 0,
         }
       : {}),
   },
 
   eyeButton: {
     padding: 5,
+    flexShrink: 0,
   },
 
   errorRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginTop: 5,
   },
 
   errorText: {
     color: '#EF4444',
     fontSize: 12,
+    lineHeight: 17,
     fontFamily:
       typography.fontFamily.regular,
     marginLeft: 4,
@@ -2495,6 +2768,7 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   passwordStrength: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: -5,
@@ -2529,6 +2803,7 @@ const styles = StyleSheet.create({
   roleSection: {
     marginTop: 2,
     marginBottom: 20,
+    width: '100%',
   },
 
   sectionHeader: {
@@ -2549,6 +2824,7 @@ const styles = StyleSheet.create({
   },
 
   roleList: {
+    width: '100%',
     gap: 10,
   },
 
@@ -2564,6 +2840,7 @@ const styles = StyleSheet.create({
     padding: 11,
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: 0,
   },
 
   roleIcon: {
@@ -2572,10 +2849,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
 
   roleInfo: {
     flex: 1,
+    minWidth: 0,
     marginLeft: 10,
     marginRight: 7,
   },
@@ -2601,6 +2880,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
 
   radioInner: {
@@ -2679,6 +2959,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    flexWrap: 'wrap',
     marginTop: 18,
   },
 
@@ -2692,6 +2973,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 5,
+    paddingVertical: 3,
   },
 
   loginLink: {
@@ -2711,6 +2993,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     width: '100%',
     height: '100%',
+    minHeight: 0,
   },
 
   desktopBrand: {
@@ -2724,6 +3007,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 58,
     paddingVertical: 54,
     justifyContent: 'space-between',
+    minHeight: 0,
   },
 
   desktopBrandTop: {
@@ -2801,6 +3085,7 @@ const styles = StyleSheet.create({
 
   featureContent: {
     flex: 1,
+    minWidth: 0,
   },
 
   featureTitle: {
@@ -2851,7 +3136,7 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // RIGHT
+  // DESKTOP RIGHT
   // ==========================================================
 
   desktopRight: {

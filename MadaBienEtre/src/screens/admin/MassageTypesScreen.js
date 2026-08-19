@@ -30,6 +30,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
+import useResponsive from '../../hooks/useResponsive';
 
 // ============================================================
 // CONSTANTES
@@ -174,6 +175,12 @@ const MassageTypesScreen = ({ navigation }) => {
     colors: themeColors,
     isDark,
   } = useTheme();
+
+  // Layout responsive baseé sur la largeur RÉELLE de l'écran/fenêtre
+  // (et non sur Platform.OS) : le tableau large ne s'affiche que
+  // s'il y a vraiment la place, sinon on bascule sur les cartes
+  // mobiles à tout moment, y compris sur le web en fenêtre étroite.
+  const { isDesktop } = useResponsive();
 
   // ==========================================================
   // STATES
@@ -3617,8 +3624,7 @@ const MassageTypesScreen = ({ navigation }) => {
             {/* ==================================================
                 WEB
             ================================================== */}
-            {Platform.OS ===
-            'web' ? (
+            {isDesktop ? (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={

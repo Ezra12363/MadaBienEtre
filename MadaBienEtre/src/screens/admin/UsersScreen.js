@@ -2098,7 +2098,7 @@ const UsersScreen = ({ navigation }) => {
                   : 'Aucun utilisateur trouvé.'}
               </Text>
             </View>
-          ) : IS_WEB ? (
+          ) : isDesktop ? (
             renderWebTable()
           ) : (
             renderMobileList()

@@ -1,4 +1,24 @@
 // src/screens/auth/LoginScreen.js
+// ============================================================
+// LOGIN SCREEN — MADA BIEN-ÊTRE
+// ============================================================
+// RESPONSIVE WEB + MOBILE
+//
+// WEB >= 1024px
+//    -> Interface Desktop
+//
+// WEB < 1024px
+//    -> Interface Mobile / Android
+//
+// ANDROID / IOS
+//    -> Interface Mobile
+//
+// IMPORTANT:
+//    useWindowDimensions() est utilisé au lieu de
+//    Dimensions.get('window') afin que l'interface
+//    change automatiquement lorsque la fenêtre Web
+//    est redimensionnée.
+// ============================================================
 
 import React, {
   useState,
@@ -23,7 +43,7 @@ import {
   TouchableWithoutFeedback,
   SafeAreaView,
   TextInput,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -32,25 +52,49 @@ import * as Animatable from 'react-native-animatable';
 
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, typography } from '../../theme';
+import {
+  colors,
+  spacing,
+  typography,
+} from '../../theme';
+
 import notificationService from '../../services/notificationService';
 
-const { width } = Dimensions.get('window');
+// ============================================================
+// PLATFORM
+// ============================================================
 
-const isWeb = Platform.OS === 'web';
-const isAndroid = Platform.OS === 'android';
-const isIOS = Platform.OS === 'ios';
-const isLargeScreen = isWeb && width >= 1024;
+const IS_WEB = Platform.OS === 'web';
+const IS_ANDROID = Platform.OS === 'android';
+const IS_IOS = Platform.OS === 'ios';
 
 // ============================================================
-// APP FONT
+// BREAKPOINTS
+// ============================================================
+
+// Au-dessus de cette largeur:
+// interface Web Desktop.
+//
+// En-dessous:
+// interface Mobile / Android.
+//
+// Tu peux modifier 1024 si nécessaire.
+const DESKTOP_BREAKPOINT = 1024;
+
+// Petit écran mobile
+const SMALL_MOBILE_HEIGHT = 700;
+
+// ============================================================
+// FONT
 // ============================================================
 
 const APP_FONT =
-  typography?.fontFamily?.regular || 'System';
+  typography?.fontFamily?.regular ||
+  'System';
 
 const APP_FONT_MEDIUM =
-  typography?.fontFamily?.medium || APP_FONT;
+  typography?.fontFamily?.medium ||
+  APP_FONT;
 
 const APP_FONT_SEMIBOLD =
   typography?.fontFamily?.semiBold ||
@@ -72,7 +116,9 @@ const Toast = ({
   message,
   onDismiss,
 }) => {
-  if (!visible) return null;
+  if (!visible) {
+    return null;
+  }
 
   const config = {
     success: {
@@ -112,7 +158,8 @@ const Toast = ({
     },
   };
 
-  const current = config[type] || config.info;
+  const current =
+    config[type] || config.info;
 
   return (
     <View
@@ -126,8 +173,10 @@ const Toast = ({
         style={[
           styles.toastContainer,
           {
-            backgroundColor: current.background,
-            borderColor: current.border,
+            backgroundColor:
+              current.background,
+            borderColor:
+              current.border,
           },
         ]}
       >
@@ -147,7 +196,11 @@ const Toast = ({
           />
         </View>
 
-        <View style={styles.toastMessageContainer}>
+        <View
+          style={
+            styles.toastMessageContainer
+          }
+        >
           <Text
             style={[
               styles.toastMessage,
@@ -186,770 +239,1164 @@ const Toast = ({
 // LOGIN SCREEN
 // ============================================================
 
-const LoginScreen = ({ navigation }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+const LoginScreen = ({
+  navigation,
+}) => {
+  // ==========================================================
+  // RESPONSIVE DIMENSIONS
+  // ==========================================================
 
-  const [errors, setErrors] = useState({});
+  const {
+    width,
+    height,
+  } = useWindowDimensions();
 
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  // ==========================================================
+  // IMPORTANT RESPONSIVE LOGIC
+  // ==========================================================
+  //
+  // Web >= 1024px:
+  //      Desktop
+  //
+  // Web < 1024px:
+  //      Mobile
+  //
+  // Android / iOS:
+  //      Mobile
+  //
+  // Le changement est automatique lorsque la fenêtre
+  // du navigateur est redimensionnée.
+  // ==========================================================
 
-  const [toast, setToast] = useState({
-    visible: false,
-    type: 'info',
-    message: '',
-  });
+  const isDesktopWeb =
+    IS_WEB &&
+    width >= DESKTOP_BREAKPOINT;
 
-  const toastTimerRef = useRef(null);
+  const isMobileLayout =
+    !isDesktopWeb;
 
-  const emailInputRef = useRef(null);
-  const passwordInputRef = useRef(null);
-  const scrollViewRef = useRef(null);
+  const isSmallScreen =
+    width < 480;
 
-  const { login } = useAuth();
-  const { isDark } = useTheme();
+  const isVerySmallScreen =
+    width < 360;
 
-  const fadeAnim = useRef(
-    new Animated.Value(0)
-  ).current;
+  const isShortScreen =
+    height < SMALL_MOBILE_HEIGHT;
 
-  const slideAnim = useRef(
-    new Animated.Value(40)
-  ).current;
+  // ==========================================================
+  // STATES
+  // ==========================================================
 
-  // ============================================================
+  const [email, setEmail] =
+    useState('');
+
+  const [password, setPassword] =
+    useState('');
+
+  const [errors, setErrors] =
+    useState({});
+
+  const [isLoading, setIsLoading] =
+    useState(false);
+
+  const [showPassword, setShowPassword] =
+    useState(false);
+
+  const [toast, setToast] =
+    useState({
+      visible: false,
+      type: 'info',
+      message: '',
+    });
+
+  // ==========================================================
+  // REFS
+  // ==========================================================
+
+  const toastTimerRef =
+    useRef(null);
+
+  const emailInputRef =
+    useRef(null);
+
+  const passwordInputRef =
+    useRef(null);
+
+  const scrollViewRef =
+    useRef(null);
+
+  // ==========================================================
+  // CONTEXT
+  // ==========================================================
+
+  const { login } =
+    useAuth();
+
+  const { isDark } =
+    useTheme();
+
+  // ==========================================================
   // ANIMATION
-  // ============================================================
+  // ==========================================================
+
+  const fadeAnim =
+    useRef(
+      new Animated.Value(0)
+    ).current;
+
+  const slideAnim =
+    useRef(
+      new Animated.Value(40)
+    ).current;
+
+  // ==========================================================
+  // INITIAL ANIMATION
+  // ==========================================================
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 700,
-        useNativeDriver: true,
-      }),
+      Animated.timing(
+        fadeAnim,
+        {
+          toValue: 1,
+          duration: 650,
+          useNativeDriver: true,
+        }
+      ),
 
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
+      Animated.timing(
+        slideAnim,
+        {
+          toValue: 0,
+          duration: 550,
+          useNativeDriver: true,
+        }
+      ),
     ]).start();
 
     requestNotificationPermission();
 
     return () => {
-      if (toastTimerRef.current) {
-        clearTimeout(toastTimerRef.current);
+      if (
+        toastTimerRef.current
+      ) {
+        clearTimeout(
+          toastTimerRef.current
+        );
       }
     };
   }, []);
 
-  // ============================================================
+  // ==========================================================
   // NOTIFICATION PERMISSION
-  // ============================================================
+  // ==========================================================
 
-  const requestNotificationPermission = async () => {
-    try {
-      const hasPermission =
-        await notificationService.checkPermission();
+  const requestNotificationPermission =
+    async () => {
+      try {
+        const hasPermission =
+          await notificationService.checkPermission();
 
-      if (!hasPermission) {
-        await notificationService.requestPermission();
+        if (!hasPermission) {
+          await notificationService.requestPermission();
+        }
+      } catch (error) {
+        console.log(
+          'Notification permission error:',
+          error
+        );
       }
-    } catch (error) {
-      console.log(
-        'Notification permission error:',
-        error
-      );
-    }
-  };
+    };
 
-  // ============================================================
-  // SHOW TOAST
-  // ============================================================
+  // ==========================================================
+  // TOAST
+  // ==========================================================
 
-  const showToast = useCallback(
-    (type, message, duration = 4000) => {
-      if (toastTimerRef.current) {
-        clearTimeout(toastTimerRef.current);
-      }
-
-      setToast({
-        visible: true,
+  const showToast =
+    useCallback(
+      (
         type,
         message,
-      });
+        duration = 4000
+      ) => {
+        if (
+          toastTimerRef.current
+        ) {
+          clearTimeout(
+            toastTimerRef.current
+          );
+        }
 
-      toastTimerRef.current = setTimeout(() => {
-        setToast((prev) => ({
-          ...prev,
-          visible: false,
-        }));
-      }, duration);
-    },
-    []
-  );
+        setToast({
+          visible: true,
+          type,
+          message,
+        });
 
-  // ============================================================
-  // DISMISS TOAST
-  // ============================================================
-
-  const dismissToast = useCallback(() => {
-    if (toastTimerRef.current) {
-      clearTimeout(toastTimerRef.current);
-      toastTimerRef.current = null;
-    }
-
-    setToast((prev) => ({
-      ...prev,
-      visible: false,
-    }));
-  }, []);
-
-  // ============================================================
-  // VALIDATION
-  // ============================================================
-
-  const validateEmail = useCallback((value) => {
-    if (!value || !value.trim()) {
-      return 'L’adresse email est requise';
-    }
-
-    const emailRegex =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!emailRegex.test(value.trim())) {
-      return 'Veuillez saisir une adresse email valide';
-    }
-
-    return '';
-  }, []);
-
-  const validatePassword = useCallback((value) => {
-    if (!value) {
-      return 'Le mot de passe est requis';
-    }
-
-    if (value.length < 8) {
-      return 'Le mot de passe doit contenir au moins 8 caractères';
-    }
-
-    return '';
-  }, []);
-
-  // ============================================================
-  // EMAIL CHANGE
-  // ============================================================
-
-  const handleEmailChange = useCallback(
-    (text) => {
-      setEmail(text);
-
-      if (errors.email) {
-        const error = validateEmail(text);
-
-        setErrors((prev) => ({
-          ...prev,
-          email: error,
-        }));
-      }
-    },
-    [errors.email, validateEmail]
-  );
-
-  // ============================================================
-  // PASSWORD CHANGE
-  // ============================================================
-
-  const handlePasswordChange = useCallback(
-    (text) => {
-      setPassword(text);
-
-      if (errors.password) {
-        const error = validatePassword(text);
-
-        setErrors((prev) => ({
-          ...prev,
-          password: error,
-        }));
-      }
-    },
-    [errors.password, validatePassword]
-  );
-
-  // ============================================================
-  // BLUR VALIDATION
-  // ============================================================
-
-  const handleEmailBlur = () => {
-    const error = validateEmail(email);
-
-    setErrors((prev) => ({
-      ...prev,
-      email: error,
-    }));
-  };
-
-  const handlePasswordBlur = () => {
-    const error = validatePassword(password);
-
-    setErrors((prev) => ({
-      ...prev,
-      password: error,
-    }));
-  };
-
-  // ============================================================
-  // LOGIN
-  // ============================================================
-
-  const handleLogin = async () => {
-    Keyboard.dismiss();
-
-    const emailError = validateEmail(email);
-    const passwordError = validatePassword(password);
-
-    const newErrors = {};
-
-    if (emailError) {
-      newErrors.email = emailError;
-    }
-
-    if (passwordError) {
-      newErrors.password = passwordError;
-    }
-
-    setErrors(newErrors);
-
-    if (Object.keys(newErrors).length > 0) {
-      showToast(
-        'error',
-        'Veuillez corriger les informations indiquées.'
-      );
-
-      return;
-    }
-
-    setIsLoading(true);
-
-    showToast(
-      'info',
-      'Connexion en cours...',
-      1500
+        toastTimerRef.current =
+          setTimeout(() => {
+            setToast(
+              previous => ({
+                ...previous,
+                visible: false,
+              })
+            );
+          }, duration);
+      },
+      []
     );
 
-    try {
-      const result = await login(
-        email.trim().toLowerCase(),
-        password
-      );
-
-      if (result.success) {
-        showToast(
-          'success',
-          'Connexion réussie. Bienvenue sur Mada Bien-être !',
-          4500
+  const dismissToast =
+    useCallback(() => {
+      if (
+        toastTimerRef.current
+      ) {
+        clearTimeout(
+          toastTimerRef.current
         );
-      } else {
-        showToast(
-          'error',
-          result.error ||
-            'Email ou mot de passe incorrect.',
-          4500
+
+        toastTimerRef.current =
+          null;
+      }
+
+      setToast(
+        previous => ({
+          ...previous,
+          visible: false,
+        })
+      );
+    }, []);
+
+  // ==========================================================
+  // VALIDATION
+  // ==========================================================
+
+  const validateEmail =
+    useCallback(value => {
+      if (
+        !value ||
+        !value.trim()
+      ) {
+        return (
+          "L'adresse email est requise"
         );
       }
-    } catch (error) {
-      console.error(
-        'Login error:',
-        error
+
+      const emailRegex =
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (
+        !emailRegex.test(
+          value.trim()
+        )
+      ) {
+        return (
+          'Veuillez saisir une adresse email valide'
+        );
+      }
+
+      return '';
+    }, []);
+
+  const validatePassword =
+    useCallback(value => {
+      if (!value) {
+        return (
+          'Le mot de passe est requis'
+        );
+      }
+
+      if (value.length < 8) {
+        return (
+          'Le mot de passe doit contenir au moins 8 caractères'
+        );
+      }
+
+      return '';
+    }, []);
+
+  // ==========================================================
+  // EMAIL CHANGE
+  // ==========================================================
+
+  const handleEmailChange =
+    useCallback(
+      text => {
+        setEmail(text);
+
+        if (errors.email) {
+          const error =
+            validateEmail(text);
+
+          setErrors(
+            previous => ({
+              ...previous,
+              email: error,
+            })
+          );
+        }
+      },
+      [
+        errors.email,
+        validateEmail,
+      ]
+    );
+
+  // ==========================================================
+  // PASSWORD CHANGE
+  // ==========================================================
+
+  const handlePasswordChange =
+    useCallback(
+      text => {
+        setPassword(text);
+
+        if (errors.password) {
+          const error =
+            validatePassword(text);
+
+          setErrors(
+            previous => ({
+              ...previous,
+              password: error,
+            })
+          );
+        }
+      },
+      [
+        errors.password,
+        validatePassword,
+      ]
+    );
+
+  // ==========================================================
+  // BLUR
+  // ==========================================================
+
+  const handleEmailBlur =
+    useCallback(() => {
+      const error =
+        validateEmail(email);
+
+      setErrors(
+        previous => ({
+          ...previous,
+          email: error,
+        })
       );
+    }, [
+      email,
+      validateEmail,
+    ]);
+
+  const handlePasswordBlur =
+    useCallback(() => {
+      const error =
+        validatePassword(password);
+
+      setErrors(
+        previous => ({
+          ...previous,
+          password: error,
+        })
+      );
+    }, [
+      password,
+      validatePassword,
+    ]);
+
+  // ==========================================================
+  // LOGIN
+  // ==========================================================
+
+  const handleLogin =
+    useCallback(async () => {
+      Keyboard.dismiss();
+
+      const emailError =
+        validateEmail(email);
+
+      const passwordError =
+        validatePassword(
+          password
+        );
+
+      const newErrors = {};
+
+      if (emailError) {
+        newErrors.email =
+          emailError;
+      }
+
+      if (passwordError) {
+        newErrors.password =
+          passwordError;
+      }
+
+      setErrors(newErrors);
+
+      if (
+        Object.keys(newErrors)
+          .length > 0
+      ) {
+        showToast(
+          'error',
+          'Veuillez corriger les informations indiquées.'
+        );
+
+        return;
+      }
+
+      setIsLoading(true);
 
       showToast(
-        'error',
-        'Une erreur est survenue. Veuillez réessayer.',
-        4500
+        'info',
+        'Connexion en cours...',
+        1500
       );
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  // ============================================================
+      try {
+        const result =
+          await login(
+            email
+              .trim()
+              .toLowerCase(),
+            password
+          );
+
+        if (result.success) {
+          showToast(
+            'success',
+            'Connexion réussie. Bienvenue sur Mada Bien-être !',
+            4500
+          );
+        } else {
+          showToast(
+            'error',
+            result.error ||
+              'Email ou mot de passe incorrect.',
+            4500
+          );
+        }
+      } catch (error) {
+        console.error(
+          'Login error:',
+          error
+        );
+
+        showToast(
+          'error',
+          'Une erreur est survenue. Veuillez réessayer.',
+          4500
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }, [
+      email,
+      password,
+      validateEmail,
+      validatePassword,
+      login,
+      showToast,
+    ]);
+
+  // ==========================================================
   // FOCUS EMAIL
-  // ============================================================
+  // ==========================================================
 
-  const focusEmail = () => {
-    requestAnimationFrame(() => {
-      emailInputRef.current?.focus();
-    });
-  };
+  const focusEmail =
+    useCallback(() => {
+      requestAnimationFrame(() => {
+        emailInputRef.current?.focus();
+      });
+    }, []);
 
-  // ============================================================
+  // ==========================================================
   // FOCUS PASSWORD
-  // ============================================================
+  // ==========================================================
 
-  const focusPassword = () => {
-    requestAnimationFrame(() => {
-      passwordInputRef.current?.focus();
-    });
-  };
+  const focusPassword =
+    useCallback(() => {
+      requestAnimationFrame(() => {
+        passwordInputRef.current?.focus();
+      });
+    }, []);
 
-  // ============================================================
-  // INPUT COMPONENT
-  // ============================================================
+  // ==========================================================
+  // INPUT
+  // ==========================================================
 
-  const renderInput = ({
-    field,
-    label,
-    icon,
-    value,
-    onChangeText,
-    onBlur,
-    placeholder,
-    keyboardType,
-    secureTextEntry,
-    autoCapitalize,
-    autoCorrect,
-    returnKeyType,
-    onSubmitEditing,
-    error,
-    rightAction,
-    inputRef,
-  }) => {
-    return (
-      <View style={styles.inputGroup}>
-        <Text
-          style={[
-            styles.inputLabel,
-            {
-              color: isDark
-                ? '#E5E7EB'
-                : '#1F2937',
-            },
-          ]}
+  const renderInput =
+    ({
+      label,
+      icon,
+      value,
+      onChangeText,
+      onBlur,
+      placeholder,
+      keyboardType,
+      secureTextEntry,
+      autoCapitalize,
+      autoCorrect,
+      returnKeyType,
+      onSubmitEditing,
+      error,
+      rightAction,
+      inputRef,
+    }) => {
+      return (
+        <View
+          style={
+            styles.inputGroup
+          }
         >
-          {label}
-        </Text>
+          <Text
+            style={[
+              styles.inputLabel,
+              {
+                color: isDark
+                  ? '#E5E7EB'
+                  : '#1F2937',
+              },
+            ]}
+          >
+            {label}
+          </Text>
+
+          <View
+            style={[
+              styles.inputWrapper,
+              error &&
+                styles.inputWrapperError,
+              {
+                backgroundColor:
+                  isDark
+                    ? '#252733'
+                    : '#F9FAFB',
+
+                borderColor:
+                  error
+                    ? '#EF4444'
+                    : isDark
+                    ? '#3A3F4D'
+                    : '#E5E7EB',
+              },
+            ]}
+          >
+            <Ionicons
+              name={icon}
+              size={20}
+              color={
+                error
+                  ? '#EF4444'
+                  : '#9CA3AF'
+              }
+            />
+
+            <TextInput
+              ref={inputRef}
+              style={[
+                styles.input,
+                {
+                  color: isDark
+                    ? '#FFFFFF'
+                    : '#1F2937',
+                },
+              ]}
+              value={value}
+              onChangeText={
+                onChangeText
+              }
+              onBlur={onBlur}
+              placeholder={
+                placeholder
+              }
+              placeholderTextColor={
+                isDark
+                  ? '#6B7280'
+                  : '#9CA3AF'
+              }
+              keyboardType={
+                keyboardType
+              }
+              secureTextEntry={
+                secureTextEntry
+              }
+              autoCapitalize={
+                autoCapitalize
+              }
+              autoCorrect={
+                autoCorrect
+              }
+              returnKeyType={
+                returnKeyType
+              }
+              onSubmitEditing={
+                onSubmitEditing
+              }
+              editable={!isLoading}
+              selectionColor={
+                colors.primary
+              }
+              blurOnSubmit={false}
+              disableFullscreenUI={
+                true
+              }
+              textAlignVertical="center"
+            />
+
+            {rightAction}
+          </View>
+
+          {error ? (
+            <View
+              style={
+                styles.fieldErrorRow
+              }
+            >
+              <Ionicons
+                name="alert-circle-outline"
+                size={14}
+                color="#EF4444"
+              />
+
+              <Text
+                style={
+                  styles.errorText
+                }
+              >
+                {error}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      );
+    };
+
+  // ==========================================================
+  // LOGIN FORM
+  // ==========================================================
+
+  const renderLoginForm =
+    () => (
+      <Animated.View
+        style={[
+          styles.formContainer,
+
+          isDesktopWeb &&
+            styles.formContainerDesktop,
+
+          isSmallScreen &&
+            styles.formContainerSmall,
+
+          {
+            opacity:
+              fadeAnim,
+
+            transform: [
+              {
+                translateY:
+                  slideAnim,
+              },
+            ],
+          },
+        ]}
+      >
+        {/* ====================================================
+            HEADER FORM
+        ==================================================== */}
 
         <View
-          style={[
-            styles.inputWrapper,
-
-            error &&
-              styles.inputWrapperError,
-
-            {
-              backgroundColor: isDark
-                ? '#2D2D3D'
-                : '#F9FAFB',
-
-              borderColor: error
-                ? '#EF4444'
-                : isDark
-                ? '#374151'
-                : '#E5E7EB',
-            },
-          ]}
+          style={
+            styles.formHeader
+          }
         >
-          <Ionicons
-            name={icon}
-            size={20}
-            color={
-              error
-                ? '#EF4444'
-                : '#9CA3AF'
-            }
-          />
-
-          <TextInput
-            ref={inputRef}
+          <View
             style={[
-              styles.input,
+              styles.formIcon,
+              {
+                backgroundColor:
+                  colors.primary +
+                  '12',
+              },
+            ]}
+          >
+            <Ionicons
+              name="lock-open-outline"
+              size={25}
+              color={
+                colors.primary
+              }
+            />
+          </View>
+
+          <Text
+            style={[
+              styles.formTitle,
               {
                 color: isDark
                   ? '#FFFFFF'
-                  : '#1F2937',
-
-                fontFamily: APP_FONT,
+                  : '#111827',
               },
             ]}
-            value={value}
-            onChangeText={onChangeText}
-            onBlur={onBlur}
-            placeholder={placeholder}
-            placeholderTextColor={
-              isDark
-                ? '#6B7280'
-                : '#9CA3AF'
-            }
-            keyboardType={keyboardType}
-            secureTextEntry={
-              secureTextEntry
-            }
-            autoCapitalize={
-              autoCapitalize
-            }
-            autoCorrect={
-              autoCorrect
-            }
-            returnKeyType={
-              returnKeyType
-            }
-            onSubmitEditing={
-              onSubmitEditing
-            }
-            editable={!isLoading}
-            selectionColor={
-              colors.primary
-            }
+          >
+            Bon retour parmi nous
+          </Text>
 
-            /*
-             * IMPORTANT ANDROID
-             *
-             * Tsy misy focusedField intsony.
-             * Tsy mitahiry focus ao amin'ny state.
-             */
-            blurOnSubmit={false}
-
-            /*
-             * Manakana React Native tsy hanova
-             * comportement rehefa miverina amin'ny champ.
-             */
-            disableFullscreenUI={true}
-
-            /*
-             * Android text input optimizations.
-             */
-            textAlignVertical="center"
-          />
-
-          {rightAction}
+          <Text
+            style={[
+              styles.formSubtitle,
+              {
+                color: isDark
+                  ? '#9CA3AF'
+                  : '#6B7280',
+              },
+            ]}
+          >
+            Connectez-vous pour accéder
+            à votre espace bien-être.
+          </Text>
         </View>
 
-        {error ? (
-          <View
-            style={styles.fieldErrorRow}
+        {/* ====================================================
+            EMAIL
+        ==================================================== */}
+
+        {renderInput({
+          label:
+            'Adresse email',
+
+          icon:
+            'mail-outline',
+
+          value:
+            email,
+
+          onChangeText:
+            handleEmailChange,
+
+          onBlur:
+            handleEmailBlur,
+
+          placeholder:
+            'exemple@email.com',
+
+          keyboardType:
+            'email-address',
+
+          autoCapitalize:
+            'none',
+
+          autoCorrect:
+            false,
+
+          returnKeyType:
+            'next',
+
+          error:
+            errors.email,
+
+          inputRef:
+            emailInputRef,
+
+          onSubmitEditing:
+            focusPassword,
+        })}
+
+        {/* ====================================================
+            PASSWORD
+        ==================================================== */}
+
+        {renderInput({
+          label:
+            'Mot de passe',
+
+          icon:
+            'lock-closed-outline',
+
+          value:
+            password,
+
+          onChangeText:
+            handlePasswordChange,
+
+          onBlur:
+            handlePasswordBlur,
+
+          placeholder:
+            'Votre mot de passe',
+
+          secureTextEntry:
+            !showPassword,
+
+          autoCapitalize:
+            'none',
+
+          autoCorrect:
+            false,
+
+          returnKeyType:
+            'done',
+
+          onSubmitEditing:
+            handleLogin,
+
+          error:
+            errors.password,
+
+          inputRef:
+            passwordInputRef,
+
+          rightAction: (
+            <TouchableOpacity
+              onPress={() => {
+                setShowPassword(
+                  previous =>
+                    !previous
+                );
+
+                showToast(
+                  'info',
+                  showPassword
+                    ? 'Mot de passe masqué.'
+                    : 'Mot de passe affiché.',
+                  1800
+                );
+              }}
+              style={
+                styles.eyeButton
+              }
+              disabled={
+                isLoading
+              }
+              hitSlop={{
+                top: 10,
+                bottom: 10,
+                left: 10,
+                right: 10,
+              }}
+            >
+              <Ionicons
+                name={
+                  showPassword
+                    ? 'eye-off-outline'
+                    : 'eye-outline'
+                }
+                size={21}
+                color={
+                  isDark
+                    ? '#9CA3AF'
+                    : '#6B7280'
+                }
+              />
+            </TouchableOpacity>
+          ),
+        })}
+
+        {/* ====================================================
+            FORGOT PASSWORD
+        ==================================================== */}
+
+        <TouchableOpacity
+          style={
+            styles.forgotPassword
+          }
+          onPress={() => {
+            Keyboard.dismiss();
+
+            showToast(
+              'info',
+              'Ouverture de la récupération du mot de passe...',
+              1500
+            );
+
+            setTimeout(() => {
+              navigation.navigate(
+                'ForgotPassword'
+              );
+            }, 250);
+          }}
+          disabled={
+            isLoading
+          }
+          activeOpacity={0.7}
+        >
+          <Text
+            style={
+              styles.forgotPasswordText
+            }
           >
-            <Ionicons
-              name="alert-circle-outline"
-              size={14}
-              color="#EF4444"
+            Mot de passe oublié ?
+          </Text>
+        </TouchableOpacity>
+
+        {/* ====================================================
+            LOGIN BUTTON
+        ==================================================== */}
+
+        <TouchableOpacity
+          style={[
+            styles.loginButton,
+            isLoading &&
+              styles.loginButtonDisabled,
+          ]}
+          onPress={
+            handleLogin
+          }
+          disabled={
+            isLoading
+          }
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={[
+              colors.primary,
+              colors.primaryLight,
+            ]}
+            start={{
+              x: 0,
+              y: 0,
+            }}
+            end={{
+              x: 1,
+              y: 0,
+            }}
+            style={
+              styles.loginGradient
+            }
+          >
+            {isLoading ? (
+              <>
+                <ActivityIndicator
+                  color="#FFFFFF"
+                  size="small"
+                />
+
+                <Text
+                  style={
+                    styles.loginButtonText
+                  }
+                >
+                  Connexion...
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text
+                  style={
+                    styles.loginButtonText
+                  }
+                >
+                  Se connecter
+                </Text>
+
+                <Ionicons
+                  name="arrow-forward"
+                  size={20}
+                  color="#FFFFFF"
+                />
+              </>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* ====================================================
+            DIVIDER
+        ==================================================== */}
+
+        <View
+          style={
+            styles.dividerContainer
+          }
+        >
+          <View
+            style={[
+              styles.divider,
+              {
+                backgroundColor:
+                  isDark
+                    ? '#374151'
+                    : '#E5E7EB',
+              },
+            ]}
+          />
+
+          <Text
+            style={[
+              styles.dividerText,
+              {
+                color: isDark
+                  ? '#6B7280'
+                  : '#9CA3AF',
+              },
+            ]}
+          >
+            ou continuer avec
+          </Text>
+
+          <View
+            style={[
+              styles.divider,
+              {
+                backgroundColor:
+                  isDark
+                    ? '#374151'
+                    : '#E5E7EB',
+              },
+            ]}
+          />
+        </View>
+
+        {/* ====================================================
+            SOCIAL
+        ==================================================== */}
+
+        <View
+          style={
+            styles.socialContainer
+          }
+        >
+          <TouchableOpacity
+            style={[
+              styles.socialButton,
+              {
+                backgroundColor:
+                  isDark
+                    ? '#252733'
+                    : '#FFFFFF',
+
+                borderColor:
+                  isDark
+                    ? '#3A3F4D'
+                    : '#E5E7EB',
+              },
+            ]}
+            activeOpacity={0.8}
+            onPress={() =>
+              showToast(
+                'info',
+                'La connexion avec Google sera bientôt disponible.',
+                3500
+              )
+            }
+          >
+            <Image
+              source={require('../../../assets/icons/google.png')}
+              style={
+                styles.googleIcon
+              }
             />
 
             <Text
-              style={styles.errorText}
+              style={[
+                styles.socialButtonText,
+                {
+                  color: isDark
+                    ? '#FFFFFF'
+                    : '#1F2937',
+                },
+              ]}
             >
-              {error}
+              Google
             </Text>
-          </View>
-        ) : null}
-      </View>
-    );
-  };
+          </TouchableOpacity>
 
-  // ============================================================
-  // LOGIN FORM
-  // ============================================================
+          <TouchableOpacity
+            style={[
+              styles.socialButton,
+              styles.appleButton,
+            ]}
+            activeOpacity={0.8}
+            onPress={() =>
+              showToast(
+                'info',
+                'La connexion avec Apple sera bientôt disponible.',
+                3500
+              )
+            }
+          >
+            <Ionicons
+              name="logo-apple"
+              size={22}
+              color="#FFFFFF"
+            />
 
-  const renderLoginForm = () => (
-    <Animated.View
-      style={[
-        styles.formContainer,
-
-        isLargeScreen &&
-          styles.formContainerLarge,
-
-        {
-          opacity: fadeAnim,
-
-          transform: [
-            {
-              translateY: slideAnim,
-            },
-          ],
-        },
-      ]}
-    >
-      {/* FORM HEADER */}
-
-      <View style={styles.formHeader}>
-        <View
-          style={[
-            styles.formIcon,
-            {
-              backgroundColor:
-                colors.primary + '12',
-            },
-          ]}
-        >
-          <Ionicons
-            name="lock-open-outline"
-            size={25}
-            color={colors.primary}
-          />
+            <Text
+              style={
+                styles.appleButtonText
+              }
+            >
+              Apple
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        <Text
-          style={[
-            styles.formTitle,
-            {
-              color: isDark
-                ? '#FFFFFF'
-                : '#111827',
-            },
-          ]}
+        {/* ====================================================
+            REGISTER
+        ==================================================== */}
+
+        <View
+          style={
+            styles.registerContainer
+          }
         >
-          Bon retour parmi nous
-        </Text>
+          <Text
+            style={[
+              styles.registerText,
+              {
+                color: isDark
+                  ? '#9CA3AF'
+                  : '#6B7280',
+              },
+            ]}
+          >
+            Pas encore de compte ?
+          </Text>
 
-        <Text
-          style={[
-            styles.formSubtitle,
-            {
-              color: isDark
-                ? '#9CA3AF'
-                : '#6B7280',
-            },
-          ]}
-        >
-          Connectez-vous pour accéder à votre espace bien-être.
-        </Text>
-      </View>
-
-      {/* EMAIL */}
-
-      {renderInput({
-        field: 'email',
-        label: 'Adresse email',
-        icon: 'mail-outline',
-        value: email,
-        onChangeText: handleEmailChange,
-        onBlur: handleEmailBlur,
-        placeholder: 'exemple@email.com',
-        keyboardType: 'email-address',
-        autoCapitalize: 'none',
-        autoCorrect: false,
-        returnKeyType: 'next',
-        error: errors.email,
-        inputRef: emailInputRef,
-
-        onSubmitEditing: () => {
-          focusPassword();
-        },
-      })}
-
-      {/* PASSWORD */}
-
-      {renderInput({
-        field: 'password',
-        label: 'Mot de passe',
-        icon: 'lock-closed-outline',
-        value: password,
-        onChangeText: handlePasswordChange,
-        onBlur: handlePasswordBlur,
-        placeholder: 'Votre mot de passe',
-        secureTextEntry: !showPassword,
-        autoCapitalize: 'none',
-        autoCorrect: false,
-        returnKeyType: 'done',
-        onSubmitEditing: handleLogin,
-        error: errors.password,
-        inputRef: passwordInputRef,
-
-        rightAction: (
           <TouchableOpacity
             onPress={() => {
-              setShowPassword(
-                (prev) => !prev
-              );
+              Keyboard.dismiss();
 
               showToast(
                 'info',
-                showPassword
-                  ? 'Mot de passe masqué.'
-                  : 'Mot de passe affiché.',
-                1800
+                'Ouverture de la création de compte...',
+                1500
               );
+
+              setTimeout(() => {
+                navigation.navigate(
+                  'Register'
+                );
+              }, 250);
             }}
-            style={styles.eyeButton}
-            disabled={isLoading}
-            hitSlop={{
-              top: 10,
-              bottom: 10,
-              left: 10,
-              right: 10,
-            }}
+            disabled={
+              isLoading
+            }
           >
-            <Ionicons
-              name={
-                showPassword
-                  ? 'eye-off-outline'
-                  : 'eye-outline'
+            <Text
+              style={
+                styles.registerLink
               }
-              size={21}
-              color={
-                isDark
-                  ? '#9CA3AF'
-                  : '#6B7280'
-              }
-            />
+            >
+              Créer un compte
+            </Text>
           </TouchableOpacity>
-        ),
-      })}
+        </View>
 
-      {/* FORGOT PASSWORD */}
-
-      <TouchableOpacity
-        style={
-          styles.forgotPassword
-        }
-        onPress={() => {
-          Keyboard.dismiss();
-
-          showToast(
-            'info',
-            'Ouverture de la récupération du mot de passe...',
-            1500
-          );
-
-          setTimeout(() => {
-            navigation.navigate(
-              'ForgotPassword'
-            );
-          }, 250);
-        }}
-        disabled={isLoading}
-        activeOpacity={0.7}
-      >
-        <Text
-          style={
-            styles.forgotPasswordText
-          }
-        >
-          Mot de passe oublié ?
-        </Text>
-      </TouchableOpacity>
-
-      {/* LOGIN BUTTON */}
-
-      <TouchableOpacity
-        style={[
-          styles.loginButton,
-          isLoading &&
-            styles.loginButtonDisabled,
-        ]}
-        onPress={handleLogin}
-        disabled={isLoading}
-        activeOpacity={0.85}
-      >
-        <LinearGradient
-          colors={[
-            colors.primary,
-            colors.primaryLight,
-          ]}
-          start={{
-            x: 0,
-            y: 0,
-          }}
-          end={{
-            x: 1,
-            y: 0,
-          }}
-          style={styles.loginGradient}
-        >
-          {isLoading ? (
-            <>
-              <ActivityIndicator
-                color="#FFFFFF"
-                size="small"
-              />
-
-              <Text
-                style={
-                  styles.loginButtonText
-                }
-              >
-                Connexion...
-              </Text>
-            </>
-          ) : (
-            <>
-              <Text
-                style={
-                  styles.loginButtonText
-                }
-              >
-                Se connecter
-              </Text>
-
-              <Ionicons
-                name="arrow-forward"
-                size={20}
-                color="#FFFFFF"
-              />
-            </>
-          )}
-        </LinearGradient>
-      </TouchableOpacity>
-
-      {/* DIVIDER */}
-
-      <View
-        style={styles.dividerContainer}
-      >
-        <View
-          style={[
-            styles.divider,
-            {
-              backgroundColor:
-                isDark
-                  ? '#374151'
-                  : '#E5E7EB',
-            },
-          ]}
-        />
-
-        <Text
-          style={[
-            styles.dividerText,
-            {
-              color: isDark
-                ? '#6B7280'
-                : '#9CA3AF',
-            },
-          ]}
-        >
-          ou continuer avec
-        </Text>
+        {/* ====================================================
+            SECURITY
+        ==================================================== */}
 
         <View
           style={[
-            styles.divider,
+            styles.securityBox,
             {
               backgroundColor:
                 isDark
-                  ? '#374151'
-                  : '#E5E7EB',
-            },
-          ]}
-        />
-      </View>
-
-      {/* SOCIAL LOGIN */}
-
-      <View
-        style={styles.socialContainer}
-      >
-        <TouchableOpacity
-          style={[
-            styles.socialButton,
-            {
-              backgroundColor:
-                isDark
-                  ? '#2D2D3D'
-                  : '#FFFFFF',
+                  ? '#20232D'
+                  : '#F8FAFC',
 
               borderColor:
                 isDark
@@ -957,568 +1404,481 @@ const LoginScreen = ({ navigation }) => {
                   : '#E5E7EB',
             },
           ]}
-          activeOpacity={0.8}
-          onPress={() =>
-            showToast(
-              'info',
-              'La connexion avec Google sera bientôt disponible.',
-              3500
-            )
-          }
         >
-          <Image
-            source={require('../../../assets/icons/google.png')}
-            style={styles.googleIcon}
+          <Ionicons
+            name="shield-checkmark-outline"
+            size={18}
+            color={
+              colors.primary
+            }
           />
 
           <Text
             style={[
-              styles.socialButtonText,
+              styles.securityText,
               {
                 color: isDark
-                  ? '#FFFFFF'
-                  : '#1F2937',
+                  ? '#9CA3AF'
+                  : '#64748B',
               },
             ]}
           >
-            Google
+            Vos informations sont
+            protégées et sécurisées.
           </Text>
-        </TouchableOpacity>
+        </View>
+      </Animated.View>
+    );
 
-        <TouchableOpacity
-          style={[
-            styles.socialButton,
-            styles.appleButton,
-          ]}
-          activeOpacity={0.8}
+  // ==========================================================
+  // MOBILE VERSION
+  // ==========================================================
+
+  const renderMobile =
+    () => (
+      <KeyboardAvoidingView
+        style={
+          styles.keyboardView
+        }
+        behavior={
+          IS_IOS
+            ? 'padding'
+            : 'height'
+        }
+        keyboardVerticalOffset={
+          0
+        }
+      >
+        <TouchableWithoutFeedback
           onPress={() =>
-            showToast(
-              'info',
-              'La connexion avec Apple sera bientôt disponible.',
-              3500
-            )
+            Keyboard.dismiss()
           }
+          accessible={false}
         >
-          <Ionicons
-            name="logo-apple"
-            size={22}
-            color="#FFFFFF"
-          />
-
-          <Text
+          <ScrollView
+            ref={
+              scrollViewRef
+            }
             style={
-              styles.appleButtonText
+              styles.mobileScroll
+            }
+            contentContainerStyle={[
+              styles.mobileScrollContent,
+
+              isShortScreen &&
+                styles.mobileScrollShort,
+            ]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={
+              IS_IOS
+                ? 'interactive'
+                : 'on-drag'
+            }
+            showsVerticalScrollIndicator={
+              false
+            }
+            automaticallyAdjustKeyboardInsets={
+              IS_IOS
+            }
+            contentInsetAdjustmentBehavior="never"
+            nestedScrollEnabled
+            bounces={false}
+            removeClippedSubviews={
+              false
             }
           >
-            Apple
-          </Text>
-        </TouchableOpacity>
-      </View>
+            {/* ==================================================
+                MOBILE HEADER
+            ================================================== */}
 
-      {/* REGISTER */}
+            <Animatable.View
+              animation="fadeInDown"
+              duration={600}
+            >
+              <LinearGradient
+                colors={[
+                  colors.primary,
+                  colors.primaryLight,
+                ]}
+                start={{
+                  x: 0,
+                  y: 0,
+                }}
+                end={{
+                  x: 1,
+                  y: 1,
+                }}
+                style={[
+                  styles.mobileHeader,
 
+                  isVerySmallScreen &&
+                    styles.mobileHeaderSmall,
+                ]}
+              >
+                <TouchableOpacity
+                  style={
+                    styles.mobileBackButton
+                  }
+                  onPress={() => {
+                    Keyboard.dismiss();
+
+                    navigation.goBack();
+                  }}
+                  hitSlop={{
+                    top: 10,
+                    bottom: 10,
+                    left: 10,
+                    right: 10,
+                  }}
+                >
+                  <Ionicons
+                    name="arrow-back"
+                    size={23}
+                    color="#FFFFFF"
+                  />
+                </TouchableOpacity>
+
+                <View
+                  style={
+                    styles.mobileHeaderContent
+                  }
+                >
+                  <Image
+                    source={require('../../../assets/logo.png')}
+                    style={[
+                      styles.mobileLogo,
+
+                      isVerySmallScreen &&
+                        styles.mobileLogoSmall,
+                    ]}
+                    resizeMode="contain"
+                  />
+
+                  <Text
+                    style={[
+                      styles.mobileAppName,
+
+                      isVerySmallScreen &&
+                        styles.mobileAppNameSmall,
+                    ]}
+                  >
+                    Mada Bien-être
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.mobileHeaderSubtitle
+                    }
+                  >
+                    Massage à domicile premium
+                  </Text>
+                </View>
+              </LinearGradient>
+            </Animatable.View>
+
+            {/* ==================================================
+                FORM
+            ================================================== */}
+
+            {renderLoginForm()}
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    );
+
+  // ==========================================================
+  // DESKTOP WEB VERSION
+  // ==========================================================
+
+  const renderWeb =
+    () => (
       <View
-        style={styles.registerContainer}
+        style={
+          styles.webContainer
+        }
       >
-        <Text
-          style={[
-            styles.registerText,
-            {
-              color: isDark
-                ? '#9CA3AF'
-                : '#6B7280',
-            },
-          ]}
+        {/* ====================================================
+            LEFT PANEL
+        ==================================================== */}
+
+        <View
+          style={
+            styles.webLeftPanel
+          }
         >
-          Pas encore de compte ?
-        </Text>
-
-        <TouchableOpacity
-          onPress={() => {
-            Keyboard.dismiss();
-
-            showToast(
-              'info',
-              'Ouverture de la création de compte...',
-              1500
-            );
-
-            setTimeout(() => {
-              navigation.navigate(
-                'Register'
-              );
-            }, 250);
-          }}
-          disabled={isLoading}
-        >
-          <Text
+          <LinearGradient
+            colors={[
+              colors.primary,
+              colors.primaryLight,
+            ]}
+            start={{
+              x: 0,
+              y: 0,
+            }}
+            end={{
+              x: 1,
+              y: 1,
+            }}
             style={
-              styles.registerLink
+              styles.webLeftGradient
             }
           >
-            Créer un compte
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* SECURITY */}
-
-      <View
-        style={[
-          styles.securityBox,
-          {
-            backgroundColor: isDark
-              ? '#252535'
-              : '#F8FAFC',
-
-            borderColor: isDark
-              ? '#374151'
-              : '#E5E7EB',
-          },
-        ]}
-      >
-        <Ionicons
-          name="shield-checkmark-outline"
-          size={18}
-          color={colors.primary}
-        />
-
-        <Text
-          style={[
-            styles.securityText,
-            {
-              color: isDark
-                ? '#9CA3AF'
-                : '#64748B',
-            },
-          ]}
-        >
-          Vos informations sont protégées et sécurisées.
-        </Text>
-      </View>
-    </Animated.View>
-  );
-
-  // ============================================================
-  // MOBILE
-  // ============================================================
-
-  const renderMobile = () => (
-    <KeyboardAvoidingView
-      style={styles.keyboardView}
-      behavior={
-        isIOS
-          ? 'padding'
-          : 'height'
-      }
-      keyboardVerticalOffset={
-        isIOS
-          ? 0
-          : 0
-      }
-    >
-      <TouchableWithoutFeedback
-        onPress={() => {
-          Keyboard.dismiss();
-        }}
-        accessible={false}
-      >
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.mobileScroll}
-          contentContainerStyle={
-            styles.mobileScrollContent
-          }
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={
-            isIOS
-              ? 'interactive'
-              : 'on-drag'
-          }
-          showsVerticalScrollIndicator={false}
-          automaticallyAdjustKeyboardInsets={
-            isIOS
-          }
-          automaticallyAdjustContentInsets={
-            false
-          }
-          contentInsetAdjustmentBehavior="never"
-          nestedScrollEnabled={true}
-          bounces={false}
-          scrollEventThrottle={16}
-          removeClippedSubviews={false}
-        >
-          {/* MOBILE HEADER */}
-
-          <Animatable.View
-            animation="fadeInDown"
-            duration={650}
-          >
-            <LinearGradient
-              colors={[
-                colors.primary,
-                colors.primaryLight,
-              ]}
-              start={{
-                x: 0,
-                y: 0,
-              }}
-              end={{
-                x: 1,
-                y: 1,
-              }}
+            <View
               style={
-                styles.mobileHeader
+                styles.webLeftContent
               }
             >
-              <TouchableOpacity
-                style={
-                  styles.mobileBackButton
-                }
-                onPress={() => {
-                  Keyboard.dismiss();
-
-                  showToast(
-                    'info',
-                    'Retour...',
-                    1000
-                  );
-
-                  setTimeout(() => {
-                    navigation.goBack();
-                  }, 150);
-                }}
-                hitSlop={{
-                  top: 10,
-                  bottom: 10,
-                  left: 10,
-                  right: 10,
-                }}
-              >
-                <Ionicons
-                  name="arrow-back"
-                  size={23}
-                  color="#FFFFFF"
-                />
-              </TouchableOpacity>
+              {/* LOGO */}
 
               <View
                 style={
-                  styles.mobileHeaderContent
+                  styles.webLogoContainer
                 }
               >
-                <Image
-                  source={require('../../../assets/logo.png')}
+                <View
                   style={
-                    styles.mobileLogo
+                    styles.webLogoIcon
                   }
-                  resizeMode="contain"
-                />
+                >
+                  <Image
+                    source={require('../../../assets/logo.png')}
+                    style={
+                      styles.webLogoImage
+                    }
+                    resizeMode="contain"
+                  />
+                </View>
 
                 <Text
                   style={
-                    styles.mobileAppName
+                    styles.webLogoText
                   }
                 >
                   Mada Bien-être
                 </Text>
+              </View>
+
+              {/* HERO */}
+
+              <View
+                style={
+                  styles.webHero
+                }
+              >
+                <Text
+                  style={
+                    styles.webHeroTitle
+                  }
+                >
+                  Votre bien-être,
+                  {'\n'}
+                  commence ici.
+                </Text>
 
                 <Text
                   style={
-                    styles.mobileHeaderSubtitle
+                    styles.webHeroSubtitle
                   }
                 >
-                  Massage à domicile premium
+                  Retrouvez votre espace
+                  personnel et profitez
+                  d'une expérience de
+                  massage à domicile simple,
+                  sécurisée et personnalisée.
                 </Text>
               </View>
-            </LinearGradient>
-          </Animatable.View>
 
-          {/* FORM */}
+              {/* FEATURES */}
 
-          {renderLoginForm()}
-        </ScrollView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
-  );
+              <View
+                style={
+                  styles.webFeatures
+                }
+              >
+                <View
+                  style={
+                    styles.webFeature
+                  }
+                >
+                  <View
+                    style={
+                      styles.webFeatureIcon
+                    }
+                  >
+                    <Ionicons
+                      name="location-outline"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                  </View>
 
-  // ============================================================
-  // WEB
-  // ============================================================
+                  <View
+                    style={
+                      styles.webFeatureContent
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.webFeatureTitle
+                      }
+                    >
+                      Thérapeutes à proximité
+                    </Text>
 
-  const renderWeb = () => (
-    <View
-      style={styles.webContainer}
-    >
-      {/* LEFT PANEL */}
+                    <Text
+                      style={
+                        styles.webFeatureText
+                      }
+                    >
+                      Trouvez facilement un
+                      professionnel près de
+                      chez vous.
+                    </Text>
+                  </View>
+                </View>
 
-      <View
-        style={styles.webLeftPanel}
-      >
-        <LinearGradient
-          colors={[
-            colors.primary,
-            colors.primaryLight,
-          ]}
-          start={{
-            x: 0,
-            y: 0,
-          }}
-          end={{
-            x: 1,
-            y: 1,
-          }}
+                <View
+                  style={
+                    styles.webFeature
+                  }
+                >
+                  <View
+                    style={
+                      styles.webFeatureIcon
+                    }
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                  </View>
+
+                  <View
+                    style={
+                      styles.webFeatureContent
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.webFeatureTitle
+                      }
+                    >
+                      Réservation simplifiée
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.webFeatureText
+                      }
+                    >
+                      Organisez vos séances
+                      directement depuis
+                      votre compte.
+                    </Text>
+                  </View>
+                </View>
+
+                <View
+                  style={
+                    styles.webFeature
+                  }
+                >
+                  <View
+                    style={
+                      styles.webFeatureIcon
+                    }
+                  >
+                    <Ionicons
+                      name="shield-checkmark-outline"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                  </View>
+
+                  <View
+                    style={
+                      styles.webFeatureContent
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.webFeatureTitle
+                      }
+                    >
+                      Expérience sécurisée
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.webFeatureText
+                      }
+                    >
+                      Vos données personnelles
+                      restent protégées.
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* FOOTER */}
+
+              <View
+                style={
+                  styles.webLeftFooter
+                }
+              >
+                <Text
+                  style={
+                    styles.webFooterText
+                  }
+                >
+                  © 2026 Mada Bien-être
+                </Text>
+
+                <Text
+                  style={
+                    styles.webFooterText
+                  }
+                >
+                  Bien-être • Confiance •
+                  Proximité
+                </Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+
+        {/* ====================================================
+            RIGHT PANEL
+        ==================================================== */}
+
+        <ScrollView
           style={
-            styles.webLeftGradient
+            styles.webRightPanel
           }
+          contentContainerStyle={
+            styles.webRightScrollContent
+          }
+          showsVerticalScrollIndicator={
+            false
+          }
+          keyboardShouldPersistTaps="handled"
         >
           <View
             style={
-              styles.webLeftContent
+              styles.webRightInner
             }
           >
-            {/* LOGO */}
-
-            <View
-              style={
-                styles.webLogoContainer
-              }
-            >
-              <View
-                style={
-                  styles.webLogoIcon
-                }
-              >
-                <Image
-                  source={require('../../../assets/logo.png')}
-                  style={
-                    styles.webLogoImage
-                  }
-                  resizeMode="contain"
-                />
-              </View>
-
-              <Text
-                style={
-                  styles.webLogoText
-                }
-              >
-                Mada Bien-être
-              </Text>
-            </View>
-
-            {/* HERO */}
-
-            <View
-              style={
-                styles.webHero
-              }
-            >
-              <Text
-                style={
-                  styles.webHeroTitle
-                }
-              >
-                Votre bien-être,
-                {'\n'}
-                commence ici.
-              </Text>
-
-              <Text
-                style={
-                  styles.webHeroSubtitle
-                }
-              >
-                Retrouvez votre espace personnel
-                et profitez d'une expérience de
-                massage à domicile simple,
-                sécurisée et personnalisée.
-              </Text>
-            </View>
-
-            {/* FEATURES */}
-
-            <View
-              style={
-                styles.webFeatures
-              }
-            >
-              <View
-                style={
-                  styles.webFeature
-                }
-              >
-                <View
-                  style={
-                    styles.webFeatureIcon
-                  }
-                >
-                  <Ionicons
-                    name="location-outline"
-                    size={20}
-                    color="#FFFFFF"
-                  />
-                </View>
-
-                <View
-                  style={
-                    styles.webFeatureContent
-                  }
-                >
-                  <Text
-                    style={
-                      styles.webFeatureTitle
-                    }
-                  >
-                    Thérapeutes à proximité
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.webFeatureText
-                    }
-                  >
-                    Trouvez facilement un professionnel près de vous.
-                  </Text>
-                </View>
-              </View>
-
-              <View
-                style={
-                  styles.webFeature
-                }
-              >
-                <View
-                  style={
-                    styles.webFeatureIcon
-                  }
-                >
-                  <Ionicons
-                    name="calendar-outline"
-                    size={20}
-                    color="#FFFFFF"
-                  />
-                </View>
-
-                <View
-                  style={
-                    styles.webFeatureContent
-                  }
-                >
-                  <Text
-                    style={
-                      styles.webFeatureTitle
-                    }
-                  >
-                    Réservation simplifiée
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.webFeatureText
-                    }
-                  >
-                    Organisez vos séances directement depuis votre compte.
-                  </Text>
-                </View>
-              </View>
-
-              <View
-                style={
-                  styles.webFeature
-                }
-              >
-                <View
-                  style={
-                    styles.webFeatureIcon
-                  }
-                >
-                  <Ionicons
-                    name="shield-checkmark-outline"
-                    size={20}
-                    color="#FFFFFF"
-                  />
-                </View>
-
-                <View
-                  style={
-                    styles.webFeatureContent
-                  }
-                >
-                  <Text
-                    style={
-                      styles.webFeatureTitle
-                    }
-                  >
-                    Expérience sécurisée
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.webFeatureText
-                    }
-                  >
-                    Vos données personnelles restent protégées.
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* FOOTER */}
-
-            <View
-              style={
-                styles.webLeftFooter
-              }
-            >
-              <Text
-                style={
-                  styles.webFooterText
-                }
-              >
-                © 2026 Mada Bien-être
-              </Text>
-
-              <Text
-                style={
-                  styles.webFooterText
-                }
-              >
-                Bien-être • Confiance • Proximité
-              </Text>
-            </View>
+            {renderLoginForm()}
           </View>
-        </LinearGradient>
+        </ScrollView>
       </View>
+    );
 
-      {/* RIGHT PANEL */}
-
-      <ScrollView
-        style={
-          styles.webRightPanel
-        }
-        contentContainerStyle={
-          styles.webRightScrollContent
-        }
-        showsVerticalScrollIndicator={
-          false
-        }
-        keyboardShouldPersistTaps="handled"
-      >
-        <View
-          style={
-            styles.webRightInner
-          }
-        >
-          {renderLoginForm()}
-        </View>
-      </ScrollView>
-    </View>
-  );
-
-  // ============================================================
+  // ==========================================================
   // MAIN
-  // ============================================================
+  // ==========================================================
 
   return (
     <SafeAreaView
@@ -1543,13 +1903,36 @@ const LoginScreen = ({ navigation }) => {
       />
 
       <Toast
-        visible={toast.visible}
-        type={toast.type}
-        message={toast.message}
-        onDismiss={dismissToast}
+        visible={
+          toast.visible
+        }
+        type={
+          toast.type
+        }
+        message={
+          toast.message
+        }
+        onDismiss={
+          dismissToast
+        }
       />
 
-      {isLargeScreen
+      {/* ======================================================
+          RESPONSIVE SWITCH
+
+          IMPORTANT:
+
+          Web >= 1024px
+              -> WEB DESKTOP
+
+          Web < 1024px
+              -> MOBILE / ANDROID VERSION
+
+          Android / iOS
+              -> MOBILE / ANDROID VERSION
+      ====================================================== */}
+
+      {isDesktopWeb
         ? renderWeb()
         : renderMobile()}
     </SafeAreaView>
@@ -1585,53 +1968,51 @@ const styles = StyleSheet.create({
     right: 0,
 
     zIndex: 99999,
-
     elevation: 99999,
 
     alignItems: 'center',
 
     pointerEvents: 'box-none',
 
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
 
-    paddingTop:
-      isIOS
-        ? 52
-        : isWeb
-        ? 22
-        : 38,
+    paddingTop: IS_IOS
+      ? 52
+      : IS_WEB
+      ? 22
+      : 38,
   },
 
   toastContainer: {
     width: '100%',
 
-    maxWidth: 520,
+    maxWidth: 560,
 
-    minHeight: 66,
+    minHeight: 64,
 
-    borderRadius: 17,
+    borderRadius: 16,
 
     borderWidth: 1,
 
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
 
     flexDirection: 'row',
 
     alignItems: 'center',
 
-    shadowColor: '#000000',
+    shadowColor: '#000',
 
     shadowOffset: {
       width: 0,
-      height: 7,
+      height: 6,
     },
 
     shadowOpacity: 0.14,
 
-    shadowRadius: 16,
+    shadowRadius: 15,
 
-    elevation: 12,
+    elevation: 10,
   },
 
   toastIconContainer: {
@@ -1643,21 +2024,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
 
-    marginRight: 11,
+    marginRight: 10,
   },
 
   toastMessageContainer: {
     flex: 1,
-
-    justifyContent: 'center',
   },
 
   toastMessage: {
-    fontSize: 13.5,
+    fontSize: 13,
 
-    lineHeight: 19,
+    lineHeight: 18,
 
-    fontFamily: APP_FONT_MEDIUM,
+    fontFamily:
+      APP_FONT_MEDIUM,
   },
 
   toastClose: {
@@ -1679,28 +2059,18 @@ const styles = StyleSheet.create({
   mobileScroll: {
     flex: 1,
 
-    /*
-     * IMPORTANT:
-     * Mamela ScrollView hitazona tsara ny formulaire
-     * rehefa miseho/miafina ny clavier Android.
-     */
-    backgroundColor: 'transparent',
+    backgroundColor:
+      'transparent',
   },
 
   mobileScrollContent: {
     flexGrow: 1,
 
-    /*
-     * Espace fanampiny ambany mba tsy hifatratra amin'ny
-     * clavier ny bouton farany.
-     */
-    paddingBottom: 100,
+    paddingBottom: 80,
+  },
 
-    /*
-     * Manome toerana ahafahana manao scroll tsara
-     * rehefa misokatra ny clavier.
-     */
-    paddingTop: 0,
+  mobileScrollShort: {
+    paddingBottom: 110,
   },
 
   // ==========================================================
@@ -1709,15 +2079,25 @@ const styles = StyleSheet.create({
 
   mobileHeader: {
     paddingTop:
-      isIOS
-        ? 52
+      IS_IOS
+        ? 48
         : 34,
 
-    paddingBottom: 30,
+    paddingBottom: 28,
+
     paddingHorizontal: 20,
 
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
+  },
+
+  mobileHeaderSmall: {
+    paddingTop:
+      IS_IOS
+        ? 42
+        : 28,
+
+    paddingBottom: 22,
   },
 
   mobileBackButton: {
@@ -1732,7 +2112,7 @@ const styles = StyleSheet.create({
     backgroundColor:
       'rgba(255,255,255,0.14)',
 
-    marginBottom: 14,
+    marginBottom: 13,
   },
 
   mobileHeaderContent: {
@@ -1746,18 +2126,30 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
+  mobileLogoSmall: {
+    width: 54,
+    height: 54,
+
+    marginBottom: 6,
+  },
+
   mobileAppName: {
     fontSize: 23,
 
-    fontFamily: APP_FONT_BOLD,
+    fontFamily:
+      APP_FONT_BOLD,
 
     color: '#FFFFFF',
 
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
+  },
+
+  mobileAppNameSmall: {
+    fontSize: 20,
   },
 
   mobileHeaderSubtitle: {
-    fontSize: 13,
+    fontSize: 12.5,
 
     fontFamily: APP_FONT,
 
@@ -1765,6 +2157,8 @@ const styles = StyleSheet.create({
       'rgba(255,255,255,0.82)',
 
     marginTop: 4,
+
+    textAlign: 'center',
   },
 
   // ==========================================================
@@ -1778,15 +2172,18 @@ const styles = StyleSheet.create({
 
     paddingTop: 24,
 
-    /*
-     * IMPORTANT ANDROID:
-     * Espace ampy ambany hahafahan'ny utilisateur
-     * mahita ny bouton rehefa misokatra ny clavier.
-     */
     paddingBottom: 40,
   },
 
-  formContainerLarge: {
+  formContainerSmall: {
+    paddingHorizontal: 16,
+
+    paddingTop: 20,
+
+    paddingBottom: 35,
+  },
+
+  formContainerDesktop: {
     paddingHorizontal: 0,
 
     paddingTop: 0,
@@ -1795,7 +2192,7 @@ const styles = StyleSheet.create({
   },
 
   formHeader: {
-    marginBottom: 26,
+    marginBottom: 25,
   },
 
   formIcon: {
@@ -1807,13 +2204,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
 
-    marginBottom: 15,
+    marginBottom: 14,
   },
 
   formTitle: {
     fontSize: 25,
 
-    fontFamily: APP_FONT_BOLD,
+    fontFamily:
+      APP_FONT_BOLD,
 
     lineHeight: 32,
 
@@ -1835,13 +2233,14 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   inputGroup: {
-    marginBottom: 18,
+    marginBottom: 17,
   },
 
   inputLabel: {
     fontSize: 13,
 
-    fontFamily: APP_FONT_MEDIUM,
+    fontFamily:
+      APP_FONT_MEDIUM,
 
     marginBottom: 7,
   },
@@ -1851,7 +2250,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 13,
 
-    borderWidth: 1.4,
+    borderWidth: 1.3,
 
     paddingHorizontal: 14,
 
@@ -1860,23 +2259,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  /*
-   * IMPORTANT:
-   * Tsy misy intsony inputWrapperFocused.
-   * Tsy misy border rehefa focused.
-   */
-
   inputWrapperError: {
-    shadowColor: '#EF4444',
-
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-
-    shadowOpacity: 0.08,
-
-    shadowRadius: 3,
+    borderWidth: 1.5,
   },
 
   input: {
@@ -1888,19 +2272,12 @@ const styles = StyleSheet.create({
 
     fontFamily: APP_FONT,
 
-    paddingHorizontal: 11,
+    paddingHorizontal: 10,
 
     paddingVertical: 10,
 
-    /*
-     * Android:
-     * manampy amin'ny vertical alignment.
-     */
     textAlignVertical: 'center',
 
-    /*
-     * Web only.
-     */
     outlineStyle: 'none',
   },
 
@@ -1930,6 +2307,8 @@ const styles = StyleSheet.create({
     fontFamily: APP_FONT,
 
     lineHeight: 17,
+
+    flex: 1,
   },
 
   // ==========================================================
@@ -1939,19 +2318,21 @@ const styles = StyleSheet.create({
   forgotPassword: {
     alignSelf: 'flex-end',
 
-    marginTop: -4,
+    marginTop: -3,
 
-    marginBottom: 20,
+    marginBottom: 19,
 
     paddingVertical: 5,
   },
 
   forgotPasswordText: {
-    color: colors.primary,
+    color:
+      colors.primary,
 
     fontSize: 13,
 
-    fontFamily: APP_FONT_BOLD,
+    fontFamily:
+      APP_FONT_BOLD,
   },
 
   // ==========================================================
@@ -1965,14 +2346,15 @@ const styles = StyleSheet.create({
 
     marginBottom: 20,
 
-    shadowColor: colors.primary,
+    shadowColor:
+      colors.primary,
 
     shadowOffset: {
       width: 0,
       height: 5,
     },
 
-    shadowOpacity: 0.24,
+    shadowOpacity: 0.22,
 
     shadowRadius: 10,
 
@@ -2002,7 +2384,8 @@ const styles = StyleSheet.create({
 
     fontSize: 16,
 
-    fontFamily: APP_FONT_BOLD,
+    fontFamily:
+      APP_FONT_BOLD,
   },
 
   // ==========================================================
@@ -2013,8 +2396,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
 
     alignItems: 'center',
-
-    marginVertical: 4,
 
     marginBottom: 20,
   },
@@ -2040,9 +2421,9 @@ const styles = StyleSheet.create({
   socialContainer: {
     flexDirection: 'row',
 
-    gap: 12,
+    gap: 10,
 
-    marginBottom: 24,
+    marginBottom: 23,
   },
 
   socialButton: {
@@ -2060,7 +2441,7 @@ const styles = StyleSheet.create({
 
     justifyContent: 'center',
 
-    gap: 9,
+    gap: 8,
   },
 
   googleIcon: {
@@ -2071,13 +2452,16 @@ const styles = StyleSheet.create({
   socialButtonText: {
     fontSize: 14,
 
-    fontFamily: APP_FONT_MEDIUM,
+    fontFamily:
+      APP_FONT_MEDIUM,
   },
 
   appleButton: {
-    backgroundColor: '#000000',
+    backgroundColor:
+      '#000000',
 
-    borderColor: '#000000',
+    borderColor:
+      '#000000',
   },
 
   appleButtonText: {
@@ -2085,7 +2469,8 @@ const styles = StyleSheet.create({
 
     fontSize: 14,
 
-    fontFamily: APP_FONT_MEDIUM,
+    fontFamily:
+      APP_FONT_MEDIUM,
   },
 
   // ==========================================================
@@ -2101,11 +2486,11 @@ const styles = StyleSheet.create({
 
     flexWrap: 'wrap',
 
-    marginBottom: 20,
+    marginBottom: 19,
   },
 
   registerText: {
-    fontSize: 14,
+    fontSize: 13.5,
 
     fontFamily: APP_FONT,
 
@@ -2113,11 +2498,13 @@ const styles = StyleSheet.create({
   },
 
   registerLink: {
-    color: colors.primary,
+    color:
+      colors.primary,
 
-    fontSize: 14,
+    fontSize: 13.5,
 
-    fontFamily: APP_FONT_BOLD,
+    fontFamily:
+      APP_FONT_BOLD,
   },
 
   // ==========================================================
@@ -2151,7 +2538,7 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // WEB
+  // WEB DESKTOP
   // ==========================================================
 
   webContainer: {
@@ -2159,7 +2546,10 @@ const styles = StyleSheet.create({
 
     flexDirection: 'row',
 
-    backgroundColor: '#F8FAFC',
+    backgroundColor:
+      '#F8FAFC',
+
+    minHeight: 0,
   },
 
   // ==========================================================
@@ -2169,23 +2559,26 @@ const styles = StyleSheet.create({
   webLeftPanel: {
     flex: 1,
 
-    minHeight: '100vh',
-
     maxWidth: '50%',
+
+    minHeight: '100%',
+
+    overflow: 'hidden',
   },
 
   webLeftGradient: {
     flex: 1,
 
-    paddingHorizontal: 60,
+    paddingHorizontal: 55,
 
-    paddingVertical: 50,
+    paddingVertical: 45,
   },
 
   webLeftContent: {
     flex: 1,
 
-    justifyContent: 'space-between',
+    justifyContent:
+      'space-between',
 
     maxWidth: 600,
 
@@ -2226,7 +2619,8 @@ const styles = StyleSheet.create({
 
     fontSize: 22,
 
-    fontFamily: APP_FONT_BOLD,
+    fontFamily:
+      APP_FONT_BOLD,
 
     letterSpacing: 0.2,
   },
@@ -2236,32 +2630,33 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   webHero: {
-    marginVertical: 40,
+    marginVertical: 35,
   },
 
   webHeroTitle: {
     color: '#FFFFFF',
 
-    fontSize: 42,
+    fontSize: 40,
 
-    lineHeight: 50,
+    lineHeight: 49,
 
-    fontFamily: APP_FONT_BOLD,
+    fontFamily:
+      APP_FONT_BOLD,
 
-    marginBottom: 18,
+    marginBottom: 17,
   },
 
   webHeroSubtitle: {
     color:
       'rgba(255,255,255,0.84)',
 
-    fontSize: 16,
+    fontSize: 15,
 
-    lineHeight: 26,
+    lineHeight: 25,
 
     fontFamily: APP_FONT,
 
-    maxWidth: 520,
+    maxWidth: 510,
   },
 
   // ==========================================================
@@ -2269,7 +2664,7 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   webFeatures: {
-    gap: 18,
+    gap: 17,
   },
 
   webFeature: {
@@ -2303,7 +2698,8 @@ const styles = StyleSheet.create({
 
     fontSize: 14,
 
-    fontFamily: APP_FONT_BOLD,
+    fontFamily:
+      APP_FONT_BOLD,
 
     marginBottom: 3,
   },
@@ -2328,13 +2724,14 @@ const styles = StyleSheet.create({
   webLeftFooter: {
     flexDirection: 'row',
 
-    justifyContent: 'space-between',
+    justifyContent:
+      'space-between',
 
     alignItems: 'center',
 
-    marginTop: 40,
+    marginTop: 35,
 
-    paddingTop: 20,
+    paddingTop: 18,
 
     borderTopWidth: 1,
 
@@ -2360,17 +2757,21 @@ const styles = StyleSheet.create({
 
     maxWidth: '50%',
 
-    backgroundColor: '#FFFFFF',
+    backgroundColor:
+      '#FFFFFF',
+
+    minHeight: 0,
   },
 
   webRightScrollContent: {
     flexGrow: 1,
 
-    justifyContent: 'center',
+    justifyContent:
+      'center',
 
-    paddingHorizontal: 60,
+    paddingHorizontal: 55,
 
-    paddingVertical: 60,
+    paddingVertical: 50,
   },
 
   webRightInner: {

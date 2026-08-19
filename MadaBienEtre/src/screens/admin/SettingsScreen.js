@@ -1,159 +1,549 @@
 // src/screens/admin/SettingsScreen.js
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+//
+// ============================================================
+// SETTINGS SCREEN — ADMIN
+// ============================================================
+// ✅ Responsive Web / Android / iOS
+// ✅ Toast custom au lieu de Alert.alert()
+// ✅ Modal confirmation déconnexion avec icône log-out
+// ✅ Modal suppression photo avec icône trash
+// ✅ Upload photo Web + Native
+// ✅ Formulaire numérique avec saisie libre
+// ✅ Dark mode
+// ✅ Grille responsive desktop/tablette
+// ✅ Protection contre la perte du rôle utilisateur
+// ============================================================
+
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from 'react';
+
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Switch,
   TextInput,
   ActivityIndicator,
-  Alert,
   Animated,
-  Modal,
   SafeAreaView,
   Image,
   Platform,
 } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect } from '@react-navigation/native';
+
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { colors, spacing, typography } from '../../theme';
+
+import {
+  colors,
+  spacing,
+  typography,
+} from '../../theme';
+
 import Header from '../../components/common/Header';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
+import useResponsive from '../../hooks/useResponsive';
 import adminService from '../../services/adminService';
 
+const IS_WEB = Platform.OS === 'web';
+
+// ============================================================
+// CONFIGURATION
+// ============================================================
+
+const SETTINGS_MAX_WIDTH = 920;
+
+const NUMERIC_RULES = {
+  commissionRate: {
+    min: 0,
+    max: 100,
+  },
+
+  minPrice: {
+    min: 0,
+    max: 10000000,
+  },
+
+  maxDistance: {
+    min: 0,
+    max: 200,
+  },
+};
+
+// ============================================================
+// COMPONENT
+// ============================================================
+
 const SettingsScreen = ({ navigation }) => {
-  const { colors: themeColors, isDark, toggleTheme } = useTheme();
-  // ✅ CORRIGÉ : on utilise `updateProfile` (fusion locale sûre) au lieu
-  // de `updateUser` pour les mises à jour PARTIELLES (photo). Voir plus
-  // bas pour le détail du bug que ça corrige.
-  const { user, logout, token, updateProfile } = useAuth();
+  const {
+    colors: themeColors,
+    isDark,
+    toggleTheme,
+  } = useTheme();
+
+  const {
+    user,
+    logout,
+    updateProfile,
+  } = useAuth();
+
+  // ==========================================================
+  // RESPONSIVE
+  // ==========================================================
+
+  const {
+    isTablet,
+    isDesktop,
+    isLargeScreen,
+    horizontalPadding,
+  } = useResponsive();
+
+  const useTwoColumnGrid = isLargeScreen;
+
+  // ==========================================================
+  // STATES
+  // ==========================================================
 
   const [isLoading, setIsLoading] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [error, setError] = useState(null);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  // État pour la photo de profil
-  const [profileImage, setProfileImage] = useState(user?.profile_image || null);
+  const [isLoggingOut, setIsLoggingOut] =
+    useState(false);
+
+  const [showLogoutConfirm, setShowLogoutConfirm] =
+    useState(false);
+
+  const [showRemovePhotoConfirm, setShowRemovePhotoConfirm] =
+    useState(false);
+
+  const [error, setError] = useState(null);
+
+  const [uploadingPhoto, setUploadingPhoto] =
+    useState(false);
+
+  // ==========================================================
+  // PROFILE IMAGE
+  // ==========================================================
+
+  const [profileImage, setProfileImage] = useState(
+    user?.profile_image || null
+  );
+
+  // ==========================================================
+  // SETTINGS
+  // ==========================================================
 
   const [settings, setSettings] = useState({
     notifications: true,
     emailNotifications: true,
     smsNotifications: false,
     autoApprove: false,
+
     commissionRate: 10,
     minPrice: 25000,
     maxDistance: 10,
   });
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // ==========================================================
+  // NUMERIC INPUT BUFFER
+  // ==========================================================
 
-  // ============================================================
-  // CHARGEMENT DES PARAMÈTRES
-  // ============================================================
-  useFocusEffect(
-    useCallback(() => {
-      loadSettings();
-      // Mettre à jour la photo de profil si l'utilisateur change
-      if (user?.profile_image) {
-        setProfileImage(user.profile_image);
+  const [inputText, setInputText] = useState({
+    commissionRate: '10',
+    minPrice: '25000',
+    maxDistance: '10',
+  });
+
+  // ==========================================================
+  // ANIMATION
+  // ==========================================================
+
+  const fadeAnim =
+    useRef(new Animated.Value(0)).current;
+
+  // ==========================================================
+  // TOAST
+  // ==========================================================
+
+  const [toast, setToast] = useState(null);
+
+  const toastOpacity =
+    useRef(new Animated.Value(0)).current;
+
+  const toastTranslateY =
+    useRef(new Animated.Value(-20)).current;
+
+  const toastTimer =
+    useRef(null);
+
+  // ==========================================================
+  // SHOW TOAST
+  // ==========================================================
+
+  const showToast = useCallback(
+    (
+      message,
+      type = 'info',
+      duration = 3200
+    ) => {
+      if (toastTimer.current) {
+        clearTimeout(toastTimer.current);
       }
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }).start();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user])
+
+      setToast({
+        message,
+        type,
+      });
+
+      toastOpacity.setValue(0);
+      toastTranslateY.setValue(-20);
+
+      Animated.parallel([
+        Animated.timing(
+          toastOpacity,
+          {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }
+        ),
+
+        Animated.spring(
+          toastTranslateY,
+          {
+            toValue: 0,
+            tension: 90,
+            friction: 9,
+            useNativeDriver: true,
+          }
+        ),
+      ]).start();
+
+      toastTimer.current = setTimeout(() => {
+        Animated.timing(
+          toastOpacity,
+          {
+            toValue: 0,
+            duration: 180,
+            useNativeDriver: true,
+          }
+        ).start(() => {
+          setToast(null);
+        });
+      }, duration);
+    },
+    [
+      toastOpacity,
+      toastTranslateY,
+    ]
   );
 
-  const loadSettings = async () => {
-    try {
-      const data = await adminService.getAdminSettings().catch(() => null);
-      if (data) {
-        setSettings(data);
+  // ==========================================================
+  // CLEANUP TOAST
+  // ==========================================================
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) {
+        clearTimeout(toastTimer.current);
       }
-    } catch (error) {
-      console.error('Error loading settings:', error);
-      setError('Impossible de charger les paramètres');
-    }
-  };
+    };
+  }, []);
 
-  // ============================================================
-  // ✅ UPLOAD PHOTO DE PROFIL
-  //
-  // 🐛 BUG CORRIGÉ (redirection vers l'espace client après upload) :
-  // cet écran appelait `updateUser({ profile_image: url })`, or
-  // `updateUser` dans AuthContext.js faisait un REMPLACEMENT complet
-  // (`setUser(userData)`), pas une fusion. Le `user` en contexte se
-  // retrouvait donc réduit à `{ profile_image: url }` — plus de
-  // `role`, `id`, `fullname`… Si votre navigateur racine choisit la
-  // pile Admin/Thérapeute/Client selon `user.role`, perdre `role`
-  // faisait retomber l'app sur la pile par défaut (Client), d'où la
-  // redirection inattendue. `updateProfile` (voir AuthContext.js)
-  // fusionne correctement les champs partiels dans le user existant.
-  // ============================================================
-  const handleUploadPhoto = async () => {
+  // ==========================================================
+  // LOAD SETTINGS
+  // ==========================================================
+
+  const loadSettings = useCallback(async () => {
     try {
-      // Demander la permission
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      setError(null);
 
-      if (!permissionResult.granted) {
-        Alert.alert('⚠️ Permission refusée', "Veuillez autoriser l'accès à la galerie");
+      const data =
+        await adminService
+          .getAdminSettings()
+          .catch(() => null);
+
+      if (!data) {
         return;
       }
 
-      // Ouvrir la galerie
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-        base64: false,
+      setSettings((previous) => ({
+        ...previous,
+        ...data,
+      }));
+
+      setInputText({
+        commissionRate: String(
+          data.commissionRate ?? 0
+        ),
+
+        minPrice: String(
+          data.minPrice ?? 0
+        ),
+
+        maxDistance: String(
+          data.maxDistance ?? 0
+        ),
       });
+    } catch (err) {
+      console.error(
+        '❌ Error loading settings:',
+        err
+      );
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const selectedImage = result.assets[0];
+      setError(
+        'Impossible de charger les paramètres.'
+      );
+    }
+  }, []);
 
-        // ✅ CORRIGÉ : sur le Web, `selectedImage.uri` est une URL
-        // blob:/data: SANS extension exploitable — se fier d'abord au
-        // `mimeType` renvoyé par expo-image-picker, avec un repli sûr.
-        let extension = 'jpg';
-        let mimeType = selectedImage.mimeType;
-        if (mimeType && mimeType.includes('/')) {
-          extension = mimeType.split('/')[1] || 'jpg';
-        } else {
-          const guessedExt = selectedImage.uri.split('.').pop()?.toLowerCase();
-          if (guessedExt && guessedExt.length <= 5 && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'bmp'].includes(guessedExt)) {
-            extension = guessedExt;
-          }
-          mimeType = `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+  // ==========================================================
+  // SCREEN FOCUS
+  // ==========================================================
+
+  useFocusEffect(
+    useCallback(() => {
+      loadSettings();
+
+      if (user?.profile_image) {
+        setProfileImage(
+          user.profile_image
+        );
+      } else {
+        setProfileImage(null);
+      }
+
+      fadeAnim.setValue(0);
+
+      Animated.timing(
+        fadeAnim,
+        {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
         }
-        const fileName = `profile_${Date.now()}.${extension}`;
+      ).start();
+
+      return () => {};
+    }, [
+      user,
+      loadSettings,
+      fadeAnim,
+    ])
+  );
+
+  // ==========================================================
+  // NUMERIC INPUT CHANGE
+  // ==========================================================
+
+  const handleNumericChange = (
+    id,
+    text
+  ) => {
+    // Autoriser chiffres + point
+    const cleaned = text.replace(
+      /[^0-9.]/g,
+      ''
+    );
+
+    // Éviter plusieurs points
+    const parts =
+      cleaned.split('.');
+
+    const normalized =
+      parts.length > 2
+        ? `${parts[0]}.${parts.slice(1).join('')}`
+        : cleaned;
+
+    setInputText(
+      (previous) => ({
+        ...previous,
+        [id]: normalized,
+      })
+    );
+  };
+
+  // ==========================================================
+  // NUMERIC INPUT BLUR
+  // ==========================================================
+
+  const handleNumericBlur = (id) => {
+    const rule =
+      NUMERIC_RULES[id] || {
+        min: 0,
+        max: Number.MAX_SAFE_INTEGER,
+      };
+
+    let value =
+      parseFloat(
+        inputText[id]
+      );
+
+    if (!Number.isFinite(value)) {
+      value = rule.min;
+    }
+
+    value = Math.min(
+      rule.max,
+      Math.max(
+        rule.min,
+        value
+      )
+    );
+
+    setSettings(
+      (previous) => ({
+        ...previous,
+        [id]: value,
+      })
+    );
+
+    setInputText(
+      (previous) => ({
+        ...previous,
+        [id]: String(value),
+      })
+    );
+  };
+
+  // ==========================================================
+  // UPLOAD PROFILE PHOTO
+  // ==========================================================
+
+  const handleUploadPhoto =
+    async () => {
+      try {
+        const permissionResult =
+          await ImagePicker
+            .requestMediaLibraryPermissionsAsync();
+
+        if (!permissionResult.granted) {
+          showToast(
+            "Autorisez l'accès à la galerie pour changer votre photo.",
+            'warning'
+          );
+
+          return;
+        }
+
+        const result =
+          await ImagePicker
+            .launchImageLibraryAsync({
+              mediaTypes:
+                ImagePicker
+                  .MediaTypeOptions
+                  .Images,
+
+              allowsEditing: true,
+
+              aspect: [1, 1],
+
+              quality: 0.8,
+
+              base64: false,
+            });
+
+        if (
+          result.canceled ||
+          !result.assets ||
+          !result.assets.length
+        ) {
+          return;
+        }
+
+        const selectedImage =
+          result.assets[0];
+
+        // ======================================================
+        // FILE NAME / MIME TYPE
+        // ======================================================
+
+        let extension = 'jpg';
+
+        let mimeType =
+          selectedImage.mimeType;
+
+        if (
+          mimeType &&
+          mimeType.includes('/')
+        ) {
+          extension =
+            mimeType.split('/')[1] ||
+            'jpg';
+        } else {
+          const guessedExt =
+            selectedImage.uri
+              .split('.')
+              .pop()
+              ?.toLowerCase();
+
+          if (
+            guessedExt &&
+            guessedExt.length <= 5 &&
+            [
+              'jpg',
+              'jpeg',
+              'png',
+              'gif',
+              'webp',
+              'heic',
+              'bmp',
+            ].includes(guessedExt)
+          ) {
+            extension =
+              guessedExt;
+          }
+
+          mimeType =
+            `image/${
+              extension === 'jpg'
+                ? 'jpeg'
+                : extension
+            }`;
+        }
+
+        const fileName =
+          `profile_${Date.now()}.${extension}`;
 
         setUploadingPhoto(true);
 
-        // ✅ CORRIGÉ (bug 422 "Expected UploadFile, received: str",
-        // Web uniquement — Android fonctionnait déjà) :
-        // `formData.append('file', {uri, type, name})` est une forme
-        // SPÉCIALE que seul React Native (natif) sait interpréter —
-        // le moteur va lui-même lire le fichier depuis l'URI. Dans un
-        // navigateur (Web), `FormData` est l'API native du navigateur :
-        // elle ne comprend PAS cet objet et le convertit juste en
-        // chaîne de caractères ("[object Object]"), ce que le backend
-        // recevait comme `str` au lieu d'un vrai fichier. Sur le Web,
-        // il faut donc récupérer le vrai contenu binaire (`fetch` +
-        // `blob()`) et construire un objet `File` standard.
+        // ======================================================
+        // WEB
+        // ======================================================
+
         let fileToUpload;
-        if (Platform.OS === 'web') {
-          const blob = await fetch(selectedImage.uri).then((r) => r.blob());
-          fileToUpload = new File([blob], fileName, { type: mimeType });
-        } else {
+
+        if (IS_WEB) {
+          const response =
+            await fetch(
+              selectedImage.uri
+            );
+
+          const blob =
+            await response.blob();
+
+          fileToUpload =
+            new File(
+              [blob],
+              fileName,
+              {
+                type: mimeType,
+              }
+            );
+        }
+
+        // ======================================================
+        // ANDROID / IOS
+        // ======================================================
+
+        else {
           fileToUpload = {
             uri: selectedImage.uri,
             type: mimeType,
@@ -161,662 +551,2008 @@ const SettingsScreen = ({ navigation }) => {
           };
         }
 
-        // Uploader la photo
-        const response = await adminService.uploadProfilePhoto(fileToUpload);
+        // ======================================================
+        // UPLOAD
+        // ======================================================
 
-        if (response && response.profile_image) {
-          setProfileImage(response.profile_image);
+        const response =
+          await adminService
+            .uploadProfilePhoto(
+              fileToUpload
+            );
 
-          // ✅ Fusionne dans le contexte (ne perd plus role/id/etc.)
+        if (
+          response &&
+          response.profile_image
+        ) {
+          setProfileImage(
+            response.profile_image
+          );
+
+          // IMPORTANT :
+          // updateProfile doit fusionner
+          // avec l'utilisateur existant.
           if (updateProfile) {
-            await updateProfile({ profile_image: response.profile_image });
+            await updateProfile({
+              profile_image:
+                response.profile_image,
+            });
           }
 
-          Alert.alert('✅ Succès', 'Photo de profil mise à jour avec succès');
+          showToast(
+            'Photo de profil mise à jour avec succès.',
+            'success'
+          );
         } else {
-          throw new Error("Réponse invalide du serveur (profile_image manquant)");
+          throw new Error(
+            'Réponse invalide du serveur : profile_image manquant.'
+          );
         }
+      } catch (err) {
+        console.error(
+          '❌ Error uploading photo:',
+          err
+        );
+
+        showToast(
+          `Impossible d'uploader la photo : ${
+            err?.message ||
+            'Erreur inconnue'
+          }`,
+          'error'
+        );
+      } finally {
+        setUploadingPhoto(false);
       }
-    } catch (error) {
-      console.error('❌ Error uploading photo:', error);
-      Alert.alert('❌ Erreur', `Impossible d'uploader la photo: ${error.message || 'Erreur inconnue'}`);
-    } finally {
-      setUploadingPhoto(false);
-    }
-  };
+    };
 
-  // ============================================================
-  // ✅ SUPPRIMER LA PHOTO DE PROFIL
-  // ============================================================
-  const handleRemovePhoto = async () => {
-    Alert.alert(
-      '🗑️ Supprimer la photo',
-      'Voulez-vous supprimer votre photo de profil ?',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Supprimer',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              setUploadingPhoto(true);
+  // ==========================================================
+  // REQUEST REMOVE PHOTO
+  // ==========================================================
 
-              // Mettre à jour le profil avec profile_image = null
-              await adminService.updateMyProfile({ profile_image: null });
+  const requestRemovePhoto =
+    () => {
+      setShowRemovePhotoConfirm(
+        true
+      );
+    };
 
-              setProfileImage(null);
+  // ==========================================================
+  // REMOVE PHOTO
+  // ==========================================================
 
-              // ✅ Fusionne dans le contexte (ne perd plus role/id/etc.)
-              if (updateProfile) {
-                await updateProfile({ profile_image: null });
-              }
+  const confirmRemovePhoto =
+    async () => {
+      try {
+        setUploadingPhoto(true);
 
-              Alert.alert('✅ Succès', 'Photo de profil supprimée');
-            } catch (error) {
-              console.error('❌ Error removing photo:', error);
-              Alert.alert('❌ Erreur', `Impossible de supprimer la photo: ${error.message || 'Erreur inconnue'}`);
-            } finally {
-              setUploadingPhoto(false);
-            }
-          },
-        },
-      ]
-    );
-  };
+        await adminService
+          .updateMyProfile({
+            profile_image: null,
+          });
 
-  // ============================================================
-  // SAUVEGARDE DES PARAMÈTRES
-  //
-  // ⚠️ Cette fonction ne touche jamais `user`/le contexte d'auth et ne
-  // navigue jamais explicitement — elle ne peut donc pas, à elle
-  // seule, causer une redirection. Si une redirection vers l'espace
-  // client survient encore après un "Enregistrer" une fois le correctif
-  // ci-dessus en place, la cause est ailleurs (navigateur racine
-  // réagissant à un changement de référence de `user`, ou état déjà
-  // corrompu par une précédente action non corrigée dans la même
-  // session) — vérifiez alors App.js / RootNavigator.js.
-  // ============================================================
-  const handleSaveSettings = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await adminService.updateAdminSettings(settings);
-      Alert.alert('✅ Succès', 'Paramètres enregistrés avec succès');
-    } catch (error) {
-      console.error('❌ Error saving settings:', error);
-      setError("Impossible d'enregistrer les paramètres");
-      Alert.alert('❌ Erreur', `Impossible d'enregistrer: ${error.message || 'Erreur inconnue'}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        setProfileImage(null);
 
-  // ============================================================
-  // DÉCONNEXION
-  // ============================================================
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await logout();
-      setShowLogoutModal(false);
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
-      });
-    } catch (error) {
-      console.error('❌ Logout error:', error);
-      Alert.alert('❌ Erreur', 'Impossible de se déconnecter');
-    } finally {
-      setIsLoggingOut(false);
-    }
-  };
+        if (updateProfile) {
+          await updateProfile({
+            profile_image: null,
+          });
+        }
 
-  const openLogoutModal = () => setShowLogoutModal(true);
-  const closeLogoutModal = () => setShowLogoutModal(false);
+        showToast(
+          'Photo de profil supprimée.',
+          'success'
+        );
+      } catch (err) {
+        console.error(
+          '❌ Error removing photo:',
+          err
+        );
 
-  // ============================================================
-  // RENDU
-  // ============================================================
+        showToast(
+          `Impossible de supprimer la photo : ${
+            err?.message ||
+            'Erreur inconnue'
+          }`,
+          'error'
+        );
+      } finally {
+        setUploadingPhoto(false);
+
+        setShowRemovePhotoConfirm(
+          false
+        );
+      }
+    };
+
+  // ==========================================================
+  // SAVE SETTINGS
+  // ==========================================================
+
+  const handleSaveSettings =
+    async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Synchroniser les champs numériques
+        const normalizedSettings = {
+          ...settings,
+
+          commissionRate:
+            Number(
+              inputText.commissionRate
+            ) || 0,
+
+          minPrice:
+            Number(
+              inputText.minPrice
+            ) || 0,
+
+          maxDistance:
+            Number(
+              inputText.maxDistance
+            ) || 0,
+        };
+
+        // Respect des bornes
+        normalizedSettings.commissionRate =
+          Math.min(
+            100,
+            Math.max(
+              0,
+              normalizedSettings
+                .commissionRate
+            )
+          );
+
+        normalizedSettings.minPrice =
+          Math.min(
+            10000000,
+            Math.max(
+              0,
+              normalizedSettings
+                .minPrice
+            )
+          );
+
+        normalizedSettings.maxDistance =
+          Math.min(
+            200,
+            Math.max(
+              0,
+              normalizedSettings
+                .maxDistance
+            )
+          );
+
+        setSettings(
+          normalizedSettings
+        );
+
+        setInputText({
+          commissionRate:
+            String(
+              normalizedSettings
+                .commissionRate
+            ),
+
+          minPrice:
+            String(
+              normalizedSettings
+                .minPrice
+            ),
+
+          maxDistance:
+            String(
+              normalizedSettings
+                .maxDistance
+            ),
+        });
+
+        await adminService
+          .updateAdminSettings(
+            normalizedSettings
+          );
+
+        showToast(
+          'Paramètres enregistrés avec succès.',
+          'success'
+        );
+      } catch (err) {
+        console.error(
+          '❌ Error saving settings:',
+          err
+        );
+
+        setError(
+          "Impossible d'enregistrer les paramètres."
+        );
+
+        showToast(
+          `Impossible d'enregistrer : ${
+            err?.message ||
+            'Erreur inconnue'
+          }`,
+          'error'
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+  // ==========================================================
+  // LOGOUT
+  // ==========================================================
+
+  const handleLogout =
+    async () => {
+      if (isLoggingOut) {
+        return;
+      }
+
+      try {
+        setIsLoggingOut(true);
+
+        await logout();
+
+        setShowLogoutConfirm(
+          false
+        );
+
+        // ====================================================
+        // NAVIGATION LOGIN
+        // ====================================================
+
+        navigation.reset({
+          index: 0,
+
+          routes: [
+            {
+              name: 'Login',
+            },
+          ],
+        });
+      } catch (err) {
+        console.error(
+          '❌ Logout error:',
+          err
+        );
+
+        showToast(
+          'Impossible de se déconnecter.',
+          'error'
+        );
+      } finally {
+        setIsLoggingOut(false);
+      }
+    };
+
+  // ==========================================================
+  // SETTINGS SECTIONS
+  // ==========================================================
+
   const settingSections = [
     {
       id: 'general',
+
       title: 'Notifications',
+
+      description:
+        'Choisissez comment la plateforme vous prévient.',
+
       icon: 'notifications-outline',
+
       items: [
-        { id: 'notifications', label: 'Notifications push', type: 'switch' },
-        { id: 'emailNotifications', label: 'Notifications email', type: 'switch' },
-        { id: 'smsNotifications', label: 'Notifications SMS', type: 'switch' },
+        {
+          id: 'notifications',
+          label: 'Notifications push',
+          type: 'switch',
+        },
+
+        {
+          id: 'emailNotifications',
+          label: 'Notifications email',
+          type: 'switch',
+        },
+
+        {
+          id: 'smsNotifications',
+          label: 'Notifications SMS',
+          type: 'switch',
+        },
       ],
     },
+
     {
       id: 'platform',
+
       title: 'Plateforme',
+
+      description:
+        'Paramètres commerciaux appliqués à toutes les réservations.',
+
       icon: 'settings-outline',
+
       items: [
-        { id: 'commissionRate', label: 'Taux de commission (%)', type: 'input' },
-        { id: 'minPrice', label: 'Prix minimum (Ar)', type: 'input' },
-        { id: 'maxDistance', label: 'Distance max (km)', type: 'input' },
+        {
+          id: 'commissionRate',
+          label: 'Taux de commission',
+          suffix: '%',
+          type: 'input',
+        },
+
+        {
+          id: 'minPrice',
+          label: 'Prix minimum',
+          suffix: 'Ar',
+          type: 'input',
+        },
+
+        {
+          id: 'maxDistance',
+          label: 'Distance max',
+          suffix: 'km',
+          type: 'input',
+        },
       ],
     },
+
     {
       id: 'moderation',
+
       title: 'Modération',
+
+      description:
+        "Contrôle des inscriptions et demandes en attente.",
+
       icon: 'shield-outline',
+
       items: [
-        { id: 'autoApprove', label: 'Approbation automatique', type: 'switch' },
+        {
+          id: 'autoApprove',
+          label: 'Approbation automatique',
+          type: 'switch',
+        },
+      ],
+    },
+
+    {
+      id: 'appearance',
+
+      title: 'Apparence',
+
+      description:
+        "Adaptez l'affichage à votre confort visuel.",
+
+      icon: isDark
+        ? 'moon'
+        : 'sunny',
+
+      items: [
+        {
+          id: '__theme',
+
+          label:
+            `Mode ${
+              isDark
+                ? 'sombre'
+                : 'clair'
+            }`,
+
+          type: 'theme-switch',
+        },
       ],
     },
   ];
 
-  const renderSettingItem = (item) => {
-    if (item.type === 'switch') {
-      return (
-        <Switch
-          value={settings[item.id] || false}
-          onValueChange={(value) => {
-            setSettings({ ...settings, [item.id]: value });
-          }}
-          trackColor={{ false: '#ccc', true: colors.primary }}
-          thumbColor="#fff"
-        />
-      );
-    } else if (item.type === 'input') {
-      return (
-        <TextInput
-          style={[styles.settingInput, {
-            color: themeColors.text,
-            borderColor: themeColors.border || '#E0E0E0',
-            backgroundColor: isDark ? '#1E1E1E' : '#F5F5F5',
-          }]}
-          value={String(settings[item.id] || 0)}
-          onChangeText={(text) => {
-            const value = parseFloat(text) || 0;
-            setSettings({ ...settings, [item.id]: value });
-          }}
-          keyboardType="numeric"
-        />
-      );
+  // ==========================================================
+  // RENDER SETTING ITEM
+  // ==========================================================
+
+  const renderSettingItem =
+    (item) => {
+      // ======================================================
+      // SWITCH
+      // ======================================================
+
+      if (
+        item.type === 'switch'
+      ) {
+        return (
+          <Switch
+            value={
+              Boolean(
+                settings[item.id]
+              )
+            }
+            onValueChange={
+              (value) => {
+                setSettings(
+                  (previous) => ({
+                    ...previous,
+
+                    [item.id]:
+                      value,
+                  })
+                );
+              }
+            }
+            trackColor={{
+              false: isDark
+                ? '#3A3A3C'
+                : '#D8DCE1',
+
+              true:
+                colors.primary,
+            }}
+            thumbColor="#FFFFFF"
+            accessibilityLabel={
+              item.label
+            }
+          />
+        );
+      }
+
+      // ======================================================
+      // THEME SWITCH
+      // ======================================================
+
+      if (
+        item.type ===
+        'theme-switch'
+      ) {
+        return (
+          <Switch
+            value={isDark}
+            onValueChange={
+              toggleTheme
+            }
+            trackColor={{
+              false: isDark
+                ? '#3A3A3C'
+                : '#D8DCE1',
+
+              true:
+                colors.primary,
+            }}
+            thumbColor="#FFFFFF"
+            accessibilityLabel={
+              item.label
+            }
+          />
+        );
+      }
+
+      // ======================================================
+      // NUMERIC INPUT
+      // ======================================================
+
+      if (
+        item.type === 'input'
+      ) {
+        return (
+          <View
+            style={
+              styles.inputWrapper
+            }
+          >
+            <TextInput
+              style={[
+                styles.settingInput,
+
+                {
+                  color:
+                    themeColors.text,
+
+                  borderColor:
+                    themeColors.border ||
+                    '#E0E0E0',
+
+                  backgroundColor:
+                    isDark
+                      ? '#1E1E1E'
+                      : '#F7F8FA',
+                },
+              ]}
+              value={
+                inputText[item.id] ??
+                String(
+                  settings[item.id] ??
+                  0
+                )
+              }
+              onChangeText={
+                (text) =>
+                  handleNumericChange(
+                    item.id,
+                    text
+                  )
+              }
+              onBlur={() =>
+                handleNumericBlur(
+                  item.id
+                )
+              }
+              keyboardType="numeric"
+              accessibilityLabel={
+                item.label
+              }
+              placeholder="0"
+              placeholderTextColor={
+                themeColors
+                  .textSecondary
+              }
+              {...(
+                IS_WEB
+                  ? {
+                      outlineStyle:
+                        'none',
+                    }
+                  : {}
+              )}
+            />
+
+            {!!item.suffix && (
+              <Text
+                style={[
+                  styles.inputSuffix,
+                  {
+                    color:
+                      themeColors
+                        .textSecondary,
+                  },
+                ]}
+              >
+                {item.suffix}
+              </Text>
+            )}
+          </View>
+        );
+      }
+
+      return null;
+    };
+
+  // ==========================================================
+  // RENDER SECTION CARD
+  // ==========================================================
+
+  const renderSectionCard =
+    (section) => (
+      <View
+        key={section.id}
+        style={[
+          styles.sectionCard,
+
+          useTwoColumnGrid &&
+            styles.sectionCardGrid,
+
+          {
+            backgroundColor:
+              themeColors.surface,
+
+            borderColor: isDark
+              ? 'rgba(255,255,255,0.06)'
+              : 'rgba(15,23,42,0.05)',
+          },
+        ]}
+      >
+        {/* HEADER */}
+        <View
+          style={
+            styles.sectionHeader
+          }
+        >
+          <View
+            style={[
+              styles.sectionIconBadge,
+              {
+                backgroundColor:
+                  `${colors.primary}16`,
+              },
+            ]}
+          >
+            <Ionicons
+              name={section.icon}
+              size={18}
+              color={
+                colors.primary
+              }
+            />
+          </View>
+
+          <View
+            style={{
+              flex: 1,
+            }}
+          >
+            <Text
+              style={[
+                styles.sectionTitle,
+                {
+                  color:
+                    themeColors.text,
+                },
+              ]}
+            >
+              {section.title}
+            </Text>
+
+            {!!section.description && (
+              <Text
+                style={[
+                  styles.sectionDescription,
+                  {
+                    color:
+                      themeColors
+                        .textSecondary,
+                  },
+                ]}
+              >
+                {section.description}
+              </Text>
+            )}
+          </View>
+        </View>
+
+        {/* ITEMS */}
+        {section.items.map(
+          (item) => (
+            <View
+              key={item.id}
+              style={[
+                styles.settingRow,
+                {
+                  borderBottomColor:
+                    themeColors.border ||
+                    (
+                      isDark
+                        ? 'rgba(255,255,255,0.06)'
+                        : '#EEF0F3'
+                    ),
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.settingLabel,
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+              >
+                {item.label}
+              </Text>
+
+              {renderSettingItem(
+                item
+              )}
+            </View>
+          )
+        )}
+      </View>
+    );
+
+  // ==========================================================
+  // TOAST COMPONENT
+  // ==========================================================
+
+  const Toast = () => {
+    if (!toast) {
+      return null;
     }
-    return null;
+
+    let backgroundColor =
+      colors.primary;
+
+    let icon =
+      'information-circle';
+
+    if (
+      toast.type ===
+      'success'
+    ) {
+      backgroundColor =
+        '#16A34A';
+
+      icon =
+        'checkmark-circle';
+    }
+
+    if (
+      toast.type ===
+      'error'
+    ) {
+      backgroundColor =
+        '#DC2626';
+
+      icon =
+        'alert-circle';
+    }
+
+    if (
+      toast.type ===
+      'warning'
+    ) {
+      backgroundColor =
+        '#F59E0B';
+
+      icon =
+        'warning';
+    }
+
+    return (
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.toastWrapper,
+
+          {
+            opacity:
+              toastOpacity,
+
+            transform: [
+              {
+                translateY:
+                  toastTranslateY,
+              },
+            ],
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.toast,
+            {
+              backgroundColor,
+            },
+          ]}
+        >
+          <Ionicons
+            name={icon}
+            size={19}
+            color="#FFFFFF"
+          />
+
+          <Text
+            style={
+              styles.toastText
+            }
+            numberOfLines={3}
+          >
+            {toast.message}
+          </Text>
+        </View>
+      </Animated.View>
+    );
   };
 
-  return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
-      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-        <Header title="Paramètres" showBack />
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
-        {error && (
-          <View style={[styles.errorBanner, { backgroundColor: '#E74C3C20', borderColor: '#E74C3C' }]}>
-            <Ionicons name="alert-circle" size={20} color="#E74C3C" />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
+  return (
+    <SafeAreaView
+      style={[
+        styles.safeArea,
+        {
+          backgroundColor:
+            themeColors.background,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor:
+              themeColors.background,
+          },
+        ]}
+      >
+        {/* ====================================================
+            HEADER
+        ==================================================== */}
+
+        <Header
+          title="Paramètres"
+          showBack
+        />
+
+        {/* ====================================================
+            CONTENT
+        ==================================================== */}
 
         <Animated.ScrollView
-          style={[styles.scrollView, { opacity: fadeAnim }]}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          style={[
+            styles.scrollView,
+            {
+              opacity:
+                fadeAnim,
+            },
+          ]}
+          showsVerticalScrollIndicator={
+            false
+          }
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={[
+            styles.scrollContent,
+
+            {
+              paddingHorizontal:
+                horizontalPadding,
+            },
+
+            isDesktop &&
+              styles.scrollContentDesktop,
+          ]}
         >
-          {/* ✅ Profil admin avec upload de photo */}
-          <View style={[styles.profileCard, { backgroundColor: themeColors.surface }]}>
-            {/* Avatar avec possibilité d'upload */}
-            <TouchableOpacity
-              style={styles.profileAvatarContainer}
-              onPress={handleUploadPhoto}
-              disabled={uploadingPhoto}
-              activeOpacity={0.8}
-            >
-              {profileImage ? (
-                <Image
-                  source={{ uri: profileImage }}
-                  style={styles.profileAvatarImage}
+          <View
+            style={[
+              styles.contentInner,
+
+              isTablet && {
+                maxWidth:
+                  SETTINGS_MAX_WIDTH,
+
+                width: '100%',
+
+                alignSelf:
+                  'center',
+              },
+            ]}
+          >
+            {/* =================================================
+                ERROR
+            ================================================= */}
+
+            {!!error && (
+              <View
+                style={[
+                  styles.errorBanner,
+                  {
+                    backgroundColor:
+                      '#E74C3C15',
+
+                    borderColor:
+                      '#E74C3C40',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="alert-circle"
+                  size={20}
+                  color="#E74C3C"
                 />
-              ) : (
-                <View style={[styles.profileAvatar, { backgroundColor: colors.primary + '20' }]}>
-                  <Text style={[styles.profileAvatarText, { color: colors.primary }]}>
-                    {user?.fullname?.charAt(0)?.toUpperCase() || 'A'}
-                  </Text>
-                </View>
-              )}
 
-              {/* Badge de modification */}
-              <View style={styles.editBadge}>
-                {uploadingPhoto ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Ionicons name="camera" size={14} color="#fff" />
-                )}
-              </View>
-            </TouchableOpacity>
-
-            <View style={styles.profileInfo}>
-              <Text style={[styles.profileName, { color: themeColors.text }]}>
-                {user?.fullname || 'Administrateur'}
-              </Text>
-              <Text style={[styles.profileEmail, { color: themeColors.textSecondary }]}>
-                {user?.email || 'admin@mada-bienetre.com'}
-              </Text>
-              <View style={styles.profileActions}>
-                <View style={[styles.profileBadge, { backgroundColor: colors.primary + '20' }]}>
-                  <Text style={[styles.profileBadgeText, { color: colors.primary }]}>
-                    Administrateur
-                  </Text>
-                </View>
-                {profileImage && (
-                  <TouchableOpacity
-                    style={[styles.removePhotoBtn, { backgroundColor: '#E74C3C20' }]}
-                    onPress={handleRemovePhoto}
-                    disabled={uploadingPhoto}
-                  >
-                    <Ionicons name="close" size={14} color="#E74C3C" />
-                    <Text style={[styles.removePhotoText, { color: '#E74C3C' }]}>Supprimer</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-          </View>
-
-          {/* Sections */}
-          {settingSections.map((section) => (
-            <View key={section.id} style={[styles.sectionCard, { backgroundColor: themeColors.surface }]}>
-              <View style={styles.sectionHeader}>
-                <Ionicons name={section.icon} size={20} color={colors.primary} />
-                <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
-                  {section.title}
+                <Text
+                  style={
+                    styles.errorText
+                  }
+                >
+                  {error}
                 </Text>
+
+                <TouchableOpacity
+                  onPress={() =>
+                    setError(null)
+                  }
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Fermer le message d'erreur"
+                >
+                  <Ionicons
+                    name="close"
+                    size={18}
+                    color="#E74C3C"
+                  />
+                </TouchableOpacity>
               </View>
-              {section.items.map((item) => (
-                <View key={item.id} style={[styles.settingRow, {
-                  borderBottomColor: themeColors.border || '#E0E0E0'
-                }]}>
-                  <Text style={[styles.settingLabel, { color: themeColors.text }]}>
-                    {item.label}
-                  </Text>
-                  {renderSettingItem(item)}
+            )}
+
+            {/* =================================================
+                PROFILE
+            ================================================= */}
+
+            <View
+              style={[
+                styles.profileCard,
+
+                {
+                  backgroundColor:
+                    themeColors.surface,
+
+                  borderColor:
+                    isDark
+                      ? 'rgba(255,255,255,0.06)'
+                      : 'rgba(15,23,42,0.05)',
+                },
+              ]}
+            >
+              {/* AVATAR */}
+              <TouchableOpacity
+                style={
+                  styles.profileAvatarContainer
+                }
+                onPress={
+                  handleUploadPhoto
+                }
+                disabled={
+                  uploadingPhoto
+                }
+                activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel="Changer la photo de profil"
+              >
+                {profileImage ? (
+                  <Image
+                    source={{
+                      uri: profileImage,
+                    }}
+                    style={
+                      styles.profileAvatarImage
+                    }
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.profileAvatar,
+                      {
+                        backgroundColor:
+                          `${colors.primary}20`,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.profileAvatarText,
+                        {
+                          color:
+                            colors.primary,
+                        },
+                      ]}
+                    >
+                      {user?.fullname
+                        ?.charAt(0)
+                        ?.toUpperCase() ||
+                        'A'}
+                    </Text>
+                  </View>
+                )}
+
+                {/* CAMERA BADGE */}
+                <View
+                  style={
+                    styles.editBadge
+                  }
+                >
+                  {uploadingPhoto ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="#FFFFFF"
+                    />
+                  ) : (
+                    <Ionicons
+                      name="camera"
+                      size={14}
+                      color="#FFFFFF"
+                    />
+                  )}
                 </View>
-              ))}
-            </View>
-          ))}
+              </TouchableOpacity>
 
-          {/* Thème */}
-          <View style={[styles.sectionCard, { backgroundColor: themeColors.surface }]}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name={isDark ? 'moon' : 'sunny'} size={20} color={colors.primary} />
-              <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
-                Apparence
-              </Text>
-            </View>
-            <View style={[styles.settingRow, {
-              borderBottomColor: themeColors.border || '#E0E0E0'
-            }]}>
-              <Text style={[styles.settingLabel, { color: themeColors.text }]}>
-                Mode {isDark ? 'sombre' : 'clair'}
-              </Text>
-              <Switch
-                value={isDark}
-                onValueChange={toggleTheme}
-                trackColor={{ false: '#ccc', true: colors.primary }}
-                thumbColor="#fff"
-              />
-            </View>
-          </View>
+              {/* PROFILE INFO */}
+              <View
+                style={
+                  styles.profileInfo
+                }
+              >
+                <Text
+                  style={[
+                    styles.profileName,
+                    {
+                      color:
+                        themeColors.text,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {user?.fullname ||
+                    'Administrateur'}
+                </Text>
 
-          {/* Bouton de sauvegarde */}
-          <TouchableOpacity
-            style={[styles.saveButton, { opacity: isLoading ? 0.7 : 1 }]}
-            onPress={handleSaveSettings}
-            disabled={isLoading}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.saveGradient, { backgroundColor: colors.primary }]}>
-              {isLoading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.saveText}>💾 Enregistrer les paramètres</Text>
+                <Text
+                  style={[
+                    styles.profileEmail,
+                    {
+                      color:
+                        themeColors
+                          .textSecondary,
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {user?.email ||
+                    'admin@mada-bienetre.com'}
+                </Text>
+
+                <View
+                  style={
+                    styles.profileActions
+                  }
+                >
+                  {/* ADMIN BADGE */}
+                  <View
+                    style={[
+                      styles.profileBadge,
+                      {
+                        backgroundColor:
+                          `${colors.primary}18`,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="shield-checkmark-outline"
+                      size={13}
+                      color={
+                        colors.primary
+                      }
+                    />
+
+                    <Text
+                      style={[
+                        styles.profileBadgeText,
+                        {
+                          color:
+                            colors.primary,
+                        },
+                      ]}
+                    >
+                      Administrateur
+                    </Text>
+                  </View>
+
+                  {/* REMOVE PHOTO */}
+                  {!!profileImage && (
+                    <TouchableOpacity
+                      style={[
+                        styles.removePhotoBtn,
+                        {
+                          backgroundColor:
+                            '#E74C3C15',
+                        },
+                      ]}
+                      onPress={
+                        requestRemovePhoto
+                      }
+                      disabled={
+                        uploadingPhoto
+                      }
+                      hitSlop={6}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Supprimer la photo de profil"
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={14}
+                        color="#E74C3C"
+                      />
+
+                      <Text
+                        style={[
+                          styles.removePhotoText,
+                          {
+                            color:
+                              '#E74C3C',
+                          },
+                        ]}
+                      >
+                        Supprimer
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            </View>
+
+            {/* =================================================
+                SETTINGS GRID
+            ================================================= */}
+
+            <View
+              style={[
+                styles.sectionsGrid,
+
+                useTwoColumnGrid &&
+                  styles.sectionsGridTwoCol,
+              ]}
+            >
+              {settingSections.map(
+                renderSectionCard
               )}
             </View>
-          </TouchableOpacity>
 
-          {/* Bouton Déconnexion */}
-          <TouchableOpacity
-            style={styles.logoutButton}
-            onPress={openLogoutModal}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.logoutGradient, { backgroundColor: '#E74C3C' }]}>
-              <Ionicons name="log-out-outline" size={20} color="#fff" />
-              <Text style={styles.logoutText}>Se déconnecter</Text>
+            {/* =================================================
+                ACTIONS
+            ================================================= */}
+
+            <View
+              style={[
+                styles.actionsRow,
+
+                isTablet &&
+                  styles.actionsRowDesktop,
+              ]}
+            >
+              {/* SAVE */}
+              <TouchableOpacity
+                style={[
+                  styles.saveButton,
+
+                  isTablet &&
+                    styles.saveButtonDesktop,
+
+                  {
+                    opacity:
+                      isLoading
+                        ? 0.7
+                        : 1,
+                  },
+                ]}
+                onPress={
+                  handleSaveSettings
+                }
+                disabled={
+                  isLoading
+                }
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Enregistrer les paramètres"
+              >
+                <View
+                  style={[
+                    styles.saveGradient,
+                    {
+                      backgroundColor:
+                        colors.primary,
+                    },
+                  ]}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator
+                      color="#FFFFFF"
+                      size="small"
+                    />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="save-outline"
+                        size={18}
+                        color="#FFFFFF"
+                      />
+
+                      <Text
+                        style={
+                          styles.saveText
+                        }
+                      >
+                        Enregistrer les paramètres
+                      </Text>
+                    </>
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              {/* LOGOUT */}
+              <TouchableOpacity
+                style={[
+                  styles.logoutButton,
+
+                  isTablet &&
+                    styles.logoutButtonDesktop,
+                ]}
+                onPress={() =>
+                  setShowLogoutConfirm(
+                    true
+                  )
+                }
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Se déconnecter"
+              >
+                <View
+                  style={[
+                    styles.logoutGradient,
+                    {
+                      backgroundColor:
+                        isDark
+                          ? 'rgba(231,76,60,0.14)'
+                          : '#FDECEA',
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="log-out-outline"
+                    size={19}
+                    color="#E53935"
+                  />
+
+                  <Text
+                    style={[
+                      styles.logoutText,
+                      {
+                        color:
+                          '#E53935',
+                      },
+                    ]}
+                  >
+                    Se déconnecter
+                  </Text>
+                </View>
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
 
-          {/* Version */}
-          <View style={styles.versionContainer}>
-            <Text style={[styles.versionText, { color: themeColors.textSecondary }]}>
-              Mada Bien-être v1.0.0
-            </Text>
-            <Text style={[styles.versionSubtext, { color: themeColors.textSecondary }]}>
-              © 2026 Tous droits réservés
-            </Text>
+            {/* =================================================
+                VERSION
+            ================================================= */}
+
+            <View
+              style={
+                styles.versionContainer
+              }
+            >
+              <Text
+                style={[
+                  styles.versionText,
+                  {
+                    color:
+                      themeColors
+                        .textSecondary,
+                  },
+                ]}
+              >
+                Mada Bien-être v1.0.0
+              </Text>
+
+              <Text
+                style={[
+                  styles.versionSubtext,
+                  {
+                    color:
+                      themeColors
+                        .textSecondary,
+                  },
+                ]}
+              >
+                © 2026 Tous droits réservés
+              </Text>
+            </View>
           </View>
         </Animated.ScrollView>
 
-        {/* Modal de confirmation de déconnexion */}
-        <Modal
-          transparent={true}
-          visible={showLogoutModal}
-          animationType="fade"
-          onRequestClose={closeLogoutModal}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContainer, { backgroundColor: themeColors.surface }]}>
-              <View style={styles.modalHeader}>
-                <Ionicons name="log-out-outline" size={48} color="#E74C3C" />
-                <Text style={[styles.modalTitle, { color: themeColors.text }]}>
-                  Déconnexion
-                </Text>
-              </View>
+        {/* ======================================================
+            TOAST
+        ====================================================== */}
 
-              <Text style={[styles.modalText, { color: themeColors.textSecondary }]}>
-                Êtes-vous sûr de vouloir vous déconnecter ?
-              </Text>
+        <Toast />
 
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.modalCancel]}
-                  onPress={closeLogoutModal}
-                  activeOpacity={0.7}
-                  disabled={isLoggingOut}
-                >
-                  <Text style={[styles.modalCancelText, { color: themeColors.text }]}>
-                    Annuler
-                  </Text>
-                </TouchableOpacity>
+        {/* ======================================================
+            LOGOUT CONFIRMATION
+            ✅ ICON = LOG-OUT
+        ====================================================== */}
 
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.modalConfirm]}
-                  onPress={handleLogout}
-                  activeOpacity={0.7}
-                  disabled={isLoggingOut}
-                >
-                  {isLoggingOut ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <Text style={styles.modalConfirmText}>Se déconnecter</Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
+        <ConfirmDialog
+          visible={
+            showLogoutConfirm
+          }
+          title="Déconnexion"
+          message="Êtes-vous sûr de vouloir vous déconnecter de votre compte administrateur ?"
+          confirmLabel="Se déconnecter"
+          cancelLabel="Annuler"
+
+          // IMPORTANT
+          tone="logout"
+          icon="log-out-outline"
+
+          loading={
+            isLoggingOut
+          }
+
+          onConfirm={
+            handleLogout
+          }
+
+          onCancel={() =>
+            isLoggingOut
+              ? null
+              : setShowLogoutConfirm(
+                  false
+                )
+          }
+
+          themeColors={
+            themeColors
+          }
+        />
+
+        {/* ======================================================
+            REMOVE PHOTO CONFIRMATION
+            ✅ ICON = TRASH
+        ====================================================== */}
+
+        <ConfirmDialog
+          visible={
+            showRemovePhotoConfirm
+          }
+          title="Supprimer la photo"
+          message="Voulez-vous supprimer votre photo de profil ?"
+          confirmLabel="Supprimer"
+          cancelLabel="Annuler"
+          tone="danger"
+          icon="trash-outline"
+          loading={
+            uploadingPhoto
+          }
+          onConfirm={
+            confirmRemovePhoto
+          }
+          onCancel={() =>
+            uploadingPhoto
+              ? null
+              : setShowRemovePhotoConfirm(
+                  false
+                )
+          }
+          themeColors={
+            themeColors
+          }
+        />
       </View>
     </SafeAreaView>
   );
 };
 
+// ============================================================
+// STYLES
+// ============================================================
+
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1 },
+  // ==========================================================
+  // GENERAL
+  // ==========================================================
+
+  safeArea: {
+    flex: 1,
+  },
+
+  container: {
+    flex: 1,
+  },
+
+  scrollView: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    paddingBottom:
+      spacing.xl,
+  },
+
+  scrollContentDesktop: {
+    paddingTop:
+      spacing.md,
+
+    paddingBottom:
+      spacing.xxl || 48,
+  },
+
+  contentInner: {
+    width: '100%',
+  },
+
+  // ==========================================================
+  // ERROR
+  // ==========================================================
+
   errorBanner: {
     flexDirection: 'row',
+
     alignItems: 'center',
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: 8,
+
+    marginTop:
+      spacing.sm,
+
+    marginBottom:
+      spacing.sm,
+
+    padding:
+      spacing.sm,
+
+    borderRadius: 12,
+
     borderWidth: 1,
+
+    gap: 8,
   },
+
   errorText: {
     flex: 1,
-    marginLeft: spacing.sm,
-    fontSize: typography.fontSize.sm,
+
+    fontSize:
+      typography.fontSize.sm,
+
     color: '#E74C3C',
-    fontFamily: typography.fontFamily.medium,
+
+    fontFamily:
+      typography.fontFamily.medium,
   },
-  scrollView: { flex: 1 },
-  scrollContent: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl,
-  },
-  // ✅ Profile Card avec photo
+
+  // ==========================================================
+  // PROFILE
+  // ==========================================================
+
   profileCard: {
-    borderRadius: 16,
-    padding: spacing.md,
+    borderRadius: 20,
+
+    borderWidth: 1,
+
+    padding:
+      spacing.md,
+
     flexDirection: 'row',
+
     alignItems: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+
+    marginTop:
+      spacing.md,
+
+    marginBottom:
+      spacing.md,
+
+    ...(IS_WEB
+      ? {
+          boxShadow:
+            '0 2px 8px rgba(15,23,42,0.07)',
+        }
+      : {
+          shadowColor: '#000',
+
+          shadowOffset: {
+            width: 0,
+            height: 2,
+          },
+
+          shadowOpacity: 0.06,
+
+          shadowRadius: 5,
+
+          elevation: 2,
+        }),
   },
+
   profileAvatarContainer: {
     position: 'relative',
-    marginRight: spacing.md,
+
+    marginRight:
+      spacing.md,
   },
+
   profileAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primary + '20',
+    width: 68,
+    height: 68,
+
+    borderRadius: 34,
+
     alignItems: 'center',
+
     justifyContent: 'center',
   },
+
   profileAvatarImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 68,
+    height: 68,
+
+    borderRadius: 34,
   },
+
   profileAvatarText: {
-    fontSize: typography.fontSize.xxl,
-    fontFamily: typography.fontFamily.bold,
+    fontSize:
+      typography.fontSize.xxl,
+
+    fontFamily:
+      typography.fontFamily.bold,
   },
+
   editBadge: {
     position: 'absolute',
+
     bottom: -2,
     right: -2,
-    backgroundColor: colors.primary,
-    width: 28,
-    height: 28,
+
+    backgroundColor:
+      colors.primary,
+
+    width: 27,
+    height: 27,
+
     borderRadius: 14,
+
     alignItems: 'center',
     justifyContent: 'center',
+
     borderWidth: 2,
-    borderColor: '#fff',
+
+    borderColor: '#FFFFFF',
   },
+
   profileInfo: {
     flex: 1,
+
+    minWidth: 0,
   },
+
   profileName: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontSize:
+      typography.fontSize.lg,
+
+    fontFamily:
+      typography.fontFamily.bold,
   },
+
   profileEmail: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-  },
-  profileActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 4,
-    marginTop: 4,
-  },
-  profileBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  profileBadgeText: {
-    fontSize: 10,
-    fontFamily: typography.fontFamily.medium,
-  },
-  removePhotoBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: 8,
-    gap: 2,
-  },
-  removePhotoText: {
-    fontSize: 10,
-    fontFamily: typography.fontFamily.medium,
-  },
-  sectionCard: {
-    borderRadius: 16,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  sectionTitle: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-  },
-  settingLabel: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.regular,
-  },
-  settingInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    width: 80,
-    textAlign: 'center',
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.regular,
-  },
-  saveButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: spacing.md,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  saveGradient: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    borderRadius: 12,
-  },
-  saveText: {
-    color: '#fff',
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
-  },
-  logoutButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: spacing.md,
-  },
-  logoutGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  logoutText: {
-    color: '#fff',
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-  versionContainer: {
-    alignItems: 'center',
-    marginTop: spacing.lg,
-  },
-  versionText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-  },
-  versionSubtext: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.regular,
+    fontSize:
+      typography.fontSize.sm,
+
+    fontFamily:
+      typography.fontFamily.regular,
+
     marginTop: 2,
   },
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContainer: {
-    borderRadius: 20,
-    padding: spacing.lg,
-    width: '85%',
-    maxWidth: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  modalHeader: {
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  modalTitle: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: typography.fontFamily.bold,
-    marginTop: spacing.sm,
-  },
-  modalText: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.regular,
-    textAlign: 'center',
-    marginBottom: spacing.lg,
-    lineHeight: 24,
-  },
-  modalButtons: {
+
+  profileActions: {
     flexDirection: 'row',
+
+    alignItems: 'center',
+
+    flexWrap: 'wrap',
+
+    gap: 7,
+
+    marginTop: 8,
+  },
+
+  profileBadge: {
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    paddingHorizontal:
+      spacing.sm,
+
+    paddingVertical: 4,
+
+    borderRadius: 999,
+
+    alignSelf: 'flex-start',
+
+    gap: 4,
+  },
+
+  profileBadgeText: {
+    fontSize: 11,
+
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  removePhotoBtn: {
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    paddingHorizontal:
+      spacing.sm,
+
+    paddingVertical: 4,
+
+    borderRadius: 999,
+
+    gap: 4,
+  },
+
+  removePhotoText: {
+    fontSize: 11,
+
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  // ==========================================================
+  // SECTIONS
+  // ==========================================================
+
+  sectionsGrid: {
+    width: '100%',
+  },
+
+  sectionsGridTwoCol: {
+    flexDirection: 'row',
+
+    flexWrap: 'wrap',
+
+    justifyContent:
+      'space-between',
+  },
+
+  sectionCard: {
+    width: '100%',
+
+    borderRadius: 20,
+
+    borderWidth: 1,
+
+    padding:
+      spacing.md,
+
+    marginBottom:
+      spacing.md,
+
+    ...(IS_WEB
+      ? {
+          boxShadow:
+            '0 2px 7px rgba(15,23,42,0.05)',
+        }
+      : {
+          shadowColor: '#000',
+
+          shadowOffset: {
+            width: 0,
+            height: 2,
+          },
+
+          shadowOpacity: 0.05,
+
+          shadowRadius: 4,
+
+          elevation: 2,
+        }),
+  },
+
+  sectionCardGrid: {
+    width: '48.5%',
+  },
+
+  sectionHeader: {
+    flexDirection: 'row',
+
+    alignItems: 'flex-start',
+
+    gap: spacing.sm,
+
+    marginBottom:
+      spacing.md,
+  },
+
+  sectionIconBadge: {
+    width: 36,
+    height: 36,
+
+    borderRadius: 11,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  sectionTitle: {
+    fontSize:
+      typography.fontSize.md,
+
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  sectionDescription: {
+    fontSize:
+      typography.fontSize.xs,
+
+    fontFamily:
+      typography.fontFamily.regular,
+
+    marginTop: 3,
+
+    lineHeight: 16,
+  },
+
+  settingRow: {
+    flexDirection: 'row',
+
+    justifyContent:
+      'space-between',
+
+    alignItems: 'center',
+
+    paddingVertical:
+      spacing.sm,
+
+    borderBottomWidth: 1,
+
     gap: spacing.sm,
   },
-  modalButton: {
+
+  settingLabel: {
     flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: 12,
+
+    fontSize:
+      typography.fontSize.md,
+
+    fontFamily:
+      typography.fontFamily.regular,
+  },
+
+  // ==========================================================
+  // INPUT
+  // ==========================================================
+
+  inputWrapper: {
+    flexDirection: 'row',
+
     alignItems: 'center',
-    justifyContent: 'center',
+
+    gap: 6,
   },
-  modalCancel: {
-    backgroundColor: '#f5f5f5',
+
+  settingInput: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+
+    borderRadius: 9,
+
+    paddingHorizontal:
+      spacing.sm,
+
+    paddingVertical: 7,
+
+    width: 90,
+
+    minHeight: 38,
+
+    textAlign: 'center',
+
+    fontSize:
+      typography.fontSize.md,
+
+    fontFamily:
+      typography.fontFamily.regular,
   },
-  modalCancelText: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.medium,
+
+  inputSuffix: {
+    fontSize:
+      typography.fontSize.xs,
+
+    fontFamily:
+      typography.fontFamily.medium,
+
+    width: 25,
   },
-  modalConfirm: {
-    backgroundColor: '#E74C3C',
+
+  // ==========================================================
+  // ACTIONS
+  // ==========================================================
+
+  actionsRow: {
+    width: '100%',
+
+    marginTop:
+      spacing.sm,
   },
-  modalConfirmText: {
-    color: '#fff',
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
+
+  actionsRowDesktop: {
+    flexDirection: 'row',
+
+    gap: spacing.md,
+  },
+
+  saveButton: {
+    borderRadius: 13,
+
+    overflow: 'hidden',
+
+    marginTop:
+      spacing.md,
+
+    ...(IS_WEB
+      ? {
+          boxShadow:
+            `0 5px 15px ${colors.primary}4D`,
+        }
+      : {
+          shadowColor:
+            colors.primary,
+
+          shadowOffset: {
+            width: 0,
+            height: 4,
+          },
+
+          shadowOpacity: 0.3,
+
+          shadowRadius: 8,
+
+          elevation: 5,
+        }),
+  },
+
+  saveButtonDesktop: {
+    flex: 2,
+
+    marginTop: 0,
+  },
+
+  saveGradient: {
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+
+    gap: 8,
+
+    paddingVertical:
+      spacing.md,
+
+    borderRadius: 13,
+  },
+
+  saveText: {
+    color: '#FFFFFF',
+
+    fontSize:
+      typography.fontSize.md,
+
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  logoutButton: {
+    borderRadius: 13,
+
+    overflow: 'hidden',
+
+    marginTop:
+      spacing.md,
+  },
+
+  logoutButtonDesktop: {
+    flex: 1,
+
+    marginTop: 0,
+  },
+
+  logoutGradient: {
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+
+    paddingVertical:
+      spacing.md,
+
+    gap: spacing.sm,
+
+    borderRadius: 13,
+  },
+
+  logoutText: {
+    fontSize:
+      typography.fontSize.md,
+
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  // ==========================================================
+  // VERSION
+  // ==========================================================
+
+  versionContainer: {
+    alignItems: 'center',
+
+    marginTop:
+      spacing.lg,
+  },
+
+  versionText: {
+    fontSize:
+      typography.fontSize.sm,
+
+    fontFamily:
+      typography.fontFamily.regular,
+  },
+
+  versionSubtext: {
+    fontSize:
+      typography.fontSize.xs,
+
+    fontFamily:
+      typography.fontFamily.regular,
+
+    marginTop: 2,
+  },
+
+  // ==========================================================
+  // TOAST
+  // ==========================================================
+
+  toastWrapper: {
+    position: 'absolute',
+
+    top: 14,
+
+    left: 0,
+    right: 0,
+
+    alignItems: 'center',
+
+    zIndex: 9999,
+
+    elevation: 9999,
+
+    pointerEvents: 'none',
+  },
+
+  toast: {
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    gap: 8,
+
+    maxWidth: 440,
+
+    marginHorizontal: 16,
+
+    paddingHorizontal: 17,
+
+    paddingVertical: 13,
+
+    borderRadius: 15,
+
+    ...(IS_WEB
+      ? {
+          boxShadow:
+            '0 9px 28px rgba(0,0,0,0.20)',
+        }
+      : {
+          shadowColor: '#000',
+
+          shadowOffset: {
+            width: 0,
+            height: 4,
+          },
+
+          shadowOpacity: 0.18,
+
+          shadowRadius: 10,
+
+          elevation: 6,
+        }),
+  },
+
+  toastText: {
+    color: '#FFFFFF',
+
+    fontSize:
+      typography.fontSize.sm,
+
+    fontFamily:
+      typography.fontFamily.medium,
+
+    flexShrink: 1,
+
+    lineHeight: 19,
   },
 });
 
