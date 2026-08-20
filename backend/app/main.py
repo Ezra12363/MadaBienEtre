@@ -68,7 +68,9 @@ app = FastAPI(
 # FICHIERS STATIQUES (uploads)
 # ============================================================
 upload_dir = "uploads"
-for sub in ("profiles", "documents", "certificates"):
+# ✅ "massage_types" ajouté : dossier où admin.py enregistre les icônes/images
+#    des types de massage (voir app/api/admin.py — _save_massage_image).
+for sub in ("profiles", "documents", "certificates", "massage_types"):
     os.makedirs(os.path.join(upload_dir, sub), exist_ok=True)
 
 app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")

@@ -1234,17 +1234,44 @@ async getMassageTypes(isActive = null) {
 },
 
 
-async createMassageType(payload) {
+/**
+ * ✅ Créer un type de massage (multipart/form-data).
+ *
+ * `formData` doit être une instance de FormData (champs texte +
+ * fichiers `icon`/`image` optionnels — voir buildMassageTypeFormData
+ * dans MassageTypesScreen.js).
+ *
+ * 🐛 CORRECTIF (422 "field required" sur name/category/... alors que
+ * le formulaire les envoie bien) : l'instance axios `api` a un header
+ * par défaut `Content-Type: application/json` (voir api.js). Sans
+ * override, ce défaut reste actif même pour une requête FormData —
+ * le backend reçoit alors une requête "application/json" qui ne
+ * contient aucune partie multipart, donc TOUS les champs Form(...)
+ * sont vus comme absents → 422 sur chaque champ obligatoire.
+ *
+ * On efface ce header en le mettant à `undefined` : axios ne l'envoie
+ * alors plus du tout, et c'est l'environnement (navigateur côté Web,
+ * pont réseau natif côté React Native) qui calcule lui-même le bon
+ * `multipart/form-data; boundary=...`. Fixer la chaîne à la main
+ * (`'multipart/form-data'` sans boundary) casse le Web ; l'omettre
+ * complètement laisse 'application/json' hérité de l'instance. Seul
+ * `undefined` marche sur les DEUX plateformes.
+ */
+async createMassageType(formData) {
   try {
 
     console.log(
-      '📤 [API REQUEST] POST /admin/massage-types',
-      payload
+      '📤 [API REQUEST] POST /admin/massage-types (multipart)'
     );
 
     const response = await api.post(
       '/admin/massage-types',
-      payload
+      formData,
+      {
+        headers: {
+          'Content-Type': undefined,
+        },
+      }
     );
 
     console.log(
@@ -1268,7 +1295,13 @@ async createMassageType(payload) {
 },
 
 
-async updateMassageType(typeId, payload) {
+/**
+ * ✅ Mettre à jour un type de massage (multipart/form-data).
+ * Voir le commentaire de `createMassageType` pour le détail du
+ * correctif `'Content-Type': undefined` (bug 422 sur les deux
+ * plateformes sinon).
+ */
+async updateMassageType(typeId, formData) {
   try {
 
     const id = Number(typeId);
@@ -1282,12 +1315,17 @@ async updateMassageType(typeId, payload) {
     console.log(
       '📤 [API REQUEST] PUT',
       `/admin/massage-types/${id}`,
-      payload
+      '(multipart)'
     );
 
     const response = await api.put(
       `/admin/massage-types/${id}`,
-      payload
+      formData,
+      {
+        headers: {
+          'Content-Type': undefined,
+        },
+      }
     );
 
     console.log(
@@ -1426,6 +1464,23 @@ getCertificateDownloadUrl(therapistId) {
    * Récupérer l'URL WebSocket pour le tracking
    * @param {string} bookingId - ID de la réservation
    */
+  /**
+   * Transforme le chemin relatif renvoyé par le backend
+   * (ex: "/uploads/massage_types/xxx.jpg") en URL absolue affichable
+   * dans un <Image>, en se basant sur la même base URL que le reste
+   * des requêtes (on retire juste le suffixe "/api" si présent).
+   * @param {string} path - chemin relatif stocké en base (icon_url / image_url)
+   */
+  getMassageImageUrl(path) {
+    if (!path) return null;
+    if (/^https?:\/\//i.test(path)) return path;
+
+    const base = api.defaults.baseURL || '';
+    const origin = base.replace(/\/api\/?$/, '');
+
+    return `${origin}${path}`;
+  },
+
   getWebSocketURL(bookingId) {
     const wsUrl = api.defaults.baseURL.replace(/^http/, 'ws');
     return `${wsUrl}/ws/tracking/${bookingId}`;

@@ -21,8 +21,11 @@ import {
   Switch,
   Platform,
   KeyboardAvoidingView,
+  Image,
+  Alert,
 } from 'react-native';
 
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -205,6 +208,22 @@ const MassageTypesScreen = ({ navigation }) => {
   const [formData, setFormData] =
     useState(DEFAULT_FORM);
 
+  // ✅ NOUVEAU : fichier local choisi par l'utilisateur (pas encore uploadé).
+  // formData.icon_url / image_url ne contient que le chemin déjà en base
+  // (pour l'aperçu en mode édition) ; le fichier à envoyer est ici.
+  const [iconFile, setIconFile] =
+    useState(null);
+
+  const [imageFile, setImageFile] =
+    useState(null);
+
+  // Permet de supprimer une image existante sans la remplacer
+  const [removeIcon, setRemoveIcon] =
+    useState(false);
+
+  const [removeImage, setRemoveImage] =
+    useState(false);
+
   const [submitting, setSubmitting] =
     useState(false);
 
@@ -274,6 +293,80 @@ const MassageTypesScreen = ({ navigation }) => {
     });
 
     setEditingId(null);
+    setIconFile(null);
+    setImageFile(null);
+    setRemoveIcon(false);
+    setRemoveImage(false);
+  };
+
+  // ==========================================================
+  // SÉLECTION D'IMAGE (icon / image) — remplace les champs URL
+  // ==========================================================
+
+  const pickImage = async (field) => {
+    if (submitting) return;
+
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          'Permission requise',
+          "L'accès à la galerie est nécessaire pour choisir une image."
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets?.[0];
+      if (!asset?.uri) return;
+
+      const extensionMatch = /\.(\w+)$/.exec(asset.uri);
+      const extension = (extensionMatch?.[1] || 'jpg').toLowerCase();
+
+      const fileObject = {
+        uri: asset.uri,
+        name: asset.fileName || `${field}_${Date.now()}.${extension}`,
+        type: asset.mimeType || `image/${extension === 'jpg' ? 'jpeg' : extension}`,
+      };
+
+      if (field === 'icon') {
+        setIconFile(fileObject);
+        setRemoveIcon(false);
+      } else {
+        setImageFile(fileObject);
+        setRemoveImage(false);
+      }
+    } catch (err) {
+      console.error('pickImage error:', err);
+      showToast(
+        "Impossible d'ouvrir la galerie d'images.",
+        'error',
+        'Erreur'
+      );
+    }
+  };
+
+  const clearPickedImage = (field) => {
+    if (submitting) return;
+
+    if (field === 'icon') {
+      setIconFile(null);
+      setRemoveIcon(true);
+      updateField('icon_url', '');
+    } else {
+      setImageFile(null);
+      setRemoveImage(true);
+      updateField('image_url', '');
+    }
   };
 
   // ==========================================================
@@ -454,6 +547,10 @@ const MassageTypesScreen = ({ navigation }) => {
 
   const openEditModal = (item) => {
     setEditingId(item.id);
+    setIconFile(null);
+    setImageFile(null);
+    setRemoveIcon(false);
+    setRemoveImage(false);
 
     setFormData({
       name: item.name ?? '',
@@ -648,21 +745,9 @@ const MassageTypesScreen = ({ navigation }) => {
       return 'La catégorie sélectionnée est invalide.';
     }
 
-    if (
-      !isValidHttpUrl(
-        formData.icon_url.trim()
-      )
-    ) {
-      return "L'URL de l'icône doit être une URL HTTP/HTTPS valide.";
-    }
-
-    if (
-      !isValidHttpUrl(
-        formData.image_url.trim()
-      )
-    ) {
-      return "L'URL de l'image doit être une URL HTTP/HTTPS valide.";
-    }
+    // ✅ icon_url / image_url ne sont plus saisis en texte : ce sont des
+    // fichiers (iconFile / imageFile), optionnels, validés côté backend
+    // (format et taille) au moment de l'upload.
 
     return null;
   };
@@ -671,7 +756,7 @@ const MassageTypesScreen = ({ navigation }) => {
   // PAYLOAD
   // ==========================================================
 
-  const buildPayload = () => {
+  const buildFormData = () => {
     const recommendedPrice =
       formData.recommended_price.trim() !==
       ''
@@ -680,52 +765,38 @@ const MassageTypesScreen = ({ navigation }) => {
           )
         : null;
 
-    return {
-      name: formData.name.trim(),
+    const fd = new FormData();
 
-      description:
-        formData.description.trim() ||
-        null,
+    fd.append('name', formData.name.trim());
+    fd.append('description', formData.description.trim() || '');
+    fd.append('duration_min', String(Number(formData.duration_min)));
+    fd.append('duration_max', String(Number(formData.duration_max)));
+    fd.append('min_price', String(Number(formData.min_price)));
 
-      duration_min:
-        Number(
-          formData.duration_min
-        ),
+    if (recommendedPrice !== null) {
+      fd.append('recommended_price', String(recommendedPrice));
+    }
 
-      duration_max:
-        Number(
-          formData.duration_max
-        ),
+    fd.append('category', formData.category);
+    fd.append('is_active', String(Boolean(formData.is_active)));
+    fd.append('display_order', String(Number(formData.display_order)));
 
-      min_price:
-        Number(formData.min_price),
+    // Fichiers : seulement s'ils viennent d'être choisis (sinon on garde
+    // l'image déjà en base côté backend).
+    if (iconFile) {
+      fd.append('icon', iconFile);
+    }
+    if (imageFile) {
+      fd.append('image', imageFile);
+    }
 
-      recommended_price:
-        recommendedPrice,
+    // En édition uniquement : permet de supprimer une image sans la remplacer
+    if (editingId !== null) {
+      fd.append('remove_icon', String(removeIcon));
+      fd.append('remove_image', String(removeImage));
+    }
 
-      category:
-        formData.category,
-
-      icon_url:
-        normalizeUrl(
-          formData.icon_url
-        ),
-
-      image_url:
-        normalizeUrl(
-          formData.image_url
-        ),
-
-      is_active:
-        Boolean(
-          formData.is_active
-        ),
-
-      display_order:
-        Number(
-          formData.display_order
-        ),
-    };
+    return fd;
   };
 
   // ==========================================================
@@ -749,8 +820,8 @@ const MassageTypesScreen = ({ navigation }) => {
       return;
     }
 
-    const payload =
-      buildPayload();
+    const formPayload =
+      buildFormData();
 
     setSubmitting(true);
 
@@ -760,7 +831,7 @@ const MassageTypesScreen = ({ navigation }) => {
       ) {
         await adminService.updateMassageType(
           editingId,
-          payload
+          formPayload
         );
 
         setModalVisible(false);
@@ -773,7 +844,7 @@ const MassageTypesScreen = ({ navigation }) => {
         );
       } else {
         await adminService.createMassageType(
-          payload
+          formPayload
         );
 
         setModalVisible(false);
@@ -2710,98 +2781,164 @@ const MassageTypesScreen = ({ navigation }) => {
                 />
               </View>
 
-              {/* URL ICON */}
+              {/* ICÔNE (fichier) */}
               <View
                 style={styles.field}
               >
                 <Text
                   style={[
                     styles.label,
-                    {
-                      color:
-                        themeColors.text,
-                    },
+                    { color: themeColors.text },
                   ]}
                 >
-                  URL Icône
+                  Icône
                 </Text>
 
-                <TextInput
-                  style={[
-                    styles.input,
-                    inputStyle,
-                  ]}
-                  value={
-                    formData.icon_url
-                  }
-                  onChangeText={(
-                    text
-                  ) =>
-                    updateField(
-                      'icon_url',
-                      text
-                    )
-                  }
-                  placeholder="https://exemple.com/icon.png"
-                  placeholderTextColor={
-                    themeColors.textSecondary
-                  }
-                  autoCapitalize="none"
-                  autoCorrect={
-                    false
-                  }
-                  keyboardType="url"
-                  editable={
-                    !submitting
-                  }
-                />
+                <View style={styles.imagePickerRow}>
+                  <View
+                    style={[
+                      styles.imagePreviewBox,
+                      { borderColor: themeColors.border || '#D1D5DB' },
+                    ]}
+                  >
+                    {iconFile?.uri || formData.icon_url ? (
+                      <Image
+                        source={{
+                          uri:
+                            iconFile?.uri ||
+                            adminService.getMassageImageUrl(formData.icon_url),
+                        }}
+                        style={styles.imagePreview}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Ionicons
+                        name="image-outline"
+                        size={24}
+                        color={themeColors.textSecondary}
+                      />
+                    )}
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.imagePickerButton,
+                      { borderColor: themeColors.border || '#D1D5DB' },
+                    ]}
+                    onPress={() => pickImage('icon')}
+                    disabled={submitting}
+                  >
+                    <Ionicons
+                      name="cloud-upload-outline"
+                      size={16}
+                      color={themeColors.text}
+                    />
+                    <Text
+                      style={[
+                        styles.imagePickerButtonText,
+                        { color: themeColors.text },
+                      ]}
+                    >
+                      {iconFile || formData.icon_url
+                        ? "Changer l'icône"
+                        : 'Choisir une icône'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {(iconFile || formData.icon_url) && (
+                    <TouchableOpacity
+                      style={styles.imageRemoveButton}
+                      onPress={() => clearPickedImage('icon')}
+                      disabled={submitting}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={18}
+                        color={colors.error || '#DC2626'}
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
-              {/* URL IMAGE */}
+              {/* IMAGE (fichier) */}
               <View
                 style={styles.field}
               >
                 <Text
                   style={[
                     styles.label,
-                    {
-                      color:
-                        themeColors.text,
-                    },
+                    { color: themeColors.text },
                   ]}
                 >
-                  URL Image
+                  Image
                 </Text>
 
-                <TextInput
-                  style={[
-                    styles.input,
-                    inputStyle,
-                  ]}
-                  value={
-                    formData.image_url
-                  }
-                  onChangeText={(
-                    text
-                  ) =>
-                    updateField(
-                      'image_url',
-                      text
-                    )
-                  }
-                  placeholder="https://exemple.com/massage.jpg"
-                  placeholderTextColor={
-                    themeColors.textSecondary
-                  }
-                  autoCapitalize="none"
-                  autoCorrect={
-                    false
-                  }
-                  keyboardType="url"
-                  editable={
-                    !submitting
-                  }
-                />
+                <View style={styles.imagePickerRow}>
+                  <View
+                    style={[
+                      styles.imagePreviewBox,
+                      { borderColor: themeColors.border || '#D1D5DB' },
+                    ]}
+                  >
+                    {imageFile?.uri || formData.image_url ? (
+                      <Image
+                        source={{
+                          uri:
+                            imageFile?.uri ||
+                            adminService.getMassageImageUrl(formData.image_url),
+                        }}
+                        style={styles.imagePreview}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Ionicons
+                        name="image-outline"
+                        size={24}
+                        color={themeColors.textSecondary}
+                      />
+                    )}
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.imagePickerButton,
+                      { borderColor: themeColors.border || '#D1D5DB' },
+                    ]}
+                    onPress={() => pickImage('image')}
+                    disabled={submitting}
+                  >
+                    <Ionicons
+                      name="cloud-upload-outline"
+                      size={16}
+                      color={themeColors.text}
+                    />
+                    <Text
+                      style={[
+                        styles.imagePickerButtonText,
+                        { color: themeColors.text },
+                      ]}
+                    >
+                      {imageFile || formData.image_url
+                        ? "Changer l'image"
+                        : 'Choisir une image'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {(imageFile || formData.image_url) && (
+                    <TouchableOpacity
+                      style={styles.imageRemoveButton}
+                      onPress={() => clearPickedImage('image')}
+                      disabled={submitting}
+                    >
+                      <Ionicons
+                        name="trash-outline"
+                        size={18}
+                        color={colors.error || '#DC2626'}
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
               {/* ACTIVE */}
@@ -4711,6 +4848,48 @@ const styles = StyleSheet.create({
   field: {
     marginBottom:
       spacing.md,
+  },
+
+  // ✅ NOUVEAU : sélecteur d'image (icon_url / image_url en fichier)
+  imagePickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+
+  imagePreviewBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+  },
+
+  imagePickerButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+
+  imagePickerButtonText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily?.medium,
+  },
+
+  imageRemoveButton: {
+    padding: spacing.xs,
   },
 
   formRow: {
