@@ -8,16 +8,16 @@
 //    -> Interface Desktop
 //
 // WEB < 1024px
-//    -> Interface Mobile / Android
+//    -> Interface Mobile
 //
 // ANDROID / IOS
 //    -> Interface Mobile
 //
-// IMPORTANT:
-//    useWindowDimensions() est utilisé au lieu de
-//    Dimensions.get('window') afin que l'interface
-//    change automatiquement lorsque la fenêtre Web
-//    est redimensionnée.
+// LOGO
+//    -> Cadre blanc/translucide premium
+//    -> Padding autour du logo
+//    -> Légère ombre
+//    -> Adapté Web + Android + iOS
 // ============================================================
 
 import React, {
@@ -52,6 +52,7 @@ import * as Animatable from 'react-native-animatable';
 
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+
 import {
   colors,
   spacing,
@@ -69,19 +70,10 @@ const IS_ANDROID = Platform.OS === 'android';
 const IS_IOS = Platform.OS === 'ios';
 
 // ============================================================
-// BREAKPOINTS
+// BREAKPOINT
 // ============================================================
 
-// Au-dessus de cette largeur:
-// interface Web Desktop.
-//
-// En-dessous:
-// interface Mobile / Android.
-//
-// Tu peux modifier 1024 si nécessaire.
 const DESKTOP_BREAKPOINT = 1024;
-
-// Petit écran mobile
 const SMALL_MOBILE_HEIGHT = 700;
 
 // ============================================================
@@ -173,10 +165,8 @@ const Toast = ({
         style={[
           styles.toastContainer,
           {
-            backgroundColor:
-              current.background,
-            borderColor:
-              current.border,
+            backgroundColor: current.background,
+            borderColor: current.border,
           },
         ]}
       >
@@ -197,9 +187,7 @@ const Toast = ({
         </View>
 
         <View
-          style={
-            styles.toastMessageContainer
-          }
+          style={styles.toastMessageContainer}
         >
           <Text
             style={[
@@ -242,38 +230,18 @@ const Toast = ({
 const LoginScreen = ({
   navigation,
 }) => {
-  // ==========================================================
-  // RESPONSIVE DIMENSIONS
-  // ==========================================================
-
   const {
     width,
     height,
   } = useWindowDimensions();
 
   // ==========================================================
-  // IMPORTANT RESPONSIVE LOGIC
-  // ==========================================================
-  //
-  // Web >= 1024px:
-  //      Desktop
-  //
-  // Web < 1024px:
-  //      Mobile
-  //
-  // Android / iOS:
-  //      Mobile
-  //
-  // Le changement est automatique lorsque la fenêtre
-  // du navigateur est redimensionnée.
+  // RESPONSIVE
   // ==========================================================
 
   const isDesktopWeb =
     IS_WEB &&
     width >= DESKTOP_BREAKPOINT;
-
-  const isMobileLayout =
-    !isDesktopWeb;
 
   const isSmallScreen =
     width < 480;
@@ -351,7 +319,7 @@ const LoginScreen = ({
     ).current;
 
   // ==========================================================
-  // INITIAL ANIMATION
+  // INITIALIZATION
   // ==========================================================
 
   useEffect(() => {
@@ -378,9 +346,7 @@ const LoginScreen = ({
     requestNotificationPermission();
 
     return () => {
-      if (
-        toastTimerRef.current
-      ) {
+      if (toastTimerRef.current) {
         clearTimeout(
           toastTimerRef.current
         );
@@ -420,9 +386,7 @@ const LoginScreen = ({
         message,
         duration = 4000
       ) => {
-        if (
-          toastTimerRef.current
-        ) {
+        if (toastTimerRef.current) {
           clearTimeout(
             toastTimerRef.current
           );
@@ -449,9 +413,7 @@ const LoginScreen = ({
 
   const dismissToast =
     useCallback(() => {
-      if (
-        toastTimerRef.current
-      ) {
+      if (toastTimerRef.current) {
         clearTimeout(
           toastTimerRef.current
         );
@@ -618,9 +580,7 @@ const LoginScreen = ({
         validateEmail(email);
 
       const passwordError =
-        validatePassword(
-          password
-        );
+        validatePassword(password);
 
       const newErrors = {};
 
@@ -703,7 +663,7 @@ const LoginScreen = ({
     ]);
 
   // ==========================================================
-  // FOCUS EMAIL
+  // FOCUS
   // ==========================================================
 
   const focusEmail =
@@ -712,10 +672,6 @@ const LoginScreen = ({
         emailInputRef.current?.focus();
       });
     }, []);
-
-  // ==========================================================
-  // FOCUS PASSWORD
-  // ==========================================================
 
   const focusPassword =
     useCallback(() => {
@@ -748,9 +704,7 @@ const LoginScreen = ({
     }) => {
       return (
         <View
-          style={
-            styles.inputGroup
-          }
+          style={styles.inputGroup}
         >
           <Text
             style={[
@@ -810,26 +764,20 @@ const LoginScreen = ({
                 onChangeText
               }
               onBlur={onBlur}
-              placeholder={
-                placeholder
-              }
+              placeholder={placeholder}
               placeholderTextColor={
                 isDark
                   ? '#6B7280'
                   : '#9CA3AF'
               }
-              keyboardType={
-                keyboardType
-              }
+              keyboardType={keyboardType}
               secureTextEntry={
                 secureTextEntry
               }
               autoCapitalize={
                 autoCapitalize
               }
-              autoCorrect={
-                autoCorrect
-              }
+              autoCorrect={autoCorrect}
               returnKeyType={
                 returnKeyType
               }
@@ -841,9 +789,7 @@ const LoginScreen = ({
                 colors.primary
               }
               blurOnSubmit={false}
-              disableFullscreenUI={
-                true
-              }
+              disableFullscreenUI
               textAlignVertical="center"
             />
 
@@ -892,8 +838,7 @@ const LoginScreen = ({
             styles.formContainerSmall,
 
           {
-            opacity:
-              fadeAnim,
+            opacity: fadeAnim,
 
             transform: [
               {
@@ -904,14 +849,10 @@ const LoginScreen = ({
           },
         ]}
       >
-        {/* ====================================================
-            HEADER FORM
-        ==================================================== */}
+        {/* FORM HEADER */}
 
         <View
-          style={
-            styles.formHeader
-          }
+          style={styles.formHeader}
         >
           <View
             style={[
@@ -926,9 +867,7 @@ const LoginScreen = ({
             <Ionicons
               name="lock-open-outline"
               size={25}
-              color={
-                colors.primary
-              }
+              color={colors.primary}
             />
           </View>
 
@@ -960,92 +899,52 @@ const LoginScreen = ({
           </Text>
         </View>
 
-        {/* ====================================================
-            EMAIL
-        ==================================================== */}
+        {/* EMAIL */}
 
         {renderInput({
-          label:
-            'Adresse email',
-
-          icon:
-            'mail-outline',
-
-          value:
-            email,
-
+          label: 'Adresse email',
+          icon: 'mail-outline',
+          value: email,
           onChangeText:
             handleEmailChange,
-
           onBlur:
             handleEmailBlur,
-
           placeholder:
             'exemple@email.com',
-
           keyboardType:
             'email-address',
-
-          autoCapitalize:
-            'none',
-
-          autoCorrect:
-            false,
-
-          returnKeyType:
-            'next',
-
-          error:
-            errors.email,
-
+          autoCapitalize: 'none',
+          autoCorrect: false,
+          returnKeyType: 'next',
+          error: errors.email,
           inputRef:
             emailInputRef,
-
           onSubmitEditing:
             focusPassword,
         })}
 
-        {/* ====================================================
-            PASSWORD
-        ==================================================== */}
+        {/* PASSWORD */}
 
         {renderInput({
-          label:
-            'Mot de passe',
-
+          label: 'Mot de passe',
           icon:
             'lock-closed-outline',
-
-          value:
-            password,
-
+          value: password,
           onChangeText:
             handlePasswordChange,
-
           onBlur:
             handlePasswordBlur,
-
           placeholder:
             'Votre mot de passe',
-
           secureTextEntry:
             !showPassword,
-
-          autoCapitalize:
-            'none',
-
-          autoCorrect:
-            false,
-
-          returnKeyType:
-            'done',
-
+          autoCapitalize: 'none',
+          autoCorrect: false,
+          returnKeyType: 'done',
           onSubmitEditing:
             handleLogin,
-
           error:
             errors.password,
-
           inputRef:
             passwordInputRef,
 
@@ -1095,9 +994,7 @@ const LoginScreen = ({
           ),
         })}
 
-        {/* ====================================================
-            FORGOT PASSWORD
-        ==================================================== */}
+        {/* FORGOT PASSWORD */}
 
         <TouchableOpacity
           style={
@@ -1118,9 +1015,7 @@ const LoginScreen = ({
               );
             }, 250);
           }}
-          disabled={
-            isLoading
-          }
+          disabled={isLoading}
           activeOpacity={0.7}
         >
           <Text
@@ -1132,9 +1027,7 @@ const LoginScreen = ({
           </Text>
         </TouchableOpacity>
 
-        {/* ====================================================
-            LOGIN BUTTON
-        ==================================================== */}
+        {/* LOGIN BUTTON */}
 
         <TouchableOpacity
           style={[
@@ -1142,12 +1035,8 @@ const LoginScreen = ({
             isLoading &&
               styles.loginButtonDisabled,
           ]}
-          onPress={
-            handleLogin
-          }
-          disabled={
-            isLoading
-          }
+          onPress={handleLogin}
+          disabled={isLoading}
           activeOpacity={0.85}
         >
           <LinearGradient
@@ -1202,9 +1091,7 @@ const LoginScreen = ({
           </LinearGradient>
         </TouchableOpacity>
 
-        {/* ====================================================
-            DIVIDER
-        ==================================================== */}
+        {/* DIVIDER */}
 
         <View
           style={
@@ -1249,9 +1136,7 @@ const LoginScreen = ({
           />
         </View>
 
-        {/* ====================================================
-            SOCIAL
-        ==================================================== */}
+        {/* SOCIAL */}
 
         <View
           style={
@@ -1333,9 +1218,7 @@ const LoginScreen = ({
           </TouchableOpacity>
         </View>
 
-        {/* ====================================================
-            REGISTER
-        ==================================================== */}
+        {/* REGISTER */}
 
         <View
           style={
@@ -1371,9 +1254,7 @@ const LoginScreen = ({
                 );
               }, 250);
             }}
-            disabled={
-              isLoading
-            }
+            disabled={isLoading}
           >
             <Text
               style={
@@ -1385,9 +1266,7 @@ const LoginScreen = ({
           </TouchableOpacity>
         </View>
 
-        {/* ====================================================
-            SECURITY
-        ==================================================== */}
+        {/* SECURITY */}
 
         <View
           style={[
@@ -1408,9 +1287,7 @@ const LoginScreen = ({
           <Ionicons
             name="shield-checkmark-outline"
             size={18}
-            color={
-              colors.primary
-            }
+            color={colors.primary}
           />
 
           <Text
@@ -1431,23 +1308,19 @@ const LoginScreen = ({
     );
 
   // ==========================================================
-  // MOBILE VERSION
+  // MOBILE
   // ==========================================================
 
   const renderMobile =
     () => (
       <KeyboardAvoidingView
-        style={
-          styles.keyboardView
-        }
+        style={styles.keyboardView}
         behavior={
           IS_IOS
             ? 'padding'
             : 'height'
         }
-        keyboardVerticalOffset={
-          0
-        }
+        keyboardVerticalOffset={0}
       >
         <TouchableWithoutFeedback
           onPress={() =>
@@ -1456,9 +1329,7 @@ const LoginScreen = ({
           accessible={false}
         >
           <ScrollView
-            ref={
-              scrollViewRef
-            }
+            ref={scrollViewRef}
             style={
               styles.mobileScroll
             }
@@ -1483,13 +1354,9 @@ const LoginScreen = ({
             contentInsetAdjustmentBehavior="never"
             nestedScrollEnabled
             bounces={false}
-            removeClippedSubviews={
-              false
-            }
+            removeClippedSubviews={false}
           >
-            {/* ==================================================
-                MOBILE HEADER
-            ================================================== */}
+            {/* MOBILE HEADER */}
 
             <Animatable.View
               animation="fadeInDown"
@@ -1521,7 +1388,6 @@ const LoginScreen = ({
                   }
                   onPress={() => {
                     Keyboard.dismiss();
-
                     navigation.goBack();
                   }}
                   hitSlop={{
@@ -1543,21 +1409,32 @@ const LoginScreen = ({
                     styles.mobileHeaderContent
                   }
                 >
-                  <Image
-                    source={require('../../../assets/logo.png')}
-                    style={[
-                      styles.mobileLogo,
+                  {/* =================================================
+                      LOGO PREMIUM MOBILE
+                      Fond blanc translucide + cadre
+                  ================================================= */}
 
+                  <View
+                    style={[
+                      styles.mobileLogoFrame,
                       isVerySmallScreen &&
-                        styles.mobileLogoSmall,
+                        styles.mobileLogoFrameSmall,
                     ]}
-                    resizeMode="contain"
-                  />
+                  >
+                    <Image
+                      source={require('../../../assets/logo.png')}
+                      style={[
+                        styles.mobileLogo,
+                        isVerySmallScreen &&
+                          styles.mobileLogoSmall,
+                      ]}
+                      resizeMode="contain"
+                    />
+                  </View>
 
                   <Text
                     style={[
                       styles.mobileAppName,
-
                       isVerySmallScreen &&
                         styles.mobileAppNameSmall,
                     ]}
@@ -1576,10 +1453,6 @@ const LoginScreen = ({
               </LinearGradient>
             </Animatable.View>
 
-            {/* ==================================================
-                FORM
-            ================================================== */}
-
             {renderLoginForm()}
           </ScrollView>
         </TouchableWithoutFeedback>
@@ -1587,7 +1460,7 @@ const LoginScreen = ({
     );
 
   // ==========================================================
-  // DESKTOP WEB VERSION
+  // DESKTOP WEB
   // ==========================================================
 
   const renderWeb =
@@ -1597,9 +1470,7 @@ const LoginScreen = ({
           styles.webContainer
         }
       >
-        {/* ====================================================
-            LEFT PANEL
-        ==================================================== */}
+        {/* LEFT PANEL */}
 
         <View
           style={
@@ -1628,7 +1499,9 @@ const LoginScreen = ({
                 styles.webLeftContent
               }
             >
-              {/* LOGO */}
+              {/* =================================================
+                  LOGO PREMIUM WEB
+              ================================================= */}
 
               <View
                 style={
@@ -1637,7 +1510,7 @@ const LoginScreen = ({
               >
                 <View
                   style={
-                    styles.webLogoIcon
+                    styles.webLogoFrame
                   }
                 >
                   <Image
@@ -1849,9 +1722,7 @@ const LoginScreen = ({
           </LinearGradient>
         </View>
 
-        {/* ====================================================
-            RIGHT PANEL
-        ==================================================== */}
+        {/* RIGHT PANEL */}
 
         <ScrollView
           style={
@@ -1917,21 +1788,6 @@ const LoginScreen = ({
         }
       />
 
-      {/* ======================================================
-          RESPONSIVE SWITCH
-
-          IMPORTANT:
-
-          Web >= 1024px
-              -> WEB DESKTOP
-
-          Web < 1024px
-              -> MOBILE / ANDROID VERSION
-
-          Android / iOS
-              -> MOBILE / ANDROID VERSION
-      ====================================================== */}
-
       {isDesktopWeb
         ? renderWeb()
         : renderMobile()}
@@ -1944,6 +1800,7 @@ const LoginScreen = ({
 // ============================================================
 
 const styles = StyleSheet.create({
+
   // ==========================================================
   // GENERAL
   // ==========================================================
@@ -1985,31 +1842,24 @@ const styles = StyleSheet.create({
 
   toastContainer: {
     width: '100%',
-
     maxWidth: 560,
-
     minHeight: 64,
 
     borderRadius: 16,
-
     borderWidth: 1,
 
     paddingHorizontal: 11,
     paddingVertical: 9,
 
     flexDirection: 'row',
-
     alignItems: 'center',
 
     shadowColor: '#000',
-
     shadowOffset: {
       width: 0,
       height: 6,
     },
-
     shadowOpacity: 0.14,
-
     shadowRadius: 15,
 
     elevation: 10,
@@ -2033,9 +1883,7 @@ const styles = StyleSheet.create({
 
   toastMessage: {
     fontSize: 13,
-
     lineHeight: 18,
-
     fontFamily:
       APP_FONT_MEDIUM,
   },
@@ -2058,14 +1906,11 @@ const styles = StyleSheet.create({
 
   mobileScroll: {
     flex: 1,
-
-    backgroundColor:
-      'transparent',
+    backgroundColor: 'transparent',
   },
 
   mobileScrollContent: {
     flexGrow: 1,
-
     paddingBottom: 80,
   },
 
@@ -2084,7 +1929,6 @@ const styles = StyleSheet.create({
         : 34,
 
     paddingBottom: 28,
-
     paddingHorizontal: 20,
 
     borderBottomLeftRadius: 30,
@@ -2119,18 +1963,61 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  mobileLogo: {
-    width: 64,
-    height: 64,
+  // ==========================================================
+  // ⭐ LOGO MOBILE PREMIUM
+  // ==========================================================
+
+  mobileLogoFrame: {
+    width: 82,
+    height: 82,
+
+    borderRadius: 23,
+
+    padding: 9,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    backgroundColor:
+      'rgba(255,255,255,0.96)',
+
+    borderWidth: 1,
+
+    borderColor:
+      'rgba(255,255,255,0.70)',
+
+    marginBottom: 10,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+
+    elevation: 5,
+  },
+
+  mobileLogoFrameSmall: {
+    width: 70,
+    height: 70,
+
+    borderRadius: 20,
+
+    padding: 8,
 
     marginBottom: 8,
   },
 
-  mobileLogoSmall: {
-    width: 54,
-    height: 54,
+  mobileLogo: {
+    width: 62,
+    height: 62,
+  },
 
-    marginBottom: 6,
+  mobileLogoSmall: {
+    width: 52,
+    height: 52,
   },
 
   mobileAppName: {
@@ -2312,7 +2199,7 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // FORGOT PASSWORD
+  // FORGOT
   // ==========================================================
 
   forgotPassword: {
@@ -2326,8 +2213,7 @@ const styles = StyleSheet.create({
   },
 
   forgotPasswordText: {
-    color:
-      colors.primary,
+    color: colors.primary,
 
     fontSize: 13,
 
@@ -2457,11 +2343,9 @@ const styles = StyleSheet.create({
   },
 
   appleButton: {
-    backgroundColor:
-      '#000000',
+    backgroundColor: '#000000',
 
-    borderColor:
-      '#000000',
+    borderColor: '#000000',
   },
 
   appleButtonText: {
@@ -2498,8 +2382,7 @@ const styles = StyleSheet.create({
   },
 
   registerLink: {
-    color:
-      colors.primary,
+    color: colors.primary,
 
     fontSize: 13.5,
 
@@ -2552,10 +2435,6 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
 
-  // ==========================================================
-  // WEB LEFT
-  // ==========================================================
-
   webLeftPanel: {
     flex: 1,
 
@@ -2587,31 +2466,51 @@ const styles = StyleSheet.create({
     width: '100%',
   },
 
+  // ==========================================================
+  // ⭐ LOGO WEB PREMIUM
+  // ==========================================================
+
   webLogoContainer: {
     flexDirection: 'row',
 
     alignItems: 'center',
   },
 
-  webLogoIcon: {
-    width: 54,
-    height: 54,
+  webLogoFrame: {
+    width: 66,
+    height: 66,
 
-    borderRadius: 15,
+    borderRadius: 18,
 
-    backgroundColor:
-      'rgba(255,255,255,0.15)',
+    padding: 8,
 
     alignItems: 'center',
-
     justifyContent: 'center',
 
-    marginRight: 13,
+    backgroundColor:
+      'rgba(255,255,255,0.96)',
+
+    borderWidth: 1,
+
+    borderColor:
+      'rgba(255,255,255,0.75)',
+
+    marginRight: 14,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+
+    elevation: 5,
   },
 
   webLogoImage: {
-    width: 38,
-    height: 38,
+    width: 49,
+    height: 49,
   },
 
   webLogoText: {
@@ -2685,7 +2584,6 @@ const styles = StyleSheet.create({
       'rgba(255,255,255,0.14)',
 
     alignItems: 'center',
-
     justifyContent: 'center',
   },
 
@@ -2757,8 +2655,7 @@ const styles = StyleSheet.create({
 
     maxWidth: '50%',
 
-    backgroundColor:
-      '#FFFFFF',
+    backgroundColor: '#FFFFFF',
 
     minHeight: 0,
   },
@@ -2766,8 +2663,7 @@ const styles = StyleSheet.create({
   webRightScrollContent: {
     flexGrow: 1,
 
-    justifyContent:
-      'center',
+    justifyContent: 'center',
 
     paddingHorizontal: 55,
 
