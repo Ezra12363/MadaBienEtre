@@ -33,19 +33,21 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 
-import { useTheme } from '../context/ThemeContext';
-import { colors } from '../theme';
-import {
-  typography,
-  spacing,
-} from '../theme';
-
 import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 
+import { useTheme } from '../context/ThemeContext';
+
+import {
+  colors,
+  typography,
+  spacing,
+} from '../theme';
+
+
 // ============================================================
-// ÉCRANS ADMIN
+// ADMIN SCREENS
 // ============================================================
 
 import DashboardScreen from '../screens/admin/DashboardScreen';
@@ -60,6 +62,7 @@ import AIInsightsScreen from '../screens/admin/AIInsightsScreen';
 import SettingsScreen from '../screens/admin/SettingsScreen';
 import MassageTypesScreen from '../screens/admin/MassageTypesScreen';
 
+
 // ============================================================
 // NAVIGATORS
 // ============================================================
@@ -67,8 +70,9 @@ import MassageTypesScreen from '../screens/admin/MassageTypesScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
+
 // ============================================================
-// CONSTANTES UX
+// SCROLL CONSTANTS
 // ============================================================
 
 const SCROLL_THRESHOLD = 8;
@@ -76,8 +80,9 @@ const SHOW_AT_TOP = 10;
 const HIDE_TRANSLATE_Y = 100;
 const ANIMATION_DURATION = 240;
 
+
 // ============================================================
-// CONTEXT ADMIN TAB BAR
+// ADMIN TAB BAR CONTEXT
 // ============================================================
 
 const AdminTabBarContext = createContext({
@@ -93,12 +98,15 @@ export const useAdminTabBar = () => {
   return useContext(AdminTabBarContext);
 };
 
+
 // ============================================================
 // DASHBOARD STACK
 // ============================================================
 
 const DashboardStack = () => {
-  const { colors: themeColors } = useTheme();
+  const {
+    colors: themeColors,
+  } = useTheme();
 
   return (
     <Stack.Navigator
@@ -106,8 +114,7 @@ const DashboardStack = () => {
         headerShown: false,
         animation: 'fade',
         contentStyle: {
-          backgroundColor:
-            themeColors.background,
+          backgroundColor: themeColors.background,
         },
       }}
     >
@@ -164,12 +171,15 @@ const DashboardStack = () => {
   );
 };
 
+
 // ============================================================
 // USERS STACK
 // ============================================================
 
 const UsersStack = () => {
-  const { colors: themeColors } = useTheme();
+  const {
+    colors: themeColors,
+  } = useTheme();
 
   return (
     <Stack.Navigator
@@ -177,8 +187,7 @@ const UsersStack = () => {
         headerShown: false,
         animation: 'fade',
         contentStyle: {
-          backgroundColor:
-            themeColors.background,
+          backgroundColor: themeColors.background,
         },
       }}
     >
@@ -200,12 +209,15 @@ const UsersStack = () => {
   );
 };
 
+
 // ============================================================
 // MANAGEMENT STACK
 // ============================================================
 
 const ManagementStack = () => {
-  const { colors: themeColors } = useTheme();
+  const {
+    colors: themeColors,
+  } = useTheme();
 
   return (
     <Stack.Navigator
@@ -213,8 +225,7 @@ const ManagementStack = () => {
         headerShown: false,
         animation: 'fade',
         contentStyle: {
-          backgroundColor:
-            themeColors.background,
+          backgroundColor: themeColors.background,
         },
       }}
     >
@@ -256,12 +267,15 @@ const ManagementStack = () => {
   );
 };
 
+
 // ============================================================
 // ANALYTICS STACK
 // ============================================================
 
 const AnalyticsStack = () => {
-  const { colors: themeColors } = useTheme();
+  const {
+    colors: themeColors,
+  } = useTheme();
 
   return (
     <Stack.Navigator
@@ -269,8 +283,7 @@ const AnalyticsStack = () => {
         headerShown: false,
         animation: 'fade',
         contentStyle: {
-          backgroundColor:
-            themeColors.background,
+          backgroundColor: themeColors.background,
         },
       }}
     >
@@ -287,12 +300,15 @@ const AnalyticsStack = () => {
   );
 };
 
+
 // ============================================================
 // SETTINGS STACK
 // ============================================================
 
 const SettingsStack = () => {
-  const { colors: themeColors } = useTheme();
+  const {
+    colors: themeColors,
+  } = useTheme();
 
   return (
     <Stack.Navigator
@@ -300,8 +316,7 @@ const SettingsStack = () => {
         headerShown: false,
         animation: 'fade',
         contentStyle: {
-          backgroundColor:
-            themeColors.background,
+          backgroundColor: themeColors.background,
         },
       }}
     >
@@ -312,6 +327,7 @@ const SettingsStack = () => {
     </Stack.Navigator>
   );
 };
+
 
 // ============================================================
 // MANAGEMENT SCREEN
@@ -328,6 +344,11 @@ const ManagementScreen = ({
     handleAdminScroll,
   } = useAdminTabBar();
 
+
+  // ==========================================================
+  // MENU ITEMS
+  // ==========================================================
+
   const menuItems = [
     {
       id: 'Therapists',
@@ -335,30 +356,35 @@ const ManagementScreen = ({
       label: 'Thérapeutes',
       color: '#4CAF50',
     },
+
     {
       id: 'Approvals',
       icon: 'checkmark-circle-outline',
       label: 'Approbations',
       color: '#F5A623',
     },
+
     {
       id: 'Payments',
       icon: 'cash-outline',
       label: 'Paiements',
       color: '#2196F3',
     },
+
     {
       id: 'Reviews',
       icon: 'star-outline',
       label: 'Avis',
       color: '#9B59B6',
     },
+
     {
       id: 'SOSAlerts',
       icon: 'alert-circle-outline',
       label: 'Alertes SOS',
       color: '#E74C3C',
     },
+
     {
       id: 'MassageTypes',
       icon: 'fitness-outline',
@@ -366,6 +392,7 @@ const ManagementScreen = ({
       color: '#4A90D9',
     },
   ];
+
 
   return (
     <SafeAreaView
@@ -377,6 +404,11 @@ const ManagementScreen = ({
         },
       ]}
     >
+
+      {/* =====================================================
+          HEADER GESTION
+          ===================================================== */}
+
       <View
         style={[
           styles.header,
@@ -390,6 +422,7 @@ const ManagementScreen = ({
           },
         ]}
       >
+
         <Text
           style={[
             styles.headerTitle,
@@ -401,9 +434,16 @@ const ManagementScreen = ({
         >
           Gestion
         </Text>
+
       </View>
 
+
+      {/* =====================================================
+          MENU
+          ===================================================== */}
+
       <ScrollView
+        style={styles.menuScroll}
         contentContainerStyle={
           styles.menuContent
         }
@@ -411,10 +451,9 @@ const ManagementScreen = ({
           handleAdminScroll
         }
         scrollEventThrottle={16}
-        showsVerticalScrollIndicator={
-          false
-        }
+        showsVerticalScrollIndicator={false}
       >
+
         {menuItems.map(
           (item) => (
             <TouchableOpacity
@@ -424,6 +463,10 @@ const ManagementScreen = ({
                 {
                   backgroundColor:
                     themeColors.surface,
+
+                  borderColor:
+                    themeColors.border ||
+                    'rgba(15,23,42,0.05)',
                 },
               ]}
               onPress={() =>
@@ -433,6 +476,9 @@ const ManagementScreen = ({
               }
               activeOpacity={0.72}
             >
+
+              {/* ICON */}
+
               <View
                 style={[
                   styles.menuIcon,
@@ -449,6 +495,9 @@ const ManagementScreen = ({
                 />
               </View>
 
+
+              {/* LABEL */}
+
               <Text
                 style={[
                   styles.menuLabel,
@@ -461,6 +510,9 @@ const ManagementScreen = ({
                 {item.label}
               </Text>
 
+
+              {/* CHEVRON */}
+
               <Ionicons
                 name="chevron-forward"
                 size={20}
@@ -468,23 +520,29 @@ const ManagementScreen = ({
                   themeColors.textSecondary
                 }
               />
+
             </TouchableOpacity>
           )
         )}
+
       </ScrollView>
+
     </SafeAreaView>
   );
 };
 
+
 // ============================================================
-// ICONS
+// TAB ICON
 // ============================================================
 
 const getTabIcon = (
   routeName,
   focused
 ) => {
+
   switch (routeName) {
+
     case 'Tableau de bord':
       return focused
         ? 'grid'
@@ -515,14 +573,17 @@ const getTabIcon = (
   }
 };
 
+
 // ============================================================
-// LABELS
+// TAB LABEL
 // ============================================================
 
 const getTabLabel = (
   routeName
 ) => {
+
   switch (routeName) {
+
     case 'Tableau de bord':
       return 'Tableau de bord';
 
@@ -543,8 +604,9 @@ const getTabLabel = (
   }
 };
 
+
 // ============================================================
-// CUSTOM ADMIN TAB BAR
+// CUSTOM TAB BAR
 // ============================================================
 
 const AdminTabBar = ({
@@ -552,6 +614,7 @@ const AdminTabBar = ({
   descriptors,
   navigation,
 }) => {
+
   const insets =
     useSafeAreaInsets();
 
@@ -563,6 +626,7 @@ const AdminTabBar = ({
   const {
     tabBarVisible,
   } = useAdminTabBar();
+
 
   // ==========================================================
   // ANIMATION
@@ -581,11 +645,9 @@ const AdminTabBar = ({
   const previousVisibility =
     useRef(true);
 
-  // ==========================================================
-  // SHOW / HIDE
-  // ==========================================================
 
   useEffect(() => {
+
     if (
       previousVisibility.current ===
       tabBarVisible
@@ -597,6 +659,7 @@ const AdminTabBar = ({
       tabBarVisible;
 
     Animated.parallel([
+
       Animated.timing(
         translateY,
         {
@@ -613,7 +676,8 @@ const AdminTabBar = ({
               Easing.cubic
             ),
 
-          useNativeDriver: true,
+          useNativeDriver:
+            true,
         }
       ),
 
@@ -633,19 +697,19 @@ const AdminTabBar = ({
               Easing.cubic
             ),
 
-          useNativeDriver: true,
+          useNativeDriver:
+            true,
         }
       ),
+
     ]).start();
+
   }, [
     tabBarVisible,
     translateY,
     opacity,
   ]);
 
-  // ==========================================================
-  // SAFE AREA
-  // ==========================================================
 
   const bottomInset =
     Math.max(
@@ -653,18 +717,12 @@ const AdminTabBar = ({
       0
     );
 
-  // ==========================================================
-  // HEIGHT
-  // ==========================================================
 
   const tabHeight =
     Platform.OS === 'web'
       ? 72
       : 66 + bottomInset;
 
-  // ==========================================================
-  // COLORS
-  // ==========================================================
 
   const activeColor =
     colors.primary ||
@@ -674,23 +732,28 @@ const AdminTabBar = ({
     themeColors.textSecondary ||
     '#7A8194';
 
+
   return (
     <View
       style={[
         styles.tabBarWrapper,
         {
-          height: tabHeight,
+          height:
+            tabHeight,
+
           backgroundColor:
             themeColors.background,
         },
       ]}
       pointerEvents="box-none"
     >
+
       <Animated.View
         style={[
           styles.tabBar,
           {
-            height: tabHeight,
+            height:
+              tabHeight,
 
             paddingBottom:
               Platform.OS === 'web'
@@ -708,9 +771,6 @@ const AdminTabBar = ({
                   : '#E7E9EF'
               ),
 
-            shadowColor:
-              '#000000',
-
             transform: [
               {
                 translateY,
@@ -721,16 +781,19 @@ const AdminTabBar = ({
           },
         ]}
       >
+
         <View
           style={
             styles.tabBarInner
           }
         >
+
           {state.routes.map(
             (
               route,
               index
             ) => {
+
               const {
                 options,
               } =
@@ -758,12 +821,10 @@ const AdminTabBar = ({
                   ? activeColor
                   : inactiveColor;
 
-              // =================================================
-              // PRESS
-              // =================================================
 
               const onPress =
                 () => {
+
                   const event =
                     navigation.emit(
                       {
@@ -788,12 +849,10 @@ const AdminTabBar = ({
                   }
                 };
 
-              // =================================================
-              // LONG PRESS
-              // =================================================
 
               const onLongPress =
                 () => {
+
                   navigation.emit(
                     {
                       type:
@@ -804,6 +863,7 @@ const AdminTabBar = ({
                     }
                   );
                 };
+
 
               return (
                 <TouchableOpacity
@@ -841,17 +901,12 @@ const AdminTabBar = ({
                     onLongPress
                   }
 
-                  activeOpacity={
-                    0.72
-                  }
+                  activeOpacity={0.72}
 
                   style={
                     styles.tabButton
                   }
                 >
-                  {/* ========================================== */}
-                  {/* ICON */}
-                  {/* ========================================== */}
 
                   <View
                     style={[
@@ -864,6 +919,7 @@ const AdminTabBar = ({
                       },
                     ]}
                   >
+
                     <Ionicons
                       name={
                         iconName
@@ -877,21 +933,16 @@ const AdminTabBar = ({
                         color
                       }
                     />
+
                   </View>
 
-                  {/* ========================================== */}
-                  {/* LABEL */}
-                  {/* ========================================== */}
 
                   <Animated.Text
-                    numberOfLines={
-                      1
-                    }
+                    numberOfLines={1}
                     style={[
                       styles.tabLabel,
                       {
                         color,
-
                         fontWeight:
                           focused
                             ? '700'
@@ -902,9 +953,6 @@ const AdminTabBar = ({
                     {label}
                   </Animated.Text>
 
-                  {/* ========================================== */}
-                  {/* ACTIVE INDICATOR */}
-                  {/* ========================================== */}
 
                   {focused && (
                     <View
@@ -917,28 +965,35 @@ const AdminTabBar = ({
                       ]}
                     />
                   )}
+
                 </TouchableOpacity>
               );
             }
           )}
+
         </View>
+
       </Animated.View>
+
     </View>
   );
 };
+
 
 // ============================================================
 // ADMIN NAVIGATOR
 // ============================================================
 
 const AdminNavigator = () => {
+
   const {
     colors: themeColors,
     isDark,
   } = useTheme();
 
+
   // ==========================================================
-  // VISIBILITY
+  // TAB BAR STATE
   // ==========================================================
 
   const [
@@ -946,18 +1001,17 @@ const AdminNavigator = () => {
     setTabBarVisible,
   ] = useState(true);
 
+
   // ==========================================================
-  // SCROLL
+  // SCROLL STATE
   // ==========================================================
 
   const lastScrollY =
     useRef(0);
 
-  const lastScrollTime =
-    useRef(0);
-
   const scrollDirection =
     useRef('idle');
+
 
   // ==========================================================
   // SHOW
@@ -965,10 +1019,13 @@ const AdminNavigator = () => {
 
   const showAdminTabBar =
     useCallback(() => {
+
       setTabBarVisible(
         true
       );
+
     }, []);
+
 
   // ==========================================================
   // HIDE
@@ -976,10 +1033,13 @@ const AdminNavigator = () => {
 
   const hideAdminTabBar =
     useCallback(() => {
+
       setTabBarVisible(
         false
       );
+
     }, []);
+
 
   // ==========================================================
   // TOGGLE
@@ -987,11 +1047,14 @@ const AdminNavigator = () => {
 
   const toggleAdminTabBar =
     useCallback(() => {
+
       setTabBarVisible(
         previous =>
           !previous
       );
+
     }, []);
+
 
   // ==========================================================
   // RESET
@@ -999,10 +1062,8 @@ const AdminNavigator = () => {
 
   const resetAdminScroll =
     useCallback(() => {
-      lastScrollY.current =
-        0;
 
-      lastScrollTime.current =
+      lastScrollY.current =
         0;
 
       scrollDirection.current =
@@ -1011,15 +1072,18 @@ const AdminNavigator = () => {
       setTabBarVisible(
         true
       );
+
     }, []);
 
+
   // ==========================================================
-  // SCROLL HANDLER
+  // HANDLE SCROLL
   // ==========================================================
 
   const handleAdminScroll =
     useCallback(
       (event) => {
+
         if (
           !event ||
           !event.nativeEvent
@@ -1031,14 +1095,16 @@ const AdminNavigator = () => {
           event.nativeEvent
             .contentOffset?.y || 0;
 
-        // ====================================================
+
+        // ----------------------------------------------
         // TOP
-        // ====================================================
+        // ----------------------------------------------
 
         if (
           currentY <=
           SHOW_AT_TOP
         ) {
+
           if (
             !tabBarVisible
           ) {
@@ -1056,17 +1122,15 @@ const AdminNavigator = () => {
           return;
         }
 
-        // ====================================================
+
+        // ----------------------------------------------
         // DELTA
-        // ====================================================
+        // ----------------------------------------------
 
         const delta =
           currentY -
           lastScrollY.current;
 
-        // ====================================================
-        // SMALL MOVEMENT
-        // ====================================================
 
         if (
           Math.abs(delta) <
@@ -1075,17 +1139,20 @@ const AdminNavigator = () => {
           return;
         }
 
-        // ====================================================
+
+        // ----------------------------------------------
         // SCROLL UP
-        // ====================================================
+        // ----------------------------------------------
 
         if (
           delta > 0
         ) {
+
           if (
             scrollDirection.current !==
             'up'
           ) {
+
             scrollDirection.current =
               'up';
 
@@ -1095,17 +1162,20 @@ const AdminNavigator = () => {
           }
         }
 
-        // ====================================================
+
+        // ----------------------------------------------
         // SCROLL DOWN
-        // ====================================================
+        // ----------------------------------------------
 
         else if (
           delta < 0
         ) {
+
           if (
             scrollDirection.current !==
             'down'
           ) {
+
             scrollDirection.current =
               'down';
 
@@ -1115,16 +1185,16 @@ const AdminNavigator = () => {
           }
         }
 
+
         lastScrollY.current =
           currentY;
 
-        lastScrollTime.current =
-          Date.now();
       },
       [
         tabBarVisible,
       ]
     );
+
 
   // ==========================================================
   // CONTEXT
@@ -1150,9 +1220,6 @@ const AdminNavigator = () => {
       ]
     );
 
-  // ==========================================================
-  // RENDER
-  // ==========================================================
 
   return (
     <AdminTabBarContext.Provider
@@ -1160,6 +1227,7 @@ const AdminNavigator = () => {
         contextValue
       }
     >
+
       <SafeAreaView
         style={[
           styles.container,
@@ -1169,9 +1237,6 @@ const AdminNavigator = () => {
           },
         ]}
       >
-        {/* ================================================== */}
-        {/* STATUS BAR */}
-        {/* ================================================== */}
 
         <StatusBar
           barStyle={
@@ -1182,14 +1247,9 @@ const AdminNavigator = () => {
           backgroundColor={
             themeColors.background
           }
-          translucent={
-            false
-          }
+          translucent={false}
         />
 
-        {/* ================================================== */}
-        {/* TABS */}
-        {/* ================================================== */}
 
         <Tab.Navigator
           tabBar={
@@ -1199,11 +1259,13 @@ const AdminNavigator = () => {
               />
             )
           }
+
           screenOptions={{
             headerShown:
               false,
 
-            lazy: true,
+            lazy:
+              true,
 
             tabBarHideOnKeyboard:
               true,
@@ -1217,9 +1279,6 @@ const AdminNavigator = () => {
               false,
           }}
         >
-          {/* ================================================= */}
-          {/* DASHBOARD */}
-          {/* ================================================= */}
 
           <Tab.Screen
             name="Tableau de bord"
@@ -1232,9 +1291,6 @@ const AdminNavigator = () => {
             }}
           />
 
-          {/* ================================================= */}
-          {/* UTILISATEURS */}
-          {/* ================================================= */}
 
           <Tab.Screen
             name="Utilisateurs"
@@ -1247,9 +1303,6 @@ const AdminNavigator = () => {
             }}
           />
 
-          {/* ================================================= */}
-          {/* GESTION */}
-          {/* ================================================= */}
 
           <Tab.Screen
             name="Gestion"
@@ -1262,9 +1315,6 @@ const AdminNavigator = () => {
             }}
           />
 
-          {/* ================================================= */}
-          {/* ANALYSES */}
-          {/* ================================================= */}
 
           <Tab.Screen
             name="Analyses"
@@ -1277,9 +1327,6 @@ const AdminNavigator = () => {
             }}
           />
 
-          {/* ================================================= */}
-          {/* PARAMÈTRES */}
-          {/* ================================================= */}
 
           <Tab.Screen
             name="Paramètres"
@@ -1291,11 +1338,15 @@ const AdminNavigator = () => {
                 'Paramètres',
             }}
           />
+
         </Tab.Navigator>
+
       </SafeAreaView>
+
     </AdminTabBarContext.Provider>
   );
 };
+
 
 // ============================================================
 // STYLES
@@ -1305,48 +1356,134 @@ const styles =
   StyleSheet.create({
 
     // ========================================================
-    // CONTAINER
+    // MAIN CONTAINER
     // ========================================================
 
     container: {
       flex: 1,
     },
 
+
     // ========================================================
-    // MANAGEMENT HEADER
+    // HEADER
+    // ========================================================
+    //
+    // Gestion:
+    // - petite
+    // - normale
+    // - centrée horizontalement
+    // - placée vers le bas du header
+    //
     // ========================================================
 
     header: {
+
+      width: '100%',
+
+      height:
+        Platform.OS === 'web'
+          ? 58
+          : 58,
+
       paddingHorizontal:
-        spacing.lg,
+        16,
 
-      paddingVertical:
-        spacing.md,
+      // IMPORTANT:
+      // on pousse le texte vers le bas
+      justifyContent:
+        'flex-end',
 
-      borderBottomWidth: 1,
+      // centre horizontalement
+      alignItems:
+        'center',
+
+      paddingBottom:
+        Platform.OS === 'web'
+          ? 8
+          : 7,
+
+      borderBottomWidth:
+        StyleSheet.hairlineWidth,
+
+      position:
+        'relative',
     },
 
-    headerTitle: {
-      fontSize:
-        typography.fontSize.xl,
-
-      fontFamily:
-        typography.fontFamily.bold,
-    },
 
     // ========================================================
-    // MANAGEMENT MENU
+    // GESTION TITLE
+    // ========================================================
+    //
+    // Petite taille
+    // Pas gras
+    // Normal comme les autres textes
+    // ========================================================
+
+    headerTitle: {
+
+      width: '100%',
+
+      textAlign:
+        'center',
+
+      fontSize:
+        16,
+
+      lineHeight:
+        20,
+
+      fontWeight:
+        '400',
+
+      fontFamily:
+        typography.fontFamily.regular ||
+        'System',
+
+      includeFontPadding:
+        false,
+
+      margin: 0,
+
+      padding: 0,
+    },
+
+
+    // ========================================================
+    // SCROLL MENU
+    // ========================================================
+
+    menuScroll: {
+      flex: 1,
+    },
+
+
+    // ========================================================
+    // MENU CONTENT
     // ========================================================
 
     menuContent: {
+
+      width: '100%',
+
       padding:
         spacing.md,
 
       paddingBottom:
         spacing.xl,
+
+      alignSelf:
+        'center',
     },
 
+
+    // ========================================================
+    // MENU ITEM
+    // ========================================================
+
     menuItem: {
+
+      width: '100%',
+
       flexDirection:
         'row',
 
@@ -1362,6 +1499,9 @@ const styles =
       marginBottom:
         spacing.sm,
 
+      borderWidth:
+        StyleSheet.hairlineWidth,
+
       shadowColor:
         '#000',
 
@@ -1376,10 +1516,17 @@ const styles =
       shadowRadius:
         2,
 
-      elevation: 1,
+      elevation:
+        1,
     },
 
+
+    // ========================================================
+    // MENU ICON
+    // ========================================================
+
     menuIcon: {
+
       width: 44,
 
       height: 44,
@@ -1396,7 +1543,13 @@ const styles =
         spacing.md,
     },
 
+
+    // ========================================================
+    // MENU LABEL
+    // ========================================================
+
     menuLabel: {
+
       flex: 1,
 
       fontSize:
@@ -1406,27 +1559,33 @@ const styles =
         typography.fontFamily.medium,
     },
 
+
     // ========================================================
-    // TAB WRAPPER
+    // TAB BAR WRAPPER
     // ========================================================
 
     tabBarWrapper: {
+
       width: '100%',
 
-      overflow: 'hidden',
+      overflow:
+        'hidden',
     },
+
 
     // ========================================================
     // TAB BAR
     // ========================================================
 
     tabBar: {
+
       width: '100%',
 
       borderTopWidth:
         StyleSheet.hairlineWidth,
 
-      elevation: 12,
+      elevation:
+        12,
 
       shadowOffset: {
         width: 0,
@@ -1436,14 +1595,17 @@ const styles =
       shadowOpacity:
         0.08,
 
-      shadowRadius: 8,
+      shadowRadius:
+        8,
     },
 
+
     // ========================================================
-    // INNER
+    // TAB BAR INNER
     // ========================================================
 
     tabBarInner: {
+
       flex: 1,
 
       flexDirection:
@@ -1459,14 +1621,17 @@ const styles =
         6,
     },
 
+
     // ========================================================
-    // BUTTON
+    // TAB BUTTON
     // ========================================================
 
     tabButton: {
+
       flex: 1,
 
-      minWidth: 0,
+      minWidth:
+        0,
 
       alignItems:
         'center',
@@ -1477,16 +1642,20 @@ const styles =
       position:
         'relative',
 
-      paddingTop: 5,
+      paddingTop:
+        5,
 
-      paddingHorizontal: 2,
+      paddingHorizontal:
+        2,
     },
 
+
     // ========================================================
-    // ICON
+    // TAB ICON
     // ========================================================
 
     iconContainer: {
+
       width: 42,
 
       height: 32,
@@ -1499,21 +1668,24 @@ const styles =
       justifyContent:
         'center',
 
-      marginBottom: 2,
+      marginBottom:
+        2,
     },
 
+
     // ========================================================
-    // LABEL
+    // TAB LABEL
     // ========================================================
 
     tabLabel: {
+
       fontSize:
-        Platform.OS ===
-        'web'
+        Platform.OS === 'web'
           ? 11
           : 10,
 
-      lineHeight: 14,
+      lineHeight:
+        14,
 
       textAlign:
         'center',
@@ -1521,25 +1693,34 @@ const styles =
       includeFontPadding:
         false,
 
-      maxWidth: 100,
+      maxWidth:
+        100,
     },
+
 
     // ========================================================
     // ACTIVE INDICATOR
     // ========================================================
 
     activeIndicator: {
+
       position:
         'absolute',
 
-      bottom: 0,
+      bottom:
+        0,
 
-      width: 24,
+      width:
+        24,
 
-      height: 3,
+      height:
+        3,
 
-      borderRadius: 3,
+      borderRadius:
+        3,
     },
+
   });
+
 
 export default AdminNavigator;

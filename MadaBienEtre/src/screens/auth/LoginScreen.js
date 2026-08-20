@@ -4,6 +4,9 @@
 // ============================================================
 // RESPONSIVE WEB + MOBILE
 //
+// THEME GREEN
+// -> #2E7D32
+//
 // WEB >= 1024px
 //    -> Interface Desktop
 //
@@ -47,7 +50,6 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
 
 import { useAuth } from '../../context/AuthContext';
@@ -55,7 +57,6 @@ import { useTheme } from '../../context/ThemeContext';
 
 import {
   colors,
-  spacing,
   typography,
 } from '../../theme';
 
@@ -68,6 +69,18 @@ import notificationService from '../../services/notificationService';
 const IS_WEB = Platform.OS === 'web';
 const IS_ANDROID = Platform.OS === 'android';
 const IS_IOS = Platform.OS === 'ios';
+
+// ============================================================
+// THEME
+// ============================================================
+
+const GREEN_THEME = '#2E7D32';
+
+const GREEN_DARK = '#1B5E20';
+
+const GREEN_LIGHT = '#43A047';
+
+const WHITE = '#FFFFFF';
 
 // ============================================================
 // BREAKPOINT
@@ -786,7 +799,7 @@ const LoginScreen = ({
               }
               editable={!isLoading}
               selectionColor={
-                colors.primary
+                GREEN_THEME
               }
               blurOnSubmit={false}
               disableFullscreenUI
@@ -859,15 +872,14 @@ const LoginScreen = ({
               styles.formIcon,
               {
                 backgroundColor:
-                  colors.primary +
-                  '12',
+                  GREEN_THEME + '12',
               },
             ]}
           >
             <Ionicons
               name="lock-open-outline"
               size={25}
-              color={colors.primary}
+              color={GREEN_THEME}
             />
           </View>
 
@@ -1039,19 +1051,7 @@ const LoginScreen = ({
           disabled={isLoading}
           activeOpacity={0.85}
         >
-          <LinearGradient
-            colors={[
-              colors.primary,
-              colors.primaryLight,
-            ]}
-            start={{
-              x: 0,
-              y: 0,
-            }}
-            end={{
-              x: 1,
-              y: 0,
-            }}
+          <View
             style={
               styles.loginGradient
             }
@@ -1088,7 +1088,7 @@ const LoginScreen = ({
                 />
               </>
             )}
-          </LinearGradient>
+          </View>
         </TouchableOpacity>
 
         {/* DIVIDER */}
@@ -1287,7 +1287,7 @@ const LoginScreen = ({
           <Ionicons
             name="shield-checkmark-outline"
             size={18}
-            color={colors.primary}
+            color={GREEN_THEME}
           />
 
           <Text
@@ -1362,19 +1362,7 @@ const LoginScreen = ({
               animation="fadeInDown"
               duration={600}
             >
-              <LinearGradient
-                colors={[
-                  colors.primary,
-                  colors.primaryLight,
-                ]}
-                start={{
-                  x: 0,
-                  y: 0,
-                }}
-                end={{
-                  x: 1,
-                  y: 1,
-                }}
+              <View
                 style={[
                   styles.mobileHeader,
 
@@ -1411,7 +1399,6 @@ const LoginScreen = ({
                 >
                   {/* =================================================
                       LOGO PREMIUM MOBILE
-                      Fond blanc translucide + cadre
                   ================================================= */}
 
                   <View
@@ -1450,7 +1437,7 @@ const LoginScreen = ({
                     Massage à domicile premium
                   </Text>
                 </View>
-              </LinearGradient>
+              </View>
             </Animatable.View>
 
             {renderLoginForm()}
@@ -1477,19 +1464,7 @@ const LoginScreen = ({
             styles.webLeftPanel
           }
         >
-          <LinearGradient
-            colors={[
-              colors.primary,
-              colors.primaryLight,
-            ]}
-            start={{
-              x: 0,
-              y: 0,
-            }}
-            end={{
-              x: 1,
-              y: 1,
-            }}
+          <View
             style={
               styles.webLeftGradient
             }
@@ -1719,7 +1694,7 @@ const LoginScreen = ({
                 </Text>
               </View>
             </View>
-          </LinearGradient>
+          </View>
         </View>
 
         {/* RIGHT PANEL */}
@@ -1764,13 +1739,9 @@ const LoginScreen = ({
       ]}
     >
       <StatusBar
-        barStyle={
-          isDark
-            ? 'light-content'
-            : 'dark-content'
-        }
-        backgroundColor="transparent"
-        translucent
+        barStyle="light-content"
+        backgroundColor={GREEN_THEME}
+        translucent={false}
       />
 
       <Toast
@@ -1923,6 +1894,8 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   mobileHeader: {
+    backgroundColor: GREEN_THEME,
+
     paddingTop:
       IS_IOS
         ? 48
@@ -1964,7 +1937,7 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // ⭐ LOGO MOBILE PREMIUM
+  // LOGO MOBILE PREMIUM
   // ==========================================================
 
   mobileLogoFrame: {
@@ -2026,7 +1999,7 @@ const styles = StyleSheet.create({
     fontFamily:
       APP_FONT_BOLD,
 
-    color: '#FFFFFF',
+    color: WHITE,
 
     letterSpacing: 0.2,
   },
@@ -2041,7 +2014,7 @@ const styles = StyleSheet.create({
     fontFamily: APP_FONT,
 
     color:
-      'rgba(255,255,255,0.82)',
+      'rgba(255,255,255,0.88)',
 
     marginTop: 4,
 
@@ -2213,7 +2186,7 @@ const styles = StyleSheet.create({
   },
 
   forgotPasswordText: {
-    color: colors.primary,
+    color: GREEN_THEME,
 
     fontSize: 13,
 
@@ -2232,8 +2205,10 @@ const styles = StyleSheet.create({
 
     marginBottom: 20,
 
+    backgroundColor: GREEN_THEME,
+
     shadowColor:
-      colors.primary,
+      GREEN_THEME,
 
     shadowOffset: {
       width: 0,
@@ -2263,10 +2238,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
 
     gap: 10,
+
+    backgroundColor: GREEN_THEME,
   },
 
   loginButtonText: {
-    color: '#FFFFFF',
+    color: WHITE,
 
     fontSize: 16,
 
@@ -2349,7 +2326,7 @@ const styles = StyleSheet.create({
   },
 
   appleButtonText: {
-    color: '#FFFFFF',
+    color: WHITE,
 
     fontSize: 14,
 
@@ -2382,7 +2359,7 @@ const styles = StyleSheet.create({
   },
 
   registerLink: {
-    color: colors.primary,
+    color: GREEN_THEME,
 
     fontSize: 13.5,
 
@@ -2443,7 +2420,13 @@ const styles = StyleSheet.create({
     minHeight: '100%',
 
     overflow: 'hidden',
+
+    backgroundColor: GREEN_THEME,
   },
+
+  // ==========================================================
+  // WEB LEFT HEADER / PANEL
+  // ==========================================================
 
   webLeftGradient: {
     flex: 1,
@@ -2451,6 +2434,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 55,
 
     paddingVertical: 45,
+
+    backgroundColor: GREEN_THEME,
   },
 
   webLeftContent: {
@@ -2467,7 +2452,7 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // ⭐ LOGO WEB PREMIUM
+  // LOGO WEB PREMIUM
   // ==========================================================
 
   webLogoContainer: {
@@ -2514,7 +2499,7 @@ const styles = StyleSheet.create({
   },
 
   webLogoText: {
-    color: '#FFFFFF',
+    color: WHITE,
 
     fontSize: 22,
 
@@ -2533,7 +2518,7 @@ const styles = StyleSheet.create({
   },
 
   webHeroTitle: {
-    color: '#FFFFFF',
+    color: WHITE,
 
     fontSize: 40,
 
@@ -2547,7 +2532,7 @@ const styles = StyleSheet.create({
 
   webHeroSubtitle: {
     color:
-      'rgba(255,255,255,0.84)',
+      'rgba(255,255,255,0.90)',
 
     fontSize: 15,
 
@@ -2592,7 +2577,7 @@ const styles = StyleSheet.create({
   },
 
   webFeatureTitle: {
-    color: '#FFFFFF',
+    color: WHITE,
 
     fontSize: 14,
 
@@ -2604,7 +2589,7 @@ const styles = StyleSheet.create({
 
   webFeatureText: {
     color:
-      'rgba(255,255,255,0.72)',
+      'rgba(255,255,255,0.82)',
 
     fontSize: 12,
 
@@ -2634,12 +2619,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
 
     borderTopColor:
-      'rgba(255,255,255,0.15)',
+      'rgba(255,255,255,0.20)',
   },
 
   webFooterText: {
     color:
-      'rgba(255,255,255,0.55)',
+      'rgba(255,255,255,0.70)',
 
     fontSize: 11,
 

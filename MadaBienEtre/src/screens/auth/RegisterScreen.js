@@ -5,6 +5,8 @@
 // ✅ Desktop Web >= 1100px : interface 2 colonnes
 // ✅ Web < 1100px          : interface Mobile / Android-like
 // ✅ Android / iOS         : interface Mobile
+// ✅ Header / zones vertes : #2E7D32
+// ✅ Texte header vert     : blanc
 // ✅ Responsive width / height
 // ✅ ScrollView stable
 // ✅ Keyboard handling Android
@@ -45,7 +47,6 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -59,8 +60,15 @@ const isWeb = Platform.OS === 'web';
 const isAndroid = Platform.OS === 'android';
 const isIOS = Platform.OS === 'ios';
 
+// ============================================================
+// THEME
+// ============================================================
+
+const THEME_GREEN = '#2E7D32';
+const THEME_GREEN_DARK = '#1B5E20';
+const WHITE = '#FFFFFF';
+
 // Desktop réel uniquement à partir de 1100px.
-// En dessous : version mobile même sur navigateur web.
 const DESKTOP_BREAKPOINT = 1100;
 
 // ============================================================
@@ -415,14 +423,14 @@ const StepsIndicator = ({
                   {
                     backgroundColor:
                       completed || active
-                        ? colors.primary
+                        ? THEME_GREEN
                         : isDark
                         ? '#2D2D3D'
                         : '#F3F4F6',
 
                     borderColor:
                       completed || active
-                        ? colors.primary
+                        ? THEME_GREEN
                         : isDark
                         ? '#374151'
                         : '#E5E7EB',
@@ -433,7 +441,7 @@ const StepsIndicator = ({
                   <Ionicons
                     name="checkmark"
                     size={15}
-                    color="#FFFFFF"
+                    color={WHITE}
                   />
                 ) : (
                   <Ionicons
@@ -441,7 +449,7 @@ const StepsIndicator = ({
                     size={15}
                     color={
                       active
-                        ? '#FFFFFF'
+                        ? WHITE
                         : '#9CA3AF'
                     }
                   />
@@ -454,7 +462,7 @@ const StepsIndicator = ({
                   {
                     color:
                       active || completed
-                        ? colors.primary
+                        ? THEME_GREEN
                         : '#9CA3AF',
                   },
                 ]}
@@ -470,7 +478,7 @@ const StepsIndicator = ({
                   {
                     backgroundColor:
                       index < currentStep
-                        ? colors.primary
+                        ? THEME_GREEN
                         : isDark
                         ? '#374151'
                         : '#E5E7EB',
@@ -565,7 +573,7 @@ const Field = ({
             styles.input,
             {
               color: isDark
-                ? '#FFFFFF'
+                ? WHITE
                 : '#111827',
             },
           ]}
@@ -589,8 +597,8 @@ const Field = ({
           blurOnSubmit={false}
           underlineColorAndroid="transparent"
           textAlignVertical="center"
-          selectionColor={colors.primary}
-          cursorColor={colors.primary}
+          selectionColor={THEME_GREEN}
+          cursorColor={THEME_GREEN}
         />
 
         {onToggleSecure && (
@@ -654,13 +662,13 @@ const RoleCard = ({
         styles.roleCard,
         {
           backgroundColor: active
-            ? colors.primary + '08'
+            ? THEME_GREEN + '08'
             : isDark
             ? '#252535'
-            : '#FFFFFF',
+            : WHITE,
 
           borderColor: active
-            ? colors.primary
+            ? THEME_GREEN
             : isDark
             ? '#374151'
             : '#E5E7EB',
@@ -672,7 +680,7 @@ const RoleCard = ({
           styles.roleIcon,
           {
             backgroundColor: active
-              ? colors.primary + '14'
+              ? THEME_GREEN + '14'
               : isDark
               ? '#303044'
               : '#F3F4F6',
@@ -684,7 +692,7 @@ const RoleCard = ({
           size={23}
           color={
             active
-              ? colors.primary
+              ? THEME_GREEN
               : '#9CA3AF'
           }
         />
@@ -696,7 +704,7 @@ const RoleCard = ({
             styles.roleTitle,
             {
               color: isDark
-                ? '#FFFFFF'
+                ? WHITE
                 : '#111827',
             },
           ]}
@@ -723,7 +731,7 @@ const RoleCard = ({
           styles.radio,
           {
             borderColor: active
-              ? colors.primary
+              ? THEME_GREEN
               : '#D1D5DB',
           },
         ]}
@@ -734,7 +742,7 @@ const RoleCard = ({
               styles.radioInner,
               {
                 backgroundColor:
-                  colors.primary,
+                  THEME_GREEN,
               },
             ]}
           />
@@ -996,7 +1004,6 @@ const RegisterScreen = ({
                 return;
               }
 
-              // Web fallback
               if (isWeb) {
                 try {
                   inputRef.current?.measureInWindow?.(
@@ -1022,7 +1029,7 @@ const RegisterScreen = ({
                     }
                   );
                 } catch (e) {
-                  // ignore fallback error
+                  // Ignore fallback error.
                 }
               }
             } catch (error) {
@@ -1287,7 +1294,7 @@ const RegisterScreen = ({
     }, [formData]);
 
   // ==========================================================
-  // SCROLL TO TOP WHEN VALIDATION FAILS
+  // SCROLL TO TOP
   // ==========================================================
 
   const scrollToTop =
@@ -1416,7 +1423,7 @@ const RegisterScreen = ({
         {
           backgroundColor: isDark
             ? '#1E1E2E'
-            : '#FFFFFF',
+            : WHITE,
 
           opacity: fadeAnim,
 
@@ -1446,7 +1453,7 @@ const RegisterScreen = ({
           <Ionicons
             name="person-add-outline"
             size={24}
-            color={colors.primary}
+            color={THEME_GREEN}
           />
         </View>
 
@@ -1457,7 +1464,7 @@ const RegisterScreen = ({
               styles.formTitleSmall,
             {
               color: isDark
-                ? '#FFFFFF'
+                ? WHITE
                 : '#111827',
             },
           ]}
@@ -1481,18 +1488,14 @@ const RegisterScreen = ({
         </Text>
       </View>
 
-      {/* ====================================================
-          STEPS
-      ==================================================== */}
+      {/* STEPS */}
 
       <StepsIndicator
         currentStep={currentStep}
         isDark={isDark}
       />
 
-      {/* ====================================================
-          FULL NAME
-      ==================================================== */}
+      {/* FULL NAME */}
 
       <Field
         inputRef={fullnameRef}
@@ -1525,9 +1528,7 @@ const RegisterScreen = ({
         }
       />
 
-      {/* ====================================================
-          EMAIL
-      ==================================================== */}
+      {/* EMAIL */}
 
       <Field
         inputRef={emailRef}
@@ -1562,9 +1563,7 @@ const RegisterScreen = ({
         }
       />
 
-      {/* ====================================================
-          PHONE
-      ==================================================== */}
+      {/* PHONE */}
 
       <Field
         inputRef={phoneRef}
@@ -1598,9 +1597,7 @@ const RegisterScreen = ({
         }
       />
 
-      {/* ====================================================
-          PASSWORD
-      ==================================================== */}
+      {/* PASSWORD */}
 
       <Field
         inputRef={passwordRef}
@@ -1644,9 +1641,7 @@ const RegisterScreen = ({
         isDark={isDark}
       />
 
-      {/* ====================================================
-          CONFIRM PASSWORD
-      ==================================================== */}
+      {/* CONFIRM PASSWORD */}
 
       <Field
         inputRef={confirmPasswordRef}
@@ -1688,9 +1683,7 @@ const RegisterScreen = ({
         }
       />
 
-      {/* ====================================================
-          ROLE
-      ==================================================== */}
+      {/* ROLE */}
 
       <View style={styles.roleSection}>
         <View style={styles.sectionHeader}>
@@ -1764,9 +1757,7 @@ const RegisterScreen = ({
         </View>
       </View>
 
-      {/* ====================================================
-          CTA
-      ==================================================== */}
+      {/* CTA */}
 
       <TouchableOpacity
         style={[
@@ -1778,25 +1769,13 @@ const RegisterScreen = ({
         disabled={isLoading}
         activeOpacity={0.88}
       >
-        <LinearGradient
-          colors={[
-            colors.primary,
-            colors.primaryLight,
-          ]}
-          start={{
-            x: 0,
-            y: 0,
-          }}
-          end={{
-            x: 1,
-            y: 0,
-          }}
+        <View
           style={styles.registerGradient}
         >
           {isLoading ? (
             <>
               <ActivityIndicator
-                color="#FFFFFF"
+                color={WHITE}
                 size="small"
               />
 
@@ -1824,17 +1803,15 @@ const RegisterScreen = ({
                 <Ionicons
                   name="arrow-forward"
                   size={18}
-                  color="#FFFFFF"
+                  color={WHITE}
                 />
               </View>
             </>
           )}
-        </LinearGradient>
+        </View>
       </TouchableOpacity>
 
-      {/* ====================================================
-          TERMS
-      ==================================================== */}
+      {/* TERMS */}
 
       <Text
         style={[
@@ -1852,9 +1829,7 @@ const RegisterScreen = ({
         de confidentialité.
       </Text>
 
-      {/* ====================================================
-          LOGIN
-      ==================================================== */}
+      {/* LOGIN */}
 
       <View style={styles.loginContainer}>
         <Text
@@ -1887,7 +1862,7 @@ const RegisterScreen = ({
           <Ionicons
             name="arrow-forward"
             size={14}
-            color={colors.primary}
+            color={THEME_GREEN}
           />
         </TouchableOpacity>
       </View>
@@ -1971,10 +1946,6 @@ const RegisterScreen = ({
                 styles.mobileHeaderSmall,
               isTabletWeb &&
                 styles.mobileHeaderTablet,
-              {
-                backgroundColor:
-                  colors.primary,
-              },
             ]}
           >
             <TouchableOpacity
@@ -1994,7 +1965,7 @@ const RegisterScreen = ({
               <Ionicons
                 name="arrow-back"
                 size={23}
-                color="#FFFFFF"
+                color={WHITE}
               />
             </TouchableOpacity>
 
@@ -2011,7 +1982,7 @@ const RegisterScreen = ({
                 <Ionicons
                   name="leaf-outline"
                   size={27}
-                  color="#FFFFFF"
+                  color={WHITE}
                 />
               </View>
 
@@ -2051,6 +2022,7 @@ const RegisterScreen = ({
           </View>
 
           {/* FORM */}
+
           {renderForm()}
         </ScrollView>
       </TouchableWithoutFeedback>
@@ -2068,7 +2040,7 @@ const RegisterScreen = ({
         {
           backgroundColor: isDark
             ? '#111111'
-            : '#FFFFFF',
+            : WHITE,
         },
       ]}
     >
@@ -2077,27 +2049,9 @@ const RegisterScreen = ({
       ==================================================== */}
 
       <View
-        style={[
-          styles.desktopBrand,
-          {
-            backgroundColor:
-              colors.primary,
-          },
-        ]}
+        style={styles.desktopBrand}
       >
-        <LinearGradient
-          colors={[
-            colors.primary,
-            colors.primaryLight,
-          ]}
-          start={{
-            x: 0,
-            y: 0,
-          }}
-          end={{
-            x: 1,
-            y: 1,
-          }}
+        <View
           style={
             styles.desktopBrandGradient
           }
@@ -2113,7 +2067,7 @@ const RegisterScreen = ({
               <Ionicons
                 name="leaf-outline"
                 size={30}
-                color="#FFFFFF"
+                color={WHITE}
               />
             </View>
 
@@ -2190,7 +2144,7 @@ const RegisterScreen = ({
                     <Ionicons
                       name={item.icon}
                       size={20}
-                      color="#FFFFFF"
+                      color={WHITE}
                     />
                   </View>
 
@@ -2241,7 +2195,7 @@ const RegisterScreen = ({
               Bien-être • Confiance • Proximité
             </Text>
           </View>
-        </LinearGradient>
+        </View>
       </View>
 
       {/* ====================================================
@@ -2254,7 +2208,7 @@ const RegisterScreen = ({
           {
             backgroundColor: isDark
               ? '#121212'
-              : '#FFFFFF',
+              : WHITE,
           },
         ]}
       >
@@ -2296,7 +2250,7 @@ const RegisterScreen = ({
                 size={18}
                 color={
                   isDark
-                    ? '#FFFFFF'
+                    ? WHITE
                     : '#64748B'
                 }
               />
@@ -2306,7 +2260,7 @@ const RegisterScreen = ({
                   styles.desktopBackText,
                   {
                     color: isDark
-                      ? '#FFFFFF'
+                      ? WHITE
                       : '#64748B',
                   },
                 ]}
@@ -2333,18 +2287,14 @@ const RegisterScreen = ({
         {
           backgroundColor: isDark
             ? '#121212'
-            : '#FFFFFF',
+            : WHITE,
         },
       ]}
     >
       <StatusBar
-        barStyle={
-          isDark
-            ? 'light-content'
-            : 'dark-content'
-        }
-        backgroundColor="transparent"
-        translucent
+        barStyle="light-content"
+        backgroundColor={THEME_GREEN}
+        translucent={false}
       />
 
       <CustomToast
@@ -2354,26 +2304,6 @@ const RegisterScreen = ({
         onDismiss={dismissToast}
         isDark={isDark}
       />
-
-      {/* ======================================================
-          IMPORTANT RESPONSIVE RULE
-          
-          Desktop web >= 1100px
-              => renderDesktop()
-
-          Tout le reste
-              => renderMobile()
-
-          Donc :
-          - Web 1920px  => Desktop
-          - Web 1366px  => Desktop
-          - Web 1099px  => Mobile
-          - Web 900px   => Mobile
-          - Web 768px   => Mobile
-          - Web 600px   => Mobile
-          - Android     => Mobile
-          - iPhone      => Mobile
-      ====================================================== */}
 
       {isDesktop
         ? renderDesktop()
@@ -2512,6 +2442,9 @@ const styles = StyleSheet.create({
         ? 28
         : 42,
     paddingBottom: 34,
+
+    backgroundColor: THEME_GREEN,
+
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
   },
@@ -2533,7 +2466,7 @@ const styles = StyleSheet.create({
     height: 42,
     borderRadius: 21,
     backgroundColor:
-      'rgba(255,255,255,0.14)',
+      'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2549,14 +2482,14 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: 14,
     backgroundColor:
-      'rgba(255,255,255,0.15)',
+      'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 11,
   },
 
   mobileBrandName: {
-    color: '#FFFFFF',
+    color: WHITE,
     fontSize: 19,
     fontFamily:
       typography.fontFamily.bold,
@@ -2567,7 +2500,7 @@ const styles = StyleSheet.create({
   },
 
   mobileHeaderTitle: {
-    color: '#FFFFFF',
+    color: WHITE,
     fontSize: 27,
     lineHeight: 33,
     fontFamily:
@@ -2581,7 +2514,7 @@ const styles = StyleSheet.create({
 
   mobileHeaderSubtitle: {
     color:
-      'rgba(255,255,255,0.82)',
+      'rgba(255,255,255,0.88)',
     fontSize: 14,
     lineHeight: 20,
     fontFamily:
@@ -2899,7 +2832,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 2,
 
-    shadowColor: colors.primary,
+    backgroundColor: THEME_GREEN,
+
+    shadowColor: THEME_GREEN,
 
     shadowOffset: {
       width: 0,
@@ -2907,7 +2842,6 @@ const styles = StyleSheet.create({
     },
 
     shadowOpacity: 0.22,
-
     shadowRadius: 10,
 
     elevation: 5,
@@ -2923,10 +2857,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+
+    backgroundColor: THEME_GREEN,
   },
 
   registerButtonText: {
-    color: '#FFFFFF',
+    color: WHITE,
     fontSize: 15,
     fontFamily:
       typography.fontFamily.bold,
@@ -2977,7 +2913,7 @@ const styles = StyleSheet.create({
   },
 
   loginLink: {
-    color: colors.primary,
+    color: THEME_GREEN,
     fontSize: 13,
     fontFamily:
       typography.fontFamily.bold,
@@ -3000,6 +2936,7 @@ const styles = StyleSheet.create({
     width: '50%',
     minWidth: 0,
     height: '100%',
+    backgroundColor: THEME_GREEN,
   },
 
   desktopBrandGradient: {
@@ -3008,6 +2945,7 @@ const styles = StyleSheet.create({
     paddingVertical: 54,
     justifyContent: 'space-between',
     minHeight: 0,
+    backgroundColor: THEME_GREEN,
   },
 
   desktopBrandTop: {
@@ -3020,14 +2958,14 @@ const styles = StyleSheet.create({
     height: 59,
     borderRadius: 17,
     backgroundColor:
-      'rgba(255,255,255,0.15)',
+      'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
   },
 
   brandName: {
-    color: '#FFFFFF',
+    color: WHITE,
     fontSize: 22,
     fontFamily:
       typography.fontFamily.bold,
@@ -3040,7 +2978,7 @@ const styles = StyleSheet.create({
   },
 
   desktopBrandTitle: {
-    color: '#FFFFFF',
+    color: WHITE,
     fontSize: 42,
     lineHeight: 52,
     fontFamily:
@@ -3050,7 +2988,7 @@ const styles = StyleSheet.create({
 
   desktopBrandDescription: {
     color:
-      'rgba(255,255,255,0.88)',
+      'rgba(255,255,255,0.90)',
     fontSize: 15,
     lineHeight: 24,
     fontFamily:
@@ -3089,7 +3027,7 @@ const styles = StyleSheet.create({
   },
 
   featureTitle: {
-    color: '#FFFFFF',
+    color: WHITE,
     fontSize: 14,
     fontFamily:
       typography.fontFamily.bold,
@@ -3098,7 +3036,7 @@ const styles = StyleSheet.create({
 
   featureDescription: {
     color:
-      'rgba(255,255,255,0.80)',
+      'rgba(255,255,255,0.82)',
     fontSize: 12,
     lineHeight: 18,
     fontFamily:
@@ -3112,7 +3050,7 @@ const styles = StyleSheet.create({
   desktopFooter: {
     borderTopWidth: 1,
     borderTopColor:
-      'rgba(255,255,255,0.20)',
+      'rgba(255,255,255,0.22)',
     paddingTop: 19,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -3121,7 +3059,7 @@ const styles = StyleSheet.create({
 
   desktopCopyright: {
     color:
-      'rgba(255,255,255,0.72)',
+      'rgba(255,255,255,0.78)',
     fontSize: 11,
     fontFamily:
       typography.fontFamily.regular,
@@ -3129,7 +3067,7 @@ const styles = StyleSheet.create({
 
   desktopFooterRight: {
     color:
-      'rgba(255,255,255,0.72)',
+      'rgba(255,255,255,0.78)',
     fontSize: 11,
     fontFamily:
       typography.fontFamily.regular,
