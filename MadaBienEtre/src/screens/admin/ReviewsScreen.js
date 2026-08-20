@@ -591,7 +591,7 @@ const styles = StyleSheet.create({
   cardInner: { padding: spacing.md, borderRadius: 16, borderWidth: 1 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.sm },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatar: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 13, fontFamily: typography.fontFamily.bold },
   authorLabel: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold },
   date: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular, marginTop: 1 },

@@ -903,7 +903,7 @@ const UsersScreen = ({ navigation }) => {
           {
             width: size,
             height: size,
-            borderRadius: size / 2,
+            borderRadius: size * 0.28,
           },
         ]}
       >
@@ -913,7 +913,7 @@ const UsersScreen = ({ navigation }) => {
             style={{
               width: size,
               height: size,
-              borderRadius: size / 2,
+              borderRadius: size * 0.28,
             }}
           />
         ) : (
@@ -923,7 +923,7 @@ const UsersScreen = ({ navigation }) => {
               {
                 width: size,
                 height: size,
-                borderRadius: size / 2,
+                borderRadius: size * 0.28,
                 backgroundColor: roleColor + '18',
               },
             ]}

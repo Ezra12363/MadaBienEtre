@@ -2044,7 +2044,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
 
-    borderRadius: 34,
+    borderRadius: 19,
 
     alignItems: 'center',
 
@@ -2055,7 +2055,7 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
 
-    borderRadius: 34,
+    borderRadius: 19,
   },
 
   profileAvatarText: {
