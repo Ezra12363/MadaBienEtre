@@ -946,10 +946,13 @@ const UsersScreen = ({ navigation }) => {
           style={[
             styles.avatarOnline,
             {
-              backgroundColor: avatarUser?.is_active ? '#27AE60' : '#999999',
-              width: size * 0.25,
-              height: size * 0.25,
-              borderRadius: size * 0.125,
+              backgroundColor: avatarUser?.is_online ? '#27AE60' : '#999999',
+              width: Math.max(size * 0.28, 12),
+              height: Math.max(size * 0.28, 12),
+              borderRadius: Math.max(size * 0.28, 12) / 2,
+              borderColor: themeColors.surface || '#fff',
+              right: -Math.max(size * 0.28, 12) * 0.12,
+              bottom: -Math.max(size * 0.28, 12) * 0.12,
             },
           ]}
         />
@@ -1447,83 +1450,7 @@ const UsersScreen = ({ navigation }) => {
           <View style={styles.webBottomSpace} />
         </ScrollView>
 
-        <View
-          style={[
-            styles.pagination,
-            {
-              borderTopColor: themeColors.border || '#EAEAEA',
-              backgroundColor: themeColors.surface,
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.paginationInfo,
-              {
-                color: themeColors.textSecondary,
-              },
-            ]}
-          >
-            {filteredUsers.length > 0
-              ? `${(currentPage - 1) * ITEMS_PER_PAGE + 1}–${Math.min(
-                  currentPage * ITEMS_PER_PAGE,
-                  filteredUsers.length
-                )} sur ${filteredUsers.length}`
-              : '0 résultat'}
-          </Text>
-
-          <View style={styles.paginationControls}>
-            <TouchableOpacity
-              disabled={currentPage === 1}
-              onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
-              style={[
-                styles.paginationButton,
-                {
-                  opacity: currentPage === 1 ? 0.4 : 1,
-                  backgroundColor: themeColors.background,
-                },
-              ]}
-            >
-              <Ionicons name="chevron-back" size={17} color={themeColors.text} />
-            </TouchableOpacity>
-
-            <View
-              style={[
-                styles.pageNumber,
-                {
-                  backgroundColor: colors.primary,
-                },
-              ]}
-            >
-              <Text style={styles.pageNumberText}>{currentPage}</Text>
-            </View>
-
-            <Text
-              style={[
-                styles.pageTotal,
-                {
-                  color: themeColors.textSecondary,
-                },
-              ]}
-            >
-              / {totalPages}
-            </Text>
-
-            <TouchableOpacity
-              disabled={currentPage === totalPages}
-              onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-              style={[
-                styles.paginationButton,
-                {
-                  opacity: currentPage === totalPages ? 0.4 : 1,
-                  backgroundColor: themeColors.background,
-                },
-              ]}
-            >
-              <Ionicons name="chevron-forward" size={17} color={themeColors.text} />
-            </TouchableOpacity>
-          </View>
-        </View>
+        <PaginationBar />
       </View>
     );
   };
@@ -1538,12 +1465,7 @@ const UsersScreen = ({ navigation }) => {
         data={filteredUsers}
         renderItem={({ item }) => <MobileCard item={item} />}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={[
-          styles.mobileListContent,
-          {
-            paddingHorizontal: 0,
-          },
-        ]}
+        contentContainerStyle={styles.mobileListContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1647,6 +1569,94 @@ const UsersScreen = ({ navigation }) => {
       </Text>
     </View>
   );
+
+  /* ==========================================================
+     PAGINATION BAR (SHARED - WEB TABLE + MOBILE CARDS)
+  ========================================================== */
+
+  const PaginationBar = ({ compact = false }) => {
+    if (filteredUsers.length === 0) {
+      return null;
+    }
+
+    return (
+      <View
+        style={[
+          styles.pagination,
+          compact && styles.paginationMobile,
+          {
+            borderTopColor: themeColors.border || '#EAEAEA',
+            backgroundColor: themeColors.surface,
+          },
+        ]}
+      >
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.paginationInfo,
+            {
+              color: themeColors.textSecondary,
+            },
+          ]}
+        >
+          {filteredUsers.length} utilisateur{filteredUsers.length > 1 ? 's' : ''} • Page{' '}
+          {currentPage}/{totalPages}
+        </Text>
+
+        <View style={styles.paginationControls}>
+          <TouchableOpacity
+            disabled={currentPage === 1}
+            onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
+            style={[
+              styles.paginationButton,
+              {
+                opacity: currentPage === 1 ? 0.4 : 1,
+                backgroundColor: themeColors.background,
+              },
+            ]}
+          >
+            <Ionicons name="chevron-back" size={17} color={themeColors.text} />
+          </TouchableOpacity>
+
+          <View
+            style={[
+              styles.pageNumber,
+              {
+                backgroundColor: colors.primary,
+              },
+            ]}
+          >
+            <Text style={styles.pageNumberText}>{currentPage}</Text>
+          </View>
+
+          <Text
+            style={[
+              styles.pageTotal,
+              {
+                color: themeColors.textSecondary,
+              },
+            ]}
+          >
+            / {totalPages}
+          </Text>
+
+          <TouchableOpacity
+            disabled={currentPage === totalPages}
+            onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+            style={[
+              styles.paginationButton,
+              {
+                opacity: currentPage === totalPages ? 0.4 : 1,
+                backgroundColor: themeColors.background,
+              },
+            ]}
+          >
+            <Ionicons name="chevron-forward" size={17} color={themeColors.text} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
 
   /* ==========================================================
      TOAST COMPONENT
@@ -3421,6 +3431,15 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderWidth: 2,
     borderColor: '#fff',
+    zIndex: 5,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 2,
   },
 
   /* ============================================================
@@ -3566,8 +3585,22 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
 
+  paginationMobile: {
+    minHeight: 58,
+    marginTop: 6,
+    marginBottom: 16,
+    borderTopWidth: 1,
+    borderWidth: 1,
+    borderColor: '#00000010',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    flexWrap: 'wrap',
+    rowGap: 10,
+  },
+
   paginationInfo: {
     fontSize: 11,
+    flexShrink: 1,
   },
 
   paginationControls: {
@@ -3609,6 +3642,7 @@ const styles = StyleSheet.create({
   mobileListContent: {
     paddingTop: 3,
     paddingBottom: 120,
+    paddingHorizontal: 8,
   },
 
   mobileCard: {
