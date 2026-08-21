@@ -303,6 +303,30 @@ const MassageTypesScreen = ({ navigation }) => {
   // SÉLECTION D'IMAGE (icon / image) — remplace les champs URL
   // ==========================================================
 
+  /**
+   * ✅ CORRIGÉ (bug : upload fonctionne sur Android/iOS mais échoue
+   * en 422 sur le Web) :
+   *
+   * Sur React Native (Android/iOS), `expo-image-picker` renvoie une
+   * URI locale de type "file://..." et le réseau natif de React
+   * Native sait convertir un objet `{ uri, name, type }` en partie
+   * multipart valide — c'est un comportement SPÉCIFIQUE à RN.
+   *
+   * Sur le Web, `expo-image-picker` renvoie une URI "blob:" ou
+   * "data:" et on utilise le VRAI `FormData` du navigateur, qui
+   * n'accepte que des chaînes ou des `Blob`/`File` comme valeur.
+   * Lui passer un simple objet `{ uri, name, type }` le transforme
+   * silencieusement en texte "[object Object]" → le backend reçoit
+   * "icon"/"image" comme un champ TEXTE et non comme un fichier,
+   * d'où l'erreur 422 (UploadFile attendu, str reçu) — uniquement
+   * sur Web.
+   *
+   * Le correctif : sur Web, on `fetch()` l'URI locale pour obtenir
+   * un vrai `Blob`, qu'on stocke en plus de `{ uri, name, type }`.
+   * `buildFormData` (plus bas) utilise ensuite `fd.append(field,
+   * blob, name)` sur Web, et `fd.append(field, { uri, name, type })`
+   * sur natif — chaque plateforme avec le format qu'elle sait gérer.
+   */
   const pickImage = async (field) => {
     if (submitting) return;
 
@@ -310,7 +334,7 @@ const MassageTypesScreen = ({ navigation }) => {
       const permission =
         await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-      if (!permission.granted) {
+      if (Platform.OS !== 'web' && !permission.granted) {
         Alert.alert(
           'Permission requise',
           "L'accès à la galerie est nécessaire pour choisir une image."
@@ -319,9 +343,10 @@ const MassageTypesScreen = ({ navigation }) => {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ImagePicker.MediaType?.Images || ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
-        quality: 0.8,
+        quality: 0.85,
+        selectionLimit: 1,
       });
 
       if (result.canceled) return;
@@ -329,14 +354,85 @@ const MassageTypesScreen = ({ navigation }) => {
       const asset = result.assets?.[0];
       if (!asset?.uri) return;
 
-      const extensionMatch = /\.(\w+)$/.exec(asset.uri);
-      const extension = (extensionMatch?.[1] || 'jpg').toLowerCase();
+      let blob = null;
 
-      const fileObject = {
-        uri: asset.uri,
-        name: asset.fileName || `${field}_${Date.now()}.${extension}`,
-        type: asset.mimeType || `image/${extension === 'jpg' ? 'jpeg' : extension}`,
+      if (Platform.OS === 'web') {
+        const response = await fetch(asset.uri);
+        blob = await response.blob();
+      }
+
+      const mimeType =
+        blob?.type ||
+        asset.mimeType ||
+        'image/jpeg';
+
+      const mimeToExtension = {
+        'image/jpeg': 'jpg',
+        'image/jpg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
       };
+
+      const extensionFromName =
+        /\.(jpe?g|png|webp)$/i.exec(
+          asset.fileName || ''
+        )?.[1]?.toLowerCase();
+
+      const extension =
+        extensionFromName ||
+        mimeToExtension[mimeType] ||
+        'jpg';
+
+      const filename =
+        (
+          asset.fileName &&
+          /\.(jpe?g|png|webp)$/i.test(asset.fileName)
+        )
+          ? asset.fileName
+          : `${field}_${Date.now()}.${extension}`;
+
+      let fileObject;
+
+      if (Platform.OS === 'web') {
+        const normalizedBlob =
+          blob && blob.type === mimeType
+            ? blob
+            : new Blob(
+                [blob],
+                { type: mimeType }
+              );
+
+        let browserFile = normalizedBlob;
+
+        try {
+          if (typeof File !== 'undefined') {
+            browserFile = new File(
+              [normalizedBlob],
+              filename,
+              { type: mimeType }
+            );
+          }
+        } catch (fileError) {
+          console.warn(
+            '⚠️ Impossible de construire File Web, utilisation du Blob:',
+            fileError
+          );
+        }
+
+        fileObject = {
+          uri: asset.uri,
+          name: filename,
+          type: mimeType,
+          blob: normalizedBlob,
+          file: browserFile,
+        };
+      } else {
+        fileObject = {
+          uri: asset.uri,
+          name: filename,
+          type: mimeType,
+        };
+      }
 
       if (field === 'icon') {
         setIconFile(fileObject);
@@ -348,12 +444,13 @@ const MassageTypesScreen = ({ navigation }) => {
     } catch (err) {
       console.error('pickImage error:', err);
       showToast(
-        "Impossible d'ouvrir la galerie d'images.",
+        "Impossible d'ouvrir ou de lire l'image sélectionnée.",
         'error',
         'Erreur'
       );
     }
   };
+
 
   const clearPickedImage = (field) => {
     if (submitting) return;
@@ -757,47 +854,81 @@ const MassageTypesScreen = ({ navigation }) => {
   // ==========================================================
 
   const buildFormData = () => {
-    const recommendedPrice =
-      formData.recommended_price.trim() !==
-      ''
-        ? Number(
-            formData.recommended_price
-          )
-        : null;
-
     const fd = new FormData();
 
-    fd.append('name', formData.name.trim());
-    fd.append('description', formData.description.trim() || '');
-    fd.append('duration_min', String(Number(formData.duration_min)));
-    fd.append('duration_max', String(Number(formData.duration_max)));
-    fd.append('min_price', String(Number(formData.min_price)));
+    const appendText = (key, value) => {
+      if (
+        value !== undefined &&
+        value !== null
+      ) {
+        fd.append(key, String(value));
+      }
+    };
 
-    if (recommendedPrice !== null) {
-      fd.append('recommended_price', String(recommendedPrice));
+    appendText('name', formData.name.trim());
+    appendText('description', formData.description.trim());
+    appendText('duration_min', Number(formData.duration_min));
+    appendText('duration_max', Number(formData.duration_max));
+    appendText('min_price', Number(formData.min_price));
+
+    // Ne jamais envoyer recommended_price="" :
+    // FastAPI ne peut pas convertir une chaîne vide en float.
+    if (formData.recommended_price.trim() !== '') {
+      appendText(
+        'recommended_price',
+        Number(formData.recommended_price)
+      );
     }
 
-    fd.append('category', formData.category);
-    fd.append('is_active', String(Boolean(formData.is_active)));
-    fd.append('display_order', String(Number(formData.display_order)));
+    appendText('category', formData.category);
+    appendText('is_active', Boolean(formData.is_active));
+    appendText(
+      'display_order',
+      Number(formData.display_order)
+    );
 
-    // Fichiers : seulement s'ils viennent d'être choisis (sinon on garde
-    // l'image déjà en base côté backend).
-    if (iconFile) {
-      fd.append('icon', iconFile);
-    }
-    if (imageFile) {
-      fd.append('image', imageFile);
-    }
+    const appendImageFile = (
+      fieldName,
+      fileObject
+    ) => {
+      if (!fileObject) return;
 
-    // En édition uniquement : permet de supprimer une image sans la remplacer
+      if (Platform.OS === 'web') {
+        const browserFile =
+          fileObject.file ||
+          fileObject.blob;
+
+        if (!(browserFile instanceof Blob)) {
+          throw new Error(
+            `Le fichier ${fieldName} n'est pas un Blob/File Web valide.`
+          );
+        }
+
+        fd.append(
+          fieldName,
+          browserFile,
+          fileObject.name || `${fieldName}.jpg`
+        );
+        return;
+      }
+
+      fd.append(
+        fieldName,
+        fileObject
+      );
+    };
+
+    appendImageFile('icon', iconFile);
+    appendImageFile('image', imageFile);
+
     if (editingId !== null) {
-      fd.append('remove_icon', String(removeIcon));
-      fd.append('remove_image', String(removeImage));
+      appendText('remove_icon', Boolean(removeIcon));
+      appendText('remove_image', Boolean(removeImage));
     }
 
     return fd;
   };
+
 
   // ==========================================================
   // SAVE
@@ -1457,6 +1588,34 @@ const MassageTypesScreen = ({ navigation }) => {
             }
           >
             <View
+              style={[
+                styles.cardThumbnailBox,
+                {
+                  backgroundColor: `${colors.primary}12`,
+                  borderColor: themeColors.border || '#E5E7EB',
+                },
+              ]}
+            >
+              {(item.icon_url || item.image_url) ? (
+                <Image
+                  source={{
+                    uri: adminService.getMassageImageUrl(
+                      item.icon_url || item.image_url
+                    ),
+                  }}
+                  style={styles.cardThumbnailImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Ionicons
+                  name="fitness-outline"
+                  size={20}
+                  color={colors.primary}
+                />
+              )}
+            </View>
+
+            <View
               style={
                 styles.cardTitleContainer
               }
@@ -1983,16 +2142,29 @@ const MassageTypesScreen = ({ navigation }) => {
                   {
                     backgroundColor:
                       `${colors.primary}12`,
+                    overflow: 'hidden',
                   },
                 ]}
               >
-                <Ionicons
-                  name="fitness-outline"
-                  size={19}
-                  color={
-                    colors.primary
-                  }
-                />
+                {(item.icon_url || item.image_url) ? (
+                  <Image
+                    source={{
+                      uri: adminService.getMassageImageUrl(
+                        item.icon_url || item.image_url
+                      ),
+                    }}
+                    style={styles.webTypeIconImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Ionicons
+                    name="fitness-outline"
+                    size={19}
+                    color={
+                      colors.primary
+                    }
+                  />
+                )}
               </View>
 
               <View
@@ -4242,6 +4414,11 @@ const styles = StyleSheet.create({
     marginRight: 11,
   },
 
+  webTypeIconImage: {
+    width: '100%',
+    height: '100%',
+  },
+
   webNameContent: {
     flex: 1,
     minWidth: 0,
@@ -4380,6 +4557,22 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent:
       'space-between',
+  },
+
+  cardThumbnailBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginRight: spacing.sm,
+  },
+
+  cardThumbnailImage: {
+    width: '100%',
+    height: '100%',
   },
 
   cardTitleContainer: {

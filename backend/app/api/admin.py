@@ -6,6 +6,7 @@ from typing import Optional, List
 from datetime import datetime, timedelta
 import logging
 import os  # ✅ Ajouté
+from pathlib import Path
 import uuid  # ✅ Ajouté : noms de fichiers uniques pour les images uploadées
 # import 
 from ..models.massage import MassageType
@@ -587,53 +588,130 @@ async def download_therapist_certificate(
 #    - Seul le CHEMIN relatif (ex: /uploads/massage_types/xxx.jpg)
 #      est enregistré dans les colonnes icon_url / image_url.
 #    - Il faut monter ce dossier en StaticFiles dans main.py
-#      (voir instructions fournies séparément) pour que les
-#      fichiers soient accessibles via HTTP.
+#      (déjà fait : voir app/main.py).
+#
+# 🐛 CORRECTIF (create/update qui plantaient en envoyant les 2 images) :
+#    1. Les contraintes Pydantic posées directement sur des Form(...)
+#       (ex: Form(..., min_length=1), Form(60, ge=15)) combinées à des
+#       File()/UploadFile dans LE MÊME endpoint sont une source connue
+#       de bugs selon les versions de FastAPI/Starlette (validation qui
+#       échoue de façon incohérente, notamment avec plusieurs fichiers).
+#       → Toutes les contraintes ont été retirées des Form(...) et sont
+#       désormais vérifiées À LA MAIN, en pur Python, juste après
+#       réception des données. C'est 100% fiable, quelle que soit la
+#       version installée.
+#    2. La lecture des fichiers utilisait `file.file.read()` (accès
+#       synchrone). On utilise maintenant `await file.read()` (API
+#       standard de Starlette/FastAPI pour UploadFile), avec un
+#       `await file.seek(0)` défensif avant lecture — plus sûr et plus
+#       fiable, en particulier avec deux fichiers dans la même requête.
+#    3. Toute la logique (validation + sauvegarde fichiers + écriture
+#       en base) est maintenant entourée d'un try/except qui logue la
+#       trace complète et fait un `db.rollback()` en cas d'erreur, pour
+#       ne jamais laisser la base dans un état incohérent et pour que
+#       l'erreur réelle apparaisse clairement dans les logs serveur.
 
 VALID_MASSAGE_CATEGORIES = (
     'relaxant', 'therapeutique', 'sportif', 'reflexologie', 'prenatal', 'personnalise'
 )
 
 # Dossier où sont physiquement stockées les images (relatif à la racine du backend)
-MASSAGE_UPLOAD_DIR = os.path.join("uploads", "massage_types")
-os.makedirs(MASSAGE_UPLOAD_DIR, exist_ok=True)
+# ============================================================
+# STOCKAGE CENTRALISÉ DES IMAGES
+# app/api/admin.py -> parents[2] = racine du backend
+# ============================================================
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+UPLOAD_ROOT = BACKEND_ROOT / "uploads"
+MASSAGE_UPLOAD_DIR = UPLOAD_ROOT / "massage_types"
+MASSAGE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+logger.info("📁 Massage upload directory: %s", MASSAGE_UPLOAD_DIR)
 
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 Mo
+
+# ✅ NOUVEAU : mapping Content-Type → extension. Sur le Web, le nom de
+# fichier envoyé (construit côté client à partir d'une URI "blob:"/
+# "data:") n'a pas toujours une extension fiable ; en revanche, le
+# navigateur remplit correctement le Content-Type du Blob envoyé.
+# On s'appuie donc sur les DEUX signaux (extension ET content-type)
+# pour ne rejeter que les formats vraiment non supportés.
+ALLOWED_IMAGE_CONTENT_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+}
+
+MAX_IMAGE_SIZE = 15 * 1024 * 1024  # 15 Mo
 
 
-def _save_massage_image(file: UploadFile, old_url: Optional[str] = None) -> str:
+async def _save_massage_image(file: UploadFile, old_url: Optional[str] = None) -> str:
     """
     Valide et sauvegarde un fichier image uploadé sur le disque.
     Supprime l'ancien fichier (s'il y en avait un) et retourne
     l'URL relative à stocker en base de données.
     """
     ext = os.path.splitext(file.filename or "")[1].lower()
+    content_type = (file.content_type or "").lower().split(";")[0].strip()
+
     if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        # ✅ Repli : extension absente/non reconnue (fréquent sur Web avec
+        # un nom généré depuis une URI blob:) → on retente en se basant
+        # sur le Content-Type réel envoyé par le navigateur.
+        if content_type in ALLOWED_IMAGE_CONTENT_TYPES:
+            ext = ALLOWED_IMAGE_CONTENT_TYPES[content_type]
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Format d'image non autorisé pour '{file.filename}' "
+                    f"(content-type reçu : '{content_type or 'inconnu'}'). "
+                    f"Formats acceptés : jpg, jpeg, png, webp"
+                )
+            )
+
+    # ✅ Lecture async standard (plus fiable que file.file.read() en sync,
+    # surtout avec plusieurs fichiers dans la même requête multipart).
+    try:
+        await file.seek(0)
+    except Exception:
+        pass  # certains backends de fichier ne supportent pas seek, on ignore
+
+    contents = await file.read()
+
+    if not contents:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Format d'image non autorisé (formats acceptés : jpg, jpeg, png, webp)"
+            detail=f"Le fichier '{file.filename}' est vide ou n'a pas pu être lu"
         )
-
-    contents = file.file.read()
-    if not contents:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Fichier image vide")
 
     if len(contents) > MAX_IMAGE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Image trop volumineuse (5 Mo maximum)"
+            detail=f"L'image '{file.filename}' est trop volumineuse (5 Mo maximum)"
         )
 
+    os.makedirs(MASSAGE_UPLOAD_DIR, exist_ok=True)
+
     filename = f"{uuid.uuid4().hex}{ext}"
-    filepath = os.path.join(MASSAGE_UPLOAD_DIR, filename)
+    filepath = MASSAGE_UPLOAD_DIR / filename
 
-    with open(filepath, "wb") as buffer:
-        buffer.write(contents)
+    try:
+        with open(filepath, "wb") as buffer:
+            buffer.write(contents)
+        logger.info("💾 Image massage enregistrée: %s", filepath)
+    except OSError as exc:
+        logger.exception("❌ Échec d'écriture du fichier image %s : %s", filepath, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Impossible d'enregistrer le fichier image sur le serveur"
+        )
 
-    # Nettoyage : on supprime l'ancien fichier local pour ne pas accumuler
-    # des images orphelines sur le disque à chaque remplacement.
-    _delete_massage_image(old_url)
+    # IMPORTANT: l'ancien fichier n'est PAS supprimé ici.
+    # Il sera supprimé uniquement après db.commit() pour éviter de perdre
+    # l'ancienne image si la transaction SQL échoue.
+
+    await file.close()
 
     return f"/uploads/massage_types/{filename}"
 
@@ -642,12 +720,65 @@ def _delete_massage_image(url: Optional[str]) -> None:
     """Supprime un fichier local d'après son URL relative, sans jamais lever d'erreur."""
     if not url or not url.startswith("/uploads/massage_types/"):
         return
-    local_path = url.lstrip("/")
-    if os.path.isfile(local_path):
+    relative = url[len("/uploads/"):]
+    local_path = UPLOAD_ROOT / relative
+    if local_path.is_file():
         try:
-            os.remove(local_path)
+            local_path.unlink()
+            logger.info("🗑️ Image supprimée: %s", local_path)
         except OSError as exc:
             logger.warning("⚠️ Impossible de supprimer l'ancien fichier %s : %s", local_path, exc)
+
+
+def _validate_massage_type_fields(
+    name: str,
+    duration_min: int,
+    duration_max: int,
+    min_price: float,
+    recommended_price: Optional[float],
+    category: str,
+    display_order: int,
+) -> str:
+    """
+    Validation manuelle (et non via les contraintes de Form()) de tous
+    les champs texte/numériques du formulaire. Retourne le nom nettoyé
+    (trim) ou lève une HTTPException 400 avec un message clair.
+    """
+    clean_name = (name or "").strip()
+    if not clean_name:
+        raise HTTPException(status_code=400, detail="Le nom du type de massage est obligatoire")
+    if len(clean_name) > 100:
+        raise HTTPException(status_code=400, detail="Le nom ne doit pas dépasser 100 caractères")
+
+    if category not in VALID_MASSAGE_CATEGORIES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Catégorie invalide : '{category}' "
+                   f"(valeurs acceptées : {', '.join(VALID_MASSAGE_CATEGORIES)})"
+        )
+
+    if duration_min is None or duration_min < 15:
+        raise HTTPException(status_code=400, detail="La durée minimale doit être au moins de 15 minutes")
+
+    if duration_max is None or duration_max < 15:
+        raise HTTPException(status_code=400, detail="La durée maximale doit être au moins de 15 minutes")
+
+    if duration_min > duration_max:
+        raise HTTPException(
+            status_code=400,
+            detail="La durée minimale doit être inférieure ou égale à la durée maximale"
+        )
+
+    if min_price is None or min_price < 0:
+        raise HTTPException(status_code=400, detail="Le prix minimum est invalide")
+
+    if recommended_price is not None and recommended_price < 0:
+        raise HTTPException(status_code=400, detail="Le prix recommandé est invalide")
+
+    if display_order is None or display_order < 0:
+        raise HTTPException(status_code=400, detail="L'ordre d'affichage est invalide")
+
+    return clean_name
 
 
 @router.get("/admin/massage-types", response_model=List[MassageTypeResponse])
@@ -679,15 +810,15 @@ async def get_massage_type(
 
 @router.post("/admin/massage-types", status_code=status.HTTP_201_CREATED, response_model=MassageTypeResponse)
 async def create_massage_type(
-    name: str = Form(..., min_length=1, max_length=100),
+    name: str = Form(...),
     description: Optional[str] = Form(None),
-    duration_min: int = Form(60, ge=15),
-    duration_max: int = Form(120, ge=15),
-    min_price: float = Form(30000, ge=0),
-    recommended_price: Optional[float] = Form(None, ge=0),
+    duration_min: int = Form(60),
+    duration_max: int = Form(120),
+    min_price: float = Form(30000),
+    recommended_price: Optional[float] = Form(None),
     category: str = Form("relaxant"),
     is_active: bool = Form(True),
-    display_order: int = Form(0, ge=0),
+    display_order: int = Form(0),
     icon: Optional[UploadFile] = File(None, description="Fichier icône (jpg, png, webp - 5 Mo max)"),
     image: Optional[UploadFile] = File(None, description="Fichier image (jpg, png, webp - 5 Mo max)"),
     current_user: User = Depends(get_current_admin),
@@ -698,39 +829,61 @@ async def create_massage_type(
     Les fichiers `icon` et `image` sont optionnels : s'ils sont fournis,
     ils sont uploadés sur le disque et leur chemin est enregistré en base.
     """
-    if category not in VALID_MASSAGE_CATEGORIES:
-        raise HTTPException(status_code=400, detail="Catégorie invalide")
+    clean_name = _validate_massage_type_fields(
+        name, duration_min, duration_max, min_price, recommended_price, category, display_order
+    )
 
-    if duration_min > duration_max:
-        raise HTTPException(status_code=400, detail="La durée minimale doit être inférieure ou égale à la durée maximale")
-
-    existing = db.query(MassageType).filter(MassageType.name == name).first()
+    existing = db.query(MassageType).filter(MassageType.name == clean_name).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Un type de massage '{name}' existe déjà"
+            detail=f"Un type de massage '{clean_name}' existe déjà"
         )
 
-    icon_url = _save_massage_image(icon) if icon and icon.filename else None
-    image_url = _save_massage_image(image) if image and image.filename else None
+    icon_url = None
+    image_url = None
 
-    new_type = MassageType(
-        name=name,
-        description=description,
-        duration_min=duration_min,
-        duration_max=duration_max,
-        min_price=min_price,
-        recommended_price=recommended_price,
-        category=category,
-        icon_url=icon_url,
-        image_url=image_url,
-        is_active=is_active,
-        display_order=display_order,
-    )
+    try:
+        if icon and icon.filename:
+            icon_url = await _save_massage_image(icon)
 
-    db.add(new_type)
-    db.commit()
-    db.refresh(new_type)
+        if image and image.filename:
+            image_url = await _save_massage_image(image)
+
+        new_type = MassageType(
+            name=clean_name,
+            description=(description or "").strip() or None,
+            duration_min=duration_min,
+            duration_max=duration_max,
+            min_price=min_price,
+            recommended_price=recommended_price,
+            category=category,
+            icon_url=icon_url,
+            image_url=image_url,
+            is_active=is_active,
+            display_order=display_order,
+        )
+
+        db.add(new_type)
+        db.commit()
+        db.refresh(new_type)
+
+    except HTTPException:
+        db.rollback()
+        # Si l'écriture en base échoue après upload des fichiers, on
+        # nettoie les fichiers déjà écrits pour ne pas les laisser orphelins.
+        _delete_massage_image(icon_url)
+        _delete_massage_image(image_url)
+        raise
+    except Exception as exc:
+        db.rollback()
+        _delete_massage_image(icon_url)
+        _delete_massage_image(image_url)
+        logger.exception("❌ Erreur inattendue lors de la création du type de massage : %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la création du type de massage : {exc}"
+        )
 
     logger.info(f"✅ Type de massage créé par {current_user.fullname}: {new_type.name}")
     return new_type
@@ -739,15 +892,15 @@ async def create_massage_type(
 @router.put("/admin/massage-types/{type_id}", response_model=MassageTypeResponse)
 async def update_massage_type(
     type_id: int,
-    name: str = Form(..., min_length=1, max_length=100),
+    name: str = Form(...),
     description: Optional[str] = Form(None),
-    duration_min: int = Form(60, ge=15),
-    duration_max: int = Form(120, ge=15),
-    min_price: float = Form(30000, ge=0),
-    recommended_price: Optional[float] = Form(None, ge=0),
+    duration_min: int = Form(60),
+    duration_max: int = Form(120),
+    min_price: float = Form(30000),
+    recommended_price: Optional[float] = Form(None),
     category: str = Form("relaxant"),
     is_active: bool = Form(True),
-    display_order: int = Form(0, ge=0),
+    display_order: int = Form(0),
     icon: Optional[UploadFile] = File(None, description="Nouveau fichier icône (remplace l'ancien)"),
     image: Optional[UploadFile] = File(None, description="Nouveau fichier image (remplace l'ancien)"),
     remove_icon: bool = Form(False, description="Supprimer l'icône actuelle sans la remplacer"),
@@ -764,45 +917,72 @@ async def update_massage_type(
     if not type_obj:
         raise HTTPException(status_code=404, detail="Type de massage non trouvé")
 
-    if category not in VALID_MASSAGE_CATEGORIES:
-        raise HTTPException(status_code=400, detail="Catégorie invalide")
+    clean_name = _validate_massage_type_fields(
+        name, duration_min, duration_max, min_price, recommended_price, category, display_order
+    )
 
-    if duration_min > duration_max:
-        raise HTTPException(status_code=400, detail="La durée minimale doit être inférieure ou égale à la durée maximale")
-
-    if name != type_obj.name:
-        existing = db.query(MassageType).filter(MassageType.name == name).first()
+    if clean_name != type_obj.name:
+        existing = db.query(MassageType).filter(MassageType.name == clean_name).first()
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Un type de massage '{name}' existe déjà"
+                detail=f"Un type de massage '{clean_name}' existe déjà"
             )
 
-    type_obj.name = name
-    type_obj.description = description
-    type_obj.duration_min = duration_min
-    type_obj.duration_max = duration_max
-    type_obj.min_price = min_price
-    type_obj.recommended_price = recommended_price
-    type_obj.category = category
-    type_obj.is_active = is_active
-    type_obj.display_order = display_order
+    old_icon_url = type_obj.icon_url
+    old_image_url = type_obj.image_url
+    new_icon_url = None
+    new_image_url = None
 
-    if icon and icon.filename:
-        type_obj.icon_url = _save_massage_image(icon, old_url=type_obj.icon_url)
-    elif remove_icon:
-        _delete_massage_image(type_obj.icon_url)
-        type_obj.icon_url = None
+    try:
+        if icon and icon.filename:
+            new_icon_url = await _save_massage_image(icon, old_url=type_obj.icon_url)
+            type_obj.icon_url = new_icon_url
+        elif remove_icon:
+            _delete_massage_image(type_obj.icon_url)
+            type_obj.icon_url = None
 
-    if image and image.filename:
-        type_obj.image_url = _save_massage_image(image, old_url=type_obj.image_url)
-    elif remove_image:
-        _delete_massage_image(type_obj.image_url)
-        type_obj.image_url = None
+        if image and image.filename:
+            new_image_url = await _save_massage_image(image, old_url=type_obj.image_url)
+            type_obj.image_url = new_image_url
+        elif remove_image:
+            _delete_massage_image(type_obj.image_url)
+            type_obj.image_url = None
 
-    type_obj.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(type_obj)
+        type_obj.name = clean_name
+        type_obj.description = (description or "").strip() or None
+        type_obj.duration_min = duration_min
+        type_obj.duration_max = duration_max
+        type_obj.min_price = min_price
+        type_obj.recommended_price = recommended_price
+        type_obj.category = category
+        type_obj.is_active = is_active
+        type_obj.display_order = display_order
+        type_obj.updated_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(type_obj)
+
+        # Supprimer les anciennes images UNIQUEMENT après commit réussi.
+        if new_icon_url and old_icon_url and old_icon_url != new_icon_url:
+            _delete_massage_image(old_icon_url)
+        if new_image_url and old_image_url and old_image_url != new_image_url:
+            _delete_massage_image(old_image_url)
+
+    except HTTPException:
+        db.rollback()
+        _delete_massage_image(new_icon_url)
+        _delete_massage_image(new_image_url)
+        raise
+    except Exception as exc:
+        db.rollback()
+        _delete_massage_image(new_icon_url)
+        _delete_massage_image(new_image_url)
+        logger.exception("❌ Erreur inattendue lors de la mise à jour du type de massage %s : %s", type_id, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la mise à jour du type de massage : {exc}"
+        )
 
     logger.info(f"✅ Type de massage {type_id} mis à jour par {current_user.fullname}")
     return type_obj

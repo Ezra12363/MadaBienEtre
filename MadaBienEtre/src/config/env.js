@@ -18,7 +18,7 @@ const extra = Constants?.expoConfig?.extra || Constants?.manifest?.extra || {};
 // ✅ SOLOY ITY amin'ny IP marina an'ny ordinatorinao (ipconfig),
 // ary ampio koa ao amin'ny app.config.js -> extra.apiUrl mba ho
 // entin'ny build production/preview/dev samy izy.
-export const API_URL = extra.apiUrl || process.env.API_URL || 'http://10.147.58.30:8000';
+export const API_URL = extra.apiUrl || process.env.API_URL || 'http://10.95.220.30:8000';
 
 export const API_TIMEOUT = 15000;
 

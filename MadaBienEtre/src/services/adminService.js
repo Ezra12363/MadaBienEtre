@@ -6,6 +6,22 @@ import api from './api';
 // SERVICE ADMIN COMPLET
 // ============================================================
 
+// ============================================================
+// MULTIPART WEB + ANDROID
+// ============================================================
+const multipartConfig = {
+  headers: {
+    // Important : ne pas fixer multipart/form-data à la main.
+    // Le navigateur doit ajouter automatiquement le boundary.
+    'Content-Type': undefined,
+  },
+  // Empêche un transformRequest/intercepteur JSON de transformer
+  // accidentellement le FormData en objet/JSON.
+  transformRequest: [
+    (data) => data,
+  ],
+};
+
 const adminService = {
   // ============================================================
   // 1. GESTION DES UTILISATEURS
@@ -1235,30 +1251,16 @@ async getMassageTypes(isActive = null) {
 
 
 /**
- * ✅ Créer un type de massage (multipart/form-data).
- *
- * `formData` doit être une instance de FormData (champs texte +
- * fichiers `icon`/`image` optionnels — voir buildMassageTypeFormData
- * dans MassageTypesScreen.js).
- *
- * 🐛 CORRECTIF (422 "field required" sur name/category/... alors que
- * le formulaire les envoie bien) : l'instance axios `api` a un header
- * par défaut `Content-Type: application/json` (voir api.js). Sans
- * override, ce défaut reste actif même pour une requête FormData —
- * le backend reçoit alors une requête "application/json" qui ne
- * contient aucune partie multipart, donc TOUS les champs Form(...)
- * sont vus comme absents → 422 sur chaque champ obligatoire.
- *
- * On efface ce header en le mettant à `undefined` : axios ne l'envoie
- * alors plus du tout, et c'est l'environnement (navigateur côté Web,
- * pont réseau natif côté React Native) qui calcule lui-même le bon
- * `multipart/form-data; boundary=...`. Fixer la chaîne à la main
- * (`'multipart/form-data'` sans boundary) casse le Web ; l'omettre
- * complètement laisse 'application/json' hérité de l'instance. Seul
- * `undefined` marche sur les DEUX plateformes.
+ * Créer un type de massage.
+ * Le payload doit être un FormData.
  */
 async createMassageType(formData) {
   try {
+    if (!(formData instanceof FormData)) {
+      throw new Error(
+        'createMassageType attend une instance de FormData.'
+      );
+    }
 
     console.log(
       '📤 [API REQUEST] POST /admin/massage-types (multipart)'
@@ -1267,11 +1269,7 @@ async createMassageType(formData) {
     const response = await api.post(
       '/admin/massage-types',
       formData,
-      {
-        headers: {
-          'Content-Type': undefined,
-        },
-      }
+      multipartConfig
     );
 
     console.log(
@@ -1281,34 +1279,41 @@ async createMassageType(formData) {
     );
 
     return response.data;
-
   } catch (error) {
-
     console.error(
       '❌ Error createMassageType:',
       error?.response?.status,
-      error?.response?.data || error?.message
+      error?.response?.data ||
+        error?.message
     );
-
     throw error;
   }
 },
 
 
 /**
- * ✅ Mettre à jour un type de massage (multipart/form-data).
- * Voir le commentaire de `createMassageType` pour le détail du
- * correctif `'Content-Type': undefined` (bug 422 sur les deux
- * plateformes sinon).
+ * Mettre à jour un type de massage.
+ * Le payload doit être un FormData.
  */
-async updateMassageType(typeId, formData) {
+async updateMassageType(
+  typeId,
+  formData
+) {
   try {
-
     const id = Number(typeId);
 
-    if (!Number.isInteger(id) || id <= 0) {
+    if (
+      !Number.isInteger(id) ||
+      id <= 0
+    ) {
       throw new Error(
         `ID de massage invalide: ${typeId}`
+      );
+    }
+
+    if (!(formData instanceof FormData)) {
+      throw new Error(
+        'updateMassageType attend une instance de FormData.'
       );
     }
 
@@ -1321,11 +1326,7 @@ async updateMassageType(typeId, formData) {
     const response = await api.put(
       `/admin/massage-types/${id}`,
       formData,
-      {
-        headers: {
-          'Content-Type': undefined,
-        },
-      }
+      multipartConfig
     );
 
     console.log(
@@ -1335,15 +1336,13 @@ async updateMassageType(typeId, formData) {
     );
 
     return response.data;
-
   } catch (error) {
-
     console.error(
       '❌ Error updateMassageType:',
       error?.response?.status,
-      error?.response?.data || error?.message
+      error?.response?.data ||
+        error?.message
     );
-
     throw error;
   }
 },

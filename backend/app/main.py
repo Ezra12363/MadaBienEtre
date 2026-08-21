@@ -1,4 +1,3 @@
-# app/main.py
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -6,54 +5,57 @@ from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import logging
 import time
-import os
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 from .core.config import settings
 from .core.database import init_database
 from .core.middleware import setup_middlewares
 
-# ✅ Import des routers
 from .api import (
     auth, users, therapists, bookings, offers, payments,
     reviews, notifications, geolocation, chatbot, ai,
     pricing, sos, websocket, analytics, admin,
     certificates,
 )
-
-# ✅ Import du router availability (doit être séparé)
 from .api.availability import router as availability_router
 
-# ============================================================
-# CONFIGURATION DU LOGGING
-# ============================================================
 logging.basicConfig(
-    level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=getattr(settings, "LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
+# ============================================================
+# CHEMIN UNIQUE ET ABSOLU POUR LES UPLOADS
+# app/main.py -> parents[1] = racine du backend
+# IMPORTANT : admin.py utilise exactement la même racine.
+# ============================================================
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
+UPLOAD_ROOT = BACKEND_ROOT / "uploads"
 
-# ============================================================
-# LIFESPAN
-# ============================================================
+for subdir in ("profiles", "documents", "certificates", "massage_types"):
+    (UPLOAD_ROOT / subdir).mkdir(parents=True, exist_ok=True)
+
+logger.info("📁 Backend root: %s", BACKEND_ROOT)
+logger.info("📁 Upload root: %s", UPLOAD_ROOT)
+logger.info("📁 Massage images: %s", UPLOAD_ROOT / "massage_types")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info(f"Starting {settings.APP_NAME} v{settings.API_VERSION}")
-    logger.info(f"Environment: {settings.ENVIRONMENT}")
-    logger.info(f"Log Level: {settings.LOG_LEVEL}")
+    logger.info("Starting %s v%s", settings.APP_NAME, settings.API_VERSION)
+    logger.info("Environment: %s", settings.ENVIRONMENT)
+    logger.info("Log Level: %s", settings.LOG_LEVEL)
     try:
         init_database()
         logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Database initialization error: {e}")
+    except Exception as exc:
+        logger.error("Database initialization error: %s", exc, exc_info=True)
     yield
-    logger.info(f"Shutting down {settings.APP_NAME}")
+    logger.info("Shutting down %s", settings.APP_NAME)
 
 
-# ============================================================
-# CRÉATION DE L'APPLICATION
-# ============================================================
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.API_VERSION,
@@ -63,29 +65,22 @@ app = FastAPI(
     redoc_url="/redoc" if settings.DEBUG else None,
 )
 
-
 # ============================================================
-# FICHIERS STATIQUES (uploads)
+# STATIC FILES — UNE SEULE SOURCE DE VÉRITÉ
+# /uploads/massage_types/xxx.jpg
+#      ↓
+# BACKEND_ROOT/uploads/massage_types/xxx.jpg
 # ============================================================
-upload_dir = "uploads"
-# ✅ "massage_types" ajouté : dossier où admin.py enregistre les icônes/images
-#    des types de massage (voir app/api/admin.py — _save_massage_image).
-for sub in ("profiles", "documents", "certificates", "massage_types"):
-    os.makedirs(os.path.join(upload_dir, sub), exist_ok=True)
+app.mount(
+    "/uploads",
+    StaticFiles(directory=str(UPLOAD_ROOT), check_dir=True),
+    name="uploads",
+)
+logger.info("📁 Static /uploads monté sur: %s", UPLOAD_ROOT)
 
-app.mount("/uploads", StaticFiles(directory=upload_dir), name="uploads")
-logger.info(f"📁 Dossier '{upload_dir}' monté sur /uploads")
-
-
-# ============================================================
-# MIDDLEWARES
-# ============================================================
 setup_middlewares(app)
 
 
-# ============================================================
-# GESTIONNAIRES D'EXCEPTIONS
-# ============================================================
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     return JSONResponse(
@@ -123,7 +118,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    logger.error("Unhandled exception: %s", exc, exc_info=True)
     return JSONResponse(
         status_code=500,
         content={
@@ -136,9 +131,6 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 
-# ============================================================
-# ROUTES DE BASE
-# ============================================================
 @app.get("/")
 async def root():
     return {
@@ -170,24 +162,12 @@ async def version():
 
 
 # ============================================================
-# ✅ INCLUSION DES ROUTERS
-# ⚠️ IMPORTANT — ORDRE DE ROUTAGE FastAPI/Starlette :
-# Starlette matche les routes dans l'ORDRE d'inclusion. Comme
-# `availability_router` et `therapists.router` partagent tous les
-# deux le préfixe "/therapists", tout routeur définissant un chemin
-# dynamique du type "/{therapist_id}" DOIT être inclus APRÈS les
-# routeurs qui définissent des chemins statiques ("/availability",
-# "/toggle-online", "/toggle-available", ...), sinon ces chemins
-# statiques sont interceptés par "/{therapist_id}" (FastAPI essaie
-# alors de convertir "availability" en entier → 422).
-#
-# ⚠️ CORRECTIF : availability_router doit donc être enregistré
-# AVANT therapists.router (et non "en dernier" comme précédemment).
+# ROUTERS
 # ============================================================
 app.include_router(auth.router)
 app.include_router(users.router)
-app.include_router(availability_router)   # ✅ AVANT therapists.router (chemins statiques)
-app.include_router(therapists.router)     # ← contient /{therapist_id} (chemin dynamique)
+app.include_router(availability_router)
+app.include_router(therapists.router)
 app.include_router(bookings.router)
 app.include_router(offers.router)
 app.include_router(payments.router)
@@ -205,23 +185,17 @@ app.include_router(certificates.public_router)
 app.include_router(websocket.router)
 
 
-# ============================================================
-# MIDDLEWARE DE LOG DES REQUÊTES
-# ============================================================
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start_time = time.time()
-    logger.info(f"→ {request.method} {request.url.path}")
+    logger.info("→ %s %s", request.method, request.url.path)
     response = await call_next(request)
     process_time = time.time() - start_time
-    logger.info(f"← {response.status_code} ({process_time:.3f}s)")
+    logger.info("← %s %.3fs", response.status_code, process_time)
     response.headers["X-Process-Time"] = str(process_time)
     return response
 
 
-# ============================================================
-# POINT D'ENTRÉE
-# ============================================================
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
