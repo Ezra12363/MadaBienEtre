@@ -5,7 +5,8 @@ from sqlalchemy import func
 from datetime import datetime, timedelta
 from ...models.booking import Booking
 from ...models.user import User
-from ...models.user_analytics import UserAnalytics
+from ...models.analytics import UserAnalytics  # ✅ Modifié: user_analytics -> analytics
+
 
 async def predict_acceptance_probability(
     booking: Booking,
@@ -75,6 +76,7 @@ async def predict_acceptance_probability(
     
     return probability
 
+
 async def predict_demand(
     massage_type_id: int,
     date: datetime,
@@ -121,6 +123,7 @@ async def predict_demand(
         "confidence": 0.75
     }
 
+
 async def predict_revenue(
     therapist_id: int,
     days_ahead: int = 30,
@@ -129,6 +132,16 @@ async def predict_revenue(
     """
     Prédire les revenus d'un thérapeute
     """
+    if db is None:
+        return {
+            "predicted_revenue": 0,
+            "confidence": 0,
+            "daily_average": 0,
+            "weekly_average": 0,
+            "monthly_average": 0,
+            "error": "Database session required"
+        }
+    
     past_bookings = db.query(Booking).filter(
         Booking.therapist_id == therapist_id,
         Booking.status == "completed"
@@ -157,4 +170,114 @@ async def predict_revenue(
         "monthly_average": daily_average * 30,
         "based_on_bookings": len(past_bookings),
         "days_analyzed": days_covered
+    }
+
+
+async def predict_price_elasticity(
+    massage_type_id: int,
+    current_price: float,
+    db: Session
+) -> Dict[str, Any]:
+    """
+    Prédire l'élasticité du prix pour un type de massage
+    """
+    # Récupérer les réservations passées pour ce type de massage
+    bookings = db.query(Booking).filter(
+        Booking.massage_type_id == massage_type_id,
+        Booking.status == "completed"
+    ).all()
+    
+    if len(bookings) < 10:
+        return {
+            "elasticity": 0.5,
+            "confidence": 0.3,
+            "suggested_price": current_price,
+            "message": "Pas assez de données pour une prédiction précise"
+        }
+    
+    # Calculer le prix moyen
+    prices = [float(b.final_price or 0) for b in bookings if b.final_price]
+    avg_price = sum(prices) / len(prices) if prices else current_price
+    
+    # Élasticité par rapport au prix moyen
+    if avg_price > 0:
+        elasticity = 1 - (current_price / avg_price)
+        elasticity = max(-1, min(1, elasticity))
+    else:
+        elasticity = 0
+    
+    # Suggérer un prix
+    if elasticity > 0.2:
+        suggested_price = current_price * 0.9  # Réduire le prix
+    elif elasticity < -0.2:
+        suggested_price = current_price * 1.1  # Augmenter le prix
+    else:
+        suggested_price = current_price
+    
+    return {
+        "elasticity": elasticity,
+        "confidence": 0.6,
+        "suggested_price": suggested_price,
+        "avg_price": avg_price,
+        "based_on_bookings": len(bookings)
+    }
+
+
+async def predict_booking_success(
+    booking: Booking,
+    db: Session
+) -> Dict[str, Any]:
+    """
+    Prédire le succès d'une réservation
+    """
+    success_factors = []
+    score = 0.5
+    
+    # 1. Vérifier si le thérapeute est disponible
+    if booking.therapist_id:
+        therapist = db.query(User).filter(User.id == booking.therapist_id).first()
+        if therapist and therapist.is_available:
+            score += 0.2
+            success_factors.append("Thérapeute disponible")
+        else:
+            success_factors.append("Thérapeute non disponible")
+    
+    # 2. Vérifier si le prix est raisonnable
+    if booking.client_price_proposed > 0:
+        # Vérifier le prix minimum recommandé
+        price = float(booking.client_price_proposed)
+        if price >= 20000:
+            score += 0.15
+            success_factors.append("Prix raisonnable")
+        else:
+            success_factors.append("Prix trop bas")
+    
+    # 3. Vérifier les disponibilités horaires
+    if booking.scheduled_date:
+        hour = booking.scheduled_date.hour
+        if 8 <= hour <= 20:
+            score += 0.1
+            success_factors.append("Horaire convenable")
+    
+    # 4. Vérifier l'historique du client
+    if booking.client_id:
+        analytics = db.query(UserAnalytics).filter(
+            UserAnalytics.user_id == booking.client_id
+        ).first()
+        
+        if analytics:
+            if analytics.total_bookings > 10:
+                score += 0.05
+                success_factors.append("Client fidèle")
+    
+    # Normaliser
+    score = max(0, min(1, score))
+    
+    success_level = "high" if score > 0.7 else "medium" if score > 0.4 else "low"
+    
+    return {
+        "score": score,
+        "success_level": success_level,
+        "factors": success_factors,
+        "confidence": 0.7
     }

@@ -6,8 +6,9 @@ from datetime import datetime
 from ...models.user import User
 from ...models.booking import Booking
 from ...models.review import Review
-from ...models.user_analytics import UserAnalytics
+from ...models.analytics import UserAnalytics  # ✅ Modifié: user_analytics -> analytics
 from ...repositories.therapist_repository import TherapistRepository
+
 
 async def recommend_therapists(
     user_id: int,
@@ -139,9 +140,10 @@ async def recommend_therapists(
     
     return recommendations[:10]
 
+
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Calculer la distance entre deux points en kilomètres (Haversine)"""
-    R = 6371
+    R = 6371  # Rayon de la Terre en km
     
     lat1_rad = math.radians(lat1)
     lat2_rad = math.radians(lat2)
@@ -152,3 +154,118 @@ def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     
     return R * c
+
+
+async def predict_price(
+    db: Session,
+    massage_type_id: int,
+    therapist_id: int,
+    duration_minutes: int = 60,
+    distance_km: float = 0
+) -> Dict[str, Any]:
+    """
+    Prédire le prix recommandé pour un massage
+    """
+    from ...models.massage import MassageType
+    from ...models.therapist import TherapistEarnings
+    
+    # Récupérer le type de massage
+    massage_type = db.query(MassageType).filter(MassageType.id == massage_type_id).first()
+    if not massage_type:
+        return {"suggested_price": 30000, "confidence": 0.5}
+    
+    # Récupérer le thérapeute
+    therapist = db.query(User).filter(User.id == therapist_id).first()
+    if not therapist:
+        return {"suggested_price": 30000, "confidence": 0.5}
+    
+    # Prix de base
+    base_price = float(therapist.base_price or massage_type.min_price or 30000)
+    
+    # Ajustements
+    duration_factor = duration_minutes / 60
+    distance_factor = 1 + (distance_km / 100)
+    
+    # Prix suggéré
+    suggested_price = base_price * duration_factor * distance_factor
+    
+    # Arrondir à la centaine près
+    suggested_price = round(suggested_price / 100) * 100
+    
+    return {
+        "suggested_price": suggested_price,
+        "confidence": 0.8,
+        "base_price": base_price,
+        "duration_factor": duration_factor,
+        "distance_factor": distance_factor
+    }
+
+
+async def get_popular_therapists(
+    db: Session,
+    limit: int = 10
+) -> List[Dict[str, Any]]:
+    """
+    Récupérer les thérapeutes les plus populaires
+    """
+    therapists = db.query(User).filter(
+        User.role == "THERAPIST",
+        User.verification_status == "approved",
+        User.is_active == True
+    ).order_by(
+        User.rating.desc(),
+        User.total_reviews.desc()
+    ).limit(limit).all()
+    
+    results = []
+    for therapist in therapists:
+        results.append({
+            "id": therapist.id,
+            "fullname": therapist.fullname,
+            "rating": float(therapist.rating or 0),
+            "total_reviews": therapist.total_reviews or 0,
+            "profile_image": therapist.profile_image,
+            "base_price": float(therapist.base_price) if therapist.base_price else None,
+            "experience_years": therapist.experience_years or 0,
+            "is_online": therapist.is_online
+        })
+    
+    return results
+
+
+async def get_therapist_stats(
+    db: Session,
+    therapist_id: int
+) -> Dict[str, Any]:
+    """
+    Récupérer les statistiques d'un thérapeute
+    """
+    therapist = db.query(User).filter(User.id == therapist_id).first()
+    if not therapist:
+        return {}
+    
+    # Compter les réservations
+    total_bookings = db.query(Booking).filter(Booking.therapist_id == therapist_id).count()
+    completed_bookings = db.query(Booking).filter(
+        Booking.therapist_id == therapist_id,
+        Booking.status == "completed"
+    ).count()
+    cancelled_bookings = db.query(Booking).filter(
+        Booking.therapist_id == therapist_id,
+        Booking.status.in_(["cancelled_by_client", "cancelled_by_therapist"])
+    ).count()
+    
+    # Calculer le taux de complétion
+    completion_rate = (completed_bookings / total_bookings * 100) if total_bookings > 0 else 0
+    
+    return {
+        "therapist_id": therapist_id,
+        "total_bookings": total_bookings,
+        "completed_bookings": completed_bookings,
+        "cancelled_bookings": cancelled_bookings,
+        "completion_rate": round(completion_rate, 2),
+        "rating": float(therapist.rating or 0),
+        "total_reviews": therapist.total_reviews or 0,
+        "is_online": therapist.is_online,
+        "is_available": therapist.is_available
+    }

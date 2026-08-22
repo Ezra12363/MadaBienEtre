@@ -1,8 +1,9 @@
-# app/models/user.py
+# app/models/user.py (extrait)
 from sqlalchemy import Column, Integer, String, Boolean, DECIMAL, TIMESTAMP, Text, Enum, Index
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from ..core.database import Base
+
 
 class User(Base):
     __tablename__ = "users"
@@ -32,8 +33,6 @@ class User(Base):
     )
     identity_document_url = Column(String(255), nullable=True)
     certificate_url = Column(String(255), nullable=True)
-    
-    # ✅ SAHA CIN_NUMBER
     cin_number = Column(String(30), nullable=True)
     
     commission_rate = Column(DECIMAL(5,2), default=10.0)
@@ -61,7 +60,7 @@ class User(Base):
     notifications = relationship("Notification", back_populates="user")
     payments = relationship("Payment", back_populates="user")
     sos_alerts = relationship("SOSAlert", foreign_keys="SOSAlert.user_id", back_populates="user")
-    analytics = relationship("UserAnalytics", back_populates="user", uselist=False)
+    analytics = relationship("UserAnalytics", foreign_keys="UserAnalytics.user_id", back_populates="user", uselist=False)
     availabilities = relationship("TherapistAvailability", back_populates="therapist")
     blocked_dates = relationship("BlockedDate", back_populates="therapist")
     negotiations = relationship("Negotiation", foreign_keys="Negotiation.user_id", back_populates="user")
@@ -130,6 +129,6 @@ class User(Base):
             "total_reviews": self.total_reviews,
             "verification_status": self.verification_status,
             "address": self.address,
-            "cin_number": self.cin_number,  # ✅
+            "cin_number": self.cin_number,
             "created_at": self.created_at
         }

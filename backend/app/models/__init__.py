@@ -10,10 +10,11 @@ from .payment import Payment, Refund, Transaction
 from .review import Review, ReviewHelpful, ReviewReport
 from .notification import Notification, NotificationPreference
 from .sos import SOSAlert, SafetyCheck, EmergencyContact
-from .user_analytics import UserAnalytics, BookingAnalytics, PlatformAnalytics
+from .analytics import UserAnalytics, BookingAnalytics, PlatformAnalytics
 from .ai_prediction import AIPrediction, AIModel, AIFeedback
 from .availability import TherapistAvailability, BlockedDate, BookingSlot
 from .session import MassageSession
+from .therapist_certificate import TherapistCertificate
 
 __all__ = [
     'Base',
@@ -49,5 +50,6 @@ __all__ = [
     'TherapistAvailability',
     'BlockedDate',
     'BookingSlot',
-    'MassageSession'
+    'MassageSession',
+    'TherapistCertificate'
 ]
