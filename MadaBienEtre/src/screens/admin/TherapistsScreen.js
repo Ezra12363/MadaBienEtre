@@ -277,6 +277,28 @@ const TherapistsScreen = ({ navigation }) => {
     }); 
  
   /* ========================================================== 
+     VISIONNEUSE PLEIN ECRAN - certificat professionnel 
+  ========================================================== */ 
+ 
+  const [showImageViewer, setShowImageViewer] = useState(false); 
+ 
+  const [viewerImage, setViewerImage] = useState({ 
+    uri: null, 
+    title: '', 
+    fileName: 'document.jpg', 
+  }); 
+ 
+  const openImageViewer = (uri, title, fileName) => { 
+    if (!uri) return; 
+    setViewerImage({ uri, title, fileName }); 
+    setShowImageViewer(true); 
+  }; 
+ 
+  const closeImageViewer = () => { 
+    setShowImageViewer(false); 
+  }; 
+ 
+  /* ========================================================== 
      TOAST 
   ========================================================== */ 
  
@@ -2303,6 +2325,104 @@ const TherapistsScreen = ({ navigation }) => {
   }; 
  
   /* ========================================================== 
+     VISIONNEUSE PLEIN ECRAN - certificat professionnel 
+     Affiche l'image en grand (remplit la modale) et permet 
+     de la telecharger directement. 
+  ========================================================== */ 
+ 
+  const ImageViewerModal = () => ( 
+    <Modal 
+      visible={showImageViewer} 
+      transparent 
+      animationType="fade" 
+      onRequestClose={closeImageViewer} 
+    > 
+      <View style={styles.viewerOverlay}> 
+        <View 
+          style={[ 
+            styles.viewerContainer, 
+            { 
+              backgroundColor: themeColors.surface, 
+            }, 
+          ]} 
+        > 
+          <View style={styles.viewerHeader}> 
+            <Text 
+              style={[ 
+                styles.viewerTitle, 
+                { color: themeColors.text }, 
+              ]} 
+              numberOfLines={1} 
+            > 
+              {viewerImage.title || 
+                'Document'} 
+            </Text> 
+ 
+            <TouchableOpacity 
+              onPress={closeImageViewer} 
+              style={styles.viewerCloseButton} 
+              activeOpacity={0.8} 
+            > 
+              <Ionicons 
+                name="close" 
+                size={20} 
+                color={themeColors.text} 
+              /> 
+            </TouchableOpacity> 
+          </View> 
+ 
+          <View style={styles.viewerImageWrapper}> 
+            {viewerImage.uri && 
+            viewerImage.uri.toLowerCase().endsWith('.pdf') ? ( 
+              <View style={styles.viewerPdfBox}> 
+                <Ionicons 
+                  name="document-text-outline" 
+                  size={64} 
+                  color={colors.primary} 
+                /> 
+ 
+                <Text 
+                  style={[ 
+                    styles.viewerPdfText, 
+                    { color: themeColors.textSecondary }, 
+                  ]} 
+                > 
+                  Ce document est un PDF. Utilisez le bouton 
+                  ci-dessous pour le télécharger et l'ouvrir. 
+                </Text> 
+              </View> 
+            ) : ( 
+              <Image 
+                source={{ uri: viewerImage.uri }} 
+                style={styles.viewerImage} 
+                resizeMode="contain" 
+              /> 
+            )} 
+          </View> 
+ 
+          <TouchableOpacity 
+            onPress={() => 
+              handleDownload(viewerImage.uri, viewerImage.fileName) 
+            } 
+            style={styles.viewerDownloadButton} 
+            activeOpacity={0.85} 
+          > 
+            <Ionicons 
+              name="download-outline" 
+              size={18} 
+              color="#fff" 
+            /> 
+ 
+            <Text style={styles.viewerDownloadButtonText}> 
+              Télécharger 
+            </Text> 
+          </TouchableOpacity> 
+        </View> 
+      </View> 
+    </Modal> 
+  ); 
+ 
+  /* ========================================================== 
      CONFIRM MODAL (WEB) 
   ========================================================== */ 
  
@@ -3453,16 +3573,36 @@ const TherapistsScreen = ({ navigation }) => {
  
                     {selectedTherapist.identity_document_url ? ( 
                       <> 
-                        <Image 
-                          source={{ 
-                            uri: selectedTherapist.identity_document_url, 
-                          }} 
-                          style={ 
-                            styles.cinImage 
+                        <TouchableOpacity 
+                          activeOpacity={0.9} 
+                          onPress={() => 
+                            openImageViewer( 
+                              selectedTherapist.identity_document_url, 
+                              `Pièce d'identité (CIN) — ${selectedTherapist.fullname || 'Thérapeute'}`, 
+                              `CIN_${selectedTherapist.fullname || 'therapeute'}.jpg` 
+                            ) 
                           } 
-                          resizeMode="contain" 
-                        /> 
- 
+                          style={styles.cinImageWrapper} 
+                        > 
+                          <Image 
+                            source={{ 
+                              uri: selectedTherapist.identity_document_url, 
+                            }} 
+                            style={ 
+                              styles.cinImage 
+                            } 
+                            resizeMode="contain" 
+                          /> 
+
+                          <View style={styles.docZoomBadge}> 
+                            <Ionicons 
+                              name="expand-outline" 
+                              size={13} 
+                              color="#FFFFFF" 
+                            /> 
+                          </View> 
+                        </TouchableOpacity> 
+
                         <TouchableOpacity 
                           onPress={() => 
                             handleDownload( 
@@ -3473,13 +3613,14 @@ const TherapistsScreen = ({ navigation }) => {
                           style={ 
                             styles.downloadButton 
                           } 
+                          activeOpacity={0.85} 
                         > 
                           <Ionicons 
                             name="download-outline" 
-                            size={18} 
+                            size={19} 
                             color="#fff" 
                           /> 
- 
+
                           <Text 
                             style={ 
                               styles.downloadButtonText 
@@ -3512,9 +3653,116 @@ const TherapistsScreen = ({ navigation }) => {
                     )} 
                   </View> 
  
-                  {/* CERTIFICATE */} 
+                  {/* CERTIFICAT PROFESSIONNEL (televerse par le therapeute) */} 
                   <SectionTitle 
-                    title="Certificat professionnel" 
+                    title="Certificat professionnel (thérapeute)" 
+                    themeColors={ 
+                      themeColors 
+                    } 
+                  /> 
+ 
+                  <View 
+                    style={[ 
+                      styles.documentSection, 
+                      { 
+                        backgroundColor: 
+                          themeColors.background, 
+                      }, 
+                    ]} 
+                  > 
+                    {selectedTherapist.certificate_professionnel ? ( 
+                      <> 
+                        <TouchableOpacity 
+                          activeOpacity={0.85} 
+                          onPress={() => 
+                            openImageViewer( 
+                              selectedTherapist.certificate_professionnel, 
+                              `Certificat professionnel — ${selectedTherapist.fullname || 'Thérapeute'}`, 
+                              `Certificat_${selectedTherapist.fullname || 'therapeute'}.jpg` 
+                            ) 
+                          } 
+                          style={styles.certProPreview} 
+                        > 
+                          {selectedTherapist.certificate_professionnel 
+                            .toLowerCase() 
+                            .endsWith('.pdf') ? ( 
+                            <View style={styles.certProPdfBox}> 
+                              <Ionicons 
+                                name="document-text-outline" 
+                                size={32} 
+                                color={colors.primary} 
+                              /> 
+ 
+                              <Text 
+                                style={[ 
+                                  styles.certProPdfText, 
+                                  { 
+                                    color: 
+                                      themeColors.textSecondary, 
+                                  }, 
+                                ]} 
+                              > 
+                                Document PDF — Appuyer pour agrandir 
+                              </Text> 
+                            </View> 
+                          ) : ( 
+                            <Image 
+                              source={{ 
+                                uri: selectedTherapist.certificate_professionnel, 
+                              }} 
+                              style={styles.certProImage} 
+                              resizeMode="contain" 
+                            /> 
+                          )} 
+ 
+                          <View style={styles.certProZoomBadge}> 
+                            <Ionicons 
+                              name="expand-outline" 
+                              size={13} 
+                              color="#fff" 
+                            /> 
+                          </View> 
+                        </TouchableOpacity> 
+ 
+                        <TouchableOpacity 
+                          onPress={() => 
+                            handleDownload( 
+                              selectedTherapist.certificate_professionnel, 
+                              `Certificat_${selectedTherapist.fullname || 'therapeute'}.jpg` 
+                            ) 
+                          } 
+                          style={styles.downloadButton} 
+                          activeOpacity={0.85} 
+                        > 
+                          <Ionicons 
+                            name="download-outline" 
+                            size={19} 
+                            color="#fff" 
+                          /> 
+
+                          <Text style={styles.downloadButtonText}> 
+                            Télécharger le certificat 
+                          </Text> 
+                        </TouchableOpacity> 
+                      </> 
+                    ) : ( 
+                      <View style={styles.noDocumentBox}> 
+                        <Ionicons 
+                          name="alert-circle-outline" 
+                          size={22} 
+                          color="#E74C3C" 
+                        /> 
+ 
+                        <Text style={styles.noDocumentText}> 
+                          Aucun certificat professionnel téléversé par le thérapeute 
+                        </Text> 
+                      </View> 
+                    )} 
+                  </View> 
+ 
+                  {/* CERTIFICATE OFFICIEL (genere par la plateforme) */} 
+                  <SectionTitle 
+                    title="Certificat officiel Zebutech" 
                     themeColors={ 
                       themeColors 
                     } 
@@ -3863,6 +4111,8 @@ const TherapistsScreen = ({ navigation }) => {
         ====================================================== */} 
  
         <ConfirmModal /> 
+
+        <ImageViewerModal /> 
       </View> 
     </SafeAreaView> 
   ); 
@@ -4807,31 +5057,62 @@ const styles = StyleSheet.create({
       typography.fontFamily.semiBold, 
   }, 
  
+  cinImageWrapper: { 
+    width: '100%', 
+    height: 220, 
+    borderRadius: 12, 
+    overflow: 'hidden', 
+    marginBottom: 10, 
+  }, 
+
   cinImage: { 
     width: '100%', 
     height: 220, 
     borderRadius: 12, 
     backgroundColor: '#F5F5F5', 
-    marginBottom: 10, 
   }, 
- 
+
+  docZoomBadge: { 
+    position: 'absolute', 
+    top: 8, 
+    right: 8, 
+    width: 26, 
+    height: 26, 
+    borderRadius: 13, 
+    backgroundColor: 'rgba(15,23,42,0.55)', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+  }, 
+
   downloadButton: { 
-    minHeight: 42, 
-    borderRadius: 10, 
-    paddingHorizontal: 14, 
+    width: '100%', 
+    minHeight: 52, 
+    borderRadius: 13, 
+    paddingHorizontal: 16, 
     backgroundColor: 
       colors.primary, 
     flexDirection: 'row', 
     alignItems: 'center', 
     justifyContent: 'center', 
-    gap: 7, 
+    gap: 9, 
+    marginTop: 4, 
+
+    shadowColor: colors.primary, 
+    shadowOffset: { 
+      width: 0, 
+      height: 4, 
+    }, 
+    shadowOpacity: 0.28, 
+    shadowRadius: 9, 
+    elevation: 4, 
   }, 
- 
+
   downloadButtonText: { 
     color: '#fff', 
-    fontSize: 11, 
+    fontSize: 14, 
+    letterSpacing: 0.2, 
     fontFamily: 
-      typography.fontFamily.semiBold, 
+      typography.fontFamily.bold, 
   }, 
  
   noDocumentBox: { 
@@ -5051,6 +5332,141 @@ const styles = StyleSheet.create({
     fontFamily: 
       typography.fontFamily.semiBold, 
     color: '#fff', 
+  }, 
+ 
+  /* ================================================================ 
+     CERTIFICAT PROFESSIONNEL (televerse par le therapeute) 
+  ================================================================ */ 
+ 
+  certProPreview: { 
+    width: '100%', 
+    height: 220, 
+    borderRadius: 12, 
+    overflow: 'hidden', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: '#F5F5F5', 
+    marginBottom: 10, 
+  }, 
+ 
+  certProImage: { 
+    width: '100%', 
+    height: '100%', 
+  }, 
+ 
+  certProPdfBox: { 
+    width: '100%', 
+    height: '100%', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: 8, 
+    paddingHorizontal: 16, 
+  }, 
+ 
+  certProPdfText: { 
+    fontSize: 11, 
+    textAlign: 'center', 
+    fontFamily: typography.fontFamily.medium, 
+  }, 
+ 
+  certProZoomBadge: { 
+    position: 'absolute', 
+    top: 8, 
+    right: 8, 
+    width: 26, 
+    height: 26, 
+    borderRadius: 13, 
+    backgroundColor: 'rgba(15,23,42,0.55)', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+  }, 
+ 
+  /* ================================================================ 
+     VISIONNEUSE PLEIN ECRAN 
+  ================================================================ */ 
+ 
+  viewerOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(8,10,20,0.92)', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    padding: IS_WEB ? 24 : 10, 
+  }, 
+ 
+  viewerContainer: { 
+    width: IS_WEB ? 'min(720px, 94vw)' : '100%', 
+    height: IS_WEB ? 'min(88vh, 800px)' : '92%', 
+    borderRadius: 16, 
+    overflow: 'hidden', 
+    padding: 12, 
+  }, 
+ 
+  viewerHeader: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    marginBottom: 8, 
+  }, 
+ 
+  viewerTitle: { 
+    flex: 1, 
+    fontSize: 14, 
+    fontFamily: typography.fontFamily.semiBold, 
+    marginRight: 8, 
+  }, 
+ 
+  viewerCloseButton: { 
+    width: 32, 
+    height: 32, 
+    borderRadius: 16, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    backgroundColor: 'rgba(148,163,184,0.18)', 
+  }, 
+ 
+  viewerImageWrapper: { 
+    flex: 1, 
+    borderRadius: 12, 
+    backgroundColor: '#0B0F19', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    overflow: 'hidden', 
+    marginBottom: 12, 
+  }, 
+ 
+  viewerImage: { 
+    width: '100%', 
+    height: '100%', 
+  }, 
+ 
+  viewerPdfBox: { 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: 12, 
+    paddingHorizontal: 24, 
+  }, 
+ 
+  viewerPdfText: { 
+    fontSize: 13, 
+    textAlign: 'center', 
+    lineHeight: 19, 
+    fontFamily: typography.fontFamily.medium, 
+  }, 
+ 
+  viewerDownloadButton: { 
+    minHeight: 46, 
+    borderRadius: 12, 
+    backgroundColor: colors.primary, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    gap: 8, 
+  }, 
+ 
+  viewerDownloadButtonText: { 
+    color: '#fff', 
+    fontSize: 14, 
+    fontFamily: typography.fontFamily.semiBold, 
   }, 
 }); 
  

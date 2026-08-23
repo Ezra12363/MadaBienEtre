@@ -34,7 +34,13 @@ class User(Base):
     identity_document_url = Column(String(255), nullable=True)
     certificate_url = Column(String(255), nullable=True)
     cin_number = Column(String(30), nullable=True)
-    
+
+    # ✅ NOUVEAU : certificat professionnel uploadé par le thérapeute
+    # (diplôme / attestation / certification personnelle, distinct du
+    # certificat officiel "certificate_url" généré par la plateforme
+    # après validation par l'admin)
+    certificate_professionnel = Column(String(255), nullable=True)
+
     commission_rate = Column(DECIMAL(5,2), default=10.0)
     subscription_type = Column(String(20), default='standard')
     subscription_end_date = Column(TIMESTAMP, nullable=True)
@@ -130,5 +136,6 @@ class User(Base):
             "verification_status": self.verification_status,
             "address": self.address,
             "cin_number": self.cin_number,
+            "certificate_professionnel": self.certificate_professionnel,
             "created_at": self.created_at
         }

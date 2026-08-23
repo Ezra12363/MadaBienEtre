@@ -81,6 +81,7 @@ async def get_pending_therapists(
             "cin_number": t.cin_number,
             "identity_document_url": t.identity_document_url,
             "certificate_url": t.certificate_url,
+            "certificate_professionnel": t.certificate_professionnel,  # ✅ AJOUTÉ : certificat téléversé par le thérapeute
             "experience_years": t.experience_years,
             "base_price": float(t.base_price) if t.base_price else 0,
             "created_at": t.created_at,

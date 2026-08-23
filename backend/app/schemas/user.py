@@ -51,6 +51,7 @@ class UserUpdate(BaseModel):
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     address: Optional[str] = Field(None, max_length=500)
     cin_number: Optional[str] = Field(None, max_length=30)  # ✅ CIN
+    certificate_professionnel: Optional[str] = Field(None, max_length=255)  # ✅ Certificat professionnel
 
     @validator('phone')
     def validate_phone(cls, v):
@@ -75,6 +76,7 @@ class UserProfileUpdate(BaseModel):
     base_price: Optional[float] = Field(None, ge=0)
     address: Optional[str] = Field(None, max_length=500)
     cin_number: Optional[str] = Field(None, max_length=30)  # ✅ CIN
+    certificate_professionnel: Optional[str] = Field(None, max_length=255)  # ✅ Certificat professionnel
 
     @validator('phone')
     def validate_phone(cls, v):
@@ -142,6 +144,7 @@ class UserResponse(UserBase):
     longitude: Optional[float] = None
     address: Optional[str] = None
     cin_number: Optional[str] = None  # ✅ CIN
+    certificate_professionnel: Optional[str] = None  # ✅ Certificat professionnel
     
     class Config:
         from_attributes = True
@@ -190,6 +193,7 @@ class TherapistProfileResponse(BaseModel):
     response_rate: float = 0.0
     address: Optional[str] = None
     cin_number: Optional[str] = None  # ✅ CIN
+    certificate_professionnel: Optional[str] = None  # ✅ Certificat professionnel
     
     class Config:
         from_attributes = True

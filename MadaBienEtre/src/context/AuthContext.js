@@ -1,6 +1,7 @@
 // src/context/AuthContext.js
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import authService from '../services/authService';
+import api from '../services/api'; // ✅ Ajout de l'import api
 
 const AuthContext = createContext();
 
@@ -24,6 +25,9 @@ export const AuthProvider = ({ children }) => {
         setToken(storedToken);
         setUser(storedUser);
         setIsAuthenticated(true);
+        
+        // ✅ Rafraîchir le profil depuis le backend
+        await refreshUser();
       }
     } catch (error) {
       console.error('Auth check error:', error);
@@ -32,11 +36,40 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ✅ NOUVELLE FONCTION: Rafraîchir le profil depuis le backend
+  const refreshUser = useCallback(async () => {
+    try {
+      const token = await authService.getStoredToken();
+      if (!token) {
+        return { success: false, error: 'Token non trouvé' };
+      }
+
+      const response = await api.get('/users/me');
+
+      if (response?.data) {
+        setUser(response.data);
+        await authService.storeUser(response.data);
+        return {
+          success: true,
+          data: response.data,
+        };
+      }
+
+      return {
+        success: false,
+        error: 'Impossible de récupérer le profil',
+      };
+    } catch (error) {
+      console.error('❌ refreshUser error:', error);
+      return {
+        success: false,
+        error: error?.message || 'Erreur lors du rafraîchissement du profil',
+      };
+    }
+  }, []);
+
   /**
-   * Connexion — appelle authService.login() qui gère déjà :
-   * - le formulaire OAuth2 (username/password en form-urlencoded)
-   * - le stockage des tokens
-   * - la récupération de /me (avec le rôle)
+   * Connexion — appelle authService.login()
    */
   const login = useCallback(async (email, password) => {
     try {
@@ -46,6 +79,10 @@ export const AuthProvider = ({ children }) => {
         setToken(result.data.access_token);
         setUser(result.data.user);
         setIsAuthenticated(true);
+        
+        // ✅ Rafraîchir le profil depuis le backend pour avoir les données à jour
+        await refreshUser();
+
         return { success: true, data: result.data };
       }
 
@@ -53,10 +90,10 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return { success: false, error: error.message || 'Erreur de connexion' };
     }
-  }, []);
+  }, [refreshUser]);
 
   /**
-   * Inscription — appelle authService.register() (POST /register)
+   * Inscription — appelle authService.register()
    */
   const register = useCallback(async (userData) => {
     try {
@@ -71,7 +108,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Vérification OTP — appelle authService.verifyOTP() (POST /verify-otp)
+   * Vérification OTP
    */
   const verifyOTP = useCallback(async (email, otpCode) => {
     try {
@@ -83,7 +120,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Renvoyer OTP — appelle authService.resendOTP() (POST /resend-otp)
+   * Renvoyer OTP
    */
   const resendOTP = useCallback(async (email) => {
     try {
@@ -95,7 +132,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Mot de passe oublié — appelle authService.forgotPassword() (POST /forgot-password)
+   * Mot de passe oublié
    */
   const forgotPassword = useCallback(async (email) => {
     try {
@@ -112,7 +149,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Réinitialiser le mot de passe — appelle authService.resetPassword() (POST /reset-password)
+   * Réinitialiser le mot de passe
    */
   const resetPassword = useCallback(async (email, otpCode, newPassword) => {
     try {
@@ -124,7 +161,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Changer le mot de passe — appelle authService.changePassword() (PUT /change-password)
+   * Changer le mot de passe
    */
   const changePassword = useCallback(async (oldPassword, newPassword) => {
     try {
@@ -136,7 +173,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * Déconnexion — appelle authService.logout() (POST /logout + clear storage)
+   * Déconnexion
    */
   const logout = useCallback(async () => {
     try {
@@ -156,23 +193,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   /**
-   * ✅ Mettre à jour le profil dans l'état local + AsyncStorage.
-   *
-   * CORRIGÉ : cette fonction était auparavant déclarée EN DEHORS de
-   * AuthProvider (donc jamais exposée par useAuth() → `updateProfile`
-   * valait `undefined`), d'où l'erreur "TypeError: undefined is not
-   * a function" juste après un upload pourtant réussi (200 côté
-   * backend).
-   *
-   * ⚠️ Ne fait PAS d'appel réseau ici : ProfileScreen.js persiste déjà
-   * les changements lui-même avant d'appeler cette fonction —
-   * `put('/users/${userId}', updateData)` pour le profil complet, et
-   * `api.post('/users/upload-profile-photo', formData)` pour la
-   * photo (qui sauvegarde déjà `profile_image` en base côté
-   * backend). `updateProfile` ne fait donc que fusionner ces valeurs
-   * déjà persistées dans l'état local (`user`) + AsyncStorage, pour
-   * que tout l'app (Header, écrans, etc.) voie immédiatement les
-   * nouvelles données sans refaire une requête.
+   * Mettre à jour le profil localement
    */
   const updateProfile = useCallback(async (updates = {}) => {
     try {
@@ -205,6 +226,7 @@ export const AuthProvider = ({ children }) => {
       logout,
       updateUser,
       updateProfile,
+      refreshUser, // ✅ EXPOSER refreshUser
     }),
     [
       user,
@@ -221,6 +243,7 @@ export const AuthProvider = ({ children }) => {
       logout,
       updateUser,
       updateProfile,
+      refreshUser,
     ]
   );
 

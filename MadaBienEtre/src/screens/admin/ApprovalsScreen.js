@@ -25,15 +25,25 @@ import {
   Animated,
   useWindowDimensions,
   KeyboardAvoidingView,
+  Linking,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+// npm install xlsx  ->  nécessaire pour l'export Excel (web uniquement)
+import * as XLSX from 'xlsx';
+// npm install @react-native-community/datetimepicker  ->  nécessaire pour le calendrier natif (iOS / Android)
+import DateTimePicker from '@react-native-community/datetimepicker';
+// npx expo install expo-file-system expo-sharing  ->  nécessaire pour l'export Excel sur Android / iOS
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
+import { API_URL } from '../../config/env';
 
 const IS_WEB = Platform.OS === 'web';
 
@@ -392,6 +402,217 @@ const ConfirmationModal = ({
 };
 
 /* ============================================================
+   CHAMP DATE (saisie clavier + calendrier automatique)
+   IMPORTANT :
+   Comme pour ConfirmationModal, ce composant reste HORS de
+   ApprovalsScreen pour éviter tout remount / perte de focus
+   pendant la saisie.
+
+   Comportement :
+   - Web      : <input type="date"> natif du navigateur.
+                L'utilisateur peut TAPER la date (JJ/MM/AAAA)
+                OU cliquer l'icône calendrier fournie
+                automatiquement par le navigateur.
+   - Mobile   : champ tactile qui ouvre le calendrier natif
+                iOS / Android (@react-native-community/datetimepicker).
+                Sur Android le sélecteur natif s'affiche
+                directement ; sur iOS il s'affiche dans une
+                petite feuille avec un bouton "Valider".
+============================================================ */
+
+const DateField = ({
+  value,
+  onChange,
+  placeholder,
+  themeColors,
+  isDark,
+}) => {
+  const [showPicker, setShowPicker] =
+    useState(false);
+
+  const [tempDate, setTempDate] =
+    useState(
+      value ? new Date(value) : new Date()
+    );
+
+  const toISODate = (d) =>
+    d.toISOString().slice(0, 10);
+
+  const openPicker = useCallback(() => {
+    setTempDate(
+      value ? new Date(value) : new Date()
+    );
+    setShowPicker(true);
+  }, [value]);
+
+  const handleNativeChange = useCallback(
+    (event, selectedDate) => {
+      if (Platform.OS === 'android') {
+        setShowPicker(false);
+        if (
+          event.type === 'set' &&
+          selectedDate
+        ) {
+          onChange(toISODate(selectedDate));
+        }
+        return;
+      }
+
+      if (selectedDate) {
+        setTempDate(selectedDate);
+      }
+    },
+    [onChange]
+  );
+
+  const confirmIOS = useCallback(() => {
+    onChange(toISODate(tempDate));
+    setShowPicker(false);
+  }, [tempDate, onChange]);
+
+  const cancelIOS = useCallback(() => {
+    setShowPicker(false);
+  }, []);
+
+  if (IS_WEB) {
+    return (
+      <input
+        type="date"
+        value={value || ''}
+        onChange={(e) =>
+          onChange(e.target.value)
+        }
+        placeholder={placeholder}
+        style={{
+          flex: 1,
+          minWidth: 108,
+          border: 'none',
+          outline: 'none',
+          background: 'transparent',
+          fontSize: 11,
+          fontFamily:
+            typography.fontFamily.regular,
+          color: themeColors.text,
+          colorScheme: isDark
+            ? 'dark'
+            : 'light',
+        }}
+      />
+    );
+  }
+
+  return (
+    <>
+      <TouchableOpacity
+        onPress={openPicker}
+        activeOpacity={0.7}
+        style={styles.dateFieldTouchable}
+      >
+        <Text
+          style={[
+            styles.dateFilterInput,
+            {
+              color: value
+                ? themeColors.text
+                : themeColors.textSecondary,
+            },
+          ]}
+          numberOfLines={1}
+        >
+          {value || placeholder}
+        </Text>
+      </TouchableOpacity>
+
+      {showPicker &&
+        Platform.OS === 'android' && (
+          <DateTimePicker
+            value={tempDate}
+            mode="date"
+            display="default"
+            onChange={handleNativeChange}
+          />
+        )}
+
+      {showPicker &&
+        Platform.OS === 'ios' && (
+          <Modal
+            transparent
+            animationType="fade"
+            visible={showPicker}
+            onRequestClose={cancelIOS}
+          >
+            <View
+              style={
+                styles.iosDatePickerOverlay
+              }
+            >
+              <View
+                style={[
+                  styles.iosDatePickerSheet,
+                  {
+                    backgroundColor:
+                      themeColors.surface,
+                  },
+                ]}
+              >
+                <DateTimePicker
+                  value={tempDate}
+                  mode="date"
+                  display="spinner"
+                  onChange={
+                    handleNativeChange
+                  }
+                  textColor={
+                    themeColors.text
+                  }
+                />
+
+                <View
+                  style={
+                    styles.iosDatePickerActions
+                  }
+                >
+                  <TouchableOpacity
+                    onPress={cancelIOS}
+                    activeOpacity={0.8}
+                    style={
+                      styles.iosDatePickerCancel
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.iosDatePickerCancelText
+                      }
+                    >
+                      Annuler
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={confirmIOS}
+                    activeOpacity={0.8}
+                    style={
+                      styles.iosDatePickerConfirm
+                    }
+                  >
+                    <Text
+                      style={
+                        styles.iosDatePickerConfirmText
+                      }
+                    >
+                      Valider
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        )}
+    </>
+  );
+};
+
+/* ============================================================
    SCREEN
 ============================================================ */
 
@@ -448,6 +669,29 @@ const ApprovalsScreen = () => {
     useState(false);
 
   /* ==========================================================
+     ✅ VISIONNEUSE PLEIN ÉCRAN (certificat professionnel)
+  ========================================================== */
+
+  const [showImageViewer, setShowImageViewer] =
+    useState(false);
+
+  const [viewerImage, setViewerImage] = useState({
+    uri: null,
+    title: '',
+    fileName: 'document.jpg',
+  });
+
+  const openImageViewer = (uri, title, fileName) => {
+    if (!uri) return;
+    setViewerImage({ uri, title, fileName });
+    setShowImageViewer(true);
+  };
+
+  const closeImageViewer = () => {
+    setShowImageViewer(false);
+  };
+
+  /* ==========================================================
      ACTION MODAL
   ========================================================== */
 
@@ -463,6 +707,28 @@ const ApprovalsScreen = () => {
 
   const [filter, setFilter] =
     useState('all');
+
+  /* ==========================================================
+     ✅ FILTRE PAR DATE DE DEMANDE
+  ========================================================== */
+
+  const [dateFrom, setDateFrom] =
+    useState('');
+
+  const [dateTo, setDateTo] =
+    useState('');
+
+  const clearDateFilter = () => {
+    setDateFrom('');
+    setDateTo('');
+  };
+
+  /* ==========================================================
+     ✅ EXPORT EXCEL (état de chargement, web + mobile)
+  ========================================================== */
+
+  const [exportingExcel, setExportingExcel] =
+    useState(false);
 
   /* ==========================================================
      PAGINATION
@@ -564,6 +830,119 @@ const ApprovalsScreen = () => {
       toastTranslateY,
     ]
   );
+
+  /* ==========================================================
+     ✅ TÉLÉCHARGEMENT DE DOCUMENT (certificat professionnel, CIN...)
+  ========================================================== */
+
+  // Récupère le token JWT stocké côté client, quelle que soit la clé
+  // utilisée par le AuthContext.
+  const getAuthToken = async () => {
+    const possibleKeys = [
+      'authToken',
+      'token',
+      'accessToken',
+      'access_token',
+      'jwt',
+      'userToken',
+    ];
+
+    try {
+      for (const key of possibleKeys) {
+        const value = await AsyncStorage.getItem(key);
+
+        if (value) {
+          try {
+            const parsed = JSON.parse(value);
+
+            if (parsed && typeof parsed === 'object' && parsed.token) {
+              return parsed.token;
+            }
+          } catch {
+            // value n'est pas du JSON, c'est probablement le token brut
+          }
+
+          return value;
+        }
+      }
+    } catch (err) {
+      console.warn('Impossible de récupérer le token auth:', err);
+    }
+
+    return null;
+  };
+
+  const handleDownload = async (
+    url,
+    suggestedFileName = 'document.pdf'
+  ) => {
+    if (!url) {
+      showToast('Document indisponible', 'error');
+      return;
+    }
+
+    try {
+      const fullUrl = url.startsWith('http')
+        ? url
+        : `${API_URL}${url}`;
+
+      if (IS_WEB) {
+        // Sur le web, window.open() ne joint pas le header
+        // Authorization : on récupère le fichier en blob nous-même.
+        const token = await getAuthToken();
+
+        const response = await fetch(fullUrl, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            throw new Error(
+              "Accès refusé : vous devez être connecté en tant qu'administrateur"
+            );
+          }
+
+          throw new Error(`Erreur ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+
+        let fileName = suggestedFileName;
+        const disposition = response.headers.get('content-disposition');
+
+        if (disposition) {
+          const match = disposition.match(/filename="?([^"]+)"?/);
+
+          if (match && match[1]) {
+            fileName = match[1];
+          }
+        }
+
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        window.URL.revokeObjectURL(blobUrl);
+
+        showToast('Téléchargement démarré', 'success');
+      } else {
+        const canOpen = await Linking.canOpenURL(fullUrl);
+
+        if (canOpen) {
+          await Linking.openURL(fullUrl);
+        } else {
+          showToast("Impossible d'ouvrir le document", 'error');
+        }
+      }
+    } catch (err) {
+      console.error('Download error:', err);
+      showToast(err?.message || 'Échec du téléchargement', 'error');
+    }
+  };
 
   /* ==========================================================
      LOAD
@@ -674,6 +1053,56 @@ const ApprovalsScreen = () => {
   };
 
   /* ==========================================================
+     ✅ STATUT DE LA DEMANDE
+  ========================================================== */
+
+  const getRequestStatus = (
+    item
+  ) => {
+    const raw = String(
+      item?.status ||
+        item?.approval_status ||
+        item?.request_status ||
+        'pending'
+    ).toLowerCase();
+
+    if (
+      raw.includes('approuv') ||
+      raw.includes('approved') ||
+      raw.includes('active')
+    ) {
+      return {
+        key: 'approved',
+        label: 'Approuvée',
+        color: '#16A34A',
+        background: '#16A34A14',
+        icon: 'checkmark-circle',
+      };
+    }
+
+    if (
+      raw.includes('reject') ||
+      raw.includes('refus')
+    ) {
+      return {
+        key: 'rejected',
+        label: 'Rejetée',
+        color: '#DC2626',
+        background: '#DC262614',
+        icon: 'close-circle',
+      };
+    }
+
+    return {
+      key: 'pending',
+      label: 'En attente',
+      color: '#F59E0B',
+      background: '#F59E0B14',
+      icon: 'time-outline',
+    };
+  };
+
+  /* ==========================================================
      SEARCH / FILTER
   ========================================================== */
 
@@ -726,9 +1155,41 @@ const ApprovalsScreen = () => {
           !item.identity_document_url;
       }
 
+      let matchesDate = true;
+
+      const itemDate = formatDate(
+        item.created_at
+      );
+
+      if (
+        dateFrom &&
+        itemDate !== 'N/A'
+      ) {
+        matchesDate =
+          matchesDate &&
+          itemDate >= dateFrom;
+      }
+
+      if (
+        dateTo &&
+        itemDate !== 'N/A'
+      ) {
+        matchesDate =
+          matchesDate &&
+          itemDate <= dateTo;
+      }
+
+      if (
+        (dateFrom || dateTo) &&
+        itemDate === 'N/A'
+      ) {
+        matchesDate = false;
+      }
+
       return (
         matchesSearch &&
-        matchesFilter
+        matchesFilter &&
+        matchesDate
       );
     });
 
@@ -771,7 +1232,195 @@ const ApprovalsScreen = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, filter]);
+  }, [search, filter, dateFrom, dateTo]);
+
+  /* ==========================================================
+     ✅ EXPORT EXCEL (liste filtrée, y compris le filtre de date)
+  ========================================================== */
+
+  const handleExportExcel = async () => {
+    if (!filteredTherapists.length) {
+      showToast(
+        'Aucune donnée à exporter pour ces filtres.',
+        'warning'
+      );
+      return;
+    }
+
+    if (exportingExcel) {
+      return;
+    }
+
+    setExportingExcel(true);
+
+    try {
+      const rows = filteredTherapists.map(
+        (item, index) => {
+          const status =
+            getRequestStatus(item);
+
+          return {
+            'N°': index + 1,
+            ID: item.id ?? '',
+            'Nom complet':
+              item.fullname || '',
+            Email: item.email || '',
+            Téléphone: item.phone || '',
+            CIN: item.cin_number || '',
+            'Date de la demande':
+              formatDate(item.created_at),
+            'Statut de la demande':
+              status.label,
+            'Document CIN':
+              item.identity_document_url
+                ? 'Disponible'
+                : 'Manquante',
+            'Certificat professionnel':
+              item.certificate_professionnel
+                ? 'Disponible'
+                : 'Manquant',
+          };
+        }
+      );
+
+      const worksheet =
+        XLSX.utils.json_to_sheet(rows);
+
+      worksheet['!cols'] = [
+        { wch: 5 },
+        { wch: 8 },
+        { wch: 26 },
+        { wch: 28 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 15 },
+        { wch: 17 },
+        { wch: 15 },
+        { wch: 22 },
+      ];
+
+      const workbook =
+        XLSX.utils.book_new();
+
+      XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        'Demandes'
+      );
+
+      const dateSuffix = new Date()
+        .toISOString()
+        .slice(0, 10);
+
+      const fileName = `demandes_therapeutes_${dateSuffix}.xlsx`;
+
+      /* ------------------------------------------------------
+         WEB : téléchargement direct via un lien Blob
+      ------------------------------------------------------ */
+
+      if (IS_WEB) {
+        const wbout = XLSX.write(
+          workbook,
+          {
+            bookType: 'xlsx',
+            type: 'array',
+          }
+        );
+
+        const blob = new Blob(
+          [wbout],
+          {
+            type: 'application/octet-stream',
+          }
+        );
+
+        const blobUrl =
+          window.URL.createObjectURL(
+            blob
+          );
+
+        const link =
+          document.createElement('a');
+
+        link.href = blobUrl;
+        link.download = fileName;
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        window.URL.revokeObjectURL(
+          blobUrl
+        );
+      } else {
+        /* ------------------------------------------------------
+           ANDROID / iOS : écriture du fichier puis partage natif
+        ------------------------------------------------------ */
+
+        const wbout = XLSX.write(
+          workbook,
+          {
+            bookType: 'xlsx',
+            type: 'base64',
+          }
+        );
+
+        const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+
+        await FileSystem.writeAsStringAsync(
+          fileUri,
+          wbout,
+          {
+            encoding:
+              FileSystem.EncodingType
+                .Base64,
+          }
+        );
+
+        const canShare =
+          await Sharing.isAvailableAsync();
+
+        if (!canShare) {
+          showToast(
+            "Le partage de fichiers n'est pas disponible sur cet appareil. Le fichier a été enregistré dans le cache de l'application.",
+            'warning'
+          );
+        } else {
+          await Sharing.shareAsync(
+            fileUri,
+            {
+              mimeType:
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              dialogTitle:
+                'Exporter Excel',
+              UTI: 'com.microsoft.excel.xlsx',
+            }
+          );
+        }
+      }
+
+      showToast(
+        `Export Excel généré (${filteredTherapists.length} ligne${
+          filteredTherapists.length > 1
+            ? 's'
+            : ''
+        }).`,
+        'success'
+      );
+    } catch (err) {
+      console.error(
+        'Export Excel error:',
+        err
+      );
+
+      showToast(
+        "Échec de l'export Excel.",
+        'error'
+      );
+    } finally {
+      setExportingExcel(false);
+    }
+  };
 
   /* ==========================================================
      OPEN DETAILS
@@ -948,51 +1597,89 @@ const ApprovalsScreen = () => {
         ?.toUpperCase() ||
       '?';
 
+    const frameSize = size + 6;
+
     if (
       item?.profile_image
     ) {
       return (
-        <Image
-          source={{
-            uri: item.profile_image,
-          }}
-          style={{
-            width: size,
-            height: size,
-            borderRadius:
-              size / 2,
-          }}
-        />
+        <View
+          style={[
+            styles.avatarFrame,
+            {
+              width: frameSize,
+              height: frameSize,
+              borderRadius: 15,
+              borderColor:
+                isDark
+                  ? 'rgba(255,255,255,0.14)'
+                  : '#FFFFFF',
+              backgroundColor:
+                isDark
+                  ? 'rgba(255,255,255,0.06)'
+                  : '#F1F5F9',
+            },
+          ]}
+        >
+          <Image
+            source={{
+              uri: item.profile_image,
+            }}
+            style={{
+              width: size,
+              height: size,
+              borderRadius: 12,
+            }}
+          />
+        </View>
       );
     }
 
     return (
       <View
         style={[
-          styles.avatarPlaceholder,
+          styles.avatarFrame,
           {
-            width: size,
-            height: size,
-            borderRadius:
-              size / 2,
+            width: frameSize,
+            height: frameSize,
+            borderRadius: 15,
+            borderColor:
+              isDark
+                ? 'rgba(255,255,255,0.14)'
+                : '#FFFFFF',
             backgroundColor:
-              `${colors.primary}16`,
+              isDark
+                ? 'rgba(255,255,255,0.06)'
+                : '#F1F5F9',
           },
         ]}
       >
-        <Text
+        <View
           style={[
-            styles.avatarText,
+            styles.avatarPlaceholder,
             {
-              color:
-                colors.primary,
-              fontSize:
-                size * 0.38,
+              width: size,
+              height: size,
+              borderRadius: 12,
+              backgroundColor:
+                `${colors.primary}16`,
             },
           ]}
         >
-          {firstLetter}
-        </Text>
+          <Text
+            style={[
+              styles.avatarText,
+              {
+                color:
+                  colors.primary,
+                fontSize:
+                  size * 0.38,
+              },
+            ]}
+          >
+            {firstLetter}
+          </Text>
+        </View>
       </View>
     );
   };
@@ -1234,6 +1921,160 @@ const ApprovalsScreen = () => {
     );
 
   /* ==========================================================
+     ✅ BARRE DE FILTRE PAR DATE + EXPORT EXCEL
+  ========================================================== */
+
+  const DateFilterBar = () => (
+    <View
+      style={styles.dateFilterBar}
+    >
+      <View
+        style={[
+          styles.dateFilterField,
+          {
+            backgroundColor:
+              themeColors.surface,
+            borderColor:
+              themeColors.border ||
+              'rgba(15,23,42,0.08)',
+          },
+        ]}
+      >
+        <Ionicons
+          name="calendar-outline"
+          size={15}
+          color={
+            themeColors.textSecondary
+          }
+        />
+
+        <DateField
+          value={dateFrom}
+          onChange={setDateFrom}
+          placeholder="Du (AAAA-MM-JJ)"
+          themeColors={themeColors}
+          isDark={isDark}
+        />
+      </View>
+
+      <Text
+        style={[
+          styles.dateFilterSeparator,
+          {
+            color:
+              themeColors.textSecondary,
+          },
+        ]}
+      >
+        →
+      </Text>
+
+      <View
+        style={[
+          styles.dateFilterField,
+          {
+            backgroundColor:
+              themeColors.surface,
+            borderColor:
+              themeColors.border ||
+              'rgba(15,23,42,0.08)',
+          },
+        ]}
+      >
+        <Ionicons
+          name="calendar-outline"
+          size={15}
+          color={
+            themeColors.textSecondary
+          }
+        />
+
+        <DateField
+          value={dateTo}
+          onChange={setDateTo}
+          placeholder="Au (AAAA-MM-JJ)"
+          themeColors={themeColors}
+          isDark={isDark}
+        />
+      </View>
+
+      {(!!dateFrom || !!dateTo) && (
+        <TouchableOpacity
+          onPress={clearDateFilter}
+          activeOpacity={0.8}
+          style={[
+            styles.dateFilterClear,
+            {
+              backgroundColor:
+                themeColors.surface,
+              borderColor:
+                themeColors.border ||
+                'rgba(15,23,42,0.08)',
+            },
+          ]}
+        >
+          <Ionicons
+            name="close-circle-outline"
+            size={15}
+            color={
+              themeColors.textSecondary
+            }
+          />
+
+          <Text
+            style={[
+              styles.dateFilterClearText,
+              {
+                color:
+                  themeColors.textSecondary,
+              },
+            ]}
+          >
+            Effacer
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity
+        onPress={handleExportExcel}
+        disabled={exportingExcel}
+        activeOpacity={0.85}
+        style={[
+          styles.exportExcelButton,
+          {
+            opacity: exportingExcel
+              ? 0.7
+              : 1,
+          },
+        ]}
+      >
+        {exportingExcel ? (
+          <ActivityIndicator
+            size="small"
+            color="#FFFFFF"
+          />
+        ) : (
+          <Ionicons
+            name="download-outline"
+            size={16}
+            color="#FFFFFF"
+          />
+        )}
+
+        <Text
+          style={
+            styles.exportExcelButtonText
+          }
+        >
+          {exportingExcel
+            ? 'Export en cours…'
+            : 'Exporter Excel'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  /* ==========================================================
      MOBILE CARD
   ========================================================== */
 
@@ -1303,6 +2144,31 @@ const ApprovalsScreen = () => {
                 {item.email ||
                   'Email non renseigné'}
               </Text>
+
+              <View
+                style={[
+                  styles.idBadge,
+                  {
+                    marginTop: 4,
+                    backgroundColor:
+                      isDark
+                        ? 'rgba(255,255,255,0.06)'
+                        : '#F1F5F9',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.idBadgeText,
+                    {
+                      color:
+                        themeColors.textSecondary,
+                    },
+                  ]}
+                >
+                  ID #{item.id ?? '—'}
+                </Text>
+              </View>
             </View>
 
             <Ionicons
@@ -1388,6 +2254,45 @@ const ApprovalsScreen = () => {
                   : 'CIN manquante'}
               </Text>
             </View>
+
+            {(() => {
+              const requestStatus =
+                getRequestStatus(item);
+
+              return (
+                <View
+                  style={[
+                    styles.documentBadge,
+                    {
+                      backgroundColor:
+                        requestStatus.background,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={
+                      requestStatus.icon
+                    }
+                    size={14}
+                    color={
+                      requestStatus.color
+                    }
+                  />
+
+                  <Text
+                    style={[
+                      styles.documentBadgeText,
+                      {
+                        color:
+                          requestStatus.color,
+                      },
+                    ]}
+                  >
+                    {requestStatus.label}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
         </View>
       </Pressable>
@@ -1448,6 +2353,38 @@ const ApprovalsScreen = () => {
           >
             {index + 1}
           </Text>
+        </View>
+
+        <View
+          style={[
+            styles.tableCell,
+            styles.cellId,
+          ]}
+        >
+          <View
+            style={[
+              styles.idBadge,
+              {
+                backgroundColor:
+                  isDark
+                    ? 'rgba(255,255,255,0.06)'
+                    : '#F1F5F9',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.idBadgeText,
+                {
+                  color:
+                    themeColors.textSecondary,
+                },
+              ]}
+              numberOfLines={1}
+            >
+              #{item.id ?? '—'}
+            </Text>
+          </View>
         </View>
 
         <Pressable
@@ -1612,6 +2549,52 @@ const ApprovalsScreen = () => {
         <View
           style={[
             styles.tableCell,
+            styles.cellStatus,
+          ]}
+        >
+          {(() => {
+            const requestStatus =
+              getRequestStatus(item);
+
+            return (
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    backgroundColor:
+                      requestStatus.background,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={
+                    requestStatus.icon
+                  }
+                  size={12}
+                  color={
+                    requestStatus.color
+                  }
+                />
+
+                <Text
+                  style={[
+                    styles.statusText,
+                    {
+                      color:
+                        requestStatus.color,
+                    },
+                  ]}
+                >
+                  {requestStatus.label}
+                </Text>
+              </View>
+            );
+          })()}
+        </View>
+
+        <View
+          style={[
+            styles.tableCell,
             styles.cellAction,
           ]}
         >
@@ -1743,10 +2726,10 @@ const ApprovalsScreen = () => {
           style={[
             styles.table,
             {
-              minWidth:
-                isTablet
-                  ? 900
-                  : 1120,
+              minWidth: Math.max(
+                isTablet ? 1080 : 1340,
+                windowWidth - 48
+              ),
             },
           ]}
         >
@@ -1769,6 +2752,13 @@ const ApprovalsScreen = () => {
               title="#"
               style={
                 styles.cellIndex
+              }
+            />
+
+            <TableHeader
+              title="ID"
+              style={
+                styles.cellId
               }
             />
 
@@ -1804,6 +2794,13 @@ const ApprovalsScreen = () => {
               title="DOCUMENT"
               style={
                 styles.cellDocument
+              }
+            />
+
+            <TableHeader
+              title="STATUT"
+              style={
+                styles.cellStatus
               }
             />
 
@@ -2510,27 +3507,70 @@ const ApprovalsScreen = () => {
                   </View>
 
                   {selected.identity_document_url ? (
-                    <View
-                      style={[
-                        styles.cinPreview,
-                        {
-                          backgroundColor:
-                            isDark
-                              ? '#111827'
-                              : '#F1F5F9',
-                        },
-                      ]}
-                    >
-                      <Image
-                        source={{
-                          uri: selected.identity_document_url,
-                        }}
-                        style={
-                          styles.cinPreviewImage
+                    <>
+                      <TouchableOpacity
+                        onPress={() =>
+                          openImageViewer(
+                            selected.identity_document_url,
+                            "Pièce d'identité (CIN)",
+                            `CIN_${selected.fullname || 'therapeute'}.jpg`
+                          )
                         }
-                        resizeMode="contain"
-                      />
-                    </View>
+                        activeOpacity={0.9}
+                        style={[
+                          styles.cinPreview,
+                          {
+                            backgroundColor:
+                              isDark
+                                ? '#111827'
+                                : '#F1F5F9',
+                          },
+                        ]}
+                      >
+                        <Image
+                          source={{
+                            uri: selected.identity_document_url,
+                          }}
+                          style={
+                            styles.cinPreviewImage
+                          }
+                          resizeMode="contain"
+                        />
+
+                        <View style={styles.certZoomBadge}>
+                          <Ionicons
+                            name="expand-outline"
+                            size={13}
+                            color="#FFFFFF"
+                          />
+                        </View>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() =>
+                          handleDownload(
+                            selected.identity_document_url,
+                            `CIN_${selected.fullname || 'therapeute'}.jpg`
+                          )
+                        }
+                        style={styles.certDownloadButton}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons
+                          name="download-outline"
+                          size={19}
+                          color="#FFFFFF"
+                        />
+
+                        <Text
+                          style={
+                            styles.certDownloadButtonText
+                          }
+                        >
+                          Télécharger la CIN
+                        </Text>
+                      </TouchableOpacity>
+                    </>
                   ) : (
                     <View
                       style={[
@@ -2555,6 +3595,196 @@ const ApprovalsScreen = () => {
                         }
                       >
                         Aucun document CIN n'a été téléchargé.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* ✅ CERTIFICAT PROFESSIONNEL (uploadé par le thérapeute) */}
+
+                <View
+                  style={
+                    styles.documentCompact
+                  }
+                >
+                  <View
+                    style={
+                      styles.documentHeader
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.sectionTitle,
+                        {
+                          color:
+                            themeColors.text,
+                          marginBottom: 0,
+                        },
+                      ]}
+                    >
+                      Certificat professionnel
+                    </Text>
+
+                    <View
+                      style={[
+                        styles.documentStatus,
+                        {
+                          backgroundColor:
+                            selected.certificate_professionnel
+                              ? '#16A34A14'
+                              : '#DC262614',
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={
+                          selected.certificate_professionnel
+                            ? 'checkmark-circle'
+                            : 'alert-circle'
+                        }
+                        size={13}
+                        color={
+                          selected.certificate_professionnel
+                            ? '#16A34A'
+                            : '#DC2626'
+                        }
+                      />
+
+                      <Text
+                        style={[
+                          styles.documentStatusText,
+                          {
+                            color:
+                              selected.certificate_professionnel
+                                ? '#16A34A'
+                                : '#DC2626',
+                          },
+                        ]}
+                      >
+                        {selected.certificate_professionnel
+                          ? 'Disponible'
+                          : 'Manquant'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {selected.certificate_professionnel ? (
+                    <>
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() =>
+                          openImageViewer(
+                            selected.certificate_professionnel,
+                            `Certificat professionnel — ${selected.fullname || 'Thérapeute'}`,
+                            `Certificat_${selected.fullname || 'therapeute'}.jpg`
+                          )
+                        }
+                        style={[
+                          styles.certPreview,
+                          {
+                            backgroundColor:
+                              isDark
+                                ? '#111827'
+                                : '#F1F5F9',
+                          },
+                        ]}
+                      >
+                        {selected.certificate_professionnel
+                          .toLowerCase()
+                          .endsWith('.pdf') ? (
+                          <View
+                            style={
+                              styles.certPdfBox
+                            }
+                          >
+                            <Ionicons
+                              name="document-text-outline"
+                              size={32}
+                              color={colors.primary}
+                            />
+
+                            <Text
+                              style={[
+                                styles.certPdfText,
+                                {
+                                  color:
+                                    themeColors.textSecondary,
+                                },
+                              ]}
+                            >
+                              Document PDF — Appuyer pour agrandir
+                            </Text>
+                          </View>
+                        ) : (
+                          <Image
+                            source={{
+                              uri: selected.certificate_professionnel,
+                            }}
+                            style={
+                              styles.certPreviewImage
+                            }
+                            resizeMode="contain"
+                          />
+                        )}
+
+                        <View style={styles.certZoomBadge}>
+                          <Ionicons
+                            name="expand-outline"
+                            size={13}
+                            color="#FFFFFF"
+                          />
+                        </View>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={() =>
+                          handleDownload(
+                            selected.certificate_professionnel,
+                            `Certificat_${selected.fullname || 'therapeute'}.jpg`
+                          )
+                        }
+                        style={styles.certDownloadButton}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons
+                          name="download-outline"
+                          size={19}
+                          color="#FFFFFF"
+                        />
+
+                        <Text
+                          style={
+                            styles.certDownloadButtonText
+                          }
+                        >
+                          Télécharger le certificat
+                        </Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <View
+                      style={[
+                        styles.noCinCompact,
+                        {
+                          backgroundColor:
+                            isDark
+                              ? 'rgba(220,38,38,0.08)'
+                              : '#FEF2F2',
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="alert-circle-outline"
+                        size={20}
+                        color="#DC2626"
+                      />
+
+                      <Text
+                        style={
+                          styles.noCinCompactText
+                        }
+                      >
+                        Aucun certificat professionnel n'a été téléchargé.
                       </Text>
                     </View>
                   )}
@@ -2639,6 +3869,107 @@ const ApprovalsScreen = () => {
         </Modal>
       );
     };
+
+  /* ==========================================================
+     ✅ VISIONNEUSE PLEIN ÉCRAN — certificat professionnel
+     Affiche l'image en grand (remplit la modale) et permet
+     de la télécharger directement.
+  ========================================================== */
+
+  const ImageViewerModal = () => (
+    <Modal
+      visible={showImageViewer}
+      transparent
+      animationType="fade"
+      onRequestClose={closeImageViewer}
+    >
+      <View style={styles.viewerOverlay}>
+        <View
+          style={[
+            styles.viewerContainer,
+            {
+              backgroundColor: themeColors.surface,
+            },
+          ]}
+        >
+          <View style={styles.viewerHeader}>
+            <Text
+              style={[
+                styles.viewerTitle,
+                { color: themeColors.text },
+              ]}
+              numberOfLines={1}
+            >
+              {viewerImage.title ||
+                'Document'}
+            </Text>
+
+            <TouchableOpacity
+              onPress={closeImageViewer}
+              style={styles.viewerCloseButton}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="close"
+                size={20}
+                color={themeColors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.viewerImageWrapper}>
+            {viewerImage.uri &&
+            viewerImage.uri.toLowerCase().endsWith('.pdf') ? (
+              <View style={styles.viewerPdfBox}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={64}
+                  color={colors.primary}
+                />
+
+                <Text
+                  style={[
+                    styles.viewerPdfText,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  Ce document est un PDF. Utilisez le bouton
+                  ci-dessous pour le télécharger et l'ouvrir.
+                </Text>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: viewerImage.uri }}
+                style={styles.viewerImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+
+          <TouchableOpacity
+            onPress={() =>
+              handleDownload(
+                viewerImage.uri,
+                viewerImage.fileName
+              )
+            }
+            style={styles.viewerDownloadButton}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name="download-outline"
+              size={18}
+              color="#FFFFFF"
+            />
+
+            <Text style={styles.viewerDownloadButtonText}>
+              Télécharger
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 
   /* ==========================================================
      STABLE CONFIRMATION MODAL INSTANCE
@@ -2838,6 +4169,10 @@ const ApprovalsScreen = () => {
 
         <SearchAndFilters />
 
+        {/* ✅ FILTRE PAR DATE + EXPORT EXCEL */}
+
+        <DateFilterBar />
+
         {/* COUNTER */}
 
         <View
@@ -3002,6 +4337,8 @@ const ApprovalsScreen = () => {
       </View>
 
       <DetailsModal />
+
+      <ImageViewerModal />
 
       {confirmationModal}
     </SafeAreaView>
@@ -3222,6 +4559,148 @@ const styles = StyleSheet.create({
   },
 
   /* ==========================================================
+     ✅ FILTRE PAR DATE / EXPORT EXCEL
+  ========================================================== */
+
+  dateFilterBar: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+
+  dateFilterField: {
+    minHeight: 40,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  dateFilterInput: {
+    minWidth: 108,
+    paddingVertical: 6,
+    fontSize: 11,
+    fontFamily:
+      typography.fontFamily.regular,
+    outlineStyle: 'none',
+  },
+
+  dateFieldTouchable: {
+    flex: 1,
+    minWidth: 108,
+    paddingVertical: 6,
+  },
+
+  iosDatePickerOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor:
+      'rgba(8,10,20,0.45)',
+  },
+
+  iosDatePickerSheet: {
+    width: '100%',
+    paddingTop: 8,
+    paddingBottom: 24,
+    paddingHorizontal: 16,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+  },
+
+  iosDatePickerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 8,
+  },
+
+  iosDatePickerCancel: {
+    minHeight: 40,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+  },
+
+  iosDatePickerCancelText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  iosDatePickerConfirm: {
+    minHeight: 40,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
+
+  iosDatePickerConfirmText: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  dateFilterSeparator: {
+    fontSize: 13,
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  dateFilterClear: {
+    minHeight: 40,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+
+  dateFilterClearText: {
+    fontSize: 11,
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  exportExcelButton: {
+    minHeight: 40,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    backgroundColor: '#16A34A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+
+    shadowColor: '#16A34A',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.22,
+    shadowRadius: 7,
+    elevation: 3,
+  },
+
+  exportExcelButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  /* ==========================================================
      COUNTER
   ========================================================== */
 
@@ -3349,6 +4828,8 @@ const styles = StyleSheet.create({
     marginTop: 7,
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
 
   documentBadge: {
@@ -3364,6 +4845,36 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontFamily:
       typography.fontFamily.semiBold,
+  },
+
+  idBadge: {
+    minHeight: 24,
+    paddingHorizontal: 8,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  idBadgeText: {
+    fontSize: 10,
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  avatarFrame: {
+    alignItems: 'center',
+    justifyContent:
+      'center',
+    flexShrink: 0,
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.14,
+    shadowRadius: 5,
+    elevation: 3,
   },
 
   avatarPlaceholder: {
@@ -3434,11 +4945,18 @@ const styles = StyleSheet.create({
   },
 
   cellIndex: {
-    width: 48,
+    width: 44,
+    alignItems: 'center',
+  },
+
+  cellId: {
+    width: 84,
+    alignItems: 'center',
   },
 
   cellTherapist: {
-    width: 285,
+    flex: 1,
+    minWidth: 260,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -3457,6 +4975,12 @@ const styles = StyleSheet.create({
 
   cellDocument: {
     width: 130,
+    alignItems: 'center',
+  },
+
+  cellStatus: {
+    width: 150,
+    alignItems: 'center',
   },
 
   cellAction: {
@@ -3490,8 +5014,6 @@ const styles = StyleSheet.create({
   },
 
   statusBadge: {
-    alignSelf:
-      'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -3856,13 +5378,14 @@ const styles = StyleSheet.create({
   cinPreview: {
     width: '100%',
     height: IS_WEB
-      ? 110
-      : 75,
+      ? 220
+      : 170,
     borderRadius: 10,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent:
       'center',
+    marginBottom: 10,
   },
 
   cinPreviewImage: {
@@ -4233,6 +5756,179 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     fontFamily:
       typography.fontFamily.semiBold,
+  },
+
+  /* ==========================================================
+     ✅ CERTIFICAT PROFESSIONNEL
+  ========================================================== */
+
+  certPreview: {
+    width: '100%',
+    height: IS_WEB ? 220 : 170,
+    borderRadius: 10,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+
+  certPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+
+  certPdfBox: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+
+  certPdfText: {
+    fontSize: 11,
+    textAlign: 'center',
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  certZoomBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(15,23,42,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  certDownloadButton: {
+    width: '100%',
+    minHeight: 52,
+    borderRadius: 13,
+    paddingHorizontal: 16,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    marginTop: 4,
+
+    shadowColor: colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.28,
+    shadowRadius: 9,
+    elevation: 4,
+  },
+
+  certDownloadButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    letterSpacing: 0.2,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  /* ==========================================================
+     ✅ VISIONNEUSE PLEIN ÉCRAN
+  ========================================================== */
+
+  viewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(8,10,20,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: IS_WEB ? 24 : 10,
+  },
+
+  viewerContainer: {
+    width: IS_WEB ? 'min(720px, 94vw)' : '100%',
+    height: IS_WEB ? 'min(88vh, 800px)' : '92%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    padding: 12,
+  },
+
+  viewerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+
+  viewerTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: typography.fontFamily.semiBold,
+    marginRight: 8,
+  },
+
+  viewerCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(148,163,184,0.18)',
+  },
+
+  viewerImageWrapper: {
+    flex: 1,
+    borderRadius: 12,
+    backgroundColor: '#0B0F19',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+
+  viewerImage: {
+    width: '100%',
+    height: '100%',
+  },
+
+  viewerPdfBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 24,
+  },
+
+  viewerPdfText: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 19,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  viewerDownloadButton: {
+    minHeight: 54,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+
+    shadowColor: colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.28,
+    shadowRadius: 9,
+    elevation: 4,
+  },
+
+  viewerDownloadButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    letterSpacing: 0.2,
+    fontFamily: typography.fontFamily.bold,
   },
 });
 

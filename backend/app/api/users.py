@@ -310,6 +310,7 @@ async def update_user(
         logger.info(f"✅ Utilisateur {user_id} mis à jour avec succès")
         logger.info(f"   - cin_number: {user.cin_number}")
         logger.info(f"   - address: {user.address}")
+        logger.info(f"   - certificate_professionnel: {user.certificate_professionnel}")
 
         return user
     except HTTPException:
@@ -487,6 +488,7 @@ async def update_my_profile(
         logger.info(f"✅ Profil mis à jour pour l'utilisateur {current_user.id}")
         logger.info(f"   - cin_number: {current_user.cin_number}")
         logger.info(f"   - address: {current_user.address}")
+        logger.info(f"   - certificate_professionnel: {current_user.certificate_professionnel}")
 
         return current_user
     except HTTPException:
@@ -551,6 +553,49 @@ async def upload_cin_document(
         return {"identity_document_url": image_url}
     except Exception as e:
         logger.error(f"Erreur upload_cin_document: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erreur interne: {str(e)}")
+
+
+# ============================================================
+# 9bis. ✅ UPLOAD CERTIFICAT PROFESSIONNEL (NOUVEAU)
+# ============================================================
+@router.post("/users/upload-certificate-professionnel")
+async def upload_certificate_professionnel(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    ✅ Uploader le certificat professionnel du thérapeute
+    (diplôme / attestation / certification personnelle).
+
+    Ce document est distinct du certificat officiel généré
+    automatiquement par la plateforme après validation admin.
+    """
+    try:
+        allowed_types = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+        if file.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Format non supporté (jpg, png, webp, pdf)",
+            )
+
+        file_url = upload_image(file, "certificates_pro")
+        current_user.certificate_professionnel = file_url
+        current_user.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(current_user)
+
+        logger.info(
+            f"✅ Certificat professionnel uploadé pour l'utilisateur {current_user.id}"
+        )
+
+        return {"certificate_professionnel": file_url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erreur upload_certificate_professionnel: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Erreur interne: {str(e)}")
 

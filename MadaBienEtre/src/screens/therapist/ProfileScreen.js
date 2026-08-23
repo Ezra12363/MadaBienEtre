@@ -39,6 +39,9 @@ import CertificateCard from '../../components/therapist/CertificateCard';
 // ✅ IMPORT DU CIN SECTION
 import CinSection from '../../components/common/CinSection';
 
+// ✅ IMPORT DE LA SECTION CERTIFICAT PROFESSIONNEL (NOUVEAU)
+import CertificateProfessionnelSection from '../../components/common/CertificateProfessionnelSection';
+
 const { width, height } = Dimensions.get('window');
 
 // ✅ Icons personnalisés pour les marqueurs
@@ -82,6 +85,8 @@ const ProfileScreen = ({ navigation }) => {
     // ✅ NOUVEAU : CIN
     cin_number: '',
     identity_document_url: '',
+    // ✅ NOUVEAU : Certificat professionnel
+    certificate_professionnel: '',
   });
   const [isUploading, setIsUploading] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -482,6 +487,8 @@ const ProfileScreen = ({ navigation }) => {
         // ✅ NOUVEAU : CIN
         cin_number: profileData.cin_number,
         identity_document_url: profileData.identity_document_url,
+        // ✅ NOUVEAU : Certificat professionnel
+        certificate_professionnel: profileData.certificate_professionnel,
       };
 
       console.log('📤 Envoi des données au backend (Thérapeute):', updateData);
@@ -880,16 +887,23 @@ const ProfileScreen = ({ navigation }) => {
   // ============================================================
   // ✅ USE EFFECT - CHARGEMENT DES DONNÉES UTILISATEUR (AVEC CIN)
   // ============================================================
+  // ⚠️ Ce useEffect resynchronise profileData depuis le user du
+  // AuthContext. Il ne doit PAS s'exécuter pendant que le formulaire
+  // est en cours d'édition (isEditing === true), sinon toute mise à
+  // jour de "user" survenant en arrière-plan (ex: refreshUser() appelé
+  // après l'upload du certificat professionnel ou du CIN, ou après
+  // l'upload de la photo de profil) écrase les champs que l'utilisateur
+  // est en train de remplir (nom, bio, adresse, prix, etc.) avant
+  // même qu'il ait appuyé sur "Enregistrer".
+  //
+  // ✅ CORRECTIF : on ne resynchronise le formulaire depuis le serveur
+  // que lorsqu'on N'EST PAS en train d'éditer. Les uploads de documents
+  // (certificat professionnel, CIN, photo) continuent de s'afficher
+  // immédiatement grâce aux callbacks onCertificateUploaded /
+  // onCinImageUploaded qui mettent à jour uniquement leur propre champ
+  // dans profileData, sans toucher au reste du formulaire.
   useEffect(() => {
-    if (user) {
-      console.log('📋 Données utilisateur reçues:', user);
-      console.log('   - bio:', user.bio);
-      console.log('   - experience_years:', user.experience_years);
-      console.log('   - base_price:', user.base_price);
-      console.log('   - address:', user.address);
-      console.log('   - cin_number:', user.cin_number);
-      console.log('   - identity_document_url:', user.identity_document_url);
-      
+    if (user && !isEditing) {
       setProfileData({
         fullname: user.fullname || '',
         email: user.email || '',
@@ -908,6 +922,8 @@ const ProfileScreen = ({ navigation }) => {
         // ✅ NOUVEAU : CIN
         cin_number: user.cin_number || '',
         identity_document_url: user.identity_document_url || '',
+        // ✅ NOUVEAU : Certificat professionnel
+        certificate_professionnel: user.certificate_professionnel || '',
       });
 
       if (user.latitude && user.longitude) {
@@ -930,7 +946,10 @@ const ProfileScreen = ({ navigation }) => {
       duration: 800,
       useNativeDriver: true,
     }).start();
-  }, [user, forceRefresh]);
+    // ✅ isEditing est volontairement dans les dépendances : quand on
+    // quitte le mode édition (bouton crayon ou après enregistrement),
+    // le formulaire se resynchronise avec les dernières données serveur.
+  }, [user, forceRefresh, isEditing]);
 
   // ============================================================
   // ✅ RENDU PRINCIPAL
@@ -1197,6 +1216,15 @@ const ProfileScreen = ({ navigation }) => {
                   themeColors={themeColors}
                 />
 
+                {/* ✅ NOUVEAU : SECTION CERTIFICAT PROFESSIONNEL */}
+                <CertificateProfessionnelSection
+                  certificateUrl={profileData.certificate_professionnel || user?.certificate_professionnel}
+                  onCertificateUploaded={(url) =>
+                    setProfileData({ ...profileData, certificate_professionnel: url })
+                  }
+                  themeColors={themeColors}
+                />
+
                 <TouchableOpacity
                   style={styles.saveButton}
                   onPress={handleUpdateProfile}
@@ -1273,6 +1301,15 @@ const ProfileScreen = ({ navigation }) => {
                     <Ionicons name="document-outline" size={20} color={themeColors.textSecondary} />
                     <Text style={[styles.infoValue, { color: colors.primary, fontSize: 12 }]}>
                      CIN téléchargé
+                    </Text>
+                  </View>
+                )}
+                {/* ✅ NOUVEAU : Affichage du certificat professionnel en mode lecture */}
+                {user?.certificate_professionnel && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="ribbon-outline" size={20} color={themeColors.textSecondary} />
+                    <Text style={[styles.infoValue, { color: colors.primary, fontSize: 12 }]}>
+                      Certificat professionnel téléchargé
                     </Text>
                   </View>
                 )}

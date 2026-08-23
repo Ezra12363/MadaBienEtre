@@ -1,3 +1,4 @@
+# app/api/therapists.py
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/therapists", tags=["Therapists"])
 
 
 # ============================================================
-# 1. ✅ LISTE DES THÉRAPEUTES AVEC FILTRES
+# 1. ✅ LISTE DES THÉRAPEUTES AVEC FILTRES + certificate_professionnel
 # ============================================================
 @router.get(
     "/",
@@ -137,11 +138,12 @@ async def get_therapists(
                 "base_price": float(therapist.base_price) if therapist.base_price else None,
                 "identity_document_url": therapist.identity_document_url,
                 "certificate_url": therapist.certificate_url,
+                "certificate_professionnel": therapist.certificate_professionnel,  # ✅ AJOUTÉ
                 "commission_rate": float(therapist.commission_rate) if therapist.commission_rate else 10.0,
                 "address": therapist.address,
                 "latitude": therapist.latitude,
                 "longitude": therapist.longitude,
-                "cin_number": therapist.cin_number,  # ✅ CIN
+                "cin_number": therapist.cin_number,
                 "distance_meters": distance if distance else 0
             })
         
@@ -152,7 +154,7 @@ async def get_therapists(
 
 
 # ============================================================
-# 2. ✅ PROFIL COMPLET D'UN THÉRAPEUTE (AVEC CIN)
+# 2. ✅ PROFIL COMPLET D'UN THÉRAPEUTE + certificate_professionnel
 # ============================================================
 @router.get(
     "/{therapist_id}",
@@ -197,7 +199,7 @@ async def get_therapist_profile(
             profile_image=therapist.profile_image,
             bio=therapist.bio,
             address=therapist.address,
-            cin_number=therapist.cin_number,  # ✅ CIN
+            cin_number=therapist.cin_number,
             latitude=therapist.latitude,
             longitude=therapist.longitude,
             experience_years=therapist.experience_years or 0,
@@ -213,6 +215,7 @@ async def get_therapist_profile(
             response_rate=95.0,
             identity_document_url=therapist.identity_document_url,
             certificate_url=therapist.certificate_url,
+            certificate_professionnel=therapist.certificate_professionnel,  # ✅ AJOUTÉ
             commission_rate=float(therapist.commission_rate) if therapist.commission_rate else 10.0,
             created_at=therapist.created_at,
             average_rating=float(therapist.rating) if therapist.rating else 0.0
@@ -253,15 +256,6 @@ async def toggle_online_status(
         logger.error(f"❌ Erreur toggle_online_status: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Erreur interne: {str(e)}")
-
-
-# ============================================================
-# ⚠️ SUPPRIMÉ : "4. CHANGER LA DISPONIBILITÉ" (PUT /availability)
-# Cette route entrait en collision directe avec PUT /therapists/availability
-# défini dans availability.py (même chemin + même méthode HTTP).
-# Elle faisait de toute façon la même chose que PUT /therapists/toggle-available
-# (voir availability.py) — utilisez cette route à la place.
-# ============================================================
 
 
 # ============================================================
@@ -313,7 +307,7 @@ async def apply_as_therapist(
 
 
 # ============================================================
-# 5. ✅ METTRE À JOUR LES INFORMATIONS DU THÉRAPEUTE (AVEC CIN)
+# 5. ✅ METTRE À JOUR LES INFORMATIONS DU THÉRAPEUTE
 # ============================================================
 @router.put("/{therapist_id}")
 async def update_therapist(
@@ -325,13 +319,14 @@ async def update_therapist(
     address: Optional[str] = None,
     latitude: Optional[float] = None,
     longitude: Optional[float] = None,
-    cin_number: Optional[str] = None,  # ✅ NOUVEAU : CIN
+    cin_number: Optional[str] = None,
+    certificate_professionnel: Optional[str] = None,  # ✅ AJOUTÉ
     current_user: User = Depends(get_current_therapist),
     db: Session = Depends(get_db)
 ):
     """
     ✅ Mettre à jour les informations du thérapeute.
-    Permet de modifier le numéro CIN.
+    Permet de modifier le numéro CIN et le certificat professionnel.
     """
     try:
         if current_user.id != therapist_id:
@@ -351,8 +346,10 @@ async def update_therapist(
             current_user.latitude = latitude
         if longitude is not None:
             current_user.longitude = longitude
-        if cin_number is not None:          # ✅ Mise à jour du CIN
+        if cin_number is not None:
             current_user.cin_number = cin_number
+        if certificate_professionnel is not None:  # ✅ AJOUTÉ
+            current_user.certificate_professionnel = certificate_professionnel
         
         current_user.updated_at = datetime.utcnow()
         db.commit()
@@ -360,6 +357,7 @@ async def update_therapist(
         
         logger.info(f"✅ Thérapeute {therapist_id} mis à jour avec succès")
         logger.info(f"   - cin_number: {current_user.cin_number}")
+        logger.info(f"   - certificate_professionnel: {current_user.certificate_professionnel}")
         
         return {"message": "Thérapeute mis à jour avec succès"}
     except HTTPException:

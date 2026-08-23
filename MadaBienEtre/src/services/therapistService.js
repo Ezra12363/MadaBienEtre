@@ -252,6 +252,37 @@ class TherapistService {
   getCertificateDownloadUrl() {
     return '/therapists/me/certificate/download';
   }
+
+  // ============================================================
+  // ✅ NOUVEAU : CERTIFICAT PROFESSIONNEL (uploadé par le thérapeute)
+  // ============================================================
+
+  /**
+   * Uploader le certificat professionnel (diplôme / attestation)
+   * dans le formulaire de mise à jour du profil.
+   */
+  async uploadCertificateProfessionnel(formData) {
+    try {
+      const response = await post('/users/upload-certificate-professionnel', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      if (response.error) {
+        return { success: false, error: response.error.message };
+      }
+      return { success: true, data: response.data };
+    } catch (error) {
+      console.error('uploadCertificateProfessionnel:', error);
+      return {
+        success: false,
+        error: error?.response?.data?.detail ||
+               error?.response?.data?.message ||
+               error?.message ||
+               'Erreur lors du téléchargement du certificat professionnel.',
+      };
+    }
+  }
 }
 
 export default new TherapistService();

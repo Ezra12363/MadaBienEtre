@@ -2,12 +2,16 @@
 // ============================================================
 // DOCUMENTS DU THÉRAPEUTE
 // ============================================================
-// ✅ Le thérapeute peut uniquement envoyer sa pièce d'identité
+// ✅ Le thérapeute peut envoyer sa pièce d'identité
 //    (CIN / Passeport / Permis de conduire).
 //
-// ❌ Le certificat professionnel n'est PAS uploadé par le thérapeute.
-// ✅ Le certificat est généré automatiquement par le backend
-//    après validation APPROVED par l'administrateur.
+// ✅ Le thérapeute peut aussi envoyer son certificat professionnel
+//    (diplôme / attestation / certification) — champ optionnel,
+//    modifiable à tout moment (web et mobile).
+//
+// ℹ️ Ce certificat professionnel est distinct du "certificat"
+//    officiel généré automatiquement par la plateforme après
+//    validation APPROVED par l'administrateur (voir plus bas).
 // ============================================================
 
 import React, { useState, useCallback } from 'react';
@@ -26,8 +30,6 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { colors, spacing, typography } from '../../theme';
@@ -36,6 +38,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import therapistService from '../../services/therapistService';
 import { API_URL } from '../../config/env';
+// ✅ Sélecteur de fichier multi-plateforme (corrige l'upload sur le web)
+import { pickImageOrPdf } from '../../utils/crossPlatformFilePicker';
 
 // ============================================================
 // BUILD FORMDATA
@@ -393,6 +397,17 @@ const UploadDocumentsScreen = ({
     setIsUploadingCin,
   ] = useState(false);
 
+  // ✅ NOUVEAU : Certificat professionnel (diplôme / attestation)
+  const [
+    certificateProUrl,
+    setCertificateProUrl,
+  ] = useState(null);
+
+  const [
+    isUploadingCertificatePro,
+    setIsUploadingCertificatePro,
+  ] = useState(false);
+
   const [
     isDownloadingCertificate,
     setIsDownloadingCertificate,
@@ -447,6 +462,15 @@ const UploadDocumentsScreen = ({
         null
       );
 
+      // ------------------------------------------------------
+      // ✅ Certificat professionnel depuis AuthContext
+      // ------------------------------------------------------
+
+      setCertificateProUrl(
+        user?.certificate_professionnel ||
+        null
+      );
+
     },
     [user]
   );
@@ -472,115 +496,18 @@ const UploadDocumentsScreen = ({
     try {
 
       // ------------------------------------------------------
-      // Choix source
+      // Choix / sélection du fichier
+      // ✅ Fonctionne aussi bien sur Android/iOS (choix Photo/PDF
+      // via Alert) que sur le web (sélecteur de fichiers natif du
+      // navigateur) — voir crossPlatformFilePicker.js
       // ------------------------------------------------------
 
-      const choice =
-        await new Promise(
-          (resolve) => {
-
-            Alert.alert(
-              'Ajouter une pièce d’identité',
-
-              'Choisissez la source du fichier',
-
-              [
-                {
-                  text: 'Photo (galerie)',
-                  onPress: () =>
-                    resolve('image'),
-                },
-
-                {
-                  text: 'Fichier PDF',
-                  onPress: () =>
-                    resolve('pdf'),
-                },
-
-                {
-                  text: 'Annuler',
-                  style: 'cancel',
-                  onPress: () =>
-                    resolve(null),
-                },
-              ]
-            );
-
-          }
-        );
-
-      if (!choice) {
-        return;
-      }
-
-      let asset = null;
-
-      // ======================================================
-      // IMAGE
-      // ======================================================
-
-      if (choice === 'image') {
-
-        const permission =
-          await ImagePicker
-            .requestMediaLibraryPermissionsAsync();
-
-        if (!permission.granted) {
-
-          Alert.alert(
-            'Permission refusée',
-            'La permission d’accès à la galerie est nécessaire.'
-          );
-
-          return;
-        }
-
-        const result =
-          await ImagePicker
-            .launchImageLibraryAsync({
-              mediaTypes: ['images'],
-              quality: 0.85,
-            });
-
-        if (result.canceled) {
-          return;
-        }
-
-        asset =
-          result.assets?.[0];
-
-      }
-
-      // ======================================================
-      // PDF
-      // ======================================================
-
-      else {
-
-        const result =
-          await DocumentPicker
-            .getDocumentAsync({
-              type: 'application/pdf',
-              copyToCacheDirectory: true,
-            });
-
-        if (result.canceled) {
-          return;
-        }
-
-        asset =
-          result.assets
-            ? result.assets[0]
-            : result;
-
-      }
+      const asset = await pickImageOrPdf({
+        title: 'Ajouter une pièce d’identité',
+        message: 'Choisissez la source du fichier',
+      });
 
       if (!asset?.uri) {
-
-        Alert.alert(
-          'Erreur',
-          'Aucun fichier valide sélectionné.'
-        );
 
         return;
       }
@@ -669,6 +596,119 @@ const UploadDocumentsScreen = ({
     } finally {
 
       setIsUploadingCin(false);
+
+    }
+  };
+
+  // ==========================================================
+  // ✅ UPLOAD CERTIFICAT PROFESSIONNEL (NOUVEAU)
+  // ==========================================================
+
+  const pickAndUploadCertificatePro = async () => {
+
+    try {
+
+      // ------------------------------------------------------
+      // Choix / sélection du fichier
+      // ✅ Fonctionne aussi bien sur Android/iOS (choix Photo/PDF
+      // via Alert) que sur le web (sélecteur de fichiers natif du
+      // navigateur) — voir crossPlatformFilePicker.js
+      // ------------------------------------------------------
+
+      const asset = await pickImageOrPdf({
+        title: 'Ajouter le certificat professionnel',
+        message: 'Choisissez la source du fichier',
+      });
+
+      if (!asset?.uri) {
+
+        return;
+      }
+
+      // ------------------------------------------------------
+      // UPLOAD
+      // ------------------------------------------------------
+
+      setIsUploadingCertificatePro(true);
+
+      const formData =
+        await buildFileFormData(
+          asset,
+          'file',
+          'certificate_professionnel'
+        );
+
+      const result =
+        await therapistService
+          .uploadCertificateProfessionnel(formData);
+
+      if (!result.success) {
+
+        Alert.alert(
+          '❌ Erreur',
+          result.error ||
+            "Impossible d'envoyer le certificat professionnel."
+        );
+
+        return;
+      }
+
+      // ------------------------------------------------------
+      // NOUVELLE URL
+      // ------------------------------------------------------
+
+      const newUrl =
+        result.data
+          ?.certificate_professionnel ||
+        result.data?.url;
+
+      if (newUrl) {
+
+        setCertificateProUrl(
+          newUrl
+        );
+
+      }
+
+      // ------------------------------------------------------
+      // REFRESH USER
+      // ------------------------------------------------------
+
+      if (
+        typeof refreshUser ===
+        'function'
+      ) {
+
+        await refreshUser();
+
+      }
+
+      // ------------------------------------------------------
+      // MESSAGE
+      // ------------------------------------------------------
+
+      Alert.alert(
+        '✅ Succès',
+        'Votre certificat professionnel a été téléchargé avec succès.'
+      );
+
+      await loadStatus();
+
+    } catch (error) {
+
+      console.error(
+        '❌ pickAndUploadCertificatePro:',
+        error
+      );
+
+      Alert.alert(
+        '❌ Erreur',
+        "Une erreur est survenue lors de l'envoi du certificat professionnel."
+      );
+
+    } finally {
+
+      setIsUploadingCertificatePro(false);
 
     }
   };
@@ -1373,6 +1413,42 @@ const UploadDocumentsScreen = ({
           />
 
           {/* =================================================
+              ✅ CERTIFICAT PROFESSIONNEL (NOUVEAU)
+              ================================================= */}
+
+          <DocumentCard
+
+            icon="ribbon-outline"
+
+            title="Certificat professionnel"
+
+            subtitle="Diplôme, attestation ou certification (optionnel)"
+
+            documentUrl={
+              certificateProUrl
+            }
+
+            isUploading={
+              isUploadingCertificatePro
+            }
+
+            onPick={
+              pickAndUploadCertificatePro
+            }
+
+            onView={() =>
+              handleViewDocument(
+                certificateProUrl
+              )
+            }
+
+            themeColors={
+              themeColors
+            }
+
+          />
+
+          {/* =================================================
               INFORMATION
               ================================================= */}
 
@@ -1402,6 +1478,41 @@ const UploadDocumentsScreen = ({
               }
             >
               La pièce d’identité doit être claire et lisible. Formats acceptés : JPG, PNG, PDF.
+            </Text>
+
+          </View>
+
+          {/* =================================================
+              ✅ INFORMATION CERTIFICAT PROFESSIONNEL
+              ================================================= */}
+
+          <View
+            style={[
+              styles.infoFooter,
+              { marginTop: spacing.sm },
+            ]}
+          >
+
+            <View
+              style={
+                styles.infoIconCircle
+              }
+            >
+
+              <Ionicons
+                name="information"
+                size={13}
+                color="#fff"
+              />
+
+            </View>
+
+            <Text
+              style={
+                styles.infoFooterText
+              }
+            >
+              Le certificat professionnel est facultatif et modifiable à tout moment. Formats acceptés : JPG, PNG, PDF.
             </Text>
 
           </View>
