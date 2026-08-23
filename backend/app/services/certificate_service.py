@@ -3,7 +3,7 @@ import io
 from pathlib import Path
 from datetime import datetime
 
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import cm, mm
 from reportlab.lib.colors import HexColor, white
 from reportlab.pdfgen import canvas
@@ -71,7 +71,8 @@ def _build_qr_image(certificate_number: str):
     base_url = getattr(settings, "BASE_URL", "https://madabienetre.com").rstrip('/')
     verify_url = f"{base_url}/certificates/verify/{certificate_number}"
 
-    qr = qrcode.QRCode(box_size=6, border=2)
+    # box_size plus élevé => image plus nette, car la boîte QR est plus grande sur ce nouveau design
+    qr = qrcode.QRCode(box_size=9, border=2)
     qr.add_data(verify_url)
     qr.make(fit=True)
 
@@ -108,7 +109,7 @@ def _wrap_text(pdf, text, font_name, font_size, max_width):
 
 
 # ============================================================
-# DESSIN DU PDF — DESIGN ÉPURÉ (STYLE CERTIFICAT PROFESSIONNEL)
+# DESSIN DU PDF — FORMAT PAYSAGE, CALQUÉ SUR LE MODÈLE MADA BIEN-ÊTRE
 # ============================================================
 
 def _draw_certificate_pdf(
@@ -120,26 +121,30 @@ def _draw_certificate_pdf(
     specialty: str = None,
 ):
     """
-    ✅ Génère le certificat professionnel PDF.
-    Design épuré : un seul cadre fin, aucune ligne de séparation dans le texte,
-    tailles de police normales (sauf le titre), QR code + code-barres.
+    ✅ Génère le certificat professionnel PDF au format PAYSAGE (A4 landscape),
+    avec la même mise en page, les mêmes proportions de police et la même
+    disposition que le modèle officiel Mada Bien-être (cadre double,
+    en-tête MADA BIEN-ÊTRE / CERTIFICAT / PROFESSIONNEL DE THÉRAPEUTE,
+    tableau d'informations à pointillés, bloc numéro/date/validation,
+    badge "THÉRAPEUTE VÉRIFIÉ", signatures, code-barres + QR code à droite).
     """
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
-    pdf = canvas.Canvas(path, pagesize=A4)
-    width, height = A4
+    pdf = canvas.Canvas(path, pagesize=landscape(A4))
+    width, height = landscape(A4)
 
     # --------------------------------------------------------
-    # COULEURS
+    # COULEURS (identiques au modèle)
     # --------------------------------------------------------
 
-    primary = HexColor("#0D2B7E")       # Bleu foncé Mada
+    dark_green = HexColor("#1B5E3A")    # Vert titre / cadre principal
+    mid_green = HexColor("#1B7A3D")     # Vert cadre intérieur + badge vérifié
+    gold = HexColor("#C8892E")          # Or/orange du sous-titre plateforme
     dark = HexColor("#222222")          # Texte principal
-    gray = HexColor("#6B7280")          # Texte secondaire
-    light_gray = HexColor("#F6F6F9")    # Fond du bloc infos
-    green = HexColor("#1B7A3D")         # Cadre + badge "vérifié"
-    line_gray = HexColor("#D8D8DC")     # Traits de signature
+    gray = HexColor("#5A5A5A")          # Texte secondaire (mention légale)
+    dotted_line = HexColor("#B8B8B8")   # Pointillés sous les valeurs
+    box_gray = HexColor("#9A9A9A")      # Contour des encadrés code-barres/QR
 
     # --------------------------------------------------------
     # FOND BLANC
@@ -149,31 +154,45 @@ def _draw_certificate_pdf(
     pdf.rect(0, 0, width, height, fill=1, stroke=0)
 
     # --------------------------------------------------------
-    # CADRE UNIQUE, FIN ET DISCRET
+    # DOUBLE CADRE (vert + or, comme le modèle)
     # --------------------------------------------------------
 
-    margin = 1.3 * cm
-    pdf.setStrokeColor(green)
+    outer_margin = 0.45 * cm
+    pdf.setStrokeColor(dark_green)
     pdf.setLineWidth(1.1)
-    pdf.rect(margin, margin, width - 2 * margin, height - 2 * margin)
+    pdf.roundRect(outer_margin, outer_margin, width - 2 * outer_margin, height - 2 * outer_margin, 8, stroke=1, fill=0)
 
-    content_left = margin + 1.2 * cm
-    content_right = width - margin - 1.2 * cm
-    content_width = content_right - content_left
+    inner_margin = outer_margin + 0.32 * cm
+    pdf.setStrokeColor(gold)
+    pdf.setLineWidth(0.9)
+    pdf.roundRect(inner_margin, inner_margin, width - 2 * inner_margin, height - 2 * inner_margin, 6, stroke=1, fill=0)
+
+    content_left = inner_margin + 0.85 * cm
+    content_right = width - inner_margin - 0.85 * cm
+    right_col_w = 5.15 * cm
+    text_right = content_right - right_col_w - 0.5 * cm
+    text_width = text_right - content_left
+
+    center_x = (content_left + text_right) / 2
+
+    top = height - inner_margin - 0.85 * cm
 
     # --------------------------------------------------------
-    # LOGO ZEBUTECH
+    # LOGO ZEBUTECH (haut gauche)
     # --------------------------------------------------------
 
+    logo_w = 4.9 * cm
+    logo_h = 2.35 * cm
     if os.path.exists(LOGO_PATH):
         try:
             pdf.drawImage(
                 str(LOGO_PATH),
                 content_left,
-                height - margin - 2.4 * cm,
-                width=2.0 * cm,
-                height=2.0 * cm,
+                top - logo_h + 0.4 * cm,
+                width=logo_w,
+                height=logo_h,
                 preserveAspectRatio=True,
+                anchor='sw',
                 mask='auto',
             )
         except Exception:
@@ -183,36 +202,36 @@ def _draw_certificate_pdf(
     # EN-TÊTE
     # --------------------------------------------------------
 
-    y = height - margin - 1.3 * cm
+    y = top
 
-    pdf.setFont("Helvetica-Bold", 22)
-    pdf.setFillColor(primary)
-    pdf.drawCentredString(width / 2, y, "MADA BIEN-ÊTRE")
+    pdf.setFont("Helvetica-Bold", 27)
+    pdf.setFillColor(dark_green)
+    pdf.drawCentredString(center_x, y, "MADA BIEN-ÊTRE")
 
-    y -= 0.55 * cm
-    pdf.setFont("Helvetica", 10)
-    pdf.setFillColor(gray)
-    pdf.drawCentredString(width / 2, y, "Plateforme de réservation de massages à domicile")
-
-    # --------------------------------------------------------
-    # TITRE PRINCIPAL (seul élément en grande taille)
-    # --------------------------------------------------------
-
-    y -= 1.1 * cm
-    pdf.setFont("Helvetica-Bold", 16)
-    pdf.setFillColor(dark)
-    pdf.drawCentredString(width / 2, y, "CERTIFICAT PROFESSIONNEL DE THÉRAPEUTE")
-
-    y -= 0.6 * cm
-    pdf.setFont("Helvetica-Oblique", 9)
-    pdf.setFillColor(gray)
-    pdf.drawCentredString(width / 2, y, "Généré par Zebutech pour Mada Bien-être")
+    y -= 0.68 * cm
+    pdf.setFont("Helvetica-Bold", 11.5)
+    pdf.setFillColor(gold)
+    pdf.drawCentredString(center_x, y, "Plateforme de réservation de massages à domicile")
 
     # --------------------------------------------------------
-    # TEXTE D'INTRODUCTION
+    # TITRE PRINCIPAL
     # --------------------------------------------------------
 
-    y -= 1.1 * cm
+    y -= 1.05 * cm
+    pdf.setFont("Helvetica-Bold", 36)
+    pdf.setFillColor(dark_green)
+    pdf.drawCentredString(center_x, y, "CERTIFICAT")
+
+    y -= 0.72 * cm
+    pdf.setFont("Helvetica-Bold", 17)
+    pdf.setFillColor(HexColor("#333333"))
+    pdf.drawCentredString(center_x, y, "PROFESSIONNEL DE THÉRAPEUTE")
+
+    # --------------------------------------------------------
+    # TEXTE D'INTRODUCTION (centré, comme le modèle)
+    # --------------------------------------------------------
+
+    y -= 0.95 * cm
 
     intro_text = (
         "Le présent certificat atteste que la personne désignée ci-dessous est "
@@ -221,83 +240,106 @@ def _draw_certificate_pdf(
         "et documents par l'administrateur."
     )
 
-    pdf.setFont("Helvetica", 10)
+    pdf.setFont("Helvetica", 11)
     pdf.setFillColor(dark)
-    for line in _wrap_text(pdf, intro_text, "Helvetica", 10, content_width):
-        pdf.drawString(content_left, y, line)
-        y -= 0.45 * cm
+    for line in _wrap_text(pdf, intro_text, "Helvetica", 11, text_width * 0.94):
+        pdf.drawCentredString(center_x, y, line)
+        y -= 0.5 * cm
 
     # --------------------------------------------------------
-    # BLOC INFORMATIONS — fond doux, sans cadre lourd
+    # BLOC INFORMATIONS — libellé + valeur + ligne pointillée
     # --------------------------------------------------------
 
-    y -= 0.35 * cm
+    y -= 0.5 * cm
 
     rows = [
-        ("Nom et prénom", therapist.fullname or "N/A", True),
-        ("Email", therapist.email or "N/A", False),
-        ("Téléphone", therapist.phone or "N/A", False),
-        ("Numéro CIN", therapist.cin_number or "Non renseigné", False),
-        ("Adresse", (therapist.address or "N/A")[:60], False),
-        ("Spécialité", specialty or "Massage à domicile", False),
+        ("NOM ET PRÉNOM", therapist.fullname or "N/A"),
+        ("EMAIL", therapist.email or "N/A"),
+        ("TÉLÉPHONE", therapist.phone or "N/A"),
+        ("NUMÉRO CIN", therapist.cin_number or "Non renseigné"),
+        ("ADRESSE", (therapist.address or "N/A")[:70]),
+        ("SPÉCIALITÉ", specialty or "Massage à domicile"),
     ]
 
-    row_height = 0.75 * cm
-    block_height = row_height * len(rows) + 0.4 * cm
+    label_x = content_left
+    colon_x = content_left + 4.3 * cm
+    value_x = colon_x + 0.4 * cm
+    row_h = 0.88 * cm
+    label_font = 11
+    value_font = 11.5
 
-    pdf.setFillColor(light_gray)
-    pdf.roundRect(content_left, y - block_height, content_width, block_height, 5, stroke=0, fill=1)
+    pdf.setDash(1, 2)
+    for label, value in rows:
+        pdf.setFont("Helvetica-Bold", label_font)
+        pdf.setFillColor(dark)
+        pdf.drawString(label_x, y, label)
 
-    y_row = y - 0.55 * cm
-    for label, value, important in rows:
-        pdf.setFont("Helvetica", 9)
-        pdf.setFillColor(gray)
-        pdf.drawString(content_left + 0.4 * cm, y_row, label)
+        pdf.setFont("Helvetica", value_font)
+        pdf.setFillColor(dark)
+        pdf.drawString(colon_x, y, ":")
+        pdf.drawString(value_x, y, str(value))
 
-        pdf.setFont("Helvetica-Bold" if important else "Helvetica", 10)
-        pdf.setFillColor(primary if important else dark)
-        pdf.drawString(content_left + 5.2 * cm, y_row, str(value))
+        val_w = pdf.stringWidth(str(value), "Helvetica", value_font)
+        line_y = y - 0.10 * cm
+        pdf.setStrokeColor(dotted_line)
+        pdf.setLineWidth(0.6)
+        pdf.line(value_x + val_w + 0.15 * cm, line_y, text_right, line_y)
 
-        y_row -= row_height
+        y -= row_h
+    pdf.setDash()
 
-    y = y - block_height - 0.7 * cm
+    y -= 0.14 * cm
+    pdf.setStrokeColor(dark_green)
+    pdf.setLineWidth(1.2)
+    pdf.line(content_left, y, text_right, y)
+    y -= 0.7 * cm
 
     # --------------------------------------------------------
     # NUMÉRO, DATE, VALIDATION
     # --------------------------------------------------------
 
-    pdf.setFont("Helvetica", 10)
-    pdf.setFillColor(dark)
-    pdf.drawString(content_left, y, f"Numéro du certificat : {certificate_number}")
-    y -= 0.45 * cm
-    pdf.drawString(content_left, y, f"Date de validation : {issued_at.strftime('%d/%m/%Y')}")
-    y -= 0.45 * cm
-    pdf.drawString(content_left, y, f"Validé par (Admin) : {admin_fullname or 'Administration Mada Bien-être'}")
+    meta_rows = [
+        ("N° DU CERTIFICAT", certificate_number),
+        ("DATE DE VALIDATION", issued_at.strftime('%d/%m/%Y')),
+        ("VALIDÉ PAR (ADMIN)", admin_fullname or "Administration Mada Bien-être"),
+    ]
+    for label, value in meta_rows:
+        pdf.setFont("Helvetica-Bold", 11)
+        pdf.setFillColor(dark)
+        pdf.drawString(label_x, y, label)
+        pdf.drawString(colon_x, y, ":")
+
+        pdf.setFont("Helvetica-Bold", 11.5)
+        pdf.setFillColor(dark_green)
+        pdf.drawString(value_x, y, str(value))
+
+        y -= 0.66 * cm
 
     # --------------------------------------------------------
-    # BADGE DE STATUT
+    # BADGE "THÉRAPEUTE VÉRIFIÉ" (coche verte + texte, comme le modèle)
     # --------------------------------------------------------
 
-    y -= 0.9 * cm
+    y -= 0.3 * cm
+    check_r = 0.34 * cm
+    cx0 = label_x + check_r
+    cy0 = y + check_r * 0.35
 
-    badge_text = "THÉRAPEUTE VÉRIFIÉ"
-    badge_font_size = 10
-    pdf.setFont("Helvetica-Bold", badge_font_size)
-    badge_padding_x = 0.6 * cm
-    badge_h = 0.8 * cm
-    badge_w = pdf.stringWidth(badge_text, "Helvetica-Bold", badge_font_size) + badge_padding_x * 2
+    pdf.setFillColor(mid_green)
+    pdf.circle(cx0, cy0, check_r, stroke=0, fill=1)
 
-    badge_bottom = y - badge_h
+    pdf.setStrokeColor(white)
+    pdf.setLineWidth(1.6)
+    p = pdf.beginPath()
+    p.moveTo(cx0 - 0.14 * cm, cy0 - 0.02 * cm)
+    p.lineTo(cx0 - 0.03 * cm, cy0 - 0.13 * cm)
+    p.lineTo(cx0 + 0.16 * cm, cy0 + 0.14 * cm)
+    pdf.drawPath(p, stroke=1, fill=0)
 
-    pdf.setFillColor(green)
-    pdf.roundRect(content_left, badge_bottom, badge_w, badge_h, badge_h / 2, stroke=0, fill=1)
+    pdf.setFont("Helvetica-Bold", 13)
+    pdf.setFillColor(mid_green)
+    pdf.drawString(label_x + check_r * 2 + 0.25 * cm, y, "THÉRAPEUTE VÉRIFIÉ")
 
-    # Centrage vertical réel du texte dans le pill (basé sur la hauteur de casse, pas sur la baseline)
-    pdf.setFillColor(white)
-    text_baseline = badge_bottom + (badge_h - badge_font_size * 0.7) / 2
-    pdf.drawCentredString(content_left + badge_w / 2, text_baseline, badge_text)
-
-    y = badge_bottom - 0.6 * cm
+    y -= 0.85 * cm
 
     # --------------------------------------------------------
     # MENTION LÉGALE
@@ -309,77 +351,114 @@ def _draw_certificate_pdf(
         "une licence d'exercice délivrée par une autorité publique."
     )
 
-    pdf.setFont("Helvetica-Oblique", 8.5)
+    pdf.setFont("Helvetica", 9.5)
     pdf.setFillColor(gray)
-    for line in _wrap_text(pdf, legal_text, "Helvetica-Oblique", 8.5, content_width):
-        pdf.drawString(content_left, y, line)
-        y -= 0.38 * cm
-
-    y -= 0.7 * cm
+    for line in _wrap_text(pdf, legal_text, "Helvetica", 9.5, text_width):
+        pdf.drawString(label_x, y, line)
+        y -= 0.42 * cm
 
     # --------------------------------------------------------
     # SIGNATURES
     # --------------------------------------------------------
 
-    sig_y = y
+    y -= 0.95 * cm
+    sig_label_y = y
+    line_y = y - 0.42 * cm
+    name_y = line_y - 0.42 * cm
 
-    pdf.setStrokeColor(line_gray)
-    pdf.setLineWidth(0.7)
-    pdf.line(content_left, sig_y, content_left + 4.5 * cm, sig_y)
-    pdf.line(content_left + 6.5 * cm, sig_y, content_left + 11.0 * cm, sig_y)
+    sig1_x1, sig1_x2 = content_left, content_left + 6.4 * cm
+    sig2_x1, sig2_x2 = content_left + 8.6 * cm, text_right
 
-    pdf.setFont("Helvetica", 9)
+    pdf.setFont("Helvetica-Bold", 9.5)
     pdf.setFillColor(dark)
-    pdf.drawString(content_left, sig_y - 0.4 * cm, "Signature du thérapeute")
-    pdf.drawString(content_left + 6.5 * cm, sig_y - 0.4 * cm, "Validation administrateur")
+    pdf.drawCentredString((sig1_x1 + sig1_x2) / 2, sig_label_y, "SIGNATURE DU THÉRAPEUTE")
+    pdf.drawCentredString((sig2_x1 + sig2_x2) / 2, sig_label_y, "VALIDATION ADMINISTRATEUR")
 
-    pdf.setFont("Helvetica-Oblique", 8)
-    pdf.setFillColor(gray)
-    pdf.drawString(content_left, sig_y - 0.7 * cm, f"({therapist.fullname or 'Thérapeute'})")
-    pdf.drawString(content_left + 6.5 * cm, sig_y - 0.7 * cm, f"({admin_fullname or 'Administrateur'})")
+    pdf.setStrokeColor(dark)
+    pdf.setLineWidth(0.7)
+    pdf.line(sig1_x1, line_y, sig1_x2, line_y)
+    pdf.line(sig2_x1, line_y, sig2_x2, line_y)
+
+    pdf.setFont("Helvetica-Oblique", 9.5)
+    pdf.setFillColor(dark)
+    pdf.drawCentredString((sig1_x1 + sig1_x2) / 2, name_y, f"( {therapist.fullname or 'Thérapeute'} )")
+    pdf.drawCentredString((sig2_x1 + sig2_x2) / 2, name_y, f"( {admin_fullname or 'Administrateur'} )")
 
     # --------------------------------------------------------
-    # QR CODE + CODE-BARRES (bas de page, côte à côte)
+    # PIED DE PAGE
     # --------------------------------------------------------
 
-    bottom_y = margin + 0.9 * cm
-    qr_size = 2.5 * cm
+    pdf.setFont("Helvetica", 8)
+    pdf.setFillColor(dark_green)
+    footer = (
+        f"Mada Bien-être  •  Certificat N° {certificate_number}  •  "
+        f"Plateforme de réservation de massages à domicile  •  Généré par Zebutech"
+    )
+    pdf.drawCentredString(width / 2, inner_margin + 0.35 * cm, footer)
 
-    # QR code — bas droite
+    # --------------------------------------------------------
+    # COLONNE DROITE : CODE-BARRES (haut) + QR CODE (bas)
+    # --------------------------------------------------------
+
+    box_w = right_col_w
+    box_x = content_right - box_w
+    box_border = dark_green
+
+    # --- Encadré code-barres ---
+    barcode_box_h = 3.8 * cm
+    barcode_box_top = top - 6.36 * cm
+    barcode_box_y = barcode_box_top - barcode_box_h
+
+    pdf.setStrokeColor(box_border)
+    pdf.setLineWidth(0.9)
+    pdf.roundRect(box_x, barcode_box_y, box_w, barcode_box_h, 8, stroke=1, fill=0)
+
+    try:
+        barcode = code128.Code128(certificate_number, barHeight=1.4 * cm, barWidth=0.24 * mm)
+        bw = barcode.width
+        available_w = box_w - 0.9 * cm
+        scale = available_w / bw if bw else 1.0
+        draw_x = box_x + (box_w - bw * scale) / 2
+        barcode_y = barcode_box_y + barcode_box_h - 2.0 * cm
+
+        pdf.saveState()
+        pdf.setFillColor(HexColor("#000000"))
+        pdf.setStrokeColor(HexColor("#000000"))
+        pdf.translate(draw_x, barcode_y)
+        pdf.scale(scale, 1)
+        barcode.drawOn(pdf, 0, 0)
+        pdf.restoreState()
+    except Exception:
+        pass
+
+    pdf.setFont("Helvetica-Bold", 9.5)
+    pdf.setFillColor(dark)
+    pdf.drawCentredString(box_x + box_w / 2, barcode_box_y + 0.65 * cm, certificate_number)
+
+    # --- Encadré QR code ---
+    qr_box_h = 5.8 * cm
+    qr_box_y = barcode_box_y - 0.5 * cm - qr_box_h
+
+    pdf.setStrokeColor(box_border)
+    pdf.setLineWidth(0.9)
+    pdf.roundRect(box_x, qr_box_y, box_w, qr_box_h, 8, stroke=1, fill=0)
+
     try:
         qr_img = _build_qr_image(certificate_number)
-        qr_x = content_right - qr_size
-        pdf.drawImage(qr_img, qr_x, bottom_y, width=qr_size, height=qr_size)
-
-        pdf.setFont("Helvetica", 7)
-        pdf.setFillColor(gray)
-        pdf.drawCentredString(qr_x + qr_size / 2, bottom_y - 0.32 * cm, "Scanner pour vérifier")
+        qr_size = 3.9 * cm
+        pdf.drawImage(
+            qr_img,
+            box_x + (box_w - qr_size) / 2,
+            qr_box_y + qr_box_h - qr_size - 0.4 * cm,
+            width=qr_size,
+            height=qr_size,
+        )
     except Exception:
         pass
 
-    # Code-barres Code128 — bas gauche
-    try:
-        barcode = code128.Code128(certificate_number, barHeight=1.5 * cm, barWidth=0.38 * mm)
-        barcode_y = bottom_y + (qr_size - 1.5 * cm) / 2
-        barcode.drawOn(pdf, content_left, barcode_y)
-
-        pdf.setFont("Helvetica", 7)
-        pdf.setFillColor(gray)
-        pdf.drawString(content_left, barcode_y - 0.32 * cm, certificate_number)
-    except Exception:
-        pass
-
-    # --------------------------------------------------------
-    # PIED DE PAGE (hors cadre)
-    # --------------------------------------------------------
-
-    pdf.setFont("Helvetica", 7.5)
-    pdf.setFillColor(HexColor("#AAAAAA"))
-    pdf.drawCentredString(
-        width / 2,
-        margin - 0.6 * cm,
-        f"Mada Bien-être • Certificat N° {certificate_number} • Généré le {issued_at.strftime('%d/%m/%Y à %H:%M')}"
-    )
+    pdf.setFont("Helvetica-Bold", 9)
+    pdf.setFillColor(dark)
+    pdf.drawCentredString(box_x + box_w / 2, qr_box_y + 0.55 * cm, "SCANNEZ POUR VÉRIFIER")
 
     pdf.showPage()
     pdf.save()
