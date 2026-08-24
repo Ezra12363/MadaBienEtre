@@ -31,6 +31,7 @@ import adminService from '../../services/adminService';
 import AdminUserAddressModal from '../../components/admin/AdminUserAddressModal';
 import useResponsive from '../../hooks/useResponsive';
 import { API_URL } from '../../config/env';
+import { exportToExcel } from '../../utils/exportExcel';
 
 const IS_WEB = Platform.OS === 'web';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -91,6 +92,8 @@ const UsersScreen = ({ navigation }) => {
 
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [selectedUserForAddress, setSelectedUserForAddress] = useState(null);
+
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   /* ==========================================================
      CONFIRMATION MODAL STATE
@@ -841,6 +844,55 @@ const UsersScreen = ({ navigation }) => {
       return `${yyyy}-${mm}-${dd}`;
     } catch {
       return dateString;
+    }
+  };
+
+  /* ==========================================================
+     EXPORT EXCEL — liste filtrée (web + android)
+  ========================================================== */
+
+  const handleExportExcel = async () => {
+    if (!filteredUsers || filteredUsers.length === 0) {
+      showToast('Aucun utilisateur à exporter', 'error');
+      return;
+    }
+
+    setExportingExcel(true);
+
+    try {
+      const roleLabel = (role) => {
+        const found = roles.find((r) => r.value === role);
+        return found ? found.label : role || 'N/A';
+      };
+
+      await exportToExcel({
+        data: filteredUsers,
+        fileName: `utilisateurs_${new Date().toISOString().slice(0, 10)}`,
+        sheetName: 'Utilisateurs',
+        columns: [
+          { header: 'ID', accessor: (u) => u.id },
+          { header: 'Nom complet', accessor: (u) => u.fullname || '' },
+          { header: 'Email', accessor: (u) => u.email || '' },
+          { header: 'Téléphone', accessor: (u) => u.phone || '' },
+          { header: 'Rôle', accessor: (u) => roleLabel(u.role) },
+          { header: 'Adresse', accessor: (u) => getFullAddress(u) },
+          {
+            header: 'Statut compte',
+            accessor: (u) => (u.is_active ? 'Actif' : 'Inactif'),
+          },
+          {
+            header: 'Date création',
+            accessor: (u) => formatDate(u.created_at),
+          },
+        ],
+      });
+
+      showToast('Export Excel réussi', 'success');
+    } catch (err) {
+      console.error('Export Excel error:', err);
+      showToast(err?.message || "Échec de l'export Excel", 'error');
+    } finally {
+      setExportingExcel(false);
     }
   };
 
@@ -1798,6 +1850,30 @@ const UsersScreen = ({ navigation }) => {
               >
                 <Ionicons name="add" size={18} color="#fff" />
                 {IS_WEB && <Text style={[styles.actionButtonText, { color: '#fff' }]}>Ajouter</Text>}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  {
+                    backgroundColor: '#1D6F42',
+                    marginRight: 8,
+                    opacity: exportingExcel ? 0.6 : 1,
+                  },
+                ]}
+                onPress={handleExportExcel}
+                disabled={exportingExcel}
+              >
+                {exportingExcel ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="download-outline" size={18} color="#fff" />
+                )}
+                {IS_WEB && (
+                  <Text style={[styles.actionButtonText, { color: '#fff' }]}>
+                    {exportingExcel ? 'Export...' : 'Excel'}
+                  </Text>
+                )}
               </TouchableOpacity>
 
               <TouchableOpacity

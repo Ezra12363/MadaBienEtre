@@ -175,6 +175,10 @@ def _draw_certificate_pdf(
 
     center_x = (content_left + text_right) / 2
 
+    # Centre réel de la page, utilisé pour l'en-tête (titres) comme dans le modèle
+    page_center_x = width / 2
+    intro_max_width = 2 * ((content_right - right_col_w) - page_center_x - 0.4 * cm)
+
     top = height - inner_margin - 0.85 * cm
 
     # --------------------------------------------------------
@@ -206,29 +210,29 @@ def _draw_certificate_pdf(
 
     pdf.setFont("Helvetica-Bold", 27)
     pdf.setFillColor(dark_green)
-    pdf.drawCentredString(center_x, y, "MADA BIEN-ÊTRE")
+    pdf.drawCentredString(page_center_x, y, "MADA BIEN-ÊTRE")
 
-    y -= 0.68 * cm
+    y -= 0.72 * cm
     pdf.setFont("Helvetica-Bold", 11.5)
     pdf.setFillColor(gold)
-    pdf.drawCentredString(center_x, y, "Plateforme de réservation de massages à domicile")
+    pdf.drawCentredString(page_center_x, y, "Plateforme de réservation de massages à domicile")
 
     # --------------------------------------------------------
     # TITRE PRINCIPAL
     # --------------------------------------------------------
 
-    y -= 1.05 * cm
+    y -= 1.3 * cm
     pdf.setFont("Helvetica-Bold", 36)
     pdf.setFillColor(dark_green)
-    pdf.drawCentredString(center_x, y, "CERTIFICAT")
+    pdf.drawCentredString(page_center_x, y, "CERTIFICAT")
 
-    y -= 0.72 * cm
+    y -= 0.78 * cm
     pdf.setFont("Helvetica-Bold", 17)
     pdf.setFillColor(HexColor("#333333"))
-    pdf.drawCentredString(center_x, y, "PROFESSIONNEL DE THÉRAPEUTE")
+    pdf.drawCentredString(page_center_x, y, "PROFESSIONNEL DE THÉRAPEUTE")
 
     # --------------------------------------------------------
-    # TEXTE D'INTRODUCTION (centré, comme le modèle)
+    # TEXTE D'INTRODUCTION (centré sur la page, comme le modèle)
     # --------------------------------------------------------
 
     y -= 0.95 * cm
@@ -242,8 +246,8 @@ def _draw_certificate_pdf(
 
     pdf.setFont("Helvetica", 11)
     pdf.setFillColor(dark)
-    for line in _wrap_text(pdf, intro_text, "Helvetica", 11, text_width * 0.94):
-        pdf.drawCentredString(center_x, y, line)
+    for line in _wrap_text(pdf, intro_text, "Helvetica", 11, intro_max_width):
+        pdf.drawCentredString(page_center_x, y, line)
         y -= 0.5 * cm
 
     # --------------------------------------------------------
@@ -253,6 +257,7 @@ def _draw_certificate_pdf(
     y -= 0.5 * cm
 
     rows = [
+        ("N° UTILISATEUR", getattr(therapist, "id", None) or "N/A"),
         ("NOM ET PRÉNOM", therapist.fullname or "N/A"),
         ("EMAIL", therapist.email or "N/A"),
         ("TÉLÉPHONE", therapist.phone or "N/A"),
@@ -264,7 +269,7 @@ def _draw_certificate_pdf(
     label_x = content_left
     colon_x = content_left + 4.3 * cm
     value_x = colon_x + 0.4 * cm
-    row_h = 0.88 * cm
+    row_h = 0.75 * cm
     label_font = 11
     value_font = 11.5
 
@@ -274,12 +279,12 @@ def _draw_certificate_pdf(
         pdf.setFillColor(dark)
         pdf.drawString(label_x, y, label)
 
-        pdf.setFont("Helvetica", value_font)
+        pdf.setFont("Helvetica-Bold", value_font)
         pdf.setFillColor(dark)
         pdf.drawString(colon_x, y, ":")
         pdf.drawString(value_x, y, str(value))
 
-        val_w = pdf.stringWidth(str(value), "Helvetica", value_font)
+        val_w = pdf.stringWidth(str(value), "Helvetica-Bold", value_font)
         line_y = y - 0.10 * cm
         pdf.setStrokeColor(dotted_line)
         pdf.setLineWidth(0.6)

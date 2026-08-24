@@ -15,10 +15,20 @@ from datetime import datetime, timedelta
 from typing import Optional, List
 import logging
 
+import os
+from pathlib import Path
+
 from ..core.database import get_db
 from ..core.dependencies import get_current_user, get_current_admin, get_current_therapist
 from ..models.user import User
 from ..models.booking import Booking
+from ..models.therapist_certificate import TherapistCertificate
+from ..models.therapist import (
+    TherapistSpecialty,
+    TherapistRating,
+    TherapistEarnings,
+    Withdrawal,
+)
 from ..schemas.user import (
     UserResponse,
     UserUpdate,
@@ -43,6 +53,12 @@ from ..core.security import get_password_hash, verify_password, generate_secure_
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Users"])
+
+# ✅ Racine du projet (même convention que certificate_service.py) —
+# utilisée pour résoudre les chemins relatifs des fichiers certificats
+# (ex: "uploads/certificates/xxx.pdf") lors de la suppression d'un
+# utilisateur.
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 
 # ============================================================
@@ -382,11 +398,74 @@ async def delete_user(
                 f"{current_user.fullname}"
             )
 
+            # ----------------------------------------------------
+            # 3.1 Nettoyer les données liées au thérapeute AVANT de
+            # supprimer l'utilisateur. Ces tables ont une colonne
+            # therapist_id NOT NULL sans cascade ORM configurée :
+            # SQLAlchemy tenterait sinon de mettre therapist_id=NULL
+            # au lieu de supprimer les lignes, ce qui provoque une
+            # erreur NotNullViolation (voir traceback certificats).
+            # ----------------------------------------------------
+
+            # Certificats professionnels : on supprime aussi les
+            # fichiers PDF associés sur le disque.
+            certificates = (
+                db.query(TherapistCertificate)
+                .filter(TherapistCertificate.therapist_id == user.id)
+                .all()
+            )
+            certificate_files_to_delete = [
+                cert.certificate_path for cert in certificates if cert.certificate_path
+            ]
+            for cert in certificates:
+                db.delete(cert)
+
+            # Spécialités du thérapeute
+            db.query(TherapistSpecialty).filter(
+                TherapistSpecialty.therapist_id == user.id
+            ).delete(synchronize_session=False)
+
+            # Évaluation agrégée du thérapeute
+            db.query(TherapistRating).filter(
+                TherapistRating.therapist_id == user.id
+            ).delete(synchronize_session=False)
+
+            # Retraits (withdrawals) AVANT earnings, car ils
+            # référencent aussi therapist_id directement.
+            db.query(Withdrawal).filter(
+                Withdrawal.therapist_id == user.id
+            ).delete(synchronize_session=False)
+
+            # Gains du thérapeute
+            db.query(TherapistEarnings).filter(
+                TherapistEarnings.therapist_id == user.id
+            ).delete(synchronize_session=False)
+
+            # ----------------------------------------------------
+            # 3.2 Supprimer l'utilisateur lui-même
+            # ----------------------------------------------------
             db.delete(user)
             db.commit()
 
+            # ----------------------------------------------------
+            # 3.3 Supprimer les fichiers PDF des certificats sur le
+            # disque, une fois la transaction DB validée avec succès.
+            # ----------------------------------------------------
+            for relative_path in certificate_files_to_delete:
+                try:
+                    file_path = BASE_DIR / relative_path
+                    if file_path.is_file():
+                        os.remove(file_path)
+                        logger.info(f"🗑️ Fichier certificat supprimé : {file_path}")
+                except Exception as file_error:
+                    logger.warning(
+                        f"⚠️ Impossible de supprimer le fichier certificat "
+                        f"'{relative_path}' : {file_error}"
+                    )
+
             logger.info(
-                f"✅ Utilisateur {user_id} supprimé définitivement"
+                f"✅ Utilisateur {user_id} supprimé définitivement "
+                f"({len(certificate_files_to_delete)} certificat(s) supprimé(s))"
             )
 
             return {

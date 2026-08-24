@@ -36,6 +36,7 @@ import adminService from '../../services/adminService';
 import AdminUserAddressModal from '../../components/admin/AdminUserAddressModal'; 
 import useResponsive from '../../hooks/useResponsive'; 
 import { API_URL } from '../../config/env'; 
+import { exportToExcel } from '../../utils/exportExcel'; 
  
 const IS_WEB = Platform.OS === 'web'; 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window'); 
@@ -258,6 +259,8 @@ const TherapistsScreen = ({ navigation }) => {
     useState(null); 
  
   const [error, setError] = useState(null); 
+ 
+  const [exportingExcel, setExportingExcel] = useState(false); 
  
   const [showAddressModal, setShowAddressModal] = 
     useState(false); 
@@ -1075,6 +1078,64 @@ const TherapistsScreen = ({ navigation }) => {
       ).padStart(2, '0')}`; 
     } catch { 
       return dateString; 
+    } 
+  }; 
+ 
+  /* ========================================================== 
+     EXPORT EXCEL — liste filtrée (web + android) 
+  ========================================================== */ 
+ 
+  const handleExportExcel = async () => { 
+    if (!filteredTherapists || filteredTherapists.length === 0) { 
+      showToast('Aucun thérapeute à exporter', 'error'); 
+      return; 
+    } 
+ 
+    setExportingExcel(true); 
+ 
+    try { 
+      await exportToExcel({ 
+        data: filteredTherapists, 
+        fileName: `therapeutes_${new Date() 
+          .toISOString() 
+          .slice(0, 10)}`, 
+        sheetName: 'Thérapeutes', 
+        columns: [ 
+          { header: 'ID', accessor: (t) => t.id }, 
+          { header: 'Nom complet', accessor: (t) => t.fullname || '' }, 
+          { header: 'Email', accessor: (t) => t.email || '' }, 
+          { header: 'Téléphone', accessor: (t) => t.phone || '' }, 
+          { header: 'CIN', accessor: (t) => t.cin_number || '' }, 
+          { header: 'Adresse', accessor: (t) => getFullAddress(t) }, 
+          { 
+            header: 'Prix (Ar)', 
+            accessor: (t) => Number(t.base_price || 0), 
+          }, 
+          { 
+            header: 'Vérification', 
+            accessor: (t) => getStatusLabel(t.verification_status), 
+          }, 
+          { 
+            header: 'Compte', 
+            accessor: (t) => getActiveStatusLabel(t.is_active), 
+          }, 
+          { 
+            header: 'En ligne', 
+            accessor: (t) => (t.is_online ? 'En ligne' : 'Hors ligne'), 
+          }, 
+          { 
+            header: 'Date création', 
+            accessor: (t) => formatDate(t.created_at), 
+          }, 
+        ], 
+      }); 
+ 
+      showToast('Export Excel réussi', 'success'); 
+    } catch (err) { 
+      console.error('Export Excel error:', err); 
+      showToast(err?.message || "Échec de l'export Excel", 'error'); 
+    } finally { 
+      setExportingExcel(false); 
     } 
   }; 
  
@@ -2649,38 +2710,82 @@ const TherapistsScreen = ({ navigation }) => {
               </Text> 
             </View> 
  
-            <TouchableOpacity 
-              onPress={onRefresh} 
-              style={[ 
-                styles.refreshButton, 
-                { 
-                  backgroundColor: 
-                    themeColors.surface, 
-                }, 
-              ]} 
+            <View 
+              style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                gap: 8, 
+              }} 
             > 
-              <Ionicons 
-                name="refresh-outline" 
-                size={19} 
-                color={ 
-                  colors.primary 
-                } 
-              /> 
+              <TouchableOpacity 
+                onPress={handleExportExcel} 
+                disabled={exportingExcel} 
+                style={[ 
+                  styles.refreshButton, 
+                  { 
+                    backgroundColor: '#1D6F42', 
+                    opacity: exportingExcel ? 0.6 : 1, 
+                  }, 
+                ]} 
+              > 
+                {exportingExcel ? ( 
+                  <ActivityIndicator 
+                    size="small" 
+                    color="#fff" 
+                  /> 
+                ) : ( 
+                  <Ionicons 
+                    name="download-outline" 
+                    size={19} 
+                    color="#fff" 
+                  /> 
+                )} 
  
-              {IS_WEB && ( 
-                <Text 
-                  style={[ 
-                    styles.refreshText, 
-                    { 
-                      color: 
-                        colors.primary, 
-                    }, 
-                  ]} 
-                > 
-                  Actualiser 
-                </Text> 
-              )} 
-            </TouchableOpacity> 
+                {IS_WEB && ( 
+                  <Text 
+                    style={[ 
+                      styles.refreshText, 
+                      { color: '#fff' }, 
+                    ]} 
+                  > 
+                    {exportingExcel ? 'Export...' : 'Excel'} 
+                  </Text> 
+                )} 
+              </TouchableOpacity> 
+ 
+              <TouchableOpacity 
+                onPress={onRefresh} 
+                style={[ 
+                  styles.refreshButton, 
+                  { 
+                    backgroundColor: 
+                      themeColors.surface, 
+                  }, 
+                ]} 
+              > 
+                <Ionicons 
+                  name="refresh-outline" 
+                  size={19} 
+                  color={ 
+                    colors.primary 
+                  } 
+                /> 
+ 
+                {IS_WEB && ( 
+                  <Text 
+                    style={[ 
+                      styles.refreshText, 
+                      { 
+                        color: 
+                          colors.primary, 
+                      }, 
+                    ]} 
+                  > 
+                    Actualiser 
+                  </Text> 
+                )} 
+              </TouchableOpacity> 
+            </View> 
           </View> 
  
           {/* SEARCH */} 
