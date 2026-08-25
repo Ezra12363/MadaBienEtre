@@ -50,6 +50,36 @@ const IS_WEB = Platform.OS === 'web';
 const TABLET_BREAKPOINT = 768;
 
 /* ============================================================
+   REVEAL — wrapper cross-plateforme pour les animations
+   react-native-animatable plante sur le web (Expo Web /
+   react-native-web) car il dépend de modules natifs absents
+   du DOM. Sur web on rend donc une simple View (sans crash),
+   et sur iOS/Android on garde l'animation Animatable normale.
+============================================================ */
+
+const Reveal = ({ animation = 'fadeInUp', delay = 0, duration = 450, style, children, ...rest }) => {
+  if (IS_WEB) {
+    return (
+      <View style={style} {...rest}>
+        {children}
+      </View>
+    );
+  }
+  return (
+    <Animatable.View
+      animation={animation}
+      delay={delay}
+      duration={duration}
+      useNativeDriver
+      style={style}
+      {...rest}
+    >
+      {children}
+    </Animatable.View>
+  );
+};
+
+/* ============================================================
    COLORS
 ============================================================ */
 
@@ -599,7 +629,7 @@ const HomeScreen = ({ navigation }) => {
 
   const renderQuickAction = useCallback(
     ({ item, index }) => (
-      <Animatable.View
+      <Reveal
         animation="fadeInUp"
         delay={index * 70}
         duration={450}
@@ -623,7 +653,7 @@ const HomeScreen = ({ navigation }) => {
           </View>
           <Ionicons name="chevron-forward" size={16} color={textSecondary} />
         </TouchableOpacity>
-      </Animatable.View>
+      </Reveal>
     ),
     [navigate, surface, border, text, textSecondary]
   );
@@ -928,7 +958,7 @@ const HomeScreen = ({ navigation }) => {
         scrollEventThrottle={16}
       >
         {/* WELCOME */}
-        <Animatable.View animation="fadeInDown" duration={550} style={styles.heroWrapper}>
+        <Reveal animation="fadeInDown" duration={550} style={styles.heroWrapper}>
           <LinearGradient
             colors={[PRIMARY, SECONDARY]}
             start={{ x: 0, y: 0 }}
@@ -979,10 +1009,10 @@ const HomeScreen = ({ navigation }) => {
               <Ionicons name="arrow-forward" size={19} color="#FFFFFF" />
             </TouchableOpacity>
           </LinearGradient>
-        </Animatable.View>
+        </Reveal>
 
         {/* QUICK ACTIONS */}
-        <Animatable.View animation="fadeInUp" delay={100} duration={500} style={styles.sectionContainer}>
+        <Reveal animation="fadeInUp" delay={100} duration={500} style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <View>
               <Text style={[styles.sectionTitle, { color: text }]}>Accès rapide</Text>
@@ -992,10 +1022,10 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.quickActionsGrid}>
             {QUICK_ACTIONS.map((item, index) => renderQuickAction({ item, index }))}
           </View>
-        </Animatable.View>
+        </Reveal>
 
         {/* IA RECOMMENDATION */}
-        <Animatable.View animation="fadeInUp" delay={180} duration={500} style={styles.sectionContainer}>
+        <Reveal animation="fadeInUp" delay={180} duration={500} style={styles.sectionContainer}>
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => navigate('SearchMassage', undefined, 'Analyse IA de vos besoins en cours...')}
@@ -1042,10 +1072,10 @@ const HomeScreen = ({ navigation }) => {
               </View>
             </LinearGradient>
           </TouchableOpacity>
-        </Animatable.View>
+        </Reveal>
 
         {/* MASSAGES */}
-        <Animatable.View animation="fadeInUp" delay={260} duration={500} style={styles.sectionContainer}>
+        <Reveal animation="fadeInUp" delay={260} duration={500} style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <View>
               <Text style={[styles.sectionTitle, { color: text }]}>Choisissez votre massage</Text>
@@ -1109,10 +1139,10 @@ const HomeScreen = ({ navigation }) => {
               </TouchableOpacity>
             )}
           </View>
-        </Animatable.View>
+        </Reveal>
 
         {/* LOCATION */}
-        <Animatable.View animation="fadeInUp" delay={340} duration={500} style={styles.sectionContainer}>
+        <Reveal animation="fadeInUp" delay={340} duration={500} style={styles.sectionContainer}>
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => navigate('SearchMassage', undefined, 'Recherche des thérapeutes à proximité')}
@@ -1144,10 +1174,10 @@ const HomeScreen = ({ navigation }) => {
               </View>
             </LinearGradient>
           </TouchableOpacity>
-        </Animatable.View>
+        </Reveal>
 
         {/* PROMOTIONS */}
-        <Animatable.View animation="fadeInUp" delay={420} duration={500} style={styles.sectionContainer}>
+        <Reveal animation="fadeInUp" delay={420} duration={500} style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <View>
               <View style={styles.titleWithIcon}>
@@ -1171,10 +1201,10 @@ const HomeScreen = ({ navigation }) => {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.horizontalList}
           />
-        </Animatable.View>
+        </Reveal>
 
         {/* BOOKINGS */}
-        <Animatable.View animation="fadeInUp" delay={500} duration={500} style={[styles.sectionContainer, styles.lastSection]}>
+        <Reveal animation="fadeInUp" delay={500} duration={500} style={[styles.sectionContainer, styles.lastSection]}>
           <View style={styles.sectionHeader}>
             <View>
               <Text style={[styles.sectionTitle, { color: text }]}>Mes réservations</Text>
@@ -1186,14 +1216,14 @@ const HomeScreen = ({ navigation }) => {
           </View>
 
           {BOOKINGS.map((booking, index) => (
-            <Animatable.View key={booking.id} animation="fadeInUp" delay={550 + index * 70}>
+            <Reveal key={booking.id} animation="fadeInUp" delay={550 + index * 70}>
               {renderBooking({ item: booking })}
-            </Animatable.View>
+            </Reveal>
           ))}
-        </Animatable.View>
+        </Reveal>
 
         {/* SOS */}
-        <Animatable.View animation="fadeInUp" delay={600} duration={500} style={styles.sosContainer}>
+        <Reveal animation="fadeInUp" delay={600} duration={500} style={styles.sosContainer}>
           <TouchableOpacity
             activeOpacity={0.88}
             onPress={() => navigate('SOS', undefined, 'Ouverture de l\'assistance SOS', 'warning')}
@@ -1212,7 +1242,7 @@ const HomeScreen = ({ navigation }) => {
               <Text style={styles.sosButtonText}>SOS</Text>
             </View>
           </TouchableOpacity>
-        </Animatable.View>
+        </Reveal>
 
         {/* FOOTER */}
         <View style={styles.footer}>
