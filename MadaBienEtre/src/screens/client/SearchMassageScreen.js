@@ -1,4 +1,5 @@
 // src/screens/client/SearchMassageScreen.js
+// Fanitsiana ny fampisehoana ny types de massage par catégorie unique
 
 import React, {
   useState,
@@ -31,17 +32,15 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../../context/ThemeContext";
 import { colors, typography } from "../../theme";
 import Header from "../../components/common/Header";
+import massageTypeService from "../../services/massageTypeService";
 import MapViewWrapper from "../../components/map/MapViewWrapper";
 import useLocationTracking from "../../hooks/useLocationTracking";
-
 import { searchLocation, formatFullAddress } from "../../services/geocoding";
-
 import {
   computeAutoDistances,
   calculateRoute,
   formatDistance,
 } from "../../services/routing";
-
 import {
   MARKER_COLORS,
   DEFAULT_REGION,
@@ -62,6 +61,14 @@ const DANGER = "#E53935";
 const STAR = "#FFB800";
 
 /* ============================================================
+   RESPONSIVE HELPERS
+============================================================ */
+
+const IS_WEB = Platform.OS === "web";
+const TABLET_BREAKPOINT = 768;
+const DESKTOP_BREAKPOINT = 1100;
+
+/* ============================================================
    FONCTION DE FORMATAGE MONÉTAIRE
 ============================================================ */
 
@@ -78,56 +85,50 @@ const formatPriceShort = (price) => {
 };
 
 /* ============================================================
-   MASSAGE TYPES
+   ✅ CATEGORIES UNIQUES AUTORISÉES (6 catégories)
 ============================================================ */
 
-const MASSAGE_TYPES = [
-  {
-    id: 1,
-    name: "Massage Relaxant",
-    shortName: "Relaxant",
-    icon: "spa",
-    minPrice: 25000,
-  },
-  {
-    id: 2,
-    name: "Massage Thérapeutique",
-    shortName: "Thérapeutique",
-    icon: "bone",
-    minPrice: 35000,
-  },
-  {
-    id: 3,
-    name: "Massage Sportif",
-    shortName: "Sportif",
-    icon: "run",
-    minPrice: 40000,
-  },
-  {
-    id: 4,
-    name: "Shiatsu",
-    shortName: "Shiatsu",
-    icon: "hand-heart",
-    minPrice: 30000,
-  },
-  {
-    id: 5,
-    name: "Réflexologie",
-    shortName: "Réflexologie",
-    icon: "foot-print",
-    minPrice: 25000,
-  },
-  {
-    id: 6,
-    name: "Pierres Chaudes",
-    shortName: "Pierres",
-    icon: "fire",
-    minPrice: 45000,
-  },
+const ALLOWED_CATEGORIES = [
+  'relaxant',
+  'therapeutique',
+  'sportif',
+  'reflexologie',
+  'prenatal',
+  'personnalise'
 ];
 
 /* ============================================================
-   COMPOSANT TOAST (Centré parfaitement)
+   MASSAGE CATEGORY LABELS & ICONS
+============================================================ */
+
+const MASSAGE_CATEGORY_LABELS = {
+  relaxant: "Relaxant",
+  therapeutique: "Thérapeutique",
+  sportif: "Sportif",
+  reflexologie: "Réflexologie",
+  prenatal: "Prénatal",
+  personnalise: "Personnalisé",
+};
+
+const getMassageCategoryLabel = (category) =>
+  MASSAGE_CATEGORY_LABELS[String(category || "").toLowerCase()] ||
+  category ||
+  "Massage";
+
+const MASSAGE_CATEGORY_ICONS = {
+  relaxant: "spa",
+  therapeutique: "bone",
+  sportif: "run",
+  reflexologie: "foot-print",
+  prenatal: "human-pregnant",
+  personnalise: "auto-fix",
+};
+
+const getMassageCategoryIcon = (category) =>
+  MASSAGE_CATEGORY_ICONS[String(category || "").toLowerCase()] || "spa";
+
+/* ============================================================
+   COMPOSANT TOAST
 ============================================================ */
 
 const Toast = ({ visible, message, type, onHide }) => {
@@ -264,7 +265,6 @@ const MapTypeToggle = ({ mapType, onToggle, themeColors }) => {
         size={17}
         color={PRIMARY}
       />
-
       <Text
         style={[
           styles.mapTypeButtonText,
@@ -284,7 +284,7 @@ const MapTypeToggle = ({ mapType, onToggle, themeColors }) => {
 ============================================================ */
 
 const SearchMassageScreen = ({ navigation, route }) => {
-  const { massageType: initialType } = route?.params || {};
+  const { massageType: initialType, selectedCategory: initialCategory } = route?.params || {};
 
   const { colors: themeColors, isDark } = useTheme();
 
@@ -293,7 +293,12 @@ const SearchMassageScreen = ({ navigation, route }) => {
   ========================================================== */
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedType, setSelectedType] = useState(initialType?.id || null);
+  const [massageTypes, setMassageTypes] = useState([]);
+  const [massageTypesLoading, setMassageTypesLoading] = useState(true);
+  const [selectedType, setSelectedType] = useState(
+    initialType?.id != null ? Number(initialType.id) : null,
+  );
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory || null);
   const [selectedDuration, setSelectedDuration] = useState(60);
   const [selectedPrice, setSelectedPrice] = useState(50000);
   const [showMap, setShowMap] = useState(true);
@@ -310,6 +315,92 @@ const SearchMassageScreen = ({ navigation, route }) => {
   const [sortMode, setSortMode] = useState("distance");
   const [mapType, setMapType] = useState(MAP_TYPES.standard);
   const [showFilterModal, setShowFilterModal] = useState(false);
+
+  /* ==========================================================
+     RESPONSIVE
+  ========================================================== */
+
+  const [screenWidth, setScreenWidth] = useState(Dimensions.get("window").width);
+
+  useEffect(() => {
+    const onChange = ({ window }) => setScreenWidth(window.width);
+    const subscription = Dimensions.addEventListener("change", onChange);
+
+    return () => {
+      if (subscription?.remove) {
+        subscription.remove();
+      } else if (Dimensions.removeEventListener) {
+        Dimensions.removeEventListener("change", onChange);
+      }
+    };
+  }, []);
+
+  const isTabletWidth = screenWidth >= TABLET_BREAKPOINT;
+  const isDesktopWidth = screenWidth >= DESKTOP_BREAKPOINT;
+  const useGridCategories = IS_WEB && isTabletWidth;
+
+  /* ==========================================================
+     TYPES DE MASSAGE - UNIQUEMENT 6 CATEGORIES UNIQUES
+  ========================================================== */
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadMassageTypes = async () => {
+      try {
+        setMassageTypesLoading(true);
+        const data = await massageTypeService.getActiveMassageTypes();
+
+        if (!mounted) return;
+
+        // ✅ Filtrer uniquement les catégories autorisées
+        const filtered = (Array.isArray(data) ? data : [])
+          .filter((item) => {
+            const category = String(item.category || '').toLowerCase();
+            return ALLOWED_CATEGORIES.includes(category);
+          })
+          .map((item) => ({
+            id: Number(item.id),
+            value: item.category,
+            name: item.name,
+            shortName: item.name,
+            category: item.category,
+            categoryLabel: getMassageCategoryLabel(item.category),
+            description: item.description || "",
+            icon: getMassageCategoryIcon(item.category),
+            minPrice: Number(item.min_price ?? item.recommended_price ?? 0),
+            duration_min: item.duration_min,
+            duration_max: item.duration_max,
+          }));
+
+        setMassageTypes(filtered);
+        
+        console.log(`✅ ${filtered.length} types de massage affichés`);
+      } catch (error) {
+        console.error("❌ Erreur chargement types de massage:", error);
+        if (mounted) setMassageTypes([]);
+      } finally {
+        if (mounted) setMassageTypesLoading(false);
+      }
+    };
+
+    loadMassageTypes();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // ✅ Synchronisation avec les params reçus
+  useEffect(() => {
+    if (initialType?.id != null) {
+      setSelectedType(Number(initialType.id));
+      if (initialType.category && ALLOWED_CATEGORIES.includes(initialType.category.toLowerCase())) {
+        setSelectedCategory(initialType.category);
+        setSearchQuery(initialType.categoryLabel || initialType.name || '');
+      }
+    }
+  }, [initialType?.id, initialType?.category, initialType?.categoryLabel, initialType?.name]);
 
   /* ==========================================================
      TOAST STATE
@@ -359,8 +450,11 @@ const SearchMassageScreen = ({ navigation, route }) => {
   ========================================================== */
 
   const selectedTypeObject = useMemo(
-    () => MASSAGE_TYPES.find((item) => item.id === selectedType),
-    [selectedType],
+    () =>
+      massageTypes.find(
+        (item) => Number(item.id) === Number(selectedType),
+      ),
+    [massageTypes, selectedType],
   );
 
   /* ==========================================================
@@ -370,11 +464,12 @@ const SearchMassageScreen = ({ navigation, route }) => {
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (selectedType) count++;
+    if (selectedCategory) count++;
     if (selectedDuration !== 60) count++;
     if (selectedPrice !== 50000) count++;
     if (sortMode !== "distance") count++;
     return count;
-  }, [selectedType, selectedDuration, selectedPrice, sortMode]);
+  }, [selectedType, selectedCategory, selectedDuration, selectedPrice, sortMode]);
 
   /* ==========================================================
      TOGGLE MAP TYPE
@@ -436,9 +531,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
     let result = [...therapists];
 
     /* SEARCH */
-
     const query = searchQuery.trim().toLowerCase();
-
     if (query && !addressResult) {
       result = result.filter((therapist) => {
         const nameMatch = therapist.name?.toLowerCase().includes(query);
@@ -449,36 +542,49 @@ const SearchMassageScreen = ({ navigation, route }) => {
       });
     }
 
-    /* MASSAGE TYPE */
-
-    if (selectedType) {
-      const type = MASSAGE_TYPES.find((item) => item.id === selectedType);
-
-      if (type) {
-        result = result.filter((therapist) =>
-          therapist.specialties?.some(
-            (specialty) => specialty.toLowerCase() === type.name.toLowerCase(),
-          ),
+    /* ✅ MASSAGE TYPE - FILTRE PAR CATEGORY */
+    if (selectedCategory && ALLOWED_CATEGORIES.includes(selectedCategory.toLowerCase())) {
+      result = result.filter((therapist) => {
+        if (therapist.category) {
+          return therapist.category.toLowerCase() === selectedCategory.toLowerCase();
+        }
+        return therapist.specialties?.some(
+          (specialty) =>
+            specialty.toLowerCase() === selectedCategory.toLowerCase() ||
+            specialty.toLowerCase().includes(selectedCategory.toLowerCase()),
         );
+      });
+    }
+    
+    /* ✅ MASSAGE TYPE - FILTRE PAR TYPE */
+    if (selectedType && !selectedCategory) {
+      const type = massageTypes.find((item) => item.id === selectedType);
+      if (type && ALLOWED_CATEGORIES.includes(type.category.toLowerCase())) {
+        result = result.filter((therapist) => {
+          if (therapist.category) {
+            return therapist.category.toLowerCase() === type.category.toLowerCase();
+          }
+          return therapist.specialties?.some(
+            (specialty) =>
+              specialty.toLowerCase() === type.name.toLowerCase() ||
+              specialty.toLowerCase() === type.category.toLowerCase(),
+          );
+        });
       }
     }
 
     /* PRICE */
-
     result = result.filter(
       (therapist) => Number(therapist.price || 0) <= selectedPrice,
     );
 
     /* SORT */
-
     if (sortMode === "distance") {
       result.sort((a, b) => (a.distance || 999) - (b.distance || 999));
     }
-
     if (sortMode === "rating") {
       result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
     }
-
     if (sortMode === "price") {
       result.sort((a, b) => (a.price || 0) - (b.price || 0));
     }
@@ -486,7 +592,9 @@ const SearchMassageScreen = ({ navigation, route }) => {
     setFilteredTherapists(result);
   }, [
     therapists,
+    massageTypes,
     selectedType,
+    selectedCategory,
     selectedPrice,
     searchQuery,
     addressResult,
@@ -511,12 +619,10 @@ const SearchMassageScreen = ({ navigation, route }) => {
           distance: 1.2,
           price: 45000,
           image: null,
+          category: "relaxant",
           specialties: ["Massage Relaxant", "Deep Tissue"],
           available: true,
-          coordinate: {
-            latitude: -18.8702,
-            longitude: 47.5109,
-          },
+          coordinate: { latitude: -18.8702, longitude: 47.5109 },
           address: "Analakely, Antananarivo",
         },
         {
@@ -528,12 +634,10 @@ const SearchMassageScreen = ({ navigation, route }) => {
           distance: 2.5,
           price: 50000,
           image: null,
+          category: "therapeutique",
           specialties: ["Massage Thérapeutique", "Shiatsu"],
           available: true,
-          coordinate: {
-            latitude: -18.8902,
-            longitude: 47.5009,
-          },
+          coordinate: { latitude: -18.8902, longitude: 47.5009 },
           address: "Isotry, Antananarivo",
         },
         {
@@ -545,12 +649,10 @@ const SearchMassageScreen = ({ navigation, route }) => {
           distance: 0.8,
           price: 38000,
           image: null,
-          specialties: ["Massage Relaxant", "Réflexologie"],
+          category: "reflexologie",
+          specialties: ["Réflexologie", "Massage Relaxant"],
           available: false,
-          coordinate: {
-            latitude: -18.8752,
-            longitude: 47.5159,
-          },
+          coordinate: { latitude: -18.8752, longitude: 47.5159 },
           address: "Ambohijatovo, Antananarivo",
         },
         {
@@ -562,12 +664,10 @@ const SearchMassageScreen = ({ navigation, route }) => {
           distance: 3.1,
           price: 42000,
           image: null,
+          category: "sportif",
           specialties: ["Massage Sportif", "Deep Tissue"],
           available: true,
-          coordinate: {
-            latitude: -18.8952,
-            longitude: 47.4959,
-          },
+          coordinate: { latitude: -18.8952, longitude: 47.4959 },
           address: "Ampefiloha, Antananarivo",
         },
         {
@@ -579,13 +679,26 @@ const SearchMassageScreen = ({ navigation, route }) => {
           distance: 1.8,
           price: 55000,
           image: null,
-          specialties: ["Pierres Chaudes", "Massage Relaxant"],
+          category: "personnalise",
+          specialties: ["Massage Personnalisé", "Pierres Chaudes"],
           available: true,
-          coordinate: {
-            latitude: -18.8652,
-            longitude: 47.5209,
-          },
+          coordinate: { latitude: -18.8652, longitude: 47.5209 },
           address: "Antaninarenina, Antananarivo",
+        },
+        {
+          id: 6,
+          name: "Hanta R.",
+          rating: 4.9,
+          reviews: 21,
+          experience: 6,
+          distance: 2.1,
+          price: 35000,
+          image: null,
+          category: "prenatal",
+          specialties: ["Massage Prénatal", "Massage Relaxant"],
+          available: true,
+          coordinate: { latitude: -18.8802, longitude: 47.5259 },
+          address: "Faravohitra, Antananarivo",
         },
       ];
 
@@ -622,17 +735,11 @@ const SearchMassageScreen = ({ navigation, route }) => {
       setAddressResult(result);
 
       const withDistances = computeAutoDistances(
-        {
-          latitude: result.latitude,
-          longitude: result.longitude,
-        },
+        { latitude: result.latitude, longitude: result.longitude },
         therapists,
       );
 
-      const nearby = withDistances.filter(
-        (therapist) => therapist.distance <= 10,
-      );
-
+      const nearby = withDistances.filter((therapist) => therapist.distance <= 10);
       setFilteredTherapists(nearby.length > 0 ? nearby : withDistances);
 
       setShowMap(true);
@@ -648,10 +755,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
       }, 350);
 
       if (nearby.length > 0) {
-        showToast(
-          `${nearby.length} thérapeute(s) trouvé(s) dans un rayon de 10 km`,
-          "success"
-        );
+        showToast(`${nearby.length} thérapeute(s) trouvé(s) dans un rayon de 10 km`, "success");
       } else {
         showToast("Aucun thérapeute à proximité de cette adresse", "warning");
       }
@@ -736,6 +840,8 @@ const SearchMassageScreen = ({ navigation, route }) => {
     setAddressResult(null);
     setSelectedMarker(null);
     setSelectedRoute(null);
+    setSelectedCategory(null);
+    setSelectedType(null);
     setFilteredTherapists(therapists);
     setMapKey((value) => value + 1);
     showToast("Recherche réinitialisée", "info");
@@ -754,9 +860,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
       },
       title: therapist.name,
       description: `${therapist.specialties?.join(", ") || ""} • ${formatPrice(therapist.price || 0)}`,
-      pinColor: therapist.available
-        ? MARKER_COLORS.available
-        : MARKER_COLORS.unavailable,
+      pinColor: therapist.available ? MARKER_COLORS.available : MARKER_COLORS.unavailable,
       distance: therapist.distance,
       price: therapist.price,
       rating: therapist.rating,
@@ -772,9 +876,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
           latitude: addressResult.latitude,
           longitude: addressResult.longitude,
         },
-        title: addressResult.isApproximate
-          ? "Zone approximative"
-          : "Adresse recherchée",
+        title: addressResult.isApproximate ? "Zone approximative" : "Adresse recherchée",
         description: addressResult.display_name || "Position recherchée",
         pinColor: "#FF7A00",
         available: true,
@@ -839,10 +941,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
     }
 
     if (marker.id === "search-address") {
-      showToast(
-        addressResult?.display_name || "Adresse recherchée",
-        "info"
-      );
+      showToast(addressResult?.display_name || "Adresse recherchée", "info");
       return;
     }
 
@@ -880,6 +979,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
 
   const resetFilters = () => {
     setSelectedType(null);
+    setSelectedCategory(null);
     setSelectedDuration(60);
     setSelectedPrice(50000);
     setSortMode("distance");
@@ -892,7 +992,169 @@ const SearchMassageScreen = ({ navigation, route }) => {
   };
 
   /* ==========================================================
-     THERAPIST CARD (Sans icônes qui se chevauchent)
+     RESULT SUBTITLE
+  ========================================================== */
+
+  const resultsSubtitle = useMemo(() => {
+    if (selectedCategory) {
+      const type = massageTypes.find(t => t.category === selectedCategory);
+      return type?.name || selectedCategory;
+    }
+    if (selectedTypeObject) {
+      return selectedTypeObject.name;
+    }
+    return "Disponibles près de vous";
+  }, [selectedCategory, selectedTypeObject, massageTypes]);
+
+  /* ==========================================================
+     ✅ RENDER DES CATEGORIES UNIQUES (GROUPÉES PAR CATEGORY)
+  ========================================================== */
+
+  // ✅ Grouper les types par catégorie unique
+  const groupedMassageTypes = useMemo(() => {
+    const groups = {};
+    massageTypes.forEach((type) => {
+      const category = type.category;
+      if (!groups[category]) {
+        groups[category] = {
+          category: category,
+          categoryLabel: getMassageCategoryLabel(category),
+          icon: getMassageCategoryIcon(category),
+          types: [],
+        };
+      }
+      groups[category].types.push(type);
+    });
+    return Object.values(groups);
+  }, [massageTypes]);
+
+  /* ==========================================================
+     ✅ RENDER TYPE CHIP - PAR CATEGORIE UNIQUE
+  ========================================================== */
+
+  const renderTypeChip = useCallback((categoryGroup) => {
+    const category = categoryGroup.category;
+    const isActive = selectedCategory === category;
+
+    return (
+      <TouchableOpacity
+        key={category}
+        activeOpacity={0.85}
+        style={[
+          styles.typeChip,
+          {
+            backgroundColor: isActive ? PRIMARY : themeColors.surface,
+            borderColor: isActive ? PRIMARY : themeColors.border || "#E7EBF1",
+          },
+        ]}
+        onPress={() => {
+          if (isActive) {
+            setSelectedCategory(null);
+            setSelectedType(null);
+            setSearchQuery("");
+            showToast("Filtre supprimé", "info");
+          } else {
+            setSelectedCategory(category);
+            setSelectedType(null);
+            setSearchQuery(categoryGroup.categoryLabel);
+            showToast(`Filtre: ${categoryGroup.categoryLabel}`, "info");
+          }
+        }}
+      >
+        <MaterialCommunityIcons
+          name={categoryGroup.icon}
+          size={16}
+          color={isActive ? "#FFFFFF" : PRIMARY}
+        />
+        <Text
+          style={[
+            styles.typeChipText,
+            {
+              color: isActive ? "#FFFFFF" : themeColors.text,
+            },
+          ]}
+        >
+          {categoryGroup.categoryLabel}
+        </Text>
+      </TouchableOpacity>
+    );
+  }, [selectedCategory, themeColors]);
+
+  /* ==========================================================
+     ✅ RENDER TYPE CARD (GRID) - PAR CATEGORIE UNIQUE
+  ========================================================== */
+
+  const renderTypeCard = useCallback((categoryGroup) => {
+    const category = categoryGroup.category;
+    const isActive = selectedCategory === category;
+
+    return (
+      <TouchableOpacity
+        key={category}
+        activeOpacity={0.85}
+        style={[
+          styles.typeCard,
+          isDesktopWidth && styles.typeCardDesktop,
+          {
+            backgroundColor: isActive ? PRIMARY : themeColors.surface,
+            borderColor: isActive ? PRIMARY : themeColors.border || "#E7EBF1",
+          },
+        ]}
+        onPress={() => {
+          if (isActive) {
+            setSelectedCategory(null);
+            setSelectedType(null);
+            setSearchQuery("");
+            showToast("Filtre supprimé", "info");
+          } else {
+            setSelectedCategory(category);
+            setSelectedType(null);
+            setSearchQuery(categoryGroup.categoryLabel);
+            showToast(`Filtre: ${categoryGroup.categoryLabel}`, "info");
+          }
+        }}
+      >
+        <View
+          style={[
+            styles.typeCardIcon,
+            {
+              backgroundColor: isActive ? "rgba(255,255,255,0.18)" : `${PRIMARY}12`,
+            },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name={categoryGroup.icon}
+            size={18}
+            color={isActive ? "#FFFFFF" : PRIMARY}
+          />
+        </View>
+        <Text
+          style={[
+            styles.typeCardTitle,
+            {
+              color: isActive ? "#FFFFFF" : themeColors.text,
+            },
+          ]}
+        >
+          {categoryGroup.categoryLabel}
+        </Text>
+        <Text
+          style={[
+            styles.typeCardSubtitle,
+            {
+              color: isActive ? "rgba(255,255,255,0.85)" : themeColors.textSecondary,
+            },
+          ]}
+          numberOfLines={1}
+        >
+          {categoryGroup.types.length} type{categoryGroup.types.length > 1 ? "s" : ""} disponible{categoryGroup.types.length > 1 ? "s" : ""}
+        </Text>
+      </TouchableOpacity>
+    );
+  }, [selectedCategory, themeColors, isDesktopWidth]);
+
+  /* ==========================================================
+     THERAPIST CARD
   ========================================================== */
 
   const renderTherapistCard = useCallback(
@@ -936,23 +1198,14 @@ const SearchMassageScreen = ({ navigation, route }) => {
               }
             }}
           >
-            {/* RECOMMENDED BADGE */}
             {isRecommended && (
               <View style={styles.aiRecommendationBadge}>
-                <MaterialCommunityIcons
-                  name="auto-fix"
-                  size={11}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.aiRecommendationText}>
-                  RECOMMANDÉ PAR L'IA
-                </Text>
+                <MaterialCommunityIcons name="auto-fix" size={11} color="#FFFFFF" />
+                <Text style={styles.aiRecommendationText}>RECOMMANDÉ PAR L'IA</Text>
               </View>
             )}
 
-            {/* CARD TOP */}
             <View style={styles.cardTop}>
-              {/* AVATAR */}
               <View
                 style={[
                   styles.avatar,
@@ -962,18 +1215,12 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 ]}
               >
                 {item.image ? (
-                  <Image
-                    source={{
-                      uri: item.image,
-                    }}
-                    style={styles.avatarImage}
-                  />
+                  <Image source={{ uri: item.image }} style={styles.avatarImage} />
                 ) : (
                   <Text style={styles.avatarText}>
                     {item.name?.charAt(0)?.toUpperCase()}
                   </Text>
                 )}
-
                 <View
                   style={[
                     styles.onlineDot,
@@ -984,7 +1231,6 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 />
               </View>
 
-              {/* INFO */}
               <View style={styles.cardInfo}>
                 <View style={styles.nameRow}>
                   <Text
@@ -1037,7 +1283,6 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 </Text>
               </View>
 
-              {/* DISTANCE */}
               <View style={styles.distanceContainer}>
                 <Ionicons name="location-outline" size={13} color={PRIMARY} />
                 <Text
@@ -1053,36 +1298,32 @@ const SearchMassageScreen = ({ navigation, route }) => {
               </View>
             </View>
 
-            {/* SPECIALTIES */}
             <View style={styles.specialtiesRow}>
-              {item.specialties
-                ?.slice(0, 2)
-                .map((specialty, specialtyIndex) => (
-                  <View
-                    key={`${item.id}-${specialtyIndex}`}
+              {item.specialties?.slice(0, 2).map((specialty, specialtyIndex) => (
+                <View
+                  key={`${item.id}-${specialtyIndex}`}
+                  style={[
+                    styles.specialtyChip,
+                    {
+                      backgroundColor: isDark ? "#242832" : "#F3F6FA",
+                    },
+                  ]}
+                >
+                  <Text
+                    numberOfLines={1}
                     style={[
-                      styles.specialtyChip,
+                      styles.specialtyText,
                       {
-                        backgroundColor: isDark ? "#242832" : "#F3F6FA",
+                        color: themeColors.textSecondary,
                       },
                     ]}
                   >
-                    <Text
-                      numberOfLines={1}
-                      style={[
-                        styles.specialtyText,
-                        {
-                          color: themeColors.textSecondary,
-                        },
-                      ]}
-                    >
-                      {specialty}
-                    </Text>
-                  </View>
-                ))}
+                    {specialty}
+                  </Text>
+                </View>
+              ))}
             </View>
 
-            {/* META - Sans icônes qui se chevauchent */}
             <View style={styles.cardMeta}>
               <View style={styles.metaItem}>
                 <Text
@@ -1096,9 +1337,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   {formatDistance(item.distance)}
                 </Text>
               </View>
-
               <View style={styles.metaDivider} />
-
               <View style={styles.metaItem}>
                 <Text
                   style={[
@@ -1113,13 +1352,8 @@ const SearchMassageScreen = ({ navigation, route }) => {
               </View>
             </View>
 
-            {/* LOCATION */}
             <View style={styles.addressRow}>
-              <Ionicons
-                name="location-outline"
-                size={13}
-                color={themeColors.textSecondary}
-              />
+              <Ionicons name="location-outline" size={13} color={themeColors.textSecondary} />
               <Text
                 numberOfLines={1}
                 style={[
@@ -1133,15 +1367,12 @@ const SearchMassageScreen = ({ navigation, route }) => {
               </Text>
             </View>
 
-            {/* FOOTER */}
             <View style={styles.cardFooter}>
               <View
                 style={[
                   styles.statusBadge,
                   {
-                    backgroundColor: item.available
-                      ? `${SUCCESS}12`
-                      : `${DANGER}10`,
+                    backgroundColor: item.available ? `${SUCCESS}12` : `${DANGER}10`,
                   },
                 ]}
               >
@@ -1170,20 +1401,14 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 disabled={!item.available}
                 onPress={() => {
                   if (item.available) {
-                    navigation.navigate("BookingDetail", {
-                      therapist: item,
-                    });
+                    navigation.navigate("BookingDetail", { therapist: item });
                     showToast(`Réservation pour ${item.name}`, "success");
                   }
                 }}
                 style={[
                   styles.bookButton,
                   {
-                    backgroundColor: item.available
-                      ? PRIMARY
-                      : isDark
-                        ? "#343943"
-                        : "#E5E7EB",
+                    backgroundColor: item.available ? PRIMARY : isDark ? "#343943" : "#E5E7EB",
                   },
                 ]}
               >
@@ -1197,9 +1422,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 >
                   {item.available ? "Voir & réserver" : "Indisponible"}
                 </Text>
-                {item.available && (
-                  <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
-                )}
+                {item.available && <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />}
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
@@ -1209,9 +1432,9 @@ const SearchMassageScreen = ({ navigation, route }) => {
     [selectedMarker, themeColors, isDark, fadeAnim, showMap, navigation],
   );
 
-  /* ==========================================================
-     RENDER
-  ========================================================== */
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <View
@@ -1222,20 +1445,12 @@ const SearchMassageScreen = ({ navigation, route }) => {
         },
       ]}
     >
-      {/* ======================================================
-          TOAST
-      ====================================================== */}
-
       <Toast
         visible={toast.visible}
         message={toast.message}
         type={toast.type}
         onHide={hideToast}
       />
-
-      {/* ======================================================
-          HEADER
-      ====================================================== */}
 
       <Header
         title="Trouver un massage"
@@ -1255,21 +1470,11 @@ const SearchMassageScreen = ({ navigation, route }) => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* ==================================================
-              HERO SEARCH
-          ================================================== */}
-
           <View style={styles.heroSection}>
             <LinearGradient
               colors={[PRIMARY, SECONDARY]}
-              start={{
-                x: 0,
-                y: 0,
-              }}
-              end={{
-                x: 1,
-                y: 1,
-              }}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={styles.heroGradient}
             >
               <View style={styles.heroDecorOne} />
@@ -1277,26 +1482,18 @@ const SearchMassageScreen = ({ navigation, route }) => {
 
               <View style={styles.heroContent}>
                 <View style={styles.heroIcon}>
-                  <MaterialCommunityIcons
-                    name="spa"
-                    size={22}
-                    color="#FFFFFF"
-                  />
+                  <MaterialCommunityIcons name="spa" size={22} color="#FFFFFF" />
                 </View>
-
                 <View style={styles.heroText}>
                   <Text style={styles.heroTitle}>
-                    Trouvez votre{" "}
-                    <Text style={styles.heroTitleAccent}>bien-être</Text>
+                    Trouvez votre <Text style={styles.heroTitleAccent}>bien-être</Text>
                   </Text>
-
                   <Text style={styles.heroSubtitle}>
                     Des professionnels près de vous, adaptés à vos besoins.
                   </Text>
                 </View>
               </View>
 
-              {/* SEARCH */}
               <View
                 style={[
                   styles.searchBox,
@@ -1323,23 +1520,11 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   onSubmitEditing={handleSearch}
                   returnKeyType="search"
                   autoCorrect={false}
-                  {...(Platform.OS === "web"
-                    ? {
-                        outlineStyle: "none",
-                      }
-                    : {})}
                 />
 
                 {searchQuery.length > 0 && (
-                  <TouchableOpacity
-                    onPress={clearSearch}
-                    style={styles.clearButton}
-                  >
-                    <Ionicons
-                      name="close-circle"
-                      size={18}
-                      color={themeColors.textSecondary}
-                    />
+                  <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
+                    <Ionicons name="close-circle" size={18} color={themeColors.textSecondary} />
                   </TouchableOpacity>
                 )}
 
@@ -1356,7 +1541,6 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 </TouchableOpacity>
               </View>
 
-              {/* LOCATION */}
               <View style={styles.locationStatus}>
                 <View
                   style={[
@@ -1367,20 +1551,12 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   ]}
                 />
                 <Text numberOfLines={1} style={styles.locationStatusText}>
-                  {isTracking
-                    ? "Votre position est détectée"
-                    : trackingError || "Localisation en cours..."}
+                  {isTracking ? "Votre position est détectée" : trackingError || "Localisation en cours..."}
                 </Text>
-                {isTracking && (
-                  <Ionicons name="navigate" size={12} color="#FFFFFF" />
-                )}
+                {isTracking && <Ionicons name="navigate" size={12} color="#FFFFFF" />}
               </View>
             </LinearGradient>
           </View>
-
-          {/* ==================================================
-              ADDRESS RESULT
-          ================================================== */}
 
           {addressResult && (
             <View
@@ -1388,12 +1564,8 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 styles.addressCard,
                 {
                   backgroundColor: addressResult.isApproximate
-                    ? isDark
-                      ? "#3B2E17"
-                      : "#FFF7E6"
-                    : isDark
-                      ? "#173222"
-                      : "#ECFDF3",
+                    ? isDark ? "#3B2E17" : "#FFF7E6"
+                    : isDark ? "#173222" : "#ECFDF3",
                 },
               ]}
             >
@@ -1401,23 +1573,16 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 style={[
                   styles.addressIcon,
                   {
-                    backgroundColor: addressResult.isApproximate
-                      ? WARNING
-                      : SUCCESS,
+                    backgroundColor: addressResult.isApproximate ? WARNING : SUCCESS,
                   },
                 ]}
               >
                 <Ionicons
-                  name={
-                    addressResult.isApproximate
-                      ? "warning-outline"
-                      : "checkmark"
-                  }
+                  name={addressResult.isApproximate ? "warning-outline" : "checkmark"}
                   size={14}
                   color="#FFFFFF"
                 />
               </View>
-
               <View style={styles.addressContent}>
                 <Text
                   style={[
@@ -1427,9 +1592,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     },
                   ]}
                 >
-                  {addressResult.isApproximate
-                    ? "Zone approximative"
-                    : "Lieu recherché"}
+                  {addressResult.isApproximate ? "Zone approximative" : "Lieu recherché"}
                 </Text>
                 <Text
                   numberOfLines={1}
@@ -1443,7 +1606,6 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   {addressResult.display_name}
                 </Text>
               </View>
-
               <TouchableOpacity
                 onPress={() => {
                   setAddressResult(null);
@@ -1451,19 +1613,12 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   showToast("Recherche annulée", "info");
                 }}
               >
-                <Ionicons
-                  name="close"
-                  size={18}
-                  color={themeColors.textSecondary}
-                />
+                <Ionicons name="close" size={18} color={themeColors.textSecondary} />
               </TouchableOpacity>
             </View>
           )}
 
-          {/* ==================================================
-              MASSAGE TYPES
-          ================================================== */}
-
+          {/* ✅ SECTION DES CATEGORIES UNIQUES */}
           <View style={styles.filterSection}>
             <View style={styles.sectionHeader}>
               <View>
@@ -1475,7 +1630,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     },
                   ]}
                 >
-                  Quel massage recherchez-vous ?
+                  Catégories de massage
                 </Text>
                 <Text
                   style={[
@@ -1485,122 +1640,121 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     },
                   ]}
                 >
-                  Choisissez une spécialité
+                  Choisissez une catégorie
                 </Text>
               </View>
-
-              <TouchableOpacity
-                onPress={() => setShowFilterModal(true)}
-                style={[
-                  styles.filterButton,
-                  {
-                    backgroundColor: themeColors.surface,
-                    borderColor: themeColors.border || "#E7EBF1",
-                  },
-                ]}
-              >
-                <Ionicons name="options-outline" size={17} color={PRIMARY} />
-                {activeFilterCount > 0 && (
-                  <View style={styles.filterCount}>
-                    <Text style={styles.filterCountText}>
-                      {activeFilterCount}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
             </View>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.typeList}
-            >
-              {/* ALL */}
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={[
-                  styles.typeChip,
-                  {
-                    backgroundColor: !selectedType
-                      ? PRIMARY
-                      : themeColors.surface,
-                    borderColor: !selectedType
-                      ? PRIMARY
-                      : themeColors.border || "#E7EBF1",
-                  },
-                ]}
-                onPress={() => {
-                  setSelectedType(null);
-                  showToast("Tous les types de massage", "info");
-                }}
-              >
-                <Ionicons
-                  name="apps-outline"
-                  size={15}
-                  color={!selectedType ? "#FFFFFF" : PRIMARY}
-                />
-                <Text
+            {massageTypesLoading ? (
+              <View style={styles.typeLoadingBox}>
+                <ActivityIndicator size="small" color={PRIMARY} />
+                <Text style={[styles.typeLoadingText, { color: themeColors.textSecondary }]}>
+                  Chargement des catégories…
+                </Text>
+              </View>
+            ) : groupedMassageTypes.length === 0 ? (
+              <View style={styles.typeLoadingBox}>
+                <Ionicons name="alert-circle-outline" size={20} color={themeColors.textSecondary} />
+                <Text style={[styles.typeLoadingText, { color: themeColors.textSecondary }]}>
+                  Aucune catégorie disponible
+                </Text>
+              </View>
+            ) : useGridCategories ? (
+              // ✅ GRID POUR TABLETTE ET WEB
+              <View style={[styles.typeGrid, isDesktopWidth && styles.typeGridDesktop]}>
+                {/* BOUTON "TOUS" */}
+                <TouchableOpacity
+                  activeOpacity={0.85}
                   style={[
-                    styles.typeChipText,
+                    styles.typeCard,
+                    isDesktopWidth && styles.typeCardDesktop,
                     {
-                      color: !selectedType ? "#FFFFFF" : themeColors.text,
+                      backgroundColor: !selectedCategory && !selectedType ? PRIMARY : themeColors.surface,
+                      borderColor: !selectedCategory && !selectedType ? PRIMARY : themeColors.border || "#E7EBF1",
                     },
                   ]}
+                  onPress={() => {
+                    setSelectedCategory(null);
+                    setSelectedType(null);
+                    setSearchQuery("");
+                    showToast("Toutes les catégories", "info");
+                  }}
                 >
-                  Tous
-                </Text>
-              </TouchableOpacity>
-
-              {MASSAGE_TYPES.map((type) => {
-                const active = selectedType === type.id;
-
-                return (
-                  <TouchableOpacity
-                    key={type.id}
-                    activeOpacity={0.85}
+                  <View
                     style={[
-                      styles.typeChip,
+                      styles.typeCardIcon,
                       {
-                        backgroundColor: active ? PRIMARY : themeColors.surface,
-                        borderColor: active
-                          ? PRIMARY
-                          : themeColors.border || "#E7EBF1",
+                        backgroundColor: !selectedCategory && !selectedType ? "rgba(255,255,255,0.18)" : `${PRIMARY}12`,
                       },
                     ]}
-                    onPress={() => {
-                      const newType = active ? null : type.id;
-                      setSelectedType(newType);
-                      if (newType) {
-                        showToast(`Filtre: ${type.name}`, "info");
-                      } else {
-                        showToast("Filtre supprimé", "info");
-                      }
-                    }}
                   >
-                    <MaterialCommunityIcons
-                      name={type.icon}
-                      size={16}
-                      color={active ? "#FFFFFF" : PRIMARY}
-                    />
-                    <Text
-                      style={[
-                        styles.typeChipText,
-                        {
-                          color: active ? "#FFFFFF" : themeColors.text,
-                        },
-                      ]}
-                    >
-                      {type.shortName}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
+                    <Ionicons name="apps-outline" size={18} color={!selectedCategory && !selectedType ? "#FFFFFF" : PRIMARY} />
+                  </View>
+                  <Text
+                    style={[
+                      styles.typeCardTitle,
+                      { color: !selectedCategory && !selectedType ? "#FFFFFF" : themeColors.text },
+                    ]}
+                  >
+                    Tous
+                  </Text>
+                  <Text
+                    style={[
+                      styles.typeCardSubtitle,
+                      {
+                        color: !selectedCategory && !selectedType ? "rgba(255,255,255,0.85)" : themeColors.textSecondary,
+                      },
+                    ]}
+                  >
+                    Toutes les catégories
+                  </Text>
+                </TouchableOpacity>
 
-          {/* ==================================================
-              QUICK FILTER SUMMARY
-          ================================================== */}
+                {/* CATEGORIES UNIQUES */}
+                {groupedMassageTypes.map((categoryGroup) => renderTypeCard(categoryGroup))}
+              </View>
+            ) : (
+              // ✅ CHIPS POUR MOBILE
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.typeList}
+              >
+                {/* BOUTON "TOUS" */}
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={[
+                    styles.typeChip,
+                    {
+                      backgroundColor: !selectedCategory && !selectedType ? PRIMARY : themeColors.surface,
+                      borderColor: !selectedCategory && !selectedType ? PRIMARY : themeColors.border || "#E7EBF1",
+                    },
+                  ]}
+                  onPress={() => {
+                    setSelectedCategory(null);
+                    setSelectedType(null);
+                    setSearchQuery("");
+                    showToast("Toutes les catégories", "info");
+                  }}
+                >
+                  <Ionicons name="apps-outline" size={15} color={!selectedCategory && !selectedType ? "#FFFFFF" : PRIMARY} />
+                  <Text
+                    style={[
+                      styles.typeChipText,
+                      {
+                        color: !selectedCategory && !selectedType ? "#FFFFFF" : themeColors.text,
+                      },
+                    ]}
+                  >
+                    Tous
+                  </Text>
+                </TouchableOpacity>
+
+                {/* CATEGORIES UNIQUES */}
+                {groupedMassageTypes.map((categoryGroup) => renderTypeChip(categoryGroup))}
+              </ScrollView>
+            )}
+          </View>
 
           <View style={styles.quickFilters}>
             <TouchableOpacity
@@ -1659,11 +1813,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 },
               ]}
             >
-              <Ionicons
-                name="swap-vertical-outline"
-                size={14}
-                color={SECONDARY}
-              />
+              <Ionicons name="swap-vertical-outline" size={14} color={SECONDARY} />
               <Text
                 style={[
                   styles.quickFilterText,
@@ -1672,18 +1822,10 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   },
                 ]}
               >
-                {sortMode === "distance"
-                  ? "Proximité"
-                  : sortMode === "rating"
-                    ? "Mieux notés"
-                    : "Prix"}
+                {sortMode === "distance" ? "Proximité" : sortMode === "rating" ? "Mieux notés" : "Prix"}
               </Text>
             </TouchableOpacity>
           </View>
-
-          {/* ==================================================
-              RESULTS HEADER
-          ================================================== */}
 
           <View style={styles.resultsHeader}>
             <View style={styles.resultsInfo}>
@@ -1695,8 +1837,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   },
                 ]}
               >
-                {filteredTherapists.length} professionnel
-                {filteredTherapists.length > 1 ? "s" : ""}
+                {filteredTherapists.length} professionnel{filteredTherapists.length > 1 ? "s" : ""}
               </Text>
               <Text
                 numberOfLines={1}
@@ -1707,13 +1848,10 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   },
                 ]}
               >
-                {selectedTypeObject
-                  ? selectedTypeObject.name
-                  : "Disponibles près de vous"}
+                {resultsSubtitle}
               </Text>
             </View>
 
-            {/* VIEW SWITCHER */}
             <View
               style={[
                 styles.viewSwitcher,
@@ -1730,11 +1868,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   showToast("Vue liste", "info");
                 }}
               >
-                <Ionicons
-                  name="list-outline"
-                  size={16}
-                  color={!showMap ? "#FFFFFF" : themeColors.textSecondary}
-                />
+                <Ionicons name="list-outline" size={16} color={!showMap ? "#FFFFFF" : themeColors.textSecondary} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -1745,100 +1879,40 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   showToast("Vue carte", "info");
                 }}
               >
-                <Ionicons
-                  name="map-outline"
-                  size={16}
-                  color={showMap ? "#FFFFFF" : themeColors.textSecondary}
-                />
+                <Ionicons name="map-outline" size={16} color={showMap ? "#FFFFFF" : themeColors.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* ==================================================
-              CONTENT
-          ================================================== */}
-
           {isLoading ? (
             <View style={styles.loadingContainer}>
-              <View
-                style={[
-                  styles.loadingIcon,
-                  {
-                    backgroundColor: `${PRIMARY}12`,
-                  },
-                ]}
-              >
+              <View style={[styles.loadingIcon, { backgroundColor: `${PRIMARY}12` }]}>
                 <ActivityIndicator size="large" color={PRIMARY} />
               </View>
-              <Text
-                style={[
-                  styles.loadingTitle,
-                  {
-                    color: themeColors.text,
-                  },
-                ]}
-              >
+              <Text style={[styles.loadingTitle, { color: themeColors.text }]}>
                 Recherche en cours
               </Text>
-              <Text
-                style={[
-                  styles.loadingSubtitle,
-                  {
-                    color: themeColors.textSecondary,
-                  },
-                ]}
-              >
+              <Text style={[styles.loadingSubtitle, { color: themeColors.textSecondary }]}>
                 Nous recherchons les meilleurs professionnels près de vous...
               </Text>
             </View>
           ) : filteredTherapists.length === 0 ? (
-            /* ==================================================
-               EMPTY
-            ================================================== */
             <View style={styles.emptyState}>
-              <View
-                style={[
-                  styles.emptyIcon,
-                  {
-                    backgroundColor: `${PRIMARY}12`,
-                  },
-                ]}
-              >
+              <View style={[styles.emptyIcon, { backgroundColor: `${PRIMARY}12` }]}>
                 <Ionicons name="search-outline" size={35} color={PRIMARY} />
               </View>
-              <Text
-                style={[
-                  styles.emptyTitle,
-                  {
-                    color: themeColors.text,
-                  },
-                ]}
-              >
+              <Text style={[styles.emptyTitle, { color: themeColors.text }]}>
                 Aucun professionnel trouvé
               </Text>
-              <Text
-                style={[
-                  styles.emptySubtitle,
-                  {
-                    color: themeColors.textSecondary,
-                  },
-                ]}
-              >
-                Essayez une autre spécialité, augmentez votre budget ou modifiez
-                votre recherche.
+              <Text style={[styles.emptySubtitle, { color: themeColors.textSecondary }]}>
+                Essayez une autre catégorie, augmentez votre budget ou modifiez votre recherche.
               </Text>
-              <TouchableOpacity
-                style={styles.resetButton}
-                onPress={resetFilters}
-              >
+              <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
                 <Ionicons name="refresh" size={15} color="#FFFFFF" />
                 <Text style={styles.resetButtonText}>Réinitialiser</Text>
               </TouchableOpacity>
             </View>
           ) : showMap ? (
-            /* ==================================================
-               MAP
-            ================================================== */
             <View style={styles.mapContainer}>
               <MapViewWrapper
                 ref={mapRef}
@@ -1853,32 +1927,19 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 mapType={mapType}
                 onMapTypeChange={setMapType}
                 initialRegion={{
-                  latitude:
-                    addressResult?.latitude ||
-                    userLocation?.latitude ||
-                    DEFAULT_REGION.latitude,
-                  longitude:
-                    addressResult?.longitude ||
-                    userLocation?.longitude ||
-                    DEFAULT_REGION.longitude,
-                  latitudeDelta: addressResult
-                    ? 0.02
-                    : DEFAULT_REGION.latitudeDelta,
-                  longitudeDelta: addressResult
-                    ? 0.02
-                    : DEFAULT_REGION.longitudeDelta,
+                  latitude: addressResult?.latitude || userLocation?.latitude || DEFAULT_REGION.latitude,
+                  longitude: addressResult?.longitude || userLocation?.longitude || DEFAULT_REGION.longitude,
+                  latitudeDelta: addressResult ? 0.02 : DEFAULT_REGION.latitudeDelta,
+                  longitudeDelta: addressResult ? 0.02 : DEFAULT_REGION.longitudeDelta,
                 }}
                 onMarkerPress={handleMarkerPress}
               />
 
-              {/* MAP TOP */}
               <View
                 style={[
                   styles.mapTopBadge,
                   {
-                    backgroundColor: isDark
-                      ? "rgba(20,22,28,0.95)"
-                      : "rgba(255,255,255,0.96)",
+                    backgroundColor: isDark ? "rgba(20,22,28,0.95)" : "rgba(255,255,255,0.96)",
                   },
                 ]}
               >
@@ -1893,19 +1954,12 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     },
                   ]}
                 >
-                  {filteredTherapists.length} masseur
-                  {filteredTherapists.length > 1 ? "s" : ""}
+                  {filteredTherapists.length} masseur{filteredTherapists.length > 1 ? "s" : ""}
                 </Text>
               </View>
 
-              {/* MAP TYPE */}
-              <MapTypeToggle
-                mapType={mapType}
-                onToggle={toggleMapType}
-                themeColors={themeColors}
-              />
+              <MapTypeToggle mapType={mapType} onToggle={toggleMapType} themeColors={themeColors} />
 
-              {/* CURRENT LOCATION */}
               <TouchableOpacity
                 style={[
                   styles.myLocationButton,
@@ -1918,60 +1972,24 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 <Ionicons name="navigate" size={18} color={PRIMARY} />
               </TouchableOpacity>
 
-              {/* LEGEND */}
               <View
                 style={[
                   styles.mapLegend,
                   {
-                    backgroundColor: isDark
-                      ? "rgba(20,22,28,0.95)"
-                      : "rgba(255,255,255,0.96)",
+                    backgroundColor: isDark ? "rgba(20,22,28,0.95)" : "rgba(255,255,255,0.96)",
                   },
                 ]}
               >
                 <View style={styles.legendItem}>
-                  <View
-                    style={[
-                      styles.legendDot,
-                      {
-                        backgroundColor: MARKER_COLORS.available,
-                      },
-                    ]}
-                  />
-                  <Text
-                    style={[
-                      styles.legendText,
-                      {
-                        color: themeColors.text,
-                      },
-                    ]}
-                  >
-                    Disponible
-                  </Text>
+                  <View style={[styles.legendDot, { backgroundColor: MARKER_COLORS.available }]} />
+                  <Text style={[styles.legendText, { color: themeColors.text }]}>Disponible</Text>
                 </View>
                 <View style={styles.legendItem}>
-                  <View
-                    style={[
-                      styles.legendDot,
-                      {
-                        backgroundColor: MARKER_COLORS.unavailable,
-                      },
-                    ]}
-                  />
-                  <Text
-                    style={[
-                      styles.legendText,
-                      {
-                        color: themeColors.text,
-                      },
-                    ]}
-                  >
-                    Indisponible
-                  </Text>
+                  <View style={[styles.legendDot, { backgroundColor: MARKER_COLORS.unavailable }]} />
+                  <Text style={[styles.legendText, { color: themeColors.text }]}>Indisponible</Text>
                 </View>
               </View>
 
-              {/* SELECTED THERAPIST */}
               {selectedMarker && (
                 <View
                   style={[
@@ -1981,56 +1999,25 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     },
                   ]}
                 >
-                  <TouchableOpacity
-                    style={styles.panelClose}
-                    onPress={() => handleMarkerPress(null)}
-                  >
-                    <Ionicons
-                      name="close"
-                      size={17}
-                      color={themeColors.textSecondary}
-                    />
+                  <TouchableOpacity style={styles.panelClose} onPress={() => handleMarkerPress(null)}>
+                    <Ionicons name="close" size={17} color={themeColors.textSecondary} />
                   </TouchableOpacity>
 
                   <View style={styles.panelHeader}>
-                    <View
-                      style={[
-                        styles.panelAvatar,
-                        {
-                          backgroundColor: `${PRIMARY}15`,
-                        },
-                      ]}
-                    >
+                    <View style={[styles.panelAvatar, { backgroundColor: `${PRIMARY}15` }]}>
                       <Text style={styles.panelAvatarText}>
                         {selectedMarker.name?.charAt(0)?.toUpperCase()}
                       </Text>
                     </View>
 
                     <View style={styles.panelInfo}>
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          styles.panelName,
-                          {
-                            color: themeColors.text,
-                          },
-                        ]}
-                      >
+                      <Text numberOfLines={1} style={[styles.panelName, { color: themeColors.text }]}>
                         {selectedMarker.name}
                       </Text>
                       <View style={styles.panelRating}>
                         <Ionicons name="star" size={12} color={STAR} />
-                        <Text style={styles.panelRatingText}>
-                          {selectedMarker.rating}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.panelReviews,
-                            {
-                              color: themeColors.textSecondary,
-                            },
-                          ]}
-                        >
+                        <Text style={styles.panelRatingText}>{selectedMarker.rating}</Text>
+                        <Text style={[styles.panelReviews, { color: themeColors.textSecondary }]}>
                           ({selectedMarker.reviews} avis)
                         </Text>
                       </View>
@@ -2041,9 +2028,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                         style={[
                           styles.panelAvailableDot,
                           {
-                            backgroundColor: selectedMarker.available
-                              ? SUCCESS
-                              : "#A0A5AD",
+                            backgroundColor: selectedMarker.available ? SUCCESS : "#A0A5AD",
                           },
                         ]}
                       />
@@ -2051,9 +2036,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                         style={[
                           styles.panelAvailableText,
                           {
-                            color: selectedMarker.available
-                              ? SUCCESS
-                              : "#8A8F98",
+                            color: selectedMarker.available ? SUCCESS : "#8A8F98",
                           },
                         ]}
                       >
@@ -2064,35 +2047,13 @@ const SearchMassageScreen = ({ navigation, route }) => {
 
                   <View style={styles.panelStats}>
                     <View style={styles.panelStat}>
-                      <Ionicons
-                        name="navigate-outline"
-                        size={15}
-                        color={PRIMARY}
-                      />
+                      <Ionicons name="navigate-outline" size={15} color={PRIMARY} />
                       <View>
-                        <Text
-                          style={[
-                            styles.panelStatLabel,
-                            {
-                              color: themeColors.textSecondary,
-                            },
-                          ]}
-                        >
+                        <Text style={[styles.panelStatLabel, { color: themeColors.textSecondary }]}>
                           Distance
                         </Text>
-                        <Text
-                          style={[
-                            styles.panelStatValue,
-                            {
-                              color: themeColors.text,
-                            },
-                          ]}
-                        >
-                          {isRouting
-                            ? "Calcul..."
-                            : selectedRoute
-                              ? selectedRoute.distanceText
-                              : formatDistance(selectedMarker.distance)}
+                        <Text style={[styles.panelStatValue, { color: themeColors.text }]}>
+                          {isRouting ? "Calcul..." : selectedRoute ? selectedRoute.distanceText : formatDistance(selectedMarker.distance)}
                         </Text>
                       </View>
                     </View>
@@ -2100,37 +2061,17 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     <View style={styles.panelStat}>
                       <Ionicons name="time-outline" size={15} color={PRIMARY} />
                       <View>
-                        <Text
-                          style={[
-                            styles.panelStatLabel,
-                            {
-                              color: themeColors.textSecondary,
-                            },
-                          ]}
-                        >
+                        <Text style={[styles.panelStatLabel, { color: themeColors.textSecondary }]}>
                           Trajet
                         </Text>
-                        <Text
-                          style={[
-                            styles.panelStatValue,
-                            {
-                              color: themeColors.text,
-                            },
-                          ]}
-                        >
-                          {isRouting
-                            ? "..."
-                            : selectedRoute
-                              ? selectedRoute.durationText
-                              : "—"}
+                        <Text style={[styles.panelStatValue, { color: themeColors.text }]}>
+                          {isRouting ? "..." : selectedRoute ? selectedRoute.durationText : "—"}
                         </Text>
                       </View>
                     </View>
 
                     <View style={styles.panelPriceContainer}>
-                      <Text style={styles.panelPrice}>
-                        {formatPrice(selectedMarker.price || 0)}
-                      </Text>
+                      <Text style={styles.panelPrice}>{formatPrice(selectedMarker.price || 0)}</Text>
                     </View>
                   </View>
 
@@ -2139,41 +2080,26 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     disabled={!selectedMarker.available}
                     onPress={() => {
                       if (selectedMarker.available) {
-                        navigation.navigate("BookingDetail", {
-                          therapist: selectedMarker,
-                        });
+                        navigation.navigate("BookingDetail", { therapist: selectedMarker });
                         showToast(`Réservation pour ${selectedMarker.name}`, "success");
                       }
                     }}
                     style={[
                       styles.panelButton,
                       {
-                        backgroundColor: selectedMarker.available
-                          ? PRIMARY
-                          : "#999999",
+                        backgroundColor: selectedMarker.available ? PRIMARY : "#999999",
                       },
                     ]}
                   >
                     <Text style={styles.panelButtonText}>
-                      {selectedMarker.available
-                        ? "Voir le profil et réserver"
-                        : "Indisponible"}
+                      {selectedMarker.available ? "Voir le profil et réserver" : "Indisponible"}
                     </Text>
-                    {selectedMarker.available && (
-                      <Ionicons
-                        name="arrow-forward"
-                        size={16}
-                        color="#FFFFFF"
-                      />
-                    )}
+                    {selectedMarker.available && <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />}
                   </TouchableOpacity>
                 </View>
               )}
             </View>
           ) : (
-            /* ==================================================
-               LIST
-            ================================================== */
             <FlatList
               data={filteredTherapists}
               renderItem={renderTherapistCard}
@@ -2185,10 +2111,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
         </ScrollView>
       </Animated.View>
 
-      {/* ======================================================
-          FILTER MODAL
-      ====================================================== */}
-
+      {/* FILTER MODAL */}
       <Modal
         visible={showFilterModal}
         transparent
@@ -2208,37 +2131,18 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 },
               ]}
             >
-              {/* HANDLE */}
               <View style={styles.modalHandle} />
 
-              {/* HEADER */}
               <View style={styles.modalHeader}>
                 <View>
-                  <Text
-                    style={[
-                      styles.modalTitle,
-                      {
-                        color: themeColors.text,
-                      },
-                    ]}
-                  >
+                  <Text style={[styles.modalTitle, { color: themeColors.text }]}>
                     Affiner votre recherche
                   </Text>
-                  <Text
-                    style={[
-                      styles.modalSubtitle,
-                      {
-                        color: themeColors.textSecondary,
-                      },
-                    ]}
-                  >
+                  <Text style={[styles.modalSubtitle, { color: themeColors.textSecondary }]}>
                     Trouvez le professionnel qui vous correspond
                   </Text>
                 </View>
-                <TouchableOpacity
-                  style={styles.modalClose}
-                  onPress={() => setShowFilterModal(false)}
-                >
+                <TouchableOpacity style={styles.modalClose} onPress={() => setShowFilterModal(false)}>
                   <Ionicons name="close" size={20} color={themeColors.text} />
                 </TouchableOpacity>
               </View>
@@ -2248,49 +2152,26 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 <View style={styles.modalGroup}>
                   <View style={styles.modalGroupHeader}>
                     <View>
-                      <Text
-                        style={[
-                          styles.modalGroupTitle,
-                          {
-                            color: themeColors.text,
-                          },
-                        ]}
-                      >
-                        Durée
-                      </Text>
-                      <Text
-                        style={[
-                          styles.modalGroupHint,
-                          {
-                            color: themeColors.textSecondary,
-                          },
-                        ]}
-                      >
+                      <Text style={[styles.modalGroupTitle, { color: themeColors.text }]}>Durée</Text>
+                      <Text style={[styles.modalGroupHint, { color: themeColors.textSecondary }]}>
                         Choisissez la durée de votre séance
                       </Text>
                     </View>
                     <View style={styles.selectedValueBadge}>
-                      <Text style={styles.selectedValueText}>
-                        {selectedDuration} min
-                      </Text>
+                      <Text style={styles.selectedValueText}>{selectedDuration} min</Text>
                     </View>
                   </View>
 
                   <View style={styles.modalOptionsRow}>
                     {[60, 90, 120].map((duration) => {
                       const active = selectedDuration === duration;
-
                       return (
                         <TouchableOpacity
                           key={duration}
                           style={[
                             styles.modalOption,
                             {
-                              backgroundColor: active
-                                ? PRIMARY
-                                : isDark
-                                  ? "#292D35"
-                                  : "#F3F5F8",
+                              backgroundColor: active ? PRIMARY : isDark ? "#292D35" : "#F3F5F8",
                               borderColor: active ? PRIMARY : "transparent",
                             },
                           ]}
@@ -2299,11 +2180,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                             showToast(`Durée: ${duration} min`, "info");
                           }}
                         >
-                          <Ionicons
-                            name="time-outline"
-                            size={16}
-                            color={active ? "#FFFFFF" : PRIMARY}
-                          />
+                          <Ionicons name="time-outline" size={16} color={active ? "#FFFFFF" : PRIMARY} />
                           <Text
                             style={[
                               styles.modalOptionText,
@@ -2324,47 +2201,24 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 <View style={styles.modalGroup}>
                   <View style={styles.modalGroupHeader}>
                     <View>
-                      <Text
-                        style={[
-                          styles.modalGroupTitle,
-                          {
-                            color: themeColors.text,
-                          },
-                        ]}
-                      >
-                        Budget maximum
-                      </Text>
-                      <Text
-                        style={[
-                          styles.modalGroupHint,
-                          {
-                            color: themeColors.textSecondary,
-                          },
-                        ]}
-                      >
+                      <Text style={[styles.modalGroupTitle, { color: themeColors.text }]}>Budget maximum</Text>
+                      <Text style={[styles.modalGroupHint, { color: themeColors.textSecondary }]}>
                         Prix maximum par séance
                       </Text>
                     </View>
-                    <Text style={styles.priceModalValue}>
-                      {formatPrice(selectedPrice)}
-                    </Text>
+                    <Text style={styles.priceModalValue}>{formatPrice(selectedPrice)}</Text>
                   </View>
 
                   <View style={styles.modalOptionsRow}>
                     {[30000, 50000, 70000, 100000].map((price) => {
                       const active = selectedPrice === price;
-
                       return (
                         <TouchableOpacity
                           key={price}
                           style={[
                             styles.priceModalOption,
                             {
-                              backgroundColor: active
-                                ? PRIMARY
-                                : isDark
-                                  ? "#292D35"
-                                  : "#F3F5F8",
+                              backgroundColor: active ? PRIMARY : isDark ? "#292D35" : "#F3F5F8",
                             },
                           ]}
                           onPress={() => {
@@ -2390,59 +2244,26 @@ const SearchMassageScreen = ({ navigation, route }) => {
 
                 {/* SORT */}
                 <View style={styles.modalGroup}>
-                  <Text
-                    style={[
-                      styles.modalGroupTitle,
-                      {
-                        color: themeColors.text,
-                      },
-                    ]}
-                  >
-                    Trier les résultats
-                  </Text>
-                  <Text
-                    style={[
-                      styles.modalGroupHint,
-                      {
-                        color: themeColors.textSecondary,
-                      },
-                    ]}
-                  >
+                  <Text style={[styles.modalGroupTitle, { color: themeColors.text }]}>Trier les résultats</Text>
+                  <Text style={[styles.modalGroupHint, { color: themeColors.textSecondary }]}>
                     Choisissez ce qui est le plus important pour vous
                   </Text>
 
                   <View style={styles.sortOptions}>
                     {[
-                      {
-                        id: "distance",
-                        label: "Plus proche",
-                        icon: "location-outline",
-                      },
-                      {
-                        id: "rating",
-                        label: "Mieux noté",
-                        icon: "star-outline",
-                      },
-                      {
-                        id: "price",
-                        label: "Prix le plus bas",
-                        icon: "pricetag-outline",
-                      },
+                      { id: "distance", label: "Plus proche", icon: "location-outline" },
+                      { id: "rating", label: "Mieux noté", icon: "star-outline" },
+                      { id: "price", label: "Prix le plus bas", icon: "pricetag-outline" },
                     ].map((option) => {
                       const active = sortMode === option.id;
-
                       return (
                         <TouchableOpacity
                           key={option.id}
                           style={[
                             styles.sortModalOption,
                             {
-                              backgroundColor: active
-                                ? `${PRIMARY}10`
-                                : "transparent",
-                              borderColor: active
-                                ? PRIMARY
-                                : themeColors.border || "#E4E8ED",
+                              backgroundColor: active ? `${PRIMARY}10` : "transparent",
+                              borderColor: active ? PRIMARY : themeColors.border || "#E4E8ED",
                             },
                           ]}
                           onPress={() => {
@@ -2454,20 +2275,14 @@ const SearchMassageScreen = ({ navigation, route }) => {
                             style={[
                               styles.sortModalIcon,
                               {
-                                backgroundColor: active
-                                  ? PRIMARY
-                                  : isDark
-                                    ? "#292D35"
-                                    : "#F3F5F8",
+                                backgroundColor: active ? PRIMARY : isDark ? "#292D35" : "#F3F5F8",
                               },
                             ]}
                           >
                             <Ionicons
                               name={option.icon}
                               size={15}
-                              color={
-                                active ? "#FFFFFF" : themeColors.textSecondary
-                              }
+                              color={active ? "#FFFFFF" : themeColors.textSecondary}
                             />
                           </View>
                           <Text
@@ -2480,13 +2295,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                           >
                             {option.label}
                           </Text>
-                          {active && (
-                            <Ionicons
-                              name="checkmark-circle"
-                              size={18}
-                              color={PRIMARY}
-                            />
-                          )}
+                          {active && <Ionicons name="checkmark-circle" size={18} color={PRIMARY} />}
                         </TouchableOpacity>
                       );
                     })}
@@ -2496,19 +2305,12 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 {/* IA INFO */}
                 <View style={styles.aiInfoCard}>
                   <View style={styles.aiInfoIcon}>
-                    <MaterialCommunityIcons
-                      name="robot-outline"
-                      size={22}
-                      color={SUCCESS}
-                    />
+                    <MaterialCommunityIcons name="robot-outline" size={22} color={SUCCESS} />
                   </View>
                   <View style={styles.aiInfoContent}>
-                    <Text style={styles.aiInfoTitle}>
-                      Recommandation intelligente
-                    </Text>
+                    <Text style={styles.aiInfoTitle}>Recommandation intelligente</Text>
                     <Text style={styles.aiInfoText}>
-                      Les résultats pourront être classés selon la distance, le
-                      prix, la disponibilité, la note et l'expérience.
+                      Les résultats pourront être classés selon la distance, le prix, la disponibilité, la note et l'expérience.
                     </Text>
                   </View>
                 </View>
@@ -2516,20 +2318,8 @@ const SearchMassageScreen = ({ navigation, route }) => {
 
               {/* ACTIONS */}
               <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.resetModalButton}
-                  onPress={resetFilters}
-                >
-                  <Text
-                    style={[
-                      styles.resetModalText,
-                      {
-                        color: themeColors.text,
-                      },
-                    ]}
-                  >
-                    Réinitialiser
-                  </Text>
+                <TouchableOpacity style={styles.resetModalButton} onPress={resetFilters}>
+                  <Text style={[styles.resetModalText, { color: themeColors.text }]}>Réinitialiser</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -2540,9 +2330,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     showToast("Filtres appliqués", "success");
                   }}
                 >
-                  <Text style={styles.applyModalText}>
-                    Afficher les résultats
-                  </Text>
+                  <Text style={styles.applyModalText}>Afficher les résultats</Text>
                   <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
@@ -2559,21 +2347,9 @@ const SearchMassageScreen = ({ navigation, route }) => {
 ============================================================ */
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-
-  flex: {
-    flex: 1,
-  },
-
-  scrollContent: {
-    paddingBottom: 100,
-  },
-
-  /* ========================================================
-     TOAST - Centré parfaitement
-  ======================================================== */
+  container: { flex: 1 },
+  flex: { flex: 1 },
+  scrollContent: { paddingBottom: 100 },
 
   toastContainer: {
     position: "absolute",
@@ -2598,1167 +2374,181 @@ const styles = StyleSheet.create({
     width: Platform.OS === "web" ? "auto" : "90%",
     minWidth: Platform.OS === "web" ? 320 : "auto",
   },
-
-  toastContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-    gap: 10,
-  },
-
-  toastMessage: {
-    fontSize: 12.5,
-    fontFamily: typography.fontFamily.medium,
-    flex: 1,
-    lineHeight: 18,
-  },
-
-  toastClose: {
-    paddingLeft: 8,
-    paddingVertical: 4,
-  },
-
-  /* ========================================================
-     HERO
-  ======================================================== */
-
-  heroSection: {
-    marginHorizontal: 16,
-    marginTop: 8,
-    borderRadius: 24,
-    overflow: "hidden",
-  },
-
-  heroGradient: {
-    minHeight: 185,
-    padding: 16,
-    position: "relative",
-    overflow: "hidden",
-  },
-
-  heroDecorOne: {
-    position: "absolute",
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    right: -70,
-    top: -80,
-    backgroundColor: "rgba(255,255,255,0.08)",
-  },
-
-  heroDecorTwo: {
-    position: "absolute",
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    left: -45,
-    bottom: -50,
-    backgroundColor: "rgba(255,255,255,0.06)",
-  },
-
-  heroContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-
-  heroIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
-    backgroundColor: "rgba(255,255,255,0.14)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 11,
-  },
-
-  heroText: {
-    flex: 1,
-  },
-
-  heroTitle: {
-    color: "#FFFFFF",
-    fontSize: 19,
-    lineHeight: 24,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  heroTitleAccent: {
-    color: "#BBD2FF",
-  },
-
-  heroSubtitle: {
-    color: "rgba(255,255,255,0.72)",
-    fontSize: 9.5,
-    lineHeight: 14,
-    marginTop: 3,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  searchBox: {
-    height: 50,
-    borderRadius: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 5,
-  },
-
-  searchIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  searchInput: {
-    flex: 1,
-    fontSize: 12,
-    paddingHorizontal: 3,
-    fontFamily: typography.fontFamily.regular,
-    ...(Platform.OS === "web"
-      ? {
-          outlineStyle: "none",
-        }
-      : {}),
-  },
-
-  clearButton: {
-    padding: 5,
-  },
-
-  searchAction: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: PRIMARY,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  locationStatus: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-  },
-
-  locationDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 6,
-  },
-
-  locationStatusText: {
-    flex: 1,
-    color: "rgba(255,255,255,0.68)",
-    fontSize: 8.5,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  /* ========================================================
-     ADDRESS
-  ======================================================== */
-
-  addressCard: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    borderRadius: 15,
-    padding: 10,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  addressIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-  },
-
-  addressContent: {
-    flex: 1,
-  },
-
-  addressLabel: {
-    fontSize: 10,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  addressValue: {
-    fontSize: 9,
-    marginTop: 2,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  /* ========================================================
-     FILTERS
-  ======================================================== */
-
-  filterSection: {
-    marginTop: 20,
-  },
-
-  sectionHeader: {
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  sectionTitle: {
-    fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  sectionSubtitle: {
-    fontSize: 9,
-    marginTop: 3,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  filterButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-  },
-
-  filterCount: {
-    position: "absolute",
-    right: -3,
-    top: -4,
-    width: 17,
-    height: 17,
-    borderRadius: 9,
-    backgroundColor: DANGER,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-
-  filterCountText: {
-    color: "#FFFFFF",
-    fontSize: 7,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  typeList: {
-    paddingHorizontal: 16,
-    paddingTop: 11,
-    paddingBottom: 3,
-  },
-
-  typeChip: {
-    minHeight: 38,
-    paddingHorizontal: 12,
-    borderRadius: 13,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    marginRight: 7,
-  },
-
-  typeChipText: {
-    fontSize: 10,
-    marginLeft: 5,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  /* ========================================================
-     QUICK FILTERS
-  ======================================================== */
-
-  quickFilters: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    marginTop: 10,
-    gap: 7,
-  },
-
-  quickFilter: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 9,
-    paddingVertical: 7,
-  },
-
-  quickFilterText: {
-    fontSize: 8.5,
-    marginLeft: 5,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  /* ========================================================
-     RESULTS
-  ======================================================== */
-
-  resultsHeader: {
-    paddingHorizontal: 16,
-    marginTop: 20,
-    marginBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  resultsInfo: {
-    flex: 1,
-    paddingRight: 10,
-  },
-
-  resultsTitle: {
-    fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  resultsSubtitle: {
-    fontSize: 9,
-    marginTop: 2,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  viewSwitcher: {
-    height: 38,
-    borderRadius: 12,
-    borderWidth: 1,
-    padding: 3,
-    flexDirection: "row",
-  },
-
-  viewButton: {
-    width: 35,
-    height: 30,
-    borderRadius: 9,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  viewButtonActive: {
-    backgroundColor: PRIMARY,
-  },
-
-  /* ========================================================
-     THERAPIST CARD
-  ======================================================== */
-
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 30,
-  },
-
-  cardWrapper: {
-    marginBottom: 11,
-  },
-
-  therapistCard: {
-    borderRadius: 21,
-    borderWidth: 1,
-    padding: 13,
-    overflow: "hidden",
-  },
-
-  aiRecommendationBadge: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    borderRadius: 7,
-    backgroundColor: SUCCESS,
-    marginBottom: 10,
-  },
-
-  aiRecommendationText: {
-    color: "#FFFFFF",
-    fontSize: 6.5,
-    letterSpacing: 0.4,
-    marginLeft: 4,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  cardTop: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  avatar: {
-    width: 57,
-    height: 57,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
-    marginRight: 10,
-    overflow: "visible",
-  },
-
-  avatarImage: {
-    width: 57,
-    height: 57,
-    borderRadius: 18,
-  },
-
-  avatarText: {
-    color: PRIMARY,
-    fontSize: 22,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  onlineDot: {
-    position: "absolute",
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    right: -2,
-    bottom: -1,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-
-  cardInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-
-  therapistName: {
-    flexShrink: 1,
-    fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 4,
-  },
-
-  ratingText: {
-    fontSize: 10,
-    marginLeft: 3,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  reviewText: {
-    fontSize: 8,
-    marginLeft: 3,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  experienceText: {
-    fontSize: 8,
-    marginTop: 3,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  distanceContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 7,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: `${PRIMARY}0C`,
-    marginLeft: 6,
-  },
-
-  distanceText: {
-    fontSize: 8,
-    marginLeft: 3,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  specialtiesRow: {
-    flexDirection: "row",
-    marginTop: 12,
-    gap: 5,
-  },
-
-  specialtyChip: {
-    maxWidth: "48%",
-    paddingHorizontal: 7,
-    paddingVertical: 5,
-    borderRadius: 7,
-  },
-
-  specialtyText: {
-    fontSize: 7.5,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  cardMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#EEF1F5",
-  },
-
-  metaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  metaText: {
-    fontSize: 8,
-    marginLeft: 4,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  metaDivider: {
-    width: 1,
-    height: 16,
-    backgroundColor: "#E5E8ED",
-    marginHorizontal: 8,
-  },
-
-  priceText: {
-    color: PRIMARY,
-    fontSize: 10,
-    marginLeft: "auto",
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  addressRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 9,
-  },
-
-  addressText: {
-    flex: 1,
-    fontSize: 8,
-    marginLeft: 4,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  cardFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 11,
-  },
-
-  statusBadge: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 7,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-
-  statusDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    marginRight: 5,
-  },
-
-  statusText: {
-    fontSize: 7.5,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  bookButton: {
-    minWidth: 116,
-    height: 36,
-    paddingHorizontal: 10,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 5,
-  },
-
-  bookButtonText: {
-    fontSize: 9,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  /* ========================================================
-     MAP
-  ======================================================== */
-
-  mapContainer: {
-    marginHorizontal: 16,
-    height: Math.min(height * 0.53, 520),
-    minHeight: 410,
-    borderRadius: 23,
-    overflow: "hidden",
-    position: "relative",
-    backgroundColor: "#E5E7EB",
-  },
-
-  map: {
-    flex: 1,
-  },
-
-  mapTopBadge: {
-    position: "absolute",
-    top: 12,
-    left: 12,
-    minHeight: 35,
-    paddingHorizontal: 9,
-    borderRadius: 11,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  mapTopIcon: {
-    width: 24,
-    height: 24,
-    borderRadius: 8,
-    backgroundColor: `${PRIMARY}12`,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 5,
-  },
-
-  mapTopText: {
-    fontSize: 8.5,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  mapTypeButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    height: 35,
-    paddingHorizontal: 9,
-    borderRadius: 11,
-    borderWidth: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-
-  mapTypeButtonText: {
-    fontSize: 8,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  myLocationButton: {
-    position: "absolute",
-    right: 12,
-    bottom: 128,
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  mapLegend: {
-    position: "absolute",
-    left: 12,
-    bottom: 12,
-    paddingHorizontal: 9,
-    paddingVertical: 7,
-    borderRadius: 11,
-  },
-
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 2,
-  },
-
-  legendDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 5,
-  },
-
-  legendText: {
-    fontSize: 7,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  /* ========================================================
-     SELECTED PANEL
-  ======================================================== */
-
-  selectedPanel: {
-    position: "absolute",
-    left: 10,
-    right: 10,
-    bottom: 10,
-    borderRadius: 20,
-    padding: 13,
-  },
-
-  panelClose: {
-    position: "absolute",
-    right: 9,
-    top: 9,
-    width: 27,
-    height: 27,
-    borderRadius: 9,
-    backgroundColor: "rgba(127,127,127,0.10)",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 3,
-  },
-
-  panelHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingRight: 25,
-  },
-
-  panelAvatar: {
-    width: 45,
-    height: 45,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 9,
-  },
-
-  panelAvatarText: {
-    color: PRIMARY,
-    fontSize: 18,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  panelInfo: {
-    flex: 1,
-  },
-
-  panelName: {
-    fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  panelRating: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 3,
-  },
-
-  panelRatingText: {
-    color: "#D98B00",
-    fontSize: 9,
-    marginLeft: 3,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  panelReviews: {
-    fontSize: 8,
-    marginLeft: 3,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  panelAvailable: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginLeft: 5,
-  },
-
-  panelAvailableDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 4,
-  },
-
-  panelAvailableText: {
-    fontSize: 7,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  panelStats: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#EEF1F5",
-  },
-
-  panelStat: {
-    flexDirection: "row",
-    alignItems: "center",
-    flex: 1,
-  },
-
-  panelStatLabel: {
-    fontSize: 7,
-    marginLeft: 5,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  panelStatValue: {
-    fontSize: 9,
-    marginLeft: 5,
-    marginTop: 1,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  panelPriceContainer: {
-    alignItems: "flex-end",
-  },
-
-  panelPrice: {
-    color: PRIMARY,
-    fontSize: 12,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  panelButton: {
-    height: 38,
-    marginTop: 11,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 6,
-  },
-
-  panelButtonText: {
-    color: "#FFFFFF",
-    fontSize: 9.5,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  /* ========================================================
-     LOADING
-  ======================================================== */
-
-  loadingContainer: {
-    alignItems: "center",
-    paddingHorizontal: 30,
-    paddingVertical: 60,
-  },
-
-  loadingIcon: {
-    width: 68,
-    height: 68,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  loadingTitle: {
-    fontSize: 15,
-    marginTop: 14,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  loadingSubtitle: {
-    textAlign: "center",
-    fontSize: 9.5,
-    lineHeight: 15,
-    marginTop: 5,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  /* ========================================================
-     EMPTY
-  ======================================================== */
-
-  emptyState: {
-    alignItems: "center",
-    paddingHorizontal: 30,
-    paddingVertical: 60,
-  },
-
-  emptyIcon: {
-    width: 76,
-    height: 76,
-    borderRadius: 25,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  emptyTitle: {
-    fontSize: 16,
-    marginTop: 16,
-    textAlign: "center",
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  emptySubtitle: {
-    fontSize: 10,
-    lineHeight: 16,
-    textAlign: "center",
-    marginTop: 6,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  resetButton: {
-    marginTop: 17,
-    minHeight: 40,
-    paddingHorizontal: 17,
-    borderRadius: 12,
-    backgroundColor: PRIMARY,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-  },
-
-  resetButtonText: {
-    color: "#FFFFFF",
-    fontSize: 9.5,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  /* ========================================================
-     MODAL
-  ======================================================== */
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.48)",
-    justifyContent: "flex-end",
-  },
-
-  modalKeyboard: {
-    width: "100%",
-    maxHeight: "90%",
-  },
-
-  filterModal: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    paddingBottom: 15,
-  },
-
-  modalHandle: {
-    alignSelf: "center",
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#C9CDD4",
-    marginBottom: 15,
-  },
-
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 18,
-  },
-
-  modalTitle: {
-    fontSize: 18,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  modalSubtitle: {
-    fontSize: 9,
-    marginTop: 3,
-    maxWidth: 260,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  modalClose: {
-    width: 35,
-    height: 35,
-    borderRadius: 11,
-    backgroundColor: "rgba(127,127,127,0.10)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  modalGroup: {
-    marginBottom: 21,
-  },
-
-  modalGroupHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-
-  modalGroupTitle: {
-    fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  modalGroupHint: {
-    fontSize: 8.5,
-    marginTop: 3,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  selectedValueBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: `${PRIMARY}10`,
-  },
-
-  selectedValueText: {
-    color: PRIMARY,
-    fontSize: 8.5,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  modalOptionsRow: {
-    flexDirection: "row",
-    gap: 7,
-  },
-
-  modalOption: {
-    flex: 1,
-    minHeight: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 5,
-  },
-
-  modalOptionText: {
-    fontSize: 9,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  priceModalValue: {
-    color: PRIMARY,
-    fontSize: 12,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  priceModalOption: {
-    flex: 1,
-    minHeight: 42,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  priceModalText: {
-    fontSize: 10,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  sortOptions: {
-    marginTop: 10,
-    gap: 7,
-  },
-
-  sortModalOption: {
-    minHeight: 50,
-    borderWidth: 1,
-    borderRadius: 13,
-    paddingHorizontal: 9,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  sortModalIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 9,
-  },
-
-  sortModalText: {
-    flex: 1,
-    fontSize: 9.5,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  aiInfoCard: {
-    borderRadius: 16,
-    padding: 11,
-    flexDirection: "row",
-    backgroundColor: "#ECFDF3",
-    borderWidth: 1,
-    borderColor: "#C9F0D8",
-    marginBottom: 10,
-  },
-
-  aiInfoIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    backgroundColor: "#D9F7E5",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 9,
-  },
-
-  aiInfoContent: {
-    flex: 1,
-  },
-
-  aiInfoTitle: {
-    color: "#14532D",
-    fontSize: 10,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  aiInfoText: {
-    color: "#52705B",
-    fontSize: 8,
-    lineHeight: 13,
-    marginTop: 3,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  modalActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 7,
-    gap: 8,
-  },
-
-  resetModalButton: {
-    flex: 0.85,
-    height: 47,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(127,127,127,0.08)",
-  },
-
-  resetModalText: {
-    fontSize: 9.5,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  applyModalButton: {
-    flex: 1.6,
-    height: 47,
-    borderRadius: 13,
-    backgroundColor: PRIMARY,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 7,
-  },
-
-  applyModalText: {
-    color: "#FFFFFF",
-    fontSize: 9.5,
-    fontFamily: typography.fontFamily.semiBold,
-  },
+  toastContent: { flexDirection: "row", alignItems: "center", flex: 1, gap: 10 },
+  toastMessage: { fontSize: 12.5, fontFamily: typography.fontFamily.medium, flex: 1, lineHeight: 18 },
+  toastClose: { paddingLeft: 8, paddingVertical: 4 },
+
+  heroSection: { marginHorizontal: 16, marginTop: 8, borderRadius: 24, overflow: "hidden" },
+  heroGradient: { minHeight: 185, padding: 16, position: "relative", overflow: "hidden" },
+  heroDecorOne: { position: "absolute", width: 150, height: 150, borderRadius: 75, right: -70, top: -80, backgroundColor: "rgba(255,255,255,0.08)" },
+  heroDecorTwo: { position: "absolute", width: 90, height: 90, borderRadius: 45, left: -45, bottom: -50, backgroundColor: "rgba(255,255,255,0.06)" },
+  heroContent: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
+  heroIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center", marginRight: 11 },
+  heroText: { flex: 1 },
+  heroTitle: { color: "#FFFFFF", fontSize: 19, lineHeight: 24, fontFamily: typography.fontFamily.bold },
+  heroTitleAccent: { color: "#BBD2FF" },
+  heroSubtitle: { color: "rgba(255,255,255,0.72)", fontSize: 9.5, lineHeight: 14, marginTop: 3, fontFamily: typography.fontFamily.regular },
+  searchBox: { height: 50, borderRadius: 16, flexDirection: "row", alignItems: "center", paddingHorizontal: 5 },
+  searchIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  searchInput: { flex: 1, fontSize: 12, paddingHorizontal: 3, fontFamily: typography.fontFamily.regular },
+  clearButton: { padding: 5 },
+  searchAction: { width: 38, height: 38, borderRadius: 12, backgroundColor: PRIMARY, alignItems: "center", justifyContent: "center" },
+  locationStatus: { flexDirection: "row", alignItems: "center", marginTop: 10 },
+  locationDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
+  locationStatusText: { flex: 1, color: "rgba(255,255,255,0.68)", fontSize: 8.5, fontFamily: typography.fontFamily.regular },
+
+  addressCard: { marginHorizontal: 16, marginTop: 10, borderRadius: 15, padding: 10, flexDirection: "row", alignItems: "center" },
+  addressIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", marginRight: 8 },
+  addressContent: { flex: 1 },
+  addressLabel: { fontSize: 10, fontFamily: typography.fontFamily.semiBold },
+  addressValue: { fontSize: 9, marginTop: 2, fontFamily: typography.fontFamily.regular },
+
+  filterSection: { marginTop: 20 },
+  sectionHeader: { paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  sectionTitle: { fontSize: 15, fontFamily: typography.fontFamily.bold },
+  sectionSubtitle: { fontSize: 9, marginTop: 3, fontFamily: typography.fontFamily.regular },
+  typeLoadingBox: { minHeight: 70, borderRadius: 14, borderWidth: 1, borderColor: "#E7EBF1", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
+  typeLoadingText: { fontSize: 11, fontFamily: typography.fontFamily.regular },
+  typeList: { paddingHorizontal: 16, paddingTop: 11, paddingBottom: 3 },
+  typeChip: { minHeight: 38, paddingHorizontal: 12, borderRadius: 13, borderWidth: 1, flexDirection: "row", alignItems: "center", marginRight: 7 },
+  typeChipText: { fontSize: 10, marginLeft: 5, fontFamily: typography.fontFamily.medium },
+
+  typeGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, paddingTop: 11, paddingBottom: 5, gap: 10 },
+  typeGridDesktop: { paddingHorizontal: 24, gap: 14 },
+  typeCard: { width: "31%", minWidth: 150, minHeight: 96, borderRadius: 16, borderWidth: 1, padding: 12, justifyContent: "center" },
+  typeCardDesktop: { width: 190, minHeight: 108, padding: 16 },
+  typeCardIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 8 },
+  typeCardTitle: { fontSize: 12.5, fontFamily: typography.fontFamily.bold },
+  typeCardSubtitle: { fontSize: 9, marginTop: 2, fontFamily: typography.fontFamily.regular },
+
+  quickFilters: { flexDirection: "row", paddingHorizontal: 16, marginTop: 10, gap: 7 },
+  quickFilter: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7 },
+  quickFilterText: { fontSize: 8.5, marginLeft: 5, fontFamily: typography.fontFamily.medium },
+
+  resultsHeader: { paddingHorizontal: 16, marginTop: 20, marginBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  resultsInfo: { flex: 1, paddingRight: 10 },
+  resultsTitle: { fontSize: 15, fontFamily: typography.fontFamily.bold },
+  resultsSubtitle: { fontSize: 9, marginTop: 2, fontFamily: typography.fontFamily.regular },
+  viewSwitcher: { height: 38, borderRadius: 12, borderWidth: 1, padding: 3, flexDirection: "row" },
+  viewButton: { width: 35, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  viewButtonActive: { backgroundColor: PRIMARY },
+
+  listContent: { paddingHorizontal: 16, paddingBottom: 30 },
+  cardWrapper: { marginBottom: 11 },
+  therapistCard: { borderRadius: 21, borderWidth: 1, padding: 13, overflow: "hidden" },
+  aiRecommendationBadge: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7, backgroundColor: SUCCESS, marginBottom: 10 },
+  aiRecommendationText: { color: "#FFFFFF", fontSize: 6.5, letterSpacing: 0.4, marginLeft: 4, fontFamily: typography.fontFamily.bold },
+  cardTop: { flexDirection: "row", alignItems: "center" },
+  avatar: { width: 57, height: 57, borderRadius: 18, alignItems: "center", justifyContent: "center", position: "relative", marginRight: 10, overflow: "visible" },
+  avatarImage: { width: 57, height: 57, borderRadius: 18 },
+  avatarText: { color: PRIMARY, fontSize: 22, fontFamily: typography.fontFamily.bold },
+  onlineDot: { position: "absolute", width: 12, height: 12, borderRadius: 6, right: -2, bottom: -1, borderWidth: 2, borderColor: "#FFFFFF" },
+  cardInfo: { flex: 1, minWidth: 0 },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  therapistName: { flexShrink: 1, fontSize: 13, fontFamily: typography.fontFamily.bold },
+  ratingRow: { flexDirection: "row", alignItems: "center", marginTop: 4 },
+  ratingText: { fontSize: 10, marginLeft: 3, fontFamily: typography.fontFamily.semiBold },
+  reviewText: { fontSize: 8, marginLeft: 3, fontFamily: typography.fontFamily.regular },
+  experienceText: { fontSize: 8, marginTop: 3, fontFamily: typography.fontFamily.regular },
+  distanceContainer: { flexDirection: "row", alignItems: "center", paddingHorizontal: 7, paddingVertical: 5, borderRadius: 8, backgroundColor: `${PRIMARY}0C`, marginLeft: 6 },
+  distanceText: { fontSize: 8, marginLeft: 3, fontFamily: typography.fontFamily.semiBold },
+  specialtiesRow: { flexDirection: "row", marginTop: 12, gap: 5 },
+  specialtyChip: { maxWidth: "48%", paddingHorizontal: 7, paddingVertical: 5, borderRadius: 7 },
+  specialtyText: { fontSize: 7.5, fontFamily: typography.fontFamily.medium },
+  cardMeta: { flexDirection: "row", alignItems: "center", marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#EEF1F5" },
+  metaItem: { flexDirection: "row", alignItems: "center" },
+  metaText: { fontSize: 8, marginLeft: 4, fontFamily: typography.fontFamily.regular },
+  metaDivider: { width: 1, height: 16, backgroundColor: "#E5E8ED", marginHorizontal: 8 },
+  addressRow: { flexDirection: "row", alignItems: "center", marginTop: 9 },
+  addressText: { flex: 1, fontSize: 8, marginLeft: 4, fontFamily: typography.fontFamily.regular },
+  cardFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 11 },
+  statusBadge: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", paddingHorizontal: 7, paddingVertical: 5, borderRadius: 8 },
+  statusDot: { width: 5, height: 5, borderRadius: 3, marginRight: 5 },
+  statusText: { fontSize: 7.5, fontFamily: typography.fontFamily.medium },
+  bookButton: { minWidth: 116, height: 36, paddingHorizontal: 10, borderRadius: 11, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 5 },
+  bookButtonText: { fontSize: 9, fontFamily: typography.fontFamily.semiBold },
+
+  mapContainer: { marginHorizontal: 16, height: Math.min(height * 0.53, 520), minHeight: 410, borderRadius: 23, overflow: "hidden", position: "relative", backgroundColor: "#E5E7EB" },
+  map: { flex: 1 },
+  mapTopBadge: { position: "absolute", top: 12, left: 12, minHeight: 35, paddingHorizontal: 9, borderRadius: 11, flexDirection: "row", alignItems: "center" },
+  mapTopIcon: { width: 24, height: 24, borderRadius: 8, backgroundColor: `${PRIMARY}12`, alignItems: "center", justifyContent: "center", marginRight: 5 },
+  mapTopText: { fontSize: 8.5, fontFamily: typography.fontFamily.semiBold },
+  mapTypeButton: { position: "absolute", top: 12, right: 12, height: 35, paddingHorizontal: 9, borderRadius: 11, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 5 },
+  mapTypeButtonText: { fontSize: 8, fontFamily: typography.fontFamily.semiBold },
+  myLocationButton: { position: "absolute", right: 12, bottom: 128, width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  mapLegend: { position: "absolute", left: 12, bottom: 12, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 11 },
+  legendItem: { flexDirection: "row", alignItems: "center", marginVertical: 2 },
+  legendDot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
+  legendText: { fontSize: 7, fontFamily: typography.fontFamily.medium },
+
+  selectedPanel: { position: "absolute", left: 10, right: 10, bottom: 10, borderRadius: 20, padding: 13 },
+  panelClose: { position: "absolute", right: 9, top: 9, width: 27, height: 27, borderRadius: 9, backgroundColor: "rgba(127,127,127,0.10)", alignItems: "center", justifyContent: "center", zIndex: 3 },
+  panelHeader: { flexDirection: "row", alignItems: "center", paddingRight: 25 },
+  panelAvatar: { width: 45, height: 45, borderRadius: 14, alignItems: "center", justifyContent: "center", marginRight: 9 },
+  panelAvatarText: { color: PRIMARY, fontSize: 18, fontFamily: typography.fontFamily.bold },
+  panelInfo: { flex: 1 },
+  panelName: { fontSize: 13, fontFamily: typography.fontFamily.bold },
+  panelRating: { flexDirection: "row", alignItems: "center", marginTop: 3 },
+  panelRatingText: { color: "#D98B00", fontSize: 9, marginLeft: 3, fontFamily: typography.fontFamily.semiBold },
+  panelReviews: { fontSize: 8, marginLeft: 3, fontFamily: typography.fontFamily.regular },
+  panelAvailable: { flexDirection: "row", alignItems: "center", marginLeft: 5 },
+  panelAvailableDot: { width: 6, height: 6, borderRadius: 3, marginRight: 4 },
+  panelAvailableText: { fontSize: 7, fontFamily: typography.fontFamily.medium },
+  panelStats: { flexDirection: "row", alignItems: "center", marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#EEF1F5" },
+  panelStat: { flexDirection: "row", alignItems: "center", flex: 1 },
+  panelStatLabel: { fontSize: 7, marginLeft: 5, fontFamily: typography.fontFamily.regular },
+  panelStatValue: { fontSize: 9, marginLeft: 5, marginTop: 1, fontFamily: typography.fontFamily.bold },
+  panelPriceContainer: { alignItems: "flex-end" },
+  panelPrice: { color: PRIMARY, fontSize: 12, fontFamily: typography.fontFamily.bold },
+  panelButton: { height: 38, marginTop: 11, borderRadius: 11, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
+  panelButtonText: { color: "#FFFFFF", fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+
+  loadingContainer: { alignItems: "center", paddingHorizontal: 30, paddingVertical: 60 },
+  loadingIcon: { width: 68, height: 68, borderRadius: 22, alignItems: "center", justifyContent: "center" },
+  loadingTitle: { fontSize: 15, marginTop: 14, fontFamily: typography.fontFamily.bold },
+  loadingSubtitle: { textAlign: "center", fontSize: 9.5, lineHeight: 15, marginTop: 5, fontFamily: typography.fontFamily.regular },
+
+  emptyState: { alignItems: "center", paddingHorizontal: 30, paddingVertical: 60 },
+  emptyIcon: { width: 76, height: 76, borderRadius: 25, alignItems: "center", justifyContent: "center" },
+  emptyTitle: { fontSize: 16, marginTop: 16, textAlign: "center", fontFamily: typography.fontFamily.bold },
+  emptySubtitle: { fontSize: 10, lineHeight: 16, textAlign: "center", marginTop: 6, fontFamily: typography.fontFamily.regular },
+  resetButton: { marginTop: 17, minHeight: 40, paddingHorizontal: 17, borderRadius: 12, backgroundColor: PRIMARY, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
+  resetButtonText: { color: "#FFFFFF", fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.48)", justifyContent: "flex-end" },
+  modalKeyboard: { width: "100%", maxHeight: "90%" },
+  filterModal: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 15 },
+  modalHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: "#C9CDD4", marginBottom: 15 },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 },
+  modalTitle: { fontSize: 18, fontFamily: typography.fontFamily.bold },
+  modalSubtitle: { fontSize: 9, marginTop: 3, maxWidth: 260, fontFamily: typography.fontFamily.regular },
+  modalClose: { width: 35, height: 35, borderRadius: 11, backgroundColor: "rgba(127,127,127,0.10)", alignItems: "center", justifyContent: "center" },
+  modalGroup: { marginBottom: 21 },
+  modalGroupHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  modalGroupTitle: { fontSize: 13, fontFamily: typography.fontFamily.bold },
+  modalGroupHint: { fontSize: 8.5, marginTop: 3, fontFamily: typography.fontFamily.regular },
+  selectedValueBadge: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: `${PRIMARY}10` },
+  selectedValueText: { color: PRIMARY, fontSize: 8.5, fontFamily: typography.fontFamily.bold },
+  modalOptionsRow: { flexDirection: "row", gap: 7 },
+  modalOption: { flex: 1, minHeight: 44, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 5 },
+  modalOptionText: { fontSize: 9, fontFamily: typography.fontFamily.semiBold },
+  priceModalValue: { color: PRIMARY, fontSize: 12, fontFamily: typography.fontFamily.bold },
+  priceModalOption: { flex: 1, minHeight: 42, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  priceModalText: { fontSize: 10, fontFamily: typography.fontFamily.semiBold },
+  sortOptions: { marginTop: 10, gap: 7 },
+  sortModalOption: { minHeight: 50, borderWidth: 1, borderRadius: 13, paddingHorizontal: 9, flexDirection: "row", alignItems: "center" },
+  sortModalIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 9 },
+  sortModalText: { flex: 1, fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+  aiInfoCard: { borderRadius: 16, padding: 11, flexDirection: "row", backgroundColor: "#ECFDF3", borderWidth: 1, borderColor: "#C9F0D8", marginBottom: 10 },
+  aiInfoIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: "#D9F7E5", alignItems: "center", justifyContent: "center", marginRight: 9 },
+  aiInfoContent: { flex: 1 },
+  aiInfoTitle: { color: "#14532D", fontSize: 10, fontFamily: typography.fontFamily.bold },
+  aiInfoText: { color: "#52705B", fontSize: 8, lineHeight: 13, marginTop: 3, fontFamily: typography.fontFamily.regular },
+  modalActions: { flexDirection: "row", alignItems: "center", marginTop: 7, gap: 8 },
+  resetModalButton: { flex: 0.85, height: 47, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(127,127,127,0.08)" },
+  resetModalText: { fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+  applyModalButton: { flex: 1.6, height: 47, borderRadius: 13, backgroundColor: PRIMARY, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 7 },
+  applyModalText: { color: "#FFFFFF", fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
 });
 
 export default SearchMassageScreen;

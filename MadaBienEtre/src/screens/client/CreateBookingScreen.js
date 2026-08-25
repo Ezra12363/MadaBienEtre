@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -22,6 +23,36 @@ import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import AddressMapPickerModal from '../../components/map/AddressMapPickerModal';
 import useLocationTracking from '../../hooks/useLocationTracking';
+
+import massageTypeService from '../../services/massageTypeService';
+import { getMassageTypeIconIonicons } from '../../constants/massageTypeIcons';
+
+/* ============================================================
+   ✅ IMAGE RÉELLE D'UN TYPE DE MASSAGE (avec repli sur icône)
+   ============================================================ */
+
+const TypeVisual = ({ imageUrl, iconName, size = 30, tintColor }) => {
+  const [failed, setFailed] = useState(false);
+
+  if (!imageUrl || failed) {
+    return (
+      <Ionicons name={iconName} size={size} color={tintColor} />
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri: imageUrl }}
+      style={{
+        width: size * 1.4,
+        height: size * 1.4,
+        borderRadius: (size * 1.4) / 4,
+      }}
+      resizeMode="cover"
+      onError={() => setFailed(true)}
+    />
+  );
+};
 
 /* ============================================================
    CREATE BOOKING SCREEN
@@ -72,26 +103,47 @@ const CreateBookingScreen = ({ navigation }) => {
   } = useLocationTracking({ enabled: true });
 
   /* ============================================================
-     MASSAGE TYPES
+     ✅ MASSAGE TYPES RÉELS (PostgreSQL)
      ============================================================ */
 
-  const massageTypes = [
-    {
-      id: 1,
-      name: 'Massage Relaxant',
-      icon: 'spa',
-    },
-    {
-      id: 2,
-      name: 'Deep Tissue',
-      icon: 'bone',
-    },
-    {
-      id: 3,
-      name: 'Shiatsu',
-      icon: 'finger-print',
-    },
-  ];
+  const [massageTypes, setMassageTypes] = useState([]);
+  const [massageTypesLoading, setMassageTypesLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMassageTypes = async () => {
+      try {
+        setMassageTypesLoading(true);
+
+        const data = await massageTypeService.getActiveMassageTypes();
+
+        if (!isMounted) return;
+
+        const mapped = data.map((item) => ({
+          id: item.id,
+          name: item.name,
+          icon: getMassageTypeIconIonicons(item.category),
+          category: item.category,
+          imageUrl: massageTypeService.getMassageImageUrl(
+            item.icon_url || item.image_url
+          ),
+        }));
+
+        setMassageTypes(mapped);
+      } catch (error) {
+        console.error('❌ Erreur chargement types de massage:', error);
+      } finally {
+        if (isMounted) setMassageTypesLoading(false);
+      }
+    };
+
+    loadMassageTypes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   /* ============================================================
      TOAST FUNCTION
@@ -528,7 +580,18 @@ const CreateBookingScreen = ({ navigation }) => {
             Type de massage
           </Text>
 
-          <View style={styles.typesContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.typesContainer}
+          >
+            {massageTypesLoading && massageTypes.length === 0 && (
+              <ActivityIndicator
+                size="small"
+                color={themeColors.primary}
+              />
+            )}
+
             {massageTypes.map((type) => {
               const isSelected =
                 selectedType === type.id;
@@ -559,10 +622,11 @@ const CreateBookingScreen = ({ navigation }) => {
                       },
                     ]}
                   >
-                    <Ionicons
-                      name={type.icon}
+                    <TypeVisual
+                      imageUrl={type.imageUrl}
+                      iconName={type.icon}
                       size={30}
-                      color={
+                      tintColor={
                         isSelected
                           ? colors.primary
                           : themeColors.textSecondary
@@ -577,6 +641,7 @@ const CreateBookingScreen = ({ navigation }) => {
                         color: themeColors.text,
                       },
                     ]}
+                    numberOfLines={2}
                   >
                     {type.name}
                   </Text>
@@ -595,7 +660,7 @@ const CreateBookingScreen = ({ navigation }) => {
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
 
           {/* ====================================================
               ADRESSE
@@ -996,10 +1061,11 @@ const styles = StyleSheet.create({
   typesContainer: {
     flexDirection: 'row',
     gap: spacing.sm,
+    paddingRight: spacing.md,
   },
 
   typeCard: {
-    flex: 1,
+    width: 108,
     minHeight: 116,
     padding: spacing.sm,
     borderRadius: 16,

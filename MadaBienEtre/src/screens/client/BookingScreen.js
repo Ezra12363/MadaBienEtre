@@ -14,7 +14,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   Platform,
   KeyboardAvoidingView,
@@ -25,6 +24,7 @@ import {
   Keyboard,
   Animated,
   Easing,
+  Image,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -40,6 +40,10 @@ import { DEFAULT_REGION } from '../../config/googleMaps';
 
 import * as Location from 'expo-location';
 
+import massageTypeService from '../../services/massageTypeService';
+import { getMassageTypeIconMCI } from '../../constants/massageTypeIcons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+
 const { width } = Dimensions.get('window');
 
 const IS_WEB = Platform.OS === 'web';
@@ -47,48 +51,7 @@ const IS_WEB = Platform.OS === 'web';
 const MAP_GREEN = '#00C853';
 const MAP_GREEN_DARK = '#009624';
 
-// ============================================================
-// MASSAGE TYPES
-// ============================================================
-
-const MASSAGE_TYPES = [
-  {
-    id: 1,
-    name: 'Massage Relaxant',
-    duration: 60,
-    price: 35000,
-  },
-  {
-    id: 2,
-    name: 'Deep Tissue',
-    duration: 60,
-    price: 45000,
-  },
-  {
-    id: 3,
-    name: 'Shiatsu',
-    duration: 60,
-    price: 40000,
-  },
-  {
-    id: 4,
-    name: 'Réflexologie',
-    duration: 45,
-    price: 30000,
-  },
-  {
-    id: 5,
-    name: 'Massage Sportif',
-    duration: 60,
-    price: 45000,
-  },
-  {
-    id: 6,
-    name: 'Pierres Chaudes',
-    duration: 75,
-    price: 55000,
-  },
-];
+const EMPTY_MASSAGE_TYPES = [];
 
 const DURATION_OPTIONS = [30, 45, 60, 75, 90, 120];
 
@@ -98,9 +61,7 @@ const DURATION_OPTIONS = [30, 45, 60, 75, 90, 120];
 
 const startOfLocalDay = (date = new Date()) => {
   const d = new Date(date);
-
   d.setHours(0, 0, 0, 0);
-
   return d;
 };
 
@@ -110,14 +71,8 @@ const formatLocalDate = (date) => {
   const d = new Date(date);
 
   const year = d.getFullYear();
-
-  const month = String(
-    d.getMonth() + 1
-  ).padStart(2, '0');
-
-  const day = String(
-    d.getDate()
-  ).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
 
   return `${year}-${month}-${day}`;
 };
@@ -125,19 +80,13 @@ const formatLocalDate = (date) => {
 const parseLocalDate = (value) => {
   if (!value) return new Date();
 
-  const parts = value
-    .split('-')
-    .map(Number);
+  const parts = value.split('-').map(Number);
 
   if (parts.length !== 3) {
     return new Date();
   }
 
-  const [
-    year,
-    month,
-    day,
-  ] = parts;
+  const [year, month, day] = parts;
 
   return new Date(
     year,
@@ -153,13 +102,8 @@ const parseLocalDate = (value) => {
 const formatDateToTime = (date) => {
   if (!date) return '09:00';
 
-  const hours = String(
-    date.getHours()
-  ).padStart(2, '0');
-
-  const minutes = String(
-    date.getMinutes()
-  ).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
 
   return `${hours}:${minutes}`;
 };
@@ -168,34 +112,18 @@ const parseTimeToDate = (value) => {
   if (!value) {
     const d = new Date();
 
-    d.setHours(
-      9,
-      0,
-      0,
-      0
-    );
+    d.setHours(9, 0, 0, 0);
 
     return d;
   }
 
-  const [
-    hours,
-    minutes,
-  ] = value
-    .split(':')
-    .map(Number);
+  const [hours, minutes] = value.split(':').map(Number);
 
   const d = new Date();
 
   d.setHours(
-    Number.isFinite(hours)
-      ? hours
-      : 9,
-
-    Number.isFinite(minutes)
-      ? minutes
-      : 0,
-
+    Number.isFinite(hours) ? hours : 9,
+    Number.isFinite(minutes) ? minutes : 0,
     0,
     0
   );
@@ -206,27 +134,21 @@ const parseTimeToDate = (value) => {
 const formatDate = (date) => {
   if (!date) return '';
 
-  return date.toLocaleDateString(
-    'fr-FR',
-    {
-      weekday: 'short',
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }
-  );
+  return date.toLocaleDateString('fr-FR', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 };
 
 const formatTime = (date) => {
   if (!date) return '';
 
-  return date.toLocaleTimeString(
-    'fr-FR',
-    {
-      hour: '2-digit',
-      minute: '2-digit',
-    }
-  );
+  return date.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
 // ============================================================
@@ -246,12 +168,9 @@ const WebDateInput = ({
       style={[
         styles.webInputWrapper,
         {
-          backgroundColor:
-            themeColors.surface,
-
+          backgroundColor: themeColors.surface,
           borderColor:
-            themeColors.border ||
-            '#E0E0E0',
+            themeColors.border || '#E0E0E0',
         },
       ]}
     >
@@ -266,11 +185,10 @@ const WebDateInput = ({
         value={value}
         min={min}
         onChange={(event) => {
-          const value =
-            event.target.value;
+          const nextValue = event.target.value;
 
-          if (value) {
-            onChange(value);
+          if (nextValue) {
+            onChange(nextValue);
           }
         }}
         style={{
@@ -306,12 +224,9 @@ const WebTimeInput = ({
       style={[
         styles.webInputWrapper,
         {
-          backgroundColor:
-            themeColors.surface,
-
+          backgroundColor: themeColors.surface,
           borderColor:
-            themeColors.border ||
-            '#E0E0E0',
+            themeColors.border || '#E0E0E0',
         },
       ]}
     >
@@ -325,11 +240,10 @@ const WebTimeInput = ({
         type="time"
         value={value}
         onChange={(event) => {
-          const value =
-            event.target.value;
+          const nextValue = event.target.value;
 
-          if (value) {
-            onChange(value);
+          if (nextValue) {
+            onChange(nextValue);
           }
         }}
         style={{
@@ -350,6 +264,43 @@ const WebTimeInput = ({
 };
 
 // ============================================================
+// IMAGE TYPE MASSAGE
+// ✅ IMAGE PLUS GRANDE
+// ============================================================
+
+const TypeCardVisual = ({
+  imageUrl,
+  iconName,
+  size = 64,
+  tintColor,
+}) => {
+  const [failed, setFailed] = useState(false);
+
+  if (!imageUrl || failed) {
+    return (
+      <MaterialCommunityIcons
+        name={iconName || 'spa'}
+        size={size * 0.68}
+        color={tintColor}
+      />
+    );
+  }
+
+  return (
+    <Image
+      source={{ uri: imageUrl }}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 16,
+      }}
+      resizeMode="cover"
+      onError={() => setFailed(true)}
+    />
+  );
+};
+
+// ============================================================
 // COMPONENT
 // ============================================================
 
@@ -357,8 +308,7 @@ const BookingScreen = ({
   navigation,
   route,
 }) => {
-  const { therapist } =
-    route.params || {};
+  const { therapist } = route.params || {};
 
   const {
     colors: themeColors,
@@ -374,108 +324,207 @@ const BookingScreen = ({
   // FORM STATES
   // ============================================================
 
-  const [
-    selectedType,
-    setSelectedType,
-  ] = useState(null);
+  const [selectedType, setSelectedType] =
+    useState(null);
 
-  const [
-    selectedDuration,
-    setSelectedDuration,
-  ] = useState(60);
+  const [selectedDuration, setSelectedDuration] =
+    useState(60);
 
-  const [
-    selectedDate,
-    setSelectedDate,
-  ] = useState(new Date());
+  const [selectedDate, setSelectedDate] =
+    useState(new Date());
 
-  const [
-    selectedTime,
-    setSelectedTime,
-  ] = useState(() => {
-    const d = new Date();
+  const [selectedTime, setSelectedTime] =
+    useState(() => {
+      const d = new Date();
 
-    d.setHours(
-      9,
+      d.setHours(9, 0, 0, 0);
+
+      return d;
+    });
+
+  const [address, setAddress] = useState('');
+
+  const [priceProposed, setPriceProposed] =
+    useState('');
+
+  const [preferredGender, setPreferredGender] =
+    useState('any');
+
+  const [isLoading, setIsLoading] =
+    useState(false);
+
+  const [showDatePicker, setShowDatePicker] =
+    useState(false);
+
+  const [showTimePicker, setShowTimePicker] =
+    useState(false);
+
+  // ============================================================
+  // MASSAGE TYPES
+  // ============================================================
+
+  const [massageTypes, setMassageTypes] =
+    useState(EMPTY_MASSAGE_TYPES);
+
+  const [massageTypesLoading, setMassageTypesLoading] =
+    useState(true);
+
+  // ============================================================
+  // ✅ REF CAROUSEL TYPE MASSAGE
+  // ============================================================
+
+  const massageCarouselRef = useRef(null);
+
+  // largeur approximative d'une carte + marge
+  const MASSAGE_CARD_STEP = 185;
+
+  const scrollMassageTypes = (direction) => {
+    if (!IS_WEB) return;
+
+    const offset =
+      direction === 'right'
+        ? MASSAGE_CARD_STEP
+        : -MASSAGE_CARD_STEP;
+
+    massageCarouselRef.current?.scrollTo({
+      x: Math.max(0, offset),
+      animated: true,
+    });
+
+    // Correction : utiliser scrollToOffset-like behavior
+    // avec position mémorisée.
+    setTimeout(() => {
+      massageCarouselRef.current?.getScrollableNode?.();
+    }, 0);
+  };
+
+  // position actuelle du carousel
+  const massageScrollX = useRef(0);
+
+  const handleMassageScroll = (event) => {
+    massageScrollX.current =
+      event.nativeEvent.contentOffset.x;
+  };
+
+  const handleMassageCarouselLeft = () => {
+    if (!IS_WEB) return;
+
+    const current =
+      massageScrollX.current || 0;
+
+    const next = Math.max(
       0,
-      0,
-      0
+      current - MASSAGE_CARD_STEP
     );
 
-    return d;
-  });
+    massageScrollX.current = next;
 
-  const [
-    address,
-    setAddress,
-  ] = useState('');
+    massageCarouselRef.current?.scrollTo({
+      x: next,
+      animated: true,
+    });
+  };
 
-  const [
-    priceProposed,
-    setPriceProposed,
-  ] = useState('');
+  const handleMassageCarouselRight = () => {
+    if (!IS_WEB) return;
 
-  const [
-    preferredGender,
-    setPreferredGender,
-  ] = useState('any');
+    const current =
+      massageScrollX.current || 0;
 
-  const [
-    isLoading,
-    setIsLoading,
-  ] = useState(false);
+    const next =
+      current + MASSAGE_CARD_STEP;
 
-  const [
-    showDatePicker,
-    setShowDatePicker,
-  ] = useState(false);
+    massageScrollX.current = next;
 
-  const [
-    showTimePicker,
-    setShowTimePicker,
-  ] = useState(false);
+    massageCarouselRef.current?.scrollTo({
+      x: next,
+      animated: true,
+    });
+  };
+
+  // ============================================================
+  // LOAD MASSAGE TYPES
+  // ============================================================
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMassageTypes = async () => {
+      try {
+        setMassageTypesLoading(true);
+
+        const data =
+          await massageTypeService.getActiveMassageTypes();
+
+        if (!isMounted) return;
+
+        const mapped = data.map((item) => ({
+          id: item.id,
+          name: item.name,
+          duration: item.duration_min ?? 60,
+          price:
+            item.recommended_price ??
+            item.min_price ??
+            0,
+          category: item.category,
+          icon: getMassageTypeIconMCI(
+            item.category
+          ),
+          imageUrl:
+            massageTypeService.getMassageImageUrl(
+              item.icon_url ||
+                item.image_url
+            ),
+        }));
+
+        setMassageTypes(mapped);
+      } catch (error) {
+        console.error(
+          '❌ Erreur chargement types de massage:',
+          error
+        );
+      } finally {
+        if (isMounted) {
+          setMassageTypesLoading(false);
+        }
+      }
+    };
+
+    loadMassageTypes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // ============================================================
   // MAP STATES
   // ============================================================
 
-  const [
-    showMapModal,
-    setShowMapModal,
-  ] = useState(false);
+  const [showMapModal, setShowMapModal] =
+    useState(false);
 
-  const [
-    selectedLocation,
-    setSelectedLocation,
-  ] = useState({
-    latitude: null,
-    longitude: null,
-    address: '',
-  });
+  const [selectedLocation, setSelectedLocation] =
+    useState({
+      latitude: null,
+      longitude: null,
+      address: '',
+    });
 
-  const [
-    mapRegion,
-    setMapRegion,
-  ] = useState(DEFAULT_REGION);
+  const [mapRegion, setMapRegion] =
+    useState(DEFAULT_REGION);
 
-  const [
-    isSearchingLocation,
-    setIsSearchingLocation,
-  ] = useState(false);
+  const [isSearchingLocation, setIsSearchingLocation] =
+    useState(false);
 
-  const [
-    isLoadingAddress,
-    setIsLoadingAddress,
-  ] = useState(false);
+  const [isLoadingAddress, setIsLoadingAddress] =
+    useState(false);
 
   // ============================================================
-  // TOAST STATE
+  // TOAST
   // ============================================================
 
-  const [
-    toast,
-    setToast,
-  ] = useState({
+  const [toast, setToast] = useState({
     visible: false,
     type: 'info',
     title: '',
@@ -483,27 +532,17 @@ const BookingScreen = ({
   });
 
   const toastTranslateY =
-    useRef(
-      new Animated.Value(-100)
-    ).current;
+    useRef(new Animated.Value(-100)).current;
 
   const toastOpacity =
-    useRef(
-      new Animated.Value(0)
-    ).current;
+    useRef(new Animated.Value(0)).current;
 
   const toastTimerRef =
     useRef(null);
 
-  // ============================================================
-  // TOAST FUNCTION
-  // ============================================================
-
   const hideToast = () => {
     if (toastTimerRef.current) {
-      clearTimeout(
-        toastTimerRef.current
-      );
+      clearTimeout(toastTimerRef.current);
     }
 
     Animated.parallel([
@@ -512,14 +551,12 @@ const BookingScreen = ({
         {
           toValue: -100,
           duration: 220,
-          easing:
-            Easing.out(
-              Easing.cubic
-            ),
+          easing: Easing.out(
+            Easing.cubic
+          ),
           useNativeDriver: true,
         }
       ),
-
       Animated.timing(
         toastOpacity,
         {
@@ -543,9 +580,7 @@ const BookingScreen = ({
     duration = 2800
   ) => {
     if (toastTimerRef.current) {
-      clearTimeout(
-        toastTimerRef.current
-      );
+      clearTimeout(toastTimerRef.current);
     }
 
     setToast({
@@ -569,7 +604,6 @@ const BookingScreen = ({
           useNativeDriver: true,
         }
       ),
-
       Animated.timing(
         toastOpacity,
         {
@@ -588,9 +622,7 @@ const BookingScreen = ({
 
   useEffect(() => {
     return () => {
-      if (
-        toastTimerRef.current
-      ) {
+      if (toastTimerRef.current) {
         clearTimeout(
           toastTimerRef.current
         );
@@ -608,40 +640,36 @@ const BookingScreen = ({
         return {
           icon: 'checkmark-circle',
           color: '#00C853',
-          background:
-            isDark
-              ? '#14271D'
-              : '#FFFFFF',
+          background: isDark
+            ? '#14271D'
+            : '#FFFFFF',
         };
 
       case 'error':
         return {
           icon: 'close-circle',
           color: '#E53935',
-          background:
-            isDark
-              ? '#2B1717'
-              : '#FFFFFF',
+          background: isDark
+            ? '#2B1717'
+            : '#FFFFFF',
         };
 
       case 'warning':
         return {
           icon: 'warning',
           color: '#FF9800',
-          background:
-            isDark
-              ? '#2B2416'
-              : '#FFFFFF',
+          background: isDark
+            ? '#2B2416'
+            : '#FFFFFF',
         };
 
       default:
         return {
           icon: 'information-circle',
           color: colors.primary,
-          background:
-            isDark
-              ? '#171F32'
-              : '#FFFFFF',
+          background: isDark
+            ? '#171F32'
+            : '#FFFFFF',
         };
     }
   };
@@ -650,55 +678,37 @@ const BookingScreen = ({
   // REFS
   // ============================================================
 
-  const scrollViewRef =
-    useRef(null);
+  const scrollViewRef = useRef(null);
 
-  const addressInputRef =
-    useRef(null);
+  const addressInputRef = useRef(null);
 
-  const priceInputRef =
-    useRef(null);
+  const priceInputRef = useRef(null);
 
-  const mapRef =
-    useRef(null);
+  const mapRef = useRef(null);
 
   // ============================================================
-  // DERIVED VALUES
+  // DERIVED
   // ============================================================
 
   const displayDate = useMemo(
-    () =>
-      formatDate(
-        selectedDate
-      ),
+    () => formatDate(selectedDate),
     [selectedDate]
   );
 
   const displayTime = useMemo(
-    () =>
-      formatTime(
-        selectedTime
-      ),
+    () => formatTime(selectedTime),
     [selectedTime]
   );
 
-  const webDateValue =
-    useMemo(
-      () =>
-        formatLocalDate(
-          selectedDate
-        ),
-      [selectedDate]
-    );
+  const webDateValue = useMemo(
+    () => formatLocalDate(selectedDate),
+    [selectedDate]
+  );
 
-  const webTimeValue =
-    useMemo(
-      () =>
-        formatDateToTime(
-          selectedTime
-        ),
-      [selectedTime]
-    );
+  const webTimeValue = useMemo(
+    () => formatDateToTime(selectedTime),
+    [selectedTime]
+  );
 
   // ============================================================
   // KEYBOARD
@@ -712,11 +722,9 @@ const BookingScreen = ({
         'keyboardDidShow',
         () => {
           setTimeout(() => {
-            scrollViewRef.current?.scrollToEnd(
-              {
-                animated: true,
-              }
-            );
+            scrollViewRef.current?.scrollToEnd({
+              animated: true,
+            });
           }, 150);
         }
       );
@@ -731,15 +739,11 @@ const BookingScreen = ({
   // ============================================================
 
   const getBasePrice = () => {
-    const type =
-      MASSAGE_TYPES.find(
-        (item) =>
-          item.id === selectedType
-      );
-
-    return (
-      type?.price || 35000
+    const type = massageTypes.find(
+      (item) => item.id === selectedType
     );
+
+    return type?.price || 35000;
   };
 
   // ============================================================
@@ -763,15 +767,12 @@ const BookingScreen = ({
         addressResult ||
         `${latitude.toFixed(
           6
-        )}, ${longitude.toFixed(
-          6
-        )}`;
+        )}, ${longitude.toFixed(6)}`;
 
       setSelectedLocation({
         latitude,
         longitude,
-        address:
-          fullAddress,
+        address: fullAddress,
       });
 
       setMapRegion({
@@ -797,9 +798,7 @@ const BookingScreen = ({
         longitude,
         address: `${latitude.toFixed(
           6
-        )}, ${longitude.toFixed(
-          6
-        )}`,
+        )}, ${longitude.toFixed(6)}`,
       });
 
       showToast(
@@ -816,994 +815,836 @@ const BookingScreen = ({
   // CURRENT LOCATION
   // ============================================================
 
-  const handleUseCurrentLocation =
-    async () => {
-      if (
-        isSearchingLocation
-      ) {
-        return;
-      }
+  const handleUseCurrentLocation = async () => {
+    if (isSearchingLocation) return;
 
-      setIsSearchingLocation(
-        true
-      );
+    setIsSearchingLocation(true);
 
-      showToast(
-        'info',
-        'Localisation',
-        'Recherche de votre position...'
-      );
+    showToast(
+      'info',
+      'Localisation',
+      'Recherche de votre position...'
+    );
 
-      try {
-        // --------------------------------------------------------
-        // WEB
-        // --------------------------------------------------------
-
-        if (IS_WEB) {
-          if (
-            !navigator.geolocation
-          ) {
-            showToast(
-              'error',
-              'Géolocalisation indisponible',
-              "Votre navigateur ne prend pas en charge la géolocalisation."
-            );
-
-            return;
-          }
-
-          navigator.geolocation.getCurrentPosition(
-            async (
-              position
-            ) => {
-              const {
-                latitude,
-                longitude,
-              } =
-                position.coords;
-
-              await updateLocation(
-                latitude,
-                longitude
-              );
-
-              setShowMapModal(
-                true
-              );
-
-              setIsSearchingLocation(
-                false
-              );
-            },
-            (error) => {
-              console.log(
-                'Geolocation error:',
-                error
-              );
-
-              showToast(
-                'error',
-                'Position inaccessible',
-                "Autorisez la géolocalisation dans votre navigateur puis réessayez."
-              );
-
-              setIsSearchingLocation(
-                false
-              );
-            },
-            {
-              enableHighAccuracy:
-                true,
-              timeout: 15000,
-              maximumAge: 0,
-            }
-          );
-
-          return;
-        }
-
-        // --------------------------------------------------------
-        // IOS / ANDROID
-        // --------------------------------------------------------
-
-        const {
-          status,
-        } =
-          await Location.requestForegroundPermissionsAsync();
-
-        if (
-          status !==
-          'granted'
-        ) {
+    try {
+      if (IS_WEB) {
+        if (!navigator.geolocation) {
           showToast(
             'error',
-            'Permission refusée',
-            "Veuillez autoriser l'accès à votre localisation."
+            'Géolocalisation indisponible',
+            "Votre navigateur ne prend pas en charge la géolocalisation."
           );
+
+          setIsSearchingLocation(false);
 
           return;
         }
 
-        const location =
-          await Location.getCurrentPositionAsync(
-            {
-              accuracy:
-                Location.Accuracy
-                  .High,
-            }
-          );
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const {
+              latitude,
+              longitude,
+            } = position.coords;
 
-        const {
-          latitude,
-          longitude,
-        } =
-          location.coords;
+            await updateLocation(
+              latitude,
+              longitude
+            );
 
-        await updateLocation(
-          latitude,
-          longitude
-        );
+            setShowMapModal(true);
+            setIsSearchingLocation(false);
+          },
+          (error) => {
+            console.log(
+              'Geolocation error:',
+              error
+            );
 
-        setShowMapModal(
-          true
-        );
-      } catch (error) {
-        console.error(
-          '❌ Current location:',
-          error
-        );
+            showToast(
+              'error',
+              'Position inaccessible',
+              "Autorisez la géolocalisation dans votre navigateur puis réessayez."
+            );
 
-        showToast(
-          'error',
-          'Erreur de localisation',
-          "Impossible d'obtenir votre position."
-        );
-      } finally {
-        setIsSearchingLocation(
-          false
-        );
-      }
-    };
-
-  // ============================================================
-  // MAP PRESS
-  // ============================================================
-
-  const handleMapPress =
-    async (
-      coordinate
-    ) => {
-      if (!coordinate) {
-        return;
-      }
-
-      const latitude =
-        Number(
-          coordinate.latitude
-        );
-
-      const longitude =
-        Number(
-          coordinate.longitude
-        );
-
-      if (
-        !Number.isFinite(
-          latitude
-        ) ||
-        !Number.isFinite(
-          longitude
-        )
-      ) {
-        showToast(
-          'error',
-          'Position invalide',
-          'Impossible de sélectionner cette position.'
+            setIsSearchingLocation(false);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0,
+          }
         );
 
         return;
       }
+
+      const { status } =
+        await Location.requestForegroundPermissionsAsync();
+
+      if (status !== 'granted') {
+        showToast(
+          'error',
+          'Permission refusée',
+          "Veuillez autoriser l'accès à votre localisation."
+        );
+
+        return;
+      }
+
+      const location =
+        await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+
+      const {
+        latitude,
+        longitude,
+      } = location.coords;
 
       await updateLocation(
         latitude,
         longitude
       );
-    };
 
-  // ============================================================
-  // VALIDATE MAP LOCATION
-  // ============================================================
-
-  const validateLocation =
-    () => {
-      const {
-        latitude,
-        longitude,
-        address:
-          selectedAddress,
-      } = selectedLocation;
-
-      if (
-        latitude === null ||
-        longitude === null
-      ) {
-        showToast(
-          'warning',
-          'Position manquante',
-          'Veuillez sélectionner une position sur la carte.'
-        );
-
-        return;
-      }
-
-      setAddress(
-        selectedAddress ||
-          `${latitude.toFixed(
-            6
-          )}, ${longitude.toFixed(
-            6
-          )}`
-      );
-
-      setShowMapModal(
-        false
+      setShowMapModal(true);
+    } catch (error) {
+      console.error(
+        '❌ Current location:',
+        error
       );
 
       showToast(
-        'success',
-        'Adresse sélectionnée',
-        'La position du massage a été enregistrée.'
+        'error',
+        'Erreur de localisation',
+        "Impossible d'obtenir votre position."
       );
-    };
+    } finally {
+      setIsSearchingLocation(false);
+    }
+  };
+
+  // ============================================================
+  // MAP PRESS
+  // ============================================================
+
+  const handleMapPress = async (
+    coordinate
+  ) => {
+    if (!coordinate) return;
+
+    const latitude =
+      Number(coordinate.latitude);
+
+    const longitude =
+      Number(coordinate.longitude);
+
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude)
+    ) {
+      showToast(
+        'error',
+        'Position invalide',
+        'Impossible de sélectionner cette position.'
+      );
+
+      return;
+    }
+
+    await updateLocation(
+      latitude,
+      longitude
+    );
+  };
+
+  // ============================================================
+  // VALIDATE LOCATION
+  // ============================================================
+
+  const validateLocation = () => {
+    const {
+      latitude,
+      longitude,
+      address: selectedAddress,
+    } = selectedLocation;
+
+    if (
+      latitude === null ||
+      longitude === null
+    ) {
+      showToast(
+        'warning',
+        'Position manquante',
+        'Veuillez sélectionner une position sur la carte.'
+      );
+
+      return;
+    }
+
+    setAddress(
+      selectedAddress ||
+        `${latitude.toFixed(
+          6
+        )}, ${longitude.toFixed(6)}`
+    );
+
+    setShowMapModal(false);
+
+    showToast(
+      'success',
+      'Adresse sélectionnée',
+      'La position du massage a été enregistrée.'
+    );
+  };
 
   // ============================================================
   // SUBMIT
   // ============================================================
 
-  const handleSubmit =
-    async () => {
-      if (!selectedType) {
-        showToast(
-          'warning',
-          'Type de massage requis',
-          'Veuillez sélectionner un type de massage.'
-        );
+  const handleSubmit = async () => {
+    if (!selectedType) {
+      showToast(
+        'warning',
+        'Type de massage requis',
+        'Veuillez sélectionner un type de massage.'
+      );
 
-        return;
-      }
+      return;
+    }
 
-      if (!address.trim()) {
-        showToast(
-          'warning',
-          'Adresse requise',
-          'Veuillez entrer ou sélectionner votre adresse.'
-        );
+    if (!address.trim()) {
+      showToast(
+        'warning',
+        'Adresse requise',
+        'Veuillez entrer ou sélectionner votre adresse.'
+      );
 
-        return;
-      }
+      return;
+    }
 
-      if (
-        !priceProposed ||
-        parseInt(
-          priceProposed,
-          10
-        ) < 20000
-      ) {
-        showToast(
-          'warning',
-          'Prix invalide',
-          'Le prix proposé doit être au minimum de 20 000 Ar.'
-        );
+    if (
+      !priceProposed ||
+      parseInt(priceProposed, 10) < 20000
+    ) {
+      showToast(
+        'warning',
+        'Prix invalide',
+        'Le prix proposé doit être au minimum de 20 000 Ar.'
+      );
 
-        return;
-      }
+      return;
+    }
 
-      setIsLoading(true);
+    setIsLoading(true);
+
+    showToast(
+      'info',
+      'Envoi en cours',
+      'Votre demande est en train d’être envoyée...',
+      4000
+    );
+
+    try {
+      await new Promise(
+        (resolve) =>
+          setTimeout(resolve, 1200)
+      );
 
       showToast(
-        'info',
-        'Envoi en cours',
-        'Votre demande est en train d’être envoyée...',
+        'success',
+        'Demande envoyée',
+        'Votre demande a été envoyée aux thérapeutes à proximité.',
         4000
       );
 
-      try {
-        await new Promise(
-          (resolve) =>
-            setTimeout(
-              resolve,
-              1200
-            )
+      setTimeout(() => {
+        navigation.navigate(
+          'Réservations'
         );
+      }, 1500);
+    } catch (error) {
+      console.error(
+        'Submit error:',
+        error
+      );
 
-        showToast(
-          'success',
-          'Demande envoyée',
-          'Votre demande a été envoyée aux thérapeutes à proximité.',
-          4000
-        );
-
-        setTimeout(() => {
-          navigation.navigate(
-            'Réservations'
-          );
-        }, 1500);
-      } catch (error) {
-        console.error(
-          'Submit error:',
-          error
-        );
-
-        showToast(
-          'error',
-          'Erreur',
-          'Une erreur est survenue lors de l’envoi de votre demande.'
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      showToast(
+        'error',
+        'Erreur',
+        'Une erreur est survenue lors de l’envoi de votre demande.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // ============================================================
   // MAP MODAL
   // ============================================================
 
-  const renderMapModal =
-    () => {
-      if (!showMapModal) {
-        return null;
-      }
+  const renderMapModal = () => {
+    if (!showMapModal) return null;
 
-      return (
-        <Modal
-          visible={
-            showMapModal
-          }
-          transparent={false}
-          animationType="slide"
-          onRequestClose={() =>
-            setShowMapModal(
-              false
-            )
-          }
+    return (
+      <Modal
+        visible={showMapModal}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={() =>
+          setShowMapModal(false)
+        }
+      >
+        <View
+          style={[
+            styles.fullMapModal,
+            {
+              backgroundColor:
+                themeColors.background,
+            },
+          ]}
         >
           <View
             style={[
-              styles.fullMapModal,
+              styles.mapHeader,
               {
                 backgroundColor:
-                  themeColors.background,
+                  themeColors.surface,
+                borderBottomColor:
+                  themeColors.border ||
+                  '#E5E7EB',
               },
             ]}
           >
-            {/* HEADER */}
-
             <View
-              style={[
-                styles.mapHeader,
-                {
-                  backgroundColor:
-                    themeColors.surface,
-
-                  borderBottomColor:
-                    themeColors.border ||
-                    '#E5E7EB',
-                },
-              ]}
+              style={styles.mapHeaderLeft}
             >
               <View
-                style={
-                  styles.mapHeaderLeft
-                }
-              >
-                <View
-                  style={
-                    styles.mapHeaderIcon
-                  }
-                >
-                  <Ionicons
-                    name="location"
-                    size={21}
-                    color="#fff"
-                  />
-                </View>
-
-                <View>
-                  <Text
-                    style={[
-                      styles.mapTitle,
-                      {
-                        color:
-                          themeColors.text,
-                      },
-                    ]}
-                  >
-                    Votre position
-                  </Text>
-
-                  <Text
-                    style={[
-                      styles.mapSubtitle,
-                      {
-                        color:
-                          themeColors.textSecondary,
-                      },
-                    ]}
-                  >
-                    Déplacez le marqueur ou touchez la carte
-                  </Text>
-                </View>
-              </View>
-
-              <TouchableOpacity
-                style={[
-                  styles.closeMapButton,
-                  {
-                    backgroundColor:
-                      themeColors.background,
-                  },
-                ]}
-                onPress={() => {
-                  setShowMapModal(
-                    false
-                  );
-
-                  showToast(
-                    'info',
-                    'Carte fermée',
-                    'La sélection de position a été fermée.'
-                  );
-                }}
-              >
-                <Ionicons
-                  name="close"
-                  size={22}
-                  color={
-                    themeColors.text
-                  }
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* MAP */}
-
-            <View
-              style={
-                styles.mapMainContainer
-              }
-            >
-              <MapViewWrapper
-                ref={mapRef}
-                style={styles.map}
-                initialRegion={
-                  mapRegion
-                }
-                region={
-                  mapRegion
-                }
-                selectionMarker={
-                  selectedLocation.latitude !==
-                  null
-                    ? {
-                        latitude:
-                          selectedLocation.latitude,
-                        longitude:
-                          selectedLocation.longitude,
-                      }
-                    : null
-                }
-                onMapPress={
-                  handleMapPress
-                }
-                onSelectionDragEnd={
-                  handleMapPress
-                }
-                showUserLocation={
-                  true
-                }
-                trackUserLocation={
-                  false
-                }
-                showMapTypeControl={
-                  true
-                }
-                fitToMarkersOnLoad={
-                  false
-                }
-              />
-
-              {/* CENTER INDICATOR */}
-
-              {isLoadingAddress && (
-                <View
-                  style={
-                    styles.mapLoadingBadge
-                  }
-                >
-                  <ActivityIndicator
-                    size="small"
-                    color={
-                      colors.primary
-                    }
-                  />
-
-                  <Text
-                    style={
-                      styles.mapLoadingText
-                    }
-                  >
-                    Recherche de l'adresse...
-                  </Text>
-                </View>
-              )}
-
-              {/* GREEN MARKER LEGEND */}
-
-              <View
-                style={[
-                  styles.markerInfo,
-                  {
-                    backgroundColor:
-                      themeColors.surface,
-                  },
-                ]}
-              >
-                <View
-                  style={
-                    styles.greenMarkerDot
-                  }
-                />
-
-                <Text
-                  style={[
-                    styles.markerInfoText,
-                    {
-                      color:
-                        themeColors.text,
-                    },
-                  ]}
-                >
-                  Position sélectionnée
-                </Text>
-              </View>
-            </View>
-
-            {/* BOTTOM PANEL */}
-
-            <View
-              style={[
-                styles.mapBottomPanel,
-                {
-                  backgroundColor:
-                    themeColors.surface,
-
-                  borderTopColor:
-                    themeColors.border ||
-                    '#E5E7EB',
-                },
-              ]}
-            >
-              <View
-                style={
-                  styles.addressTitleRow
-                }
+                style={styles.mapHeaderIcon}
               >
                 <Ionicons
                   name="location"
                   size={21}
-                  color={MAP_GREEN}
-                />
-
-                <Text
-                  style={[
-                    styles.addressTitle,
-                    {
-                      color:
-                        themeColors.text,
-                    },
-                  ]}
-                >
-                  Adresse sélectionnée
-                </Text>
-              </View>
-
-              <View
-                style={[
-                  styles.selectedAddressBox,
-                  {
-                    backgroundColor:
-                      themeColors.background,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.selectedAddressText,
-                    {
-                      color:
-                        themeColors.text,
-                    },
-                  ]}
-                  numberOfLines={3}
-                >
-                  {selectedLocation.address ||
-                    'Touchez la carte pour sélectionner votre position'}
-                </Text>
-              </View>
-
-              {/* VALIDATE */}
-
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={[
-                  styles.validateMapButton,
-                  {
-                    backgroundColor:
-                      MAP_GREEN,
-
-                    opacity:
-                      selectedLocation.latitude !==
-                        null &&
-                      selectedLocation.longitude !==
-                        null
-                        ? 1
-                        : 0.5,
-                  },
-                ]}
-                onPress={
-                  validateLocation
-                }
-                disabled={
-                  selectedLocation.latitude ===
-                    null ||
-                  selectedLocation.longitude ===
-                    null
-                }
-              >
-                <Ionicons
-                  name="checkmark-circle"
-                  size={23}
                   color="#fff"
                 />
+              </View>
 
-                <Text
-                  style={
-                    styles.validateMapButtonText
-                  }
-                >
-                  Valider cette position
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={
-                  styles.cancelMapButton
-                }
-                onPress={() => {
-                  setShowMapModal(
-                    false
-                  );
-
-                  showToast(
-                    'info',
-                    'Annulé',
-                    'La sélection de position a été annulée.'
-                  );
-                }}
-              >
+              <View>
                 <Text
                   style={[
-                    styles.cancelMapButtonText,
+                    styles.mapTitle,
+                    {
+                      color:
+                        themeColors.text,
+                    },
+                  ]}
+                >
+                  Votre position
+                </Text>
+
+                <Text
+                  style={[
+                    styles.mapSubtitle,
                     {
                       color:
                         themeColors.textSecondary,
                     },
                   ]}
                 >
-                  Annuler
+                  Déplacez le marqueur ou
+                  touchez la carte
                 </Text>
-              </TouchableOpacity>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.closeMapButton,
+                {
+                  backgroundColor:
+                    themeColors.background,
+                },
+              ]}
+              onPress={() => {
+                setShowMapModal(false);
+
+                showToast(
+                  'info',
+                  'Carte fermée',
+                  'La sélection de position a été fermée.'
+                );
+              }}
+            >
+              <Ionicons
+                name="close"
+                size={22}
+                color={themeColors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <View
+            style={styles.mapMainContainer}
+          >
+            <MapViewWrapper
+              ref={mapRef}
+              style={styles.map}
+              initialRegion={mapRegion}
+              region={mapRegion}
+              selectionMarker={
+                selectedLocation.latitude !==
+                null
+                  ? {
+                      latitude:
+                        selectedLocation.latitude,
+                      longitude:
+                        selectedLocation.longitude,
+                    }
+                  : null
+              }
+              onMapPress={handleMapPress}
+              onSelectionDragEnd={
+                handleMapPress
+              }
+              showUserLocation={true}
+              trackUserLocation={false}
+              showMapTypeControl={true}
+              fitToMarkersOnLoad={false}
+            />
+
+            {isLoadingAddress && (
+              <View
+                style={
+                  styles.mapLoadingBadge
+                }
+              >
+                <ActivityIndicator
+                  size="small"
+                  color={colors.primary}
+                />
+
+                <Text
+                  style={
+                    styles.mapLoadingText
+                  }
+                >
+                  Recherche de
+                  l'adresse...
+                </Text>
+              </View>
+            )}
+
+            <View
+              style={[
+                styles.markerInfo,
+                {
+                  backgroundColor:
+                    themeColors.surface,
+                },
+              ]}
+            >
+              <View
+                style={
+                  styles.greenMarkerDot
+                }
+              />
+
+              <Text
+                style={[
+                  styles.markerInfoText,
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+              >
+                Position sélectionnée
+              </Text>
             </View>
           </View>
-        </Modal>
-      );
-    };
+
+          <View
+            style={[
+              styles.mapBottomPanel,
+              {
+                backgroundColor:
+                  themeColors.surface,
+                borderTopColor:
+                  themeColors.border ||
+                  '#E5E7EB',
+              },
+            ]}
+          >
+            <View
+              style={
+                styles.addressTitleRow
+              }
+            >
+              <Ionicons
+                name="location"
+                size={21}
+                color={MAP_GREEN}
+              />
+
+              <Text
+                style={[
+                  styles.addressTitle,
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+              >
+                Adresse sélectionnée
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.selectedAddressBox,
+                {
+                  backgroundColor:
+                    themeColors.background,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.selectedAddressText,
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+                numberOfLines={3}
+              >
+                {selectedLocation.address ||
+                  'Touchez la carte pour sélectionner votre position'}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[
+                styles.validateMapButton,
+                {
+                  backgroundColor:
+                    MAP_GREEN,
+                  opacity:
+                    selectedLocation.latitude !==
+                      null &&
+                    selectedLocation.longitude !==
+                      null
+                      ? 1
+                      : 0.5,
+                },
+              ]}
+              onPress={validateLocation}
+              disabled={
+                selectedLocation.latitude ===
+                  null ||
+                selectedLocation.longitude ===
+                  null
+              }
+            >
+              <Ionicons
+                name="checkmark-circle"
+                size={23}
+                color="#fff"
+              />
+
+              <Text
+                style={
+                  styles.validateMapButtonText
+                }
+              >
+                Valider cette position
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={
+                styles.cancelMapButton
+              }
+              onPress={() => {
+                setShowMapModal(false);
+
+                showToast(
+                  'info',
+                  'Annulé',
+                  'La sélection de position a été annulée.'
+                );
+              }}
+            >
+              <Text
+                style={[
+                  styles.cancelMapButtonText,
+                  {
+                    color:
+                      themeColors.textSecondary,
+                  },
+                ]}
+              >
+                Annuler
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
 
   // ============================================================
   // DATE PICKER
   // ============================================================
 
-  const renderDatePicker =
-    () => {
-      if (IS_WEB) {
-        return (
-          <WebDateInput
-            value={
-              webDateValue
-            }
-            min={formatLocalDate(
-              startOfLocalDay()
-            )}
-            themeColors={
-              themeColors
-            }
-            onChange={(
-              value
-            ) => {
-              const date =
-                parseLocalDate(
-                  value
-                );
+  const renderDatePicker = () => {
+    if (IS_WEB) {
+      return (
+        <WebDateInput
+          value={webDateValue}
+          min={formatLocalDate(
+            startOfLocalDay()
+          )}
+          themeColors={themeColors}
+          onChange={(value) => {
+            const date =
+              parseLocalDate(value);
 
-              setSelectedDate(
+            setSelectedDate(date);
+
+            showToast(
+              'success',
+              'Date sélectionnée',
+              `Rendez-vous prévu le ${formatDate(
                 date
-              );
+              )}.`
+            );
+          }}
+        />
+      );
+    }
 
-              showToast(
-                'success',
-                'Date sélectionnée',
-                `Rendez-vous prévu le ${formatDate(
-                  date
-                )}.`
-              );
+    return (
+      <>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={[
+            styles.dateTimeButton,
+            {
+              backgroundColor:
+                themeColors.surface,
+              borderColor:
+                themeColors.border ||
+                '#E0E0E0',
+            },
+          ]}
+          onPress={() =>
+            setShowDatePicker(true)
+          }
+        >
+          <Ionicons
+            name="calendar-outline"
+            size={21}
+            color={colors.primary}
+          />
+
+          <View
+            style={styles.dateTextBlock}
+          >
+            <Text
+              style={[
+                styles.smallLabel,
+                {
+                  color:
+                    themeColors.textSecondary,
+                },
+              ]}
+            >
+              Date
+            </Text>
+
+            <Text
+              style={[
+                styles.dateTimeText,
+                {
+                  color:
+                    themeColors.text,
+                },
+              ]}
+            >
+              {displayDate}
+            </Text>
+          </View>
+
+          <Ionicons
+            name="chevron-down"
+            size={17}
+            color={
+              themeColors.textSecondary
+            }
+          />
+        </TouchableOpacity>
+
+        {showDatePicker && (
+          <DateTimePicker
+            value={selectedDate}
+            mode="date"
+            display="default"
+            minimumDate={startOfLocalDay()}
+            onChange={(
+              event,
+              date
+            ) => {
+              setShowDatePicker(false);
+
+              if (date) {
+                setSelectedDate(date);
+
+                showToast(
+                  'success',
+                  'Date sélectionnée',
+                  `Rendez-vous prévu le ${formatDate(
+                    date
+                  )}.`
+                );
+              }
             }}
           />
-        );
-      }
-
-      return (
-        <>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[
-              styles.dateTimeButton,
-              {
-                backgroundColor:
-                  themeColors.surface,
-
-                borderColor:
-                  themeColors.border ||
-                  '#E0E0E0',
-              },
-            ]}
-            onPress={() =>
-              setShowDatePicker(
-                true
-              )
-            }
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={21}
-              color={
-                colors.primary
-              }
-            />
-
-            <View
-              style={
-                styles.dateTextBlock
-              }
-            >
-              <Text
-                style={[
-                  styles.smallLabel,
-                  {
-                    color:
-                      themeColors.textSecondary,
-                  },
-                ]}
-              >
-                Date
-              </Text>
-
-              <Text
-                style={[
-                  styles.dateTimeText,
-                  {
-                    color:
-                      themeColors.text,
-                  },
-                ]}
-              >
-                {displayDate}
-              </Text>
-            </View>
-
-            <Ionicons
-              name="chevron-down"
-              size={17}
-              color={
-                themeColors.textSecondary
-              }
-            />
-          </TouchableOpacity>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={
-                selectedDate
-              }
-              mode="date"
-              display="default"
-              minimumDate={startOfLocalDay()}
-              onChange={(
-                event,
-                date
-              ) => {
-                setShowDatePicker(
-                  false
-                );
-
-                if (date) {
-                  setSelectedDate(
-                    date
-                  );
-
-                  showToast(
-                    'success',
-                    'Date sélectionnée',
-                    `Rendez-vous prévu le ${formatDate(
-                      date
-                    )}.`
-                  );
-                }
-              }}
-            />
-          )}
-        </>
-      );
-    };
+        )}
+      </>
+    );
+  };
 
   // ============================================================
   // TIME PICKER
   // ============================================================
 
-  const renderTimePicker =
-    () => {
-      if (IS_WEB) {
-        return (
-          <WebTimeInput
-            value={
-              webTimeValue
-            }
-            themeColors={
-              themeColors
-            }
-            onChange={(
-              value
-            ) => {
-              const time =
-                parseTimeToDate(
-                  value
-                );
+  const renderTimePicker = () => {
+    if (IS_WEB) {
+      return (
+        <WebTimeInput
+          value={webTimeValue}
+          themeColors={themeColors}
+          onChange={(value) => {
+            const time =
+              parseTimeToDate(value);
 
-              setSelectedTime(
+            setSelectedTime(time);
+
+            showToast(
+              'success',
+              'Heure sélectionnée',
+              `Séance prévue à ${formatTime(
                 time
-              );
+              )}.`
+            );
+          }}
+        />
+      );
+    }
 
-              showToast(
-                'success',
-                'Heure sélectionnée',
-                `Séance prévue à ${formatTime(
-                  time
-                )}.`
-              );
+    return (
+      <>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={[
+            styles.dateTimeButton,
+            {
+              backgroundColor:
+                themeColors.surface,
+              borderColor:
+                themeColors.border ||
+                '#E0E0E0',
+            },
+          ]}
+          onPress={() =>
+            setShowTimePicker(true)
+          }
+        >
+          <Ionicons
+            name="time-outline"
+            size={21}
+            color={colors.primary}
+          />
+
+          <View
+            style={styles.dateTextBlock}
+          >
+            <Text
+              style={[
+                styles.smallLabel,
+                {
+                  color:
+                    themeColors.textSecondary,
+                },
+              ]}
+            >
+              Heure
+            </Text>
+
+            <Text
+              style={[
+                styles.dateTimeText,
+                {
+                  color:
+                    themeColors.text,
+                },
+              ]}
+            >
+              {displayTime}
+            </Text>
+          </View>
+
+          <Ionicons
+            name="chevron-down"
+            size={17}
+            color={
+              themeColors.textSecondary
+            }
+          />
+        </TouchableOpacity>
+
+        {showTimePicker && (
+          <DateTimePicker
+            value={selectedTime}
+            mode="time"
+            is24Hour
+            display="default"
+            onChange={(
+              event,
+              time
+            ) => {
+              setShowTimePicker(false);
+
+              if (time) {
+                setSelectedTime(time);
+
+                showToast(
+                  'success',
+                  'Heure sélectionnée',
+                  `Séance prévue à ${formatTime(
+                    time
+                  )}.`
+                );
+              }
             }}
           />
-        );
-      }
-
-      return (
-        <>
-          <TouchableOpacity
-            activeOpacity={0.8}
-            style={[
-              styles.dateTimeButton,
-              {
-                backgroundColor:
-                  themeColors.surface,
-
-                borderColor:
-                  themeColors.border ||
-                  '#E0E0E0',
-              },
-            ]}
-            onPress={() =>
-              setShowTimePicker(
-                true
-              )
-            }
-          >
-            <Ionicons
-              name="time-outline"
-              size={21}
-              color={
-                colors.primary
-              }
-            />
-
-            <View
-              style={
-                styles.dateTextBlock
-              }
-            >
-              <Text
-                style={[
-                  styles.smallLabel,
-                  {
-                    color:
-                      themeColors.textSecondary,
-                  },
-                ]}
-              >
-                Heure
-              </Text>
-
-              <Text
-                style={[
-                  styles.dateTimeText,
-                  {
-                    color:
-                      themeColors.text,
-                  },
-                ]}
-              >
-                {displayTime}
-              </Text>
-            </View>
-
-            <Ionicons
-              name="chevron-down"
-              size={17}
-              color={
-                themeColors.textSecondary
-              }
-            />
-          </TouchableOpacity>
-
-          {showTimePicker && (
-            <DateTimePicker
-              value={
-                selectedTime
-              }
-              mode="time"
-              is24Hour
-              display="default"
-              onChange={(
-                event,
-                time
-              ) => {
-                setShowTimePicker(
-                  false
-                );
-
-                if (time) {
-                  setSelectedTime(
-                    time
-                  );
-
-                  showToast(
-                    'success',
-                    'Heure sélectionnée',
-                    `Séance prévue à ${formatTime(
-                      time
-                    )}.`
-                  );
-                }
-              }}
-            />
-          )}
-        </>
-      );
-    };
+        )}
+      </>
+    );
+  };
 
   // ============================================================
-  // RENDER
+  // TOAST CONFIG
   // ============================================================
 
   const toastConfig =
     getToastConfig();
+
+  // ============================================================
+  // RENDER
+  // ============================================================
 
   return (
     <SafeAreaView
@@ -1832,7 +1673,7 @@ const BookingScreen = ({
       />
 
       {/* ====================================================== */}
-      {/* GLOBAL TOAST */}
+      {/* TOAST */}
       {/* ====================================================== */}
 
       {toast.visible && (
@@ -1841,9 +1682,7 @@ const BookingScreen = ({
           style={[
             styles.toastWrapper,
             {
-              opacity:
-                toastOpacity,
-
+              opacity: toastOpacity,
               transform: [
                 {
                   translateY:
@@ -1861,7 +1700,6 @@ const BookingScreen = ({
               {
                 backgroundColor:
                   toastConfig.background,
-
                 borderColor:
                   `${toastConfig.color}35`,
               },
@@ -1888,15 +1726,11 @@ const BookingScreen = ({
             </View>
 
             <View
-              style={
-                styles.toastContent
-              }
+              style={styles.toastContent}
             >
               {!!toast.title && (
                 <Text
-                  numberOfLines={
-                    1
-                  }
+                  numberOfLines={1}
                   style={[
                     styles.toastTitle,
                     {
@@ -1911,9 +1745,7 @@ const BookingScreen = ({
 
               {!!toast.message && (
                 <Text
-                  numberOfLines={
-                    2
-                  }
+                  numberOfLines={2}
                   style={[
                     styles.toastMessage,
                     {
@@ -1928,18 +1760,14 @@ const BookingScreen = ({
             </View>
 
             <TouchableOpacity
-              onPress={
-                hideToast
-              }
+              onPress={hideToast}
               hitSlop={{
                 top: 10,
                 bottom: 10,
                 left: 10,
                 right: 10,
               }}
-              style={
-                styles.toastClose
-              }
+              style={styles.toastClose}
             >
               <Ionicons
                 name="close"
@@ -1954,26 +1782,20 @@ const BookingScreen = ({
       )}
 
       <KeyboardAvoidingView
-        style={
-          styles.keyboardView
-        }
+        style={styles.keyboardView}
         behavior={
-          Platform.OS ===
-          'ios'
+          Platform.OS === 'ios'
             ? 'padding'
             : undefined
         }
         keyboardVerticalOffset={
-          Platform.OS ===
-          'ios'
+          Platform.OS === 'ios'
             ? 100
             : 0
         }
       >
         <ScrollView
-          ref={
-            scrollViewRef
-          }
+          ref={scrollViewRef}
           style={[
             styles.container,
             {
@@ -1992,13 +1814,13 @@ const BookingScreen = ({
             true
           }
         >
+
           {/* ================================================= */}
           {/* MASSAGE TYPE */}
           {/* ================================================= */}
 
-          <View
-            style={styles.section}
-          >
+          <View style={styles.section}>
+
             <Text
               style={[
                 styles.sectionTitle,
@@ -2011,123 +1833,234 @@ const BookingScreen = ({
               Type de massage
             </Text>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={
-                false
+            {/* ================================================= */}
+            {/* ✅ CAROUSEL WRAPPER */}
+            {/* ================================================= */}
+
+            <View
+              style={
+                styles.massageCarouselWrapper
               }
-              keyboardShouldPersistTaps="always"
-              contentContainerStyle={{
-                paddingRight:
-                  spacing.md,
-              }}
             >
-              {MASSAGE_TYPES.map(
-                (type) => {
-                  const active =
-                    selectedType ===
-                    type.id;
 
-                  return (
-                    <TouchableOpacity
-                      key={
-                        type.id
+              {/* ============================================= */}
+              {/* LEFT BUTTON — WEB ONLY */}
+              {/* ============================================= */}
+
+              {IS_WEB &&
+                massageTypes.length > 0 && (
+                  <TouchableOpacity
+                    activeOpacity={0.82}
+                    onPress={
+                      handleMassageCarouselLeft
+                    }
+                    style={[
+                      styles.carouselButton,
+                      styles.carouselButtonLeft,
+                      {
+                        backgroundColor:
+                          themeColors.surface,
+                        borderColor:
+                          themeColors.border ||
+                          '#E5E7EB',
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="chevron-back"
+                      size={23}
+                      color={
+                        themeColors.text
                       }
-                      activeOpacity={
-                        0.8
+                    />
+                  </TouchableOpacity>
+                )}
+
+              {/* ============================================= */}
+              {/* MASSAGE CARDS */}
+              {/* ============================================= */}
+
+              <ScrollView
+                ref={massageCarouselRef}
+                horizontal
+                showsHorizontalScrollIndicator={
+                  false
+                }
+                keyboardShouldPersistTaps="always"
+                onScroll={
+                  handleMassageScroll
+                }
+                scrollEventThrottle={16}
+                contentContainerStyle={[
+                  styles.massageCarouselContent,
+                  {
+                    paddingLeft:
+                      IS_WEB
+                        ? 48
+                        : 0,
+                    paddingRight:
+                      IS_WEB
+                        ? 48
+                        : spacing.md,
+                  },
+                ]}
+              >
+                {massageTypesLoading &&
+                  massageTypes.length ===
+                    0 && (
+                    <ActivityIndicator
+                      size="small"
+                      color={
+                        colors.primary
                       }
-                      style={[
-                        styles.typeCard,
-                        {
-                          backgroundColor:
-                            themeColors.surface,
-
-                          borderColor:
-                            active
-                              ? colors.primary
-                              : 'transparent',
-                        },
-                      ]}
-                      onPress={() => {
-                        setSelectedType(
-                          type.id
-                        );
-
-                        showToast(
-                          'success',
-                          'Massage sélectionné',
-                          type.name
-                        );
+                      style={{
+                        marginHorizontal:
+                          spacing.md,
                       }}
-                    >
-                      <View
+                    />
+                  )}
+
+                {massageTypes.map(
+                  (type) => {
+                    const active =
+                      selectedType ===
+                      type.id;
+
+                    return (
+                      <TouchableOpacity
+                        key={type.id}
+                        activeOpacity={0.82}
                         style={[
-                          styles.typeIcon,
+                          styles.typeCard,
                           {
                             backgroundColor:
+                              themeColors.surface,
+                            borderColor:
                               active
                                 ? colors.primary
-                                : colors.primary +
-                                  '18',
+                                : 'transparent',
                           },
                         ]}
-                      >
-                        <Ionicons
-                          name="sparkles"
-                          size={23}
-                          color={
-                            active
-                              ? '#fff'
-                              : colors.primary
-                          }
-                        />
-                      </View>
+                        onPress={() => {
+                          setSelectedType(
+                            type.id
+                          );
 
-                      <Text
-                        style={[
-                          styles.typeName,
-                          {
-                            color:
-                              themeColors.text,
-                          },
-                        ]}
-                        numberOfLines={
-                          2
-                        }
+                          showToast(
+                            'success',
+                            'Massage sélectionné',
+                            type.name
+                          );
+                        }}
                       >
-                        {
-                          type.name
-                        }
-                      </Text>
 
-                      <Text
-                        style={[
-                          styles.typePrice,
-                          {
-                            color:
-                              themeColors.textSecondary,
-                          },
-                        ]}
-                      >
-                        {type.price.toLocaleString(
-                          'fr-FR'
-                        )}{' '}
-                        Ar
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }
-              )}
-            </ScrollView>
+                        {/* ================================= */}
+                        {/* IMAGE GRANDE */}
+                        {/* ================================= */}
+
+                        <View
+                          style={[
+                            styles.typeIcon,
+                            {
+                              backgroundColor:
+                                active
+                                  ? colors.primary
+                                  : colors.primary +
+                                    '18',
+                            },
+                          ]}
+                        >
+                          <TypeCardVisual
+                            imageUrl={
+                              type.imageUrl
+                            }
+                            iconName={
+                              type.icon
+                            }
+                            size={68}
+                            tintColor={
+                              active
+                                ? '#fff'
+                                : colors.primary
+                            }
+                          />
+                        </View>
+
+                        <Text
+                          style={[
+                            styles.typeName,
+                            {
+                              color:
+                                themeColors.text,
+                            },
+                          ]}
+                          numberOfLines={2}
+                        >
+                          {type.name}
+                        </Text>
+
+                        <Text
+                          style={[
+                            styles.typePrice,
+                            {
+                              color:
+                                themeColors.textSecondary,
+                            },
+                          ]}
+                        >
+                          {type.price.toLocaleString(
+                            'fr-FR'
+                          )}{' '}
+                          Ar
+                        </Text>
+
+                      </TouchableOpacity>
+                    );
+                  }
+                )}
+              </ScrollView>
+
+              {/* ============================================= */}
+              {/* RIGHT BUTTON — WEB ONLY */}
+              {/* ============================================= */}
+
+              {IS_WEB &&
+                massageTypes.length > 0 && (
+                  <TouchableOpacity
+                    activeOpacity={0.82}
+                    onPress={
+                      handleMassageCarouselRight
+                    }
+                    style={[
+                      styles.carouselButton,
+                      styles.carouselButtonRight,
+                      {
+                        backgroundColor:
+                          themeColors.surface,
+                        borderColor:
+                          themeColors.border ||
+                          '#E5E7EB',
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="chevron-forward"
+                      size={23}
+                      color={
+                        themeColors.text
+                      }
+                    />
+                  </TouchableOpacity>
+                )}
+
+            </View>
           </View>
 
           {/* ================================================= */}
           {/* DURATION */}
           {/* ================================================= */}
 
-          <View
-            style={styles.section}
-          >
+          <View style={styles.section}>
             <Text
               style={[
                 styles.sectionTitle,
@@ -2153,12 +2086,8 @@ const BookingScreen = ({
 
                   return (
                     <TouchableOpacity
-                      key={
-                        duration
-                      }
-                      activeOpacity={
-                        0.8
-                      }
+                      key={duration}
+                      activeOpacity={0.8}
                       style={[
                         styles.durationButton,
                         {
@@ -2167,7 +2096,6 @@ const BookingScreen = ({
                               ? colors.primary +
                                 '12'
                               : themeColors.surface,
-
                           borderColor:
                             active
                               ? colors.primary
@@ -2197,10 +2125,7 @@ const BookingScreen = ({
                           },
                         ]}
                       >
-                        {
-                          duration
-                        }{' '}
-                        min
+                        {duration} min
                       </Text>
                     </TouchableOpacity>
                   );
@@ -2213,9 +2138,7 @@ const BookingScreen = ({
           {/* GENDER */}
           {/* ================================================= */}
 
-          <View
-            style={styles.section}
-          >
+          <View style={styles.section}>
             <Text
               style={[
                 styles.sectionTitle,
@@ -2236,97 +2159,82 @@ const BookingScreen = ({
               {[
                 {
                   id: 'any',
-                  label:
-                    'Peu importe',
-                  icon:
-                    'people-outline',
+                  label: 'Peu importe',
+                  icon: 'people-outline',
                 },
                 {
                   id: 'male',
-                  label:
-                    'Homme',
-                  icon:
-                    'man-outline',
+                  label: 'Homme',
+                  icon: 'man-outline',
                 },
                 {
                   id: 'female',
-                  label:
-                    'Femme',
-                  icon:
-                    'woman-outline',
+                  label: 'Femme',
+                  icon: 'woman-outline',
                 },
-              ].map(
-                (gender) => {
-                  const active =
-                    preferredGender ===
-                    gender.id;
+              ].map((gender) => {
+                const active =
+                  preferredGender ===
+                  gender.id;
 
-                  return (
-                    <TouchableOpacity
-                      key={
-                        gender.id
-                      }
-                      activeOpacity={
-                        0.8
-                      }
-                      style={[
-                        styles.genderButton,
-                        {
-                          backgroundColor:
-                            active
-                              ? colors.primary +
-                                '12'
-                              : themeColors.surface,
-
-                          borderColor:
-                            active
-                              ? colors.primary
-                              : 'transparent',
-                        },
-                      ]}
-                      onPress={() => {
-                        setPreferredGender(
-                          gender.id
-                        );
-
-                        showToast(
-                          'success',
-                          'Préférence enregistrée',
-                          gender.label
-                        );
-                      }}
-                    >
-                      <Ionicons
-                        name={
-                          gender.icon
-                        }
-                        size={18}
-                        color={
+                return (
+                  <TouchableOpacity
+                    key={gender.id}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.genderButton,
+                      {
+                        backgroundColor:
+                          active
+                            ? colors.primary +
+                              '12'
+                            : themeColors.surface,
+                        borderColor:
                           active
                             ? colors.primary
-                            : themeColors.textSecondary
-                        }
-                      />
+                            : 'transparent',
+                      },
+                    ]}
+                    onPress={() => {
+                      setPreferredGender(
+                        gender.id
+                      );
 
-                      <Text
-                        style={[
-                          styles.genderText,
-                          {
-                            color:
-                              active
-                                ? colors.primary
-                                : themeColors.text,
-                          },
-                        ]}
-                      >
+                      showToast(
+                        'success',
+                        'Préférence enregistrée',
+                        gender.label
+                      );
+                    }}
+                  >
+                    <Ionicons
+                      name={
+                        gender.icon
+                      }
+                      size={18}
+                      color={
+                        active
+                          ? colors.primary
+                          : themeColors.textSecondary
+                      }
+                    />
+
+                    <Text
+                      style={[
+                        styles.genderText,
                         {
-                          gender.label
-                        }
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                }
-              )}
+                          color:
+                            active
+                              ? colors.primary
+                              : themeColors.text,
+                        },
+                      ]}
+                    >
+                      {gender.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
@@ -2334,9 +2242,7 @@ const BookingScreen = ({
           {/* DATE & TIME */}
           {/* ================================================= */}
 
-          <View
-            style={styles.section}
-          >
+          <View style={styles.section}>
             <Text
               style={[
                 styles.sectionTitle,
@@ -2363,9 +2269,7 @@ const BookingScreen = ({
           {/* ADDRESS */}
           {/* ================================================= */}
 
-          <View
-            style={styles.section}
-          >
+          <View style={styles.section}>
             <Text
               style={[
                 styles.sectionTitle,
@@ -2384,7 +2288,6 @@ const BookingScreen = ({
                 {
                   backgroundColor:
                     themeColors.surface,
-
                   borderColor:
                     themeColors.border ||
                     '#E0E0E0',
@@ -2394,15 +2297,11 @@ const BookingScreen = ({
               <Ionicons
                 name="location-outline"
                 size={21}
-                color={
-                  colors.primary
-                }
+                color={colors.primary}
               />
 
               <TextInput
-                ref={
-                  addressInputRef
-                }
+                ref={addressInputRef}
                 style={[
                   styles.addressInput,
                   {
@@ -2418,28 +2317,18 @@ const BookingScreen = ({
                 onChangeText={
                   setAddress
                 }
-                multiline={
-                  false
-                }
-                numberOfLines={
-                  1
-                }
+                multiline={false}
+                numberOfLines={1}
                 returnKeyType="next"
-                blurOnSubmit={
-                  false
-                }
-                autoCorrect={
-                  false
-                }
+                blurOnSubmit={false}
+                autoCorrect={false}
                 autoCapitalize="sentences"
                 textAlignVertical="center"
               />
             </View>
 
             <TouchableOpacity
-              activeOpacity={
-                0.8
-              }
+              activeOpacity={0.8}
               style={
                 styles.locationButton
               }
@@ -2483,9 +2372,7 @@ const BookingScreen = ({
           {/* PRICE */}
           {/* ================================================= */}
 
-          <View
-            style={styles.section}
-          >
+          <View style={styles.section}>
             <Text
               style={[
                 styles.sectionTitle,
@@ -2504,7 +2391,6 @@ const BookingScreen = ({
                 {
                   backgroundColor:
                     themeColors.surface,
-
                   borderColor:
                     themeColors.border ||
                     '#E0E0E0',
@@ -2520,9 +2406,7 @@ const BookingScreen = ({
               </Text>
 
               <TextInput
-                ref={
-                  priceInputRef
-                }
+                ref={priceInputRef}
                 style={[
                   styles.priceInput,
                   {
@@ -2534,17 +2418,13 @@ const BookingScreen = ({
                 placeholderTextColor={
                   themeColors.textSecondary
                 }
-                value={
-                  priceProposed
-                }
+                value={priceProposed}
                 onChangeText={
                   setPriceProposed
                 }
                 keyboardType="numeric"
                 returnKeyType="done"
-                blurOnSubmit={
-                  false
-                }
+                blurOnSubmit={false}
               />
             </View>
 
@@ -2570,20 +2450,14 @@ const BookingScreen = ({
           {/* ================================================= */}
 
           <TouchableOpacity
-            activeOpacity={
-              0.85
-            }
+            activeOpacity={0.85}
             style={[
               styles.submitButton,
               isLoading &&
                 styles.submitButtonDisabled,
             ]}
-            onPress={
-              handleSubmit
-            }
-            disabled={
-              isLoading
-            }
+            onPress={handleSubmit}
+            disabled={isLoading}
           >
             {isLoading ? (
               <ActivityIndicator
@@ -2619,827 +2493,697 @@ const BookingScreen = ({
 // STYLES
 // ============================================================
 
-const styles =
-  StyleSheet.create({
-    safeArea: {
-      flex: 1,
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+
+  keyboardView: {
+    flex: 1,
+  },
+
+  container: {
+    flex: 1,
+  },
+
+  contentContainer: {
+    paddingTop: spacing.sm,
+    paddingBottom: 120,
+  },
+
+  // ==========================================================
+  // TOAST
+  // ==========================================================
+
+  toastWrapper: {
+    position: 'absolute',
+    top:
+      Platform.OS === 'android'
+        ? 14
+        : 10,
+    left: 12,
+    right: 12,
+    zIndex: 99999,
+    elevation: 999,
+    alignItems: 'center',
+  },
+
+  toast: {
+    width:
+      Platform.OS === 'web'
+        ? Math.min(
+            width - 32,
+            480
+          )
+        : '100%',
+
+    minHeight: 66,
+
+    borderRadius: 18,
+
+    borderWidth: 1,
+
+    paddingHorizontal: 12,
+
+    paddingVertical: 10,
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    shadowColor: '#000',
+
+    shadowOffset: {
+      width: 0,
+      height: 7,
     },
 
-    keyboardView: {
-      flex: 1,
+    shadowOpacity: 0.16,
+
+    shadowRadius: 16,
+
+    elevation: 12,
+  },
+
+  toastIconContainer: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+  },
+
+  toastContent: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+  },
+
+  toastTitle: {
+    fontSize: 14,
+    fontFamily:
+      typography.fontFamily.semiBold,
+    marginBottom: 2,
+  },
+
+  toastMessage: {
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily:
+      typography.fontFamily.regular,
+  },
+
+  toastClose: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
+
+  // ==========================================================
+  // SECTION
+  // ==========================================================
+
+  section: {
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.lg,
+  },
+
+  sectionTitle: {
+    fontSize: typography.fontSize.md,
+    fontFamily:
+      typography.fontFamily.semiBold,
+    marginBottom: spacing.sm,
+  },
+
+  // ==========================================================
+  // ✅ MASSAGE CAROUSEL
+  // ==========================================================
+
+  massageCarouselWrapper: {
+    position: 'relative',
+    width: '100%',
+    minHeight: 184,
+    justifyContent: 'center',
+  },
+
+  massageCarouselContent: {
+    alignItems: 'stretch',
+  },
+
+  // ==========================================================
+  // ✅ CAROUSEL BUTTON
+  // Un seul à gauche + un seul à droite
+  // ==========================================================
+
+  carouselButton: {
+    position: 'absolute',
+
+    top: '50%',
+
+    marginTop: -23,
+
+    width: 46,
+
+    height: 46,
+
+    borderRadius: 23,
+
+    borderWidth: 1,
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+
+    zIndex: 50,
+
+    elevation: 8,
+
+    shadowColor: '#000',
+
+    shadowOffset: {
+      width: 0,
+      height: 3,
     },
 
-    container: {
-      flex: 1,
-    },
+    shadowOpacity: 0.16,
 
-    contentContainer: {
-      paddingTop: spacing.sm,
-      paddingBottom: 120,
-    },
+    shadowRadius: 8,
 
-    // ========================================================
-    // TOAST
-    // ========================================================
-
-    toastWrapper: {
-      position: 'absolute',
-      top:
-        Platform.OS === 'android'
-          ? 14
-          : 10,
-      left: 12,
-      right: 12,
-      zIndex: 99999,
-      elevation: 999,
-      alignItems: 'center',
-    },
-
-    toast: {
-      width:
-        Platform.OS === 'web'
-          ? Math.min(
-              width - 32,
-              480
-            )
-          : '100%',
-
-      minHeight: 66,
-
-      borderRadius: 18,
-
-      borderWidth: 1,
-
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-
-      flexDirection: 'row',
-      alignItems: 'center',
-
-      shadowColor: '#000',
-
-      shadowOffset: {
-        width: 0,
-        height: 7,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+        userSelect: 'none',
       },
+    }),
+  },
 
-      shadowOpacity: 0.16,
+  carouselButtonLeft: {
+    left: 0,
+  },
 
-      shadowRadius: 16,
+  carouselButtonRight: {
+    right: 0,
+  },
 
-      elevation: 12,
-    },
+  // ==========================================================
+  // ✅ TYPE CARD — PLUS GRANDE
+  // ==========================================================
 
-    toastIconContainer: {
-      width: 42,
-      height: 42,
-      borderRadius: 14,
+  typeCard: {
+    width: 165,
 
-      alignItems: 'center',
-      justifyContent: 'center',
+    minHeight: 176,
 
-      marginRight: 11,
-    },
+    paddingVertical: 15,
 
-    toastContent: {
-      flex: 1,
-      minWidth: 0,
-      justifyContent: 'center',
-    },
+    paddingHorizontal: 12,
 
-    toastTitle: {
-      fontSize: 14,
-      fontFamily:
-        typography.fontFamily.semiBold,
-      marginBottom: 2,
-    },
+    borderRadius: 20,
 
-    toastMessage: {
-      fontSize: 12,
-      lineHeight: 17,
-      fontFamily:
-        typography.fontFamily.regular,
-    },
+    marginRight: spacing.sm,
 
-    toastClose: {
-      width: 30,
-      height: 30,
+    alignItems: 'center',
 
-      alignItems: 'center',
-      justifyContent: 'center',
+    borderWidth: 2,
 
-      marginLeft: 4,
-    },
+    justifyContent: 'center',
 
-    section: {
-      paddingHorizontal:
-        spacing.md,
-      marginBottom:
-        spacing.lg,
-    },
+    overflow: 'hidden',
 
-    sectionTitle: {
-      fontSize:
-        typography.fontSize.md,
-      fontFamily:
-        typography.fontFamily.semiBold,
-      marginBottom:
-        spacing.sm,
-    },
-
-    // ========================================================
-    // MASSAGE
-    // ========================================================
-
-    typeCard: {
-      width: 145,
-      minHeight: 150,
-
-      padding:
-        spacing.md,
-
-      borderRadius: 18,
-
-      marginRight:
-        spacing.sm,
-
-      alignItems: 'center',
-
-      borderWidth: 2,
-
-      justifyContent:
-        'center',
-    },
-
-    typeIcon: {
-      width: 52,
-      height: 52,
-
-      borderRadius: 26,
-
-      alignItems: 'center',
-      justifyContent: 'center',
-
-      marginBottom:
-        spacing.sm,
-    },
-
-    typeName: {
-      fontSize:
-        typography.fontSize.sm,
-
-      fontFamily:
-        typography.fontFamily.medium,
-
-      textAlign: 'center',
-
-      lineHeight: 19,
-    },
-
-    typePrice: {
-      fontSize:
-        typography.fontSize.xs,
-
-      fontFamily:
-        typography.fontFamily.regular,
-
-      marginTop: 5,
-    },
-
-    // ========================================================
-    // DURATION
-    // ========================================================
-
-    durationContainer: {
-      flexDirection:
-        'row',
-
-      flexWrap:
-        'wrap',
-
-      gap: spacing.sm,
-    },
-
-    durationButton: {
-      paddingHorizontal:
-        spacing.md,
-
-      paddingVertical:
-        spacing.sm,
-
-      borderRadius: 12,
-
-      borderWidth: 1,
-    },
-
-    durationText: {
-      fontSize:
-        typography.fontSize.sm,
-
-      fontFamily:
-        typography.fontFamily.medium,
-    },
-
-    // ========================================================
-    // GENDER
-    // ========================================================
-
-    genderContainer: {
-      flexDirection:
-        'row',
-
-      flexWrap:
-        'wrap',
-
-      gap: spacing.sm,
-    },
-
-    genderButton: {
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      gap: 6,
-
-      paddingHorizontal:
-        spacing.md,
-
-      paddingVertical:
-        spacing.sm,
-
-      borderRadius: 12,
-
-      borderWidth: 1,
-    },
-
-    genderText: {
-      fontSize:
-        typography.fontSize.sm,
-
-      fontFamily:
-        typography.fontFamily.medium,
-    },
-
-    // ========================================================
-    // DATE / TIME
-    // ========================================================
-
-    dateTimeContainer: {
-      flexDirection:
-        'row',
-
-      gap: spacing.sm,
-    },
-
-    webInputWrapper: {
-      flex: 1,
-
-      minWidth: 0,
-
-      height: 48,
-
-      borderRadius: 13,
-
-      borderWidth: 1,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      paddingHorizontal: 12,
-
-      gap: 8,
-    },
-
-    dateTimeButton: {
-      flex: 1,
-
-      minHeight: 62,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      paddingHorizontal:
-        spacing.md,
-
-      borderRadius: 13,
-
-      borderWidth: 1,
-
-      gap: 10,
-    },
-
-    dateTextBlock: {
-      flex: 1,
-    },
-
-    smallLabel: {
-      fontSize: 11,
-      marginBottom: 2,
-    },
-
-    dateTimeText: {
-      fontSize:
-        typography.fontSize.sm,
-
-      fontFamily:
-        typography.fontFamily.semiBold,
-    },
-
-    // ========================================================
-    // ADDRESS
-    // ========================================================
-
-    addressContainer: {
-      minHeight: 54,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      paddingHorizontal:
-        spacing.md,
-
-      borderRadius: 13,
-
-      borderWidth: 1,
-
-      gap: spacing.sm,
-    },
-
-    addressInput: {
-      flex: 1,
-
-      height: 48,
-
-      fontSize:
-        typography.fontSize.md,
-
-      fontFamily:
-        typography.fontFamily.regular,
-
-      padding: 0,
-
-      outlineStyle:
-        'none',
-    },
-
-    locationButton: {
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      marginTop: 10,
-
-      gap: 7,
-
-      paddingVertical: 5,
-    },
-
-    locationButtonText: {
-      color:
-        colors.primary,
-
-      fontSize:
-        typography.fontSize.sm,
-
-      fontFamily:
-        typography.fontFamily.medium,
-    },
-
-    // ========================================================
-    // PRICE
-    // ========================================================
-
-    priceContainer: {
-      height: 58,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      paddingHorizontal:
-        spacing.md,
-
-      borderRadius: 13,
-
-      borderWidth: 1,
-    },
-
-    priceCurrency: {
-      fontSize:
-        typography.fontSize.lg,
-
-      fontFamily:
-        typography.fontFamily.bold,
-
-      color:
-        colors.primary,
-
-      marginRight:
-        spacing.sm,
-    },
-
-    priceInput: {
-      flex: 1,
-
-      height: 50,
-
-      fontSize:
-        typography.fontSize.lg,
-
-      fontFamily:
-        typography.fontFamily.bold,
-
-      padding: 0,
-
-      outlineStyle:
-        'none',
-    },
-
-    priceHint: {
-      fontSize:
-        typography.fontSize.xs,
-
-      fontFamily:
-        typography.fontFamily.regular,
-
-      marginTop:
-        spacing.xs,
-    },
-
-    // ========================================================
-    // SUBMIT
-    // ========================================================
-
-    submitButton: {
-      minHeight: 56,
-
-      backgroundColor:
-        colors.primary,
-
-      borderRadius: 16,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      flexDirection:
-        'row',
-
-      gap: 10,
-
-      marginHorizontal:
-        spacing.md,
-
-      marginTop:
-        spacing.md,
-
-      marginBottom:
-        spacing.xl,
-
-      shadowColor:
-        colors.primary,
-
-      shadowOffset: {
-        width: 0,
-        height: 4,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+        userSelect: 'none',
       },
+    }),
+  },
 
-      shadowOpacity: 0.25,
+  // ==========================================================
+  // ✅ IMAGE PLUS GRANDE
+  // ==========================================================
 
-      shadowRadius: 8,
+  typeIcon: {
+    width: 78,
 
-      elevation: 5,
+    height: 78,
+
+    borderRadius: 39,
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+
+    marginBottom: 10,
+
+    overflow: 'hidden',
+  },
+
+  typeName: {
+    fontSize:
+      typography.fontSize.sm,
+
+    fontFamily:
+      typography.fontFamily.medium,
+
+    textAlign: 'center',
+
+    lineHeight: 19,
+
+    minHeight: 38,
+
+    width: '100%',
+  },
+
+  typePrice: {
+    fontSize:
+      typography.fontSize.xs,
+
+    fontFamily:
+      typography.fontFamily.regular,
+
+    marginTop: 6,
+  },
+
+  // ==========================================================
+  // DURATION
+  // ==========================================================
+
+  durationContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+
+  durationButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+
+  durationText: {
+    fontSize:
+      typography.fontSize.sm,
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  // ==========================================================
+  // GENDER
+  // ==========================================================
+
+  genderContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+
+  genderButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+
+  genderText: {
+    fontSize:
+      typography.fontSize.sm,
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  // ==========================================================
+  // DATE / TIME
+  // ==========================================================
+
+  dateTimeContainer: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+
+  webInputWrapper: {
+    flex: 1,
+    minWidth: 0,
+    height: 48,
+    borderRadius: 13,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+
+  dateTimeButton: {
+    flex: 1,
+    minHeight: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    borderRadius: 13,
+    borderWidth: 1,
+    gap: 10,
+  },
+
+  dateTextBlock: {
+    flex: 1,
+  },
+
+  smallLabel: {
+    fontSize: 11,
+    marginBottom: 2,
+  },
+
+  dateTimeText: {
+    fontSize:
+      typography.fontSize.sm,
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  // ==========================================================
+  // ADDRESS
+  // ==========================================================
+
+  addressContainer: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    borderRadius: 13,
+    borderWidth: 1,
+    gap: spacing.sm,
+  },
+
+  addressInput: {
+    flex: 1,
+    height: 48,
+    fontSize:
+      typography.fontSize.md,
+    fontFamily:
+      typography.fontFamily.regular,
+    padding: 0,
+    outlineStyle: 'none',
+  },
+
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    gap: 7,
+    paddingVertical: 5,
+  },
+
+  locationButtonText: {
+    color: colors.primary,
+    fontSize:
+      typography.fontSize.sm,
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  // ==========================================================
+  // PRICE
+  // ==========================================================
+
+  priceContainer: {
+    height: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    borderRadius: 13,
+    borderWidth: 1,
+  },
+
+  priceCurrency: {
+    fontSize:
+      typography.fontSize.lg,
+    fontFamily:
+      typography.fontFamily.bold,
+    color: colors.primary,
+    marginRight: spacing.sm,
+  },
+
+  priceInput: {
+    flex: 1,
+    height: 50,
+    fontSize:
+      typography.fontSize.lg,
+    fontFamily:
+      typography.fontFamily.bold,
+    padding: 0,
+    outlineStyle: 'none',
+  },
+
+  priceHint: {
+    fontSize:
+      typography.fontSize.xs,
+    fontFamily:
+      typography.fontFamily.regular,
+    marginTop: spacing.xs,
+  },
+
+  // ==========================================================
+  // SUBMIT
+  // ==========================================================
+
+  submitButton: {
+    minHeight: 56,
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.xl,
+    shadowColor: colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
     },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
 
-    submitButtonDisabled: {
-      opacity: 0.7,
+  submitButtonDisabled: {
+    opacity: 0.7,
+  },
+
+  submitButtonText: {
+    color: '#fff',
+    fontSize:
+      typography.fontSize.md,
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  // ==========================================================
+  // MAP MODAL
+  // ==========================================================
+
+  fullMapModal: {
+    flex: 1,
+  },
+
+  mapHeader: {
+    minHeight: 76,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    zIndex: 10,
+  },
+
+  mapHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
+  },
+
+  mapHeaderIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: MAP_GREEN,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  mapTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+  },
+
+  mapSubtitle: {
+    fontSize: 12,
+    marginTop: 3,
+  },
+
+  closeMapButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  mapMainContainer: {
+    flex: 1,
+    position: 'relative',
+    minHeight: 300,
+  },
+
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+
+  mapLoadingBadge: {
+    position: 'absolute',
+    top: 15,
+    left: 15,
+    right: 15,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
     },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+  },
 
-    submitButtonText: {
-      color: '#fff',
+  mapLoadingText: {
+    color: '#333',
+    fontSize: 13,
+  },
 
-      fontSize:
-        typography.fontSize.md,
-
-      fontFamily:
-        typography.fontFamily.semiBold,
+  markerInfo: {
+    position: 'absolute',
+    top: 15,
+    right: 15,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
     },
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+  },
 
-    // ========================================================
-    // MAP MODAL
-    // ========================================================
+  greenMarkerDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: MAP_GREEN,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
 
-    fullMapModal: {
-      flex: 1,
+  markerInfoText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  // ==========================================================
+  // MAP BOTTOM
+  // ==========================================================
+
+  mapBottomPanel: {
+    paddingHorizontal: 16,
+    paddingTop: 15,
+    paddingBottom:
+      Platform.OS === 'ios'
+        ? 25
+        : 16,
+    borderTopWidth: 1,
+  },
+
+  addressTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 8,
+  },
+
+  addressTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  selectedAddressBox: {
+    minHeight: 50,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+
+  selectedAddressText: {
+    fontSize: 13,
+    lineHeight: 19,
+  },
+
+  validateMapButton: {
+    height: 53,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    shadowColor: MAP_GREEN_DARK,
+    shadowOffset: {
+      width: 0,
+      height: 4,
     },
-
-    mapHeader: {
-      minHeight: 76,
-
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'space-between',
-
-      borderBottomWidth: 1,
-
-      zIndex: 10,
-    },
-
-    mapHeaderLeft: {
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      flex: 1,
-
-      gap: 10,
-    },
-
-    mapHeaderIcon: {
-      width: 42,
-      height: 42,
-
-      borderRadius: 21,
-
-      backgroundColor:
-        MAP_GREEN,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-    },
-
-    mapTitle: {
-      fontSize: 17,
-      fontWeight: '700',
-    },
-
-    mapSubtitle: {
-      fontSize: 12,
-      marginTop: 3,
-    },
-
-    closeMapButton: {
-      width: 42,
-      height: 42,
-
-      borderRadius: 21,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-    },
-
-    mapMainContainer: {
-      flex: 1,
-
-      position: 'relative',
-
-      minHeight: 300,
-    },
-
-    map: {
-      width: '100%',
-      height: '100%',
-    },
-
-    mapLoadingBadge: {
-      position: 'absolute',
-
-      top: 15,
-      left: 15,
-      right: 15,
-
-      backgroundColor:
-        '#fff',
-
-      borderRadius: 12,
-
-      paddingHorizontal: 13,
-      paddingVertical: 10,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      gap: 8,
-
-      elevation: 5,
-
-      shadowColor:
-        '#000',
-
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-
-      shadowOpacity: 0.15,
-
-      shadowRadius: 5,
-    },
-
-    mapLoadingText: {
-      color: '#333',
-      fontSize: 13,
-    },
-
-    markerInfo: {
-      position: 'absolute',
-
-      top: 15,
-      right: 15,
-
-      borderRadius: 20,
-
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      gap: 7,
-
-      elevation: 4,
-
-      shadowColor:
-        '#000',
-
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-
-      shadowOpacity: 0.15,
-
-      shadowRadius: 5,
-    },
-
-    greenMarkerDot: {
-      width: 12,
-      height: 12,
-
-      borderRadius: 6,
-
-      backgroundColor:
-        MAP_GREEN,
-
-      borderWidth: 2,
-
-      borderColor:
-        '#fff',
-    },
-
-    markerInfoText: {
-      fontSize: 12,
-      fontWeight: '600',
-    },
-
-    // ========================================================
-    // MAP BOTTOM
-    // ========================================================
-
-    mapBottomPanel: {
-      paddingHorizontal: 16,
-
-      paddingTop: 15,
-
-      paddingBottom:
-        Platform.OS ===
-        'ios'
-          ? 25
-          : 16,
-
-      borderTopWidth: 1,
-    },
-
-    addressTitleRow: {
-      flexDirection:
-        'row',
-
-      alignItems:
-        'center',
-
-      gap: 7,
-
-      marginBottom: 8,
-    },
-
-    addressTitle: {
-      fontSize: 14,
-      fontWeight: '700',
-    },
-
-    selectedAddressBox: {
-      minHeight: 50,
-
-      borderRadius: 12,
-
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-
-      justifyContent:
-        'center',
-
-      marginBottom: 12,
-    },
-
-    selectedAddressText: {
-      fontSize: 13,
-      lineHeight: 19,
-    },
-
-    validateMapButton: {
-      height: 53,
-
-      borderRadius: 15,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      flexDirection:
-        'row',
-
-      gap: 8,
-
-      shadowColor:
-        MAP_GREEN_DARK,
-
-      shadowOffset: {
-        width: 0,
-        height: 4,
-      },
-
-      shadowOpacity: 0.25,
-
-      shadowRadius: 7,
-
-      elevation: 5,
-    },
-
-    validateMapButtonText: {
-      color: '#fff',
-
-      fontSize: 15,
-
-      fontWeight: '700',
-    },
-
-    cancelMapButton: {
-      height: 38,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      marginTop: 4,
-    },
-
-    cancelMapButtonText: {
-      fontSize: 13,
-      fontWeight: '600',
-    },
-  });
+    shadowOpacity: 0.25,
+    shadowRadius: 7,
+    elevation: 5,
+  },
+
+  validateMapButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  cancelMapButton: {
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+
+  cancelMapButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+});
 
 export default BookingScreen;

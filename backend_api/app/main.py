@@ -15,7 +15,7 @@ from .core.middleware import setup_middlewares
 from .api import (
     auth, users, therapists, bookings, offers, payments,
     reviews, notifications, geolocation, chatbot, ai,
-    pricing, sos, websocket, analytics, admin,
+    pricing, sos, websocket, analytics, admin, massage_public,
     certificates,
 )
 from .api.availability import router as availability_router
@@ -180,6 +180,7 @@ app.include_router(pricing.router)
 app.include_router(sos.router)
 app.include_router(analytics.router)
 app.include_router(admin.router)
+app.include_router(massage_public.router)
 app.include_router(certificates.router)
 app.include_router(certificates.public_router)
 app.include_router(websocket.router)

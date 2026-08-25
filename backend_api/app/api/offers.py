@@ -11,6 +11,37 @@ from datetime import datetime, timedelta
 
 router = APIRouter(prefix="/offers", tags=["Offers"])
 
+
+def _is_booking_expired(booking: Booking) -> bool:
+    return bool(booking.expires_at and booking.expires_at < datetime.utcnow())
+
+
+def _is_party_to_booking(booking: Booking, current_user: User, db: Session) -> bool:
+    """
+    ✅ Un utilisateur est "concerné" par une réservation si :
+    - il en est le client,
+    - il en est le thérapeute assigné,
+    - OU (cas clé) c'est un thérapeute qui a déjà fait au moins une
+      offre dessus, même si elle n'est pas (encore) le thérapeute
+      assigné (ex: sa première offre a été refusée / une autre offre
+      a expiré entre temps).
+    Le simple fait d'être notifié d'une demande "pending" non
+    assignée ne rend PAS automatiquement "partie" à la réservation
+    tant qu'aucune offre n'a été faite — voir create_offer pour
+    l'autorisation de faire une première offre.
+    """
+    if current_user.id in (booking.client_id, booking.therapist_id):
+        return True
+    if current_user.role == "THERAPIST":
+        has_offer = db.query(Negotiation).filter(
+            Negotiation.booking_id == booking.id,
+            Negotiation.user_id == current_user.id
+        ).first()
+        if has_offer:
+            return True
+    return False
+
+
 @router.post("/create", status_code=status.HTTP_201_CREATED)
 async def create_offer(
     offer_data: NegotiationCreate,
@@ -21,20 +52,63 @@ async def create_offer(
     booking = db.query(Booking).filter(Booking.id == offer_data.booking_id).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
-    # Vérifier que l'utilisateur est concerné par la réservation
-    if current_user.id != booking.client_id and current_user.id != booking.therapist_id:
+
+    # ✅ CORRECTIF : un thérapeute doit pouvoir répondre à une demande
+    # qui n'a pas encore de thérapeute assigné (booking.therapist_id
+    # is None). L'ancienne condition rejetait systématiquement ce cas
+    # avec un 403, ce qui empêchait tout thérapeute notifié de faire
+    # une offre sur une nouvelle demande — cassant le flux principal
+    # client → thérapeute.
+    is_unassigned_and_therapist = (
+        current_user.role == "THERAPIST" and booking.therapist_id is None
+    )
+    if (
+        current_user.id != booking.client_id
+        and current_user.id != booking.therapist_id
+        and not is_unassigned_and_therapist
+    ):
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
+    if booking.status in ("cancelled_by_client", "cancelled_by_therapist", "completed", "expired"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Impossible de faire une offre sur une demande au statut '{booking.status}'"
+        )
+
+    if _is_booking_expired(booking):
+        booking.status = "expired"
+        db.commit()
+        raise HTTPException(status_code=410, detail="Cette demande a expiré")
+
     user_type = "client" if current_user.id == booking.client_id else "therapist"
-    
+
     # Si c'est le client qui fait une offre et qu'aucun thérapeute n'est assigné
     if user_type == "client" and not booking.therapist_id:
         booking.status = "pending"
+        db.commit()
     elif user_type == "therapist" and not booking.therapist_id:
-        booking.therapist_id = current_user.id
-        booking.status = "negotiating"
-    
+        # ✅ Attribution atomique : on utilise un UPDATE conditionné
+        # par "therapist_id IS NULL" pour empêcher deux thérapeutes
+        # de "gagner" la même demande en cas de requêtes simultanées
+        # (race condition). Si 0 ligne est mise à jour, un autre
+        # thérapeute a déjà pris la demande entre temps.
+        claimed_rows = (
+            db.query(Booking)
+            .filter(Booking.id == booking.id, Booking.therapist_id.is_(None))
+            .update(
+                {"therapist_id": current_user.id, "status": "negotiating"},
+                synchronize_session=False,
+            )
+        )
+        db.commit()
+        db.refresh(booking)
+
+        if claimed_rows == 0:
+            raise HTTPException(
+                status_code=409,
+                detail="Cette demande a déjà été prise en charge par un autre thérapeute"
+            )
+
     # Créer l'offre
     offer = Negotiation(
         booking_id=offer_data.booking_id,
@@ -45,16 +119,16 @@ async def create_offer(
         status="sent",
         expires_at=datetime.utcnow() + timedelta(minutes=15)
     )
-    
+
     db.add(offer)
     db.commit()
     db.refresh(offer)
-    
+
     # Mettre à jour le prix proposé par le thérapeute dans la réservation
     if user_type == "therapist":
         booking.therapist_initial_price = offer_data.price_offered
         db.commit()
-    
+
     # Notifier l'autre partie
     recipient_id = booking.client_id if user_type == "therapist" else booking.therapist_id
     if recipient_id:
@@ -65,8 +139,9 @@ async def create_offer(
             "new_offer",
             {"booking_id": booking.id, "offer_id": offer.id}
         )
-    
+
     return offer
+
 
 @router.get("/booking/{booking_id}", response_model=list[NegotiationResponse])
 async def get_offers_by_booking(
@@ -78,15 +153,16 @@ async def get_offers_by_booking(
     booking = db.query(Booking).filter(Booking.id == booking_id).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
-    if current_user.id not in [booking.client_id, booking.therapist_id]:
+
+    if not _is_party_to_booking(booking, current_user, db):
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
     offers = db.query(Negotiation).filter(
         Negotiation.booking_id == booking_id
     ).order_by(Negotiation.created_at.desc()).all()
-    
+
     return offers
+
 
 @router.post("/{offer_id}/accept")
 async def accept_offer(
@@ -98,24 +174,32 @@ async def accept_offer(
     offer = db.query(Negotiation).filter(Negotiation.id == offer_id).first()
     if not offer:
         raise HTTPException(status_code=404, detail="Offer not found")
-    
+
     booking = db.query(Booking).filter(Booking.id == offer.booking_id).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
+
     # Vérifier que l'utilisateur est le destinataire de l'offre
-    if current_user.id not in [booking.client_id, booking.therapist_id]:
+    if current_user.id not in (booking.client_id, booking.therapist_id):
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
     if current_user.id == offer.user_id:
         raise HTTPException(status_code=400, detail="You cannot accept your own offer")
-    
+
+    if offer.status != "sent":
+        raise HTTPException(status_code=400, detail=f"Cette offre n'est plus active (statut: {offer.status})")
+
+    if offer.expires_at and offer.expires_at < datetime.utcnow():
+        offer.status = "expired"
+        db.commit()
+        raise HTTPException(status_code=410, detail="Cette offre a expiré")
+
     # Mettre à jour l'offre
     offer.status = "accepted"
     booking.final_price = offer.price_offered
     booking.status = "confirmed"
     db.commit()
-    
+
     # Notifier l'offrant
     send_notification(
         offer.user_id,
@@ -124,12 +208,13 @@ async def accept_offer(
         "offer_accepted",
         {"booking_id": booking.id, "final_price": float(offer.price_offered)}
     )
-    
+
     return {
-        "message": "Offer accepted", 
+        "message": "Offer accepted",
         "final_price": float(offer.price_offered),
         "booking_id": booking.id
     }
+
 
 @router.post("/{offer_id}/reject")
 async def reject_offer(
@@ -141,21 +226,22 @@ async def reject_offer(
     offer = db.query(Negotiation).filter(Negotiation.id == offer_id).first()
     if not offer:
         raise HTTPException(status_code=404, detail="Offer not found")
-    
+
     booking = db.query(Booking).filter(Booking.id == offer.booking_id).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
-    if current_user.id not in [booking.client_id, booking.therapist_id]:
+
+    if current_user.id not in (booking.client_id, booking.therapist_id):
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
     if current_user.id == offer.user_id:
         raise HTTPException(status_code=400, detail="You cannot reject your own offer")
-    
+
     offer.status = "rejected"
     db.commit()
-    
+
     return {"message": "Offer rejected"}
+
 
 @router.post("/{offer_id}/counter")
 async def counter_offer(
@@ -169,17 +255,22 @@ async def counter_offer(
     original_offer = db.query(Negotiation).filter(Negotiation.id == offer_id).first()
     if not original_offer:
         raise HTTPException(status_code=404, detail="Offer not found")
-    
+
     booking = db.query(Booking).filter(Booking.id == original_offer.booking_id).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
-    if current_user.id not in [booking.client_id, booking.therapist_id]:
+
+    if current_user.id not in (booking.client_id, booking.therapist_id):
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
     if current_user.id == original_offer.user_id:
         raise HTTPException(status_code=400, detail="You cannot counter your own offer")
-    
+
+    if _is_booking_expired(booking):
+        booking.status = "expired"
+        db.commit()
+        raise HTTPException(status_code=410, detail="Cette demande a expiré")
+
     # Créer une nouvelle contre-offre
     new_offer = Negotiation(
         booking_id=booking.id,
@@ -190,15 +281,15 @@ async def counter_offer(
         status="sent",
         expires_at=datetime.utcnow() + timedelta(minutes=15)
     )
-    
+
     db.add(new_offer)
     db.commit()
     db.refresh(new_offer)
-    
+
     # Mettre à jour le statut de la réservation
     booking.status = "negotiating"
     db.commit()
-    
+
     # Notifier l'autre partie
     send_notification(
         original_offer.user_id,
@@ -207,5 +298,5 @@ async def counter_offer(
         "counter_offer",
         {"booking_id": booking.id, "offer_id": new_offer.id}
     )
-    
+
     return new_offer
