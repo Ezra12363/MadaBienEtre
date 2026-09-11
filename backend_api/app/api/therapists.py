@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Q
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_
 from typing import Optional, List
+from pydantic import BaseModel
 import logging
 
 from ..core.database import get_db
@@ -11,6 +12,7 @@ from ..models.user import User
 from ..models.booking import Booking
 from ..models.review import Review
 from ..schemas.user import UserResponse, TherapistProfileResponse
+from ..schemas.therapist import TherapistSpecialtyResponse, TherapistSpecialtiesUpdate
 from ..services.upload_service import upload_image
 from datetime import datetime, timedelta
 
@@ -20,11 +22,78 @@ router = APIRouter(prefix="/therapists", tags=["Therapists"])
 
 
 # ============================================================
+# ✅ SCHEMA DÉDIÉ POUR LA LISTE (carte thérapeute côté client)
+# ------------------------------------------------------------
+# UserResponse ne contient pas "specialties" ni "name" ni
+# "distance_km" : comme response_model filtre tout champ non
+# déclaré, l'app mobile ne recevait jamais ces infos, même quand
+# on les ajoutait au dict. On définit donc un schema propre pour
+# cet endpoint précis, avec tous les champs réellement affichés
+# par la carte "SearchMassageScreen".
+# ============================================================
+class TherapistSpecialtyItem(BaseModel):
+    """✅ Une spécialité avec sa catégorie de massage (ex: 'Massage
+    Suédois' → catégorie 'relaxant'), pour que la carte client puisse
+    afficher la vraie catégorie de chaque type de massage proposé,
+    et non plus juste le nom du soin."""
+    id: int
+    name: str
+    category: Optional[str] = None
+
+
+class TherapistCardResponse(BaseModel):
+    id: int
+    fullname: Optional[str] = None
+    name: Optional[str] = None  # alias pratique pour le frontend (mobile + web)
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+    profile_image: Optional[str] = None
+    rating: float = 0.0
+    total_reviews: int = 0
+    verification_status: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    bio: Optional[str] = None
+    experience_years: int = 0
+    is_online: bool = False
+    is_available: bool = True
+    # ✅ AJOUTÉ : statut réel de disponibilité "maintenant", calculé
+    # côté serveur à partir des DEUX colonnes de la base
+    # (is_online ET is_available) — un thérapeute hors ligne ne
+    # doit jamais apparaître "disponible", même si is_available=True.
+    available_now: bool = False
+    service_radius: int = 10
+    base_price: Optional[float] = None
+    identity_document_url: Optional[str] = None
+    certificate_url: Optional[str] = None
+    certificate_professionnel: Optional[str] = None
+    commission_rate: float = 10.0
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    cin_number: Optional[str] = None
+    distance_meters: float = 0
+    distance_km: float = 0
+    specialties: List[TherapistSpecialtyItem] = []
+    # ✅ AJOUTÉ : catégories distinctes couvertes par ce thérapeute
+    # (ex: ["relaxant", "sportif"]), pour un filtrage par catégorie
+    # réellement fiable côté client (au lieu de deviner via le nom
+    # du soin).
+    categories: List[str] = []
+
+    class Config:
+        from_attributes = True
+
+
+
+# ============================================================
 # 1. ✅ LISTE DES THÉRAPEUTES AVEC FILTRES + certificate_professionnel
 # ============================================================
 @router.get(
     "/",
-    response_model=List[UserResponse],
+    response_model=List[TherapistCardResponse],
     summary="Liste des thérapeutes avec filtres"
 )
 async def get_therapists(
@@ -50,14 +119,24 @@ async def get_therapists(
         query = db.query(User).filter(
             User.role == "THERAPIST",
             User.deleted_at.is_(None),
-            User.is_active == True
+            User.is_active == True,
+            # ✅ CORRECTIF : cette route est celle utilisée par l'écran
+            # client (SearchMassageScreen) — un thérapeute NON approuvé
+            # par l'admin (pending / rejected) ne doit JAMAIS être
+            # visible côté client, même sans passer "verified_only=true"
+            # explicitement. C'était optionnel avant, donc un thérapeute
+            # tout juste inscrit (statut "pending") apparaissait déjà
+            # dans les résultats de recherche.
+            User.verification_status == "approved",
         )
         
         if online_only:
             query = query.filter(User.is_online == True)
         
-        if verified_only:
-            query = query.filter(User.verification_status == "approved")
+        # ℹ️ "verified_only" est conservé pour compatibilité avec
+        # d'anciens appels, mais n'a plus d'effet : seuls les
+        # thérapeutes approuvés sont désormais renvoyés dans tous les
+        # cas (voir filtre ci-dessus).
         
         if available_only:
             query = query.filter(User.is_available == True)
@@ -98,28 +177,92 @@ async def get_therapists(
         therapists = query.offset(skip).limit(limit).all()
         
         logger.info(f"✅ {len(therapists)} thérapeutes trouvés")
-        
-        # ✅ Convertir les objets User en dictionnaires compatibles avec UserResponse
+
+        from ..models.therapist import TherapistSpecialty
+        from ..models.massage import MassageType
+
+        # ✅ CORRECTIF : récupérer les spécialités (types de massage)
+        # de TOUS les thérapeutes de la page en UNE seule requête
+        # (au lieu de laisser le frontend deviner un champ "specialties"
+        # qui n'a jamais existé dans la réponse — les cartes affichaient
+        # donc toujours une liste de spécialités vide).
+        therapist_ids = [t.id for t in therapists]
+        specialties_by_therapist = {}
+        categories_by_therapist = {}
+        if therapist_ids:
+            specialty_rows = (
+                db.query(
+                    TherapistSpecialty.therapist_id,
+                    MassageType.id,
+                    MassageType.name,
+                    MassageType.category,
+                )
+                .join(MassageType, TherapistSpecialty.massage_type_id == MassageType.id)
+                .filter(TherapistSpecialty.therapist_id.in_(therapist_ids))
+                .all()
+            )
+            for tid, massage_type_id, massage_type_name, massage_type_category in specialty_rows:
+                specialties_by_therapist.setdefault(tid, []).append({
+                    "id": massage_type_id,
+                    "name": massage_type_name,
+                    # ✅ AJOUTÉ : catégorie réelle du type de massage
+                    # (relaxant, thérapeutique, sportif, ...), affichée
+                    # sur la carte client à côté de chaque spécialité.
+                    "category": (massage_type_category or "").lower() or None,
+                })
+                if massage_type_category:
+                    categories_by_therapist.setdefault(tid, set()).add(massage_type_category.lower())
+
+        # ✅ AJOUTÉ : un thérapeute peut être "en ligne" ET "disponible"
+        # en base tout en ayant bloqué la période actuelle (congé,
+        # empêchement — voir BlockedDate dans availability.py). On
+        # récupère donc, en UNE requête groupée, les blocages qui
+        # couvrent l'instant présent pour tous les thérapeutes de la
+        # page, afin que "available_now" reflète vraiment le planning.
+        from ..models.availability import BlockedDate
+        now = datetime.utcnow()
+        blocked_now_ids = set()
+        if therapist_ids:
+            blocked_now_rows = (
+                db.query(BlockedDate.therapist_id)
+                .filter(
+                    BlockedDate.therapist_id.in_(therapist_ids),
+                    BlockedDate.start_date <= now,
+                    BlockedDate.end_date >= now,
+                )
+                .all()
+            )
+            blocked_now_ids = {row[0] for row in blocked_now_rows}
+
+        # ✅ Convertir les objets User en dictionnaires compatibles avec TherapistCardResponse
         result = []
         for therapist in therapists:
-            distance = None
+            distance_meters = None
             if latitude is not None and longitude is not None:
                 try:
-                    distance = db.query(
+                    distance_meters = db.query(
                         func.ST_Distance(
                             User.last_location,
                             func.ST_SetSRID(func.ST_MakePoint(longitude, latitude), 4326)
                         )
                     ).filter(User.id == therapist.id).scalar()
-                    if distance:
-                        distance = round(distance, 2)
+                    if distance_meters:
+                        distance_meters = round(distance_meters, 2)
                 except:
-                    distance = None
-            
-            # ✅ Créer un dictionnaire avec tous les champs requis par UserResponse
+                    distance_meters = None
+
+            distance_meters = distance_meters or 0
+            distance_km = round(distance_meters / 1000, 2) if distance_meters else 0
+
             result.append({
                 "id": therapist.id,
                 "fullname": therapist.fullname,
+                # ✅ CORRECTIF : le frontend (SearchMassageScreen) cherche
+                # "name" / "full_name" / "fullName" mais jamais "fullname"
+                # (sans underscore/casse) — sans cet alias, toutes les
+                # cartes affichaient "Thérapeute" par défaut au lieu du
+                # vrai nom.
+                "name": therapist.fullname,
                 "email": therapist.email,
                 "phone": therapist.phone,
                 "role": therapist.role,
@@ -133,7 +276,21 @@ async def get_therapists(
                 "bio": therapist.bio,
                 "experience_years": therapist.experience_years or 0,
                 "is_online": therapist.is_online or False,
-                "is_available": therapist.is_available or True,
+                # ✅ CORRECTIF : "therapist.is_available or True" valait
+                # TOUJOURS True (même quand is_available était False),
+                # donc toutes les cartes affichaient "Disponible
+                # maintenant" indépendamment du vrai statut en base.
+                "is_available": bool(therapist.is_available),
+                # ✅ AJOUTÉ : un thérapeute n'est vraiment "disponible
+                # maintenant" que s'il est EN LIGNE *ET* marqué
+                # disponible *ET* qu'il n'a pas bloqué la période
+                # actuelle (congé/empêchement) — is_available seul ne
+                # suffit pas.
+                "available_now": (
+                    bool(therapist.is_online)
+                    and bool(therapist.is_available)
+                    and therapist.id not in blocked_now_ids
+                ),
                 "service_radius": therapist.service_radius or 10,
                 "base_price": float(therapist.base_price) if therapist.base_price else None,
                 "identity_document_url": therapist.identity_document_url,
@@ -144,9 +301,18 @@ async def get_therapists(
                 "latitude": therapist.latitude,
                 "longitude": therapist.longitude,
                 "cin_number": therapist.cin_number,
-                "distance_meters": distance if distance else 0
+                "distance_meters": distance_meters,
+                # ✅ CORRECTIF : le frontend attend une distance en km
+                # ("distance_km") pour trier/afficher — "distance_meters"
+                # seul n'était jamais reconnu par le mapping du frontend.
+                "distance_km": distance_km,
+                # ✅ CORRECTIF : vraies spécialités depuis la base de
+                # données (au lieu d'un tableau vide côté client),
+                # chacune avec sa catégorie réelle de massage.
+                "specialties": specialties_by_therapist.get(therapist.id, []),
+                "categories": sorted(categories_by_therapist.get(therapist.id, set())),
             })
-        
+
         return result
     except Exception as e:
         logger.error(f"❌ Erreur get_therapists: {e}")
@@ -206,7 +372,9 @@ async def get_therapist_profile(
             rating=float(therapist.rating) if therapist.rating else 0.0,
             total_reviews=therapist.total_reviews or 0,
             is_online=therapist.is_online or False,
-            is_available=therapist.is_available or True,
+            # ✅ CORRECTIF : même bug que dans get_therapists — "x or True"
+            # forçait toujours True.
+            is_available=bool(therapist.is_available),
             service_radius=therapist.service_radius or 10,
             base_price=float(therapist.base_price) if therapist.base_price else None,
             verification_status=therapist.verification_status or "pending",
@@ -431,3 +599,359 @@ async def get_earnings(
     except Exception as e:
         logger.error(f"❌ Erreur get_earnings: {e}")
         raise HTTPException(status_code=500, detail=f"Erreur interne: {str(e)}")
+    # app/api/therapists.py - AJOUTER CES ENDPOINTS
+
+# ============================================================
+# 8. SPÉCIALITÉS DU THÉRAPEUTE
+# ============================================================
+
+@router.get("/me/specialties", response_model=List[TherapistSpecialtyResponse])
+async def get_my_specialties(
+    current_user: User = Depends(get_current_therapist),
+    db: Session = Depends(get_db)
+):
+    """
+    ✅ Récupère les spécialités du thérapeute connecté.
+    """
+    from ..models.therapist import TherapistSpecialty
+    from ..models.massage import MassageType
+    
+    specialties = db.query(
+        TherapistSpecialty,
+        MassageType.name.label("massage_type_name")
+    ).join(
+        MassageType, 
+        TherapistSpecialty.massage_type_id == MassageType.id
+    ).filter(
+        TherapistSpecialty.therapist_id == current_user.id
+    ).all()
+    
+    result = []
+    for specialty, massage_type_name in specialties:
+        result.append({
+            "id": specialty.id,
+            "therapist_id": specialty.therapist_id,
+            "massage_type_id": specialty.massage_type_id,
+            "massage_type_name": massage_type_name,
+            "created_at": specialty.created_at
+        })
+    
+    return result
+
+
+@router.put("/me/specialties")
+async def update_my_specialties(
+    data: TherapistSpecialtiesUpdate,
+    current_user: User = Depends(get_current_therapist),
+    db: Session = Depends(get_db)
+):
+    """
+    ✅ Met à jour les spécialités du thérapeute connecté.
+    Remplace toutes les spécialités existantes par la nouvelle liste.
+    """
+    from ..models.therapist import TherapistSpecialty
+    from ..models.massage import MassageType
+    
+    # Vérifier que tous les types de massage existent
+    existing_types = db.query(MassageType).filter(
+        MassageType.id.in_(data.massage_type_ids),
+        MassageType.is_active == True
+    ).all()
+    
+    if len(existing_types) != len(data.massage_type_ids):
+        raise HTTPException(
+            status_code=400,
+            detail="Un ou plusieurs types de massage sont invalides ou inactifs"
+        )
+    
+    # Supprimer toutes les spécialités existantes
+    db.query(TherapistSpecialty).filter(
+        TherapistSpecialty.therapist_id == current_user.id
+    ).delete(synchronize_session=False)
+    
+    # Ajouter les nouvelles spécialités
+    new_specialties = []
+    for massage_type_id in data.massage_type_ids:
+        specialty = TherapistSpecialty(
+            therapist_id=current_user.id,
+            massage_type_id=massage_type_id
+        )
+        db.add(specialty)
+        new_specialties.append(specialty)
+    
+    db.commit()
+    
+    # Rafraîchir pour obtenir les IDs
+    for specialty in new_specialties:
+        db.refresh(specialty)
+    
+    # ✅ Recharger avec le nom du type de massage pour que le frontend
+    # puisse afficher immédiatement la liste à jour (id + nom), sans
+    # avoir à refaire un GET séparé.
+    massage_types_by_id = {mt.id: mt.name for mt in existing_types}
+    
+    return {
+        "message": "Spécialités mises à jour avec succès",
+        "specialties": [
+            {
+                "id": s.id,
+                "therapist_id": s.therapist_id,
+                "massage_type_id": s.massage_type_id,
+                "massage_type_name": massage_types_by_id.get(s.massage_type_id)
+            }
+            for s in new_specialties
+        ]
+    }
+
+
+@router.post("/me/specialties/{massage_type_id}")
+async def add_specialty(
+    massage_type_id: int,
+    current_user: User = Depends(get_current_therapist),
+    db: Session = Depends(get_db)
+):
+    """
+    ✅ Ajoute une spécialité au thérapeute connecté (sans supprimer les existantes).
+    """
+    from ..models.therapist import TherapistSpecialty
+    from ..models.massage import MassageType
+    
+    # Vérifier que le type de massage existe et est actif
+    massage_type = db.query(MassageType).filter(
+        MassageType.id == massage_type_id,
+        MassageType.is_active == True
+    ).first()
+    
+    if not massage_type:
+        raise HTTPException(status_code=404, detail="Type de massage non trouvé ou inactif")
+    
+    # Vérifier si déjà existant
+    existing = db.query(TherapistSpecialty).filter(
+        TherapistSpecialty.therapist_id == current_user.id,
+        TherapistSpecialty.massage_type_id == massage_type_id
+    ).first()
+    
+    if existing:
+        raise HTTPException(status_code=400, detail="Cette spécialité est déjà ajoutée")
+    
+    # Ajouter la spécialité
+    specialty = TherapistSpecialty(
+        therapist_id=current_user.id,
+        massage_type_id=massage_type_id
+    )
+    
+    db.add(specialty)
+    db.commit()
+    db.refresh(specialty)
+    
+    return {
+        "message": "Spécialité ajoutée avec succès",
+        "specialty": {
+            "id": specialty.id,
+            "therapist_id": specialty.therapist_id,
+            "massage_type_id": specialty.massage_type_id,
+            "massage_type_name": massage_type.name
+        }
+    }
+
+
+@router.delete("/me/specialties/{massage_type_id}")
+async def remove_specialty(
+    massage_type_id: int,
+    current_user: User = Depends(get_current_therapist),
+    db: Session = Depends(get_db)
+):
+    """
+    ✅ Supprime une spécialité du thérapeute connecté.
+    """
+    from ..models.therapist import TherapistSpecialty
+    
+    specialty = db.query(TherapistSpecialty).filter(
+        TherapistSpecialty.therapist_id == current_user.id,
+        TherapistSpecialty.massage_type_id == massage_type_id
+    ).first()
+    
+    if not specialty:
+        raise HTTPException(status_code=404, detail="Spécialité non trouvée")
+    
+    db.delete(specialty)
+    db.commit()
+    
+    return {"message": "Spécialité supprimée avec succès"}
+
+
+# ⚠️ Cette route générique doit rester déclarée APRÈS toutes les
+# routes spécifiques ci-dessus ("/me/specialties", etc.). FastAPI
+# fait correspondre les routes dans leur ORDRE DE DÉCLARATION, et
+# "{therapist_id}" (segment générique) matche n'importe quelle
+# chaîne, y compris "me" — s'il était déclaré avant, une requête sur
+# "/therapists/me/specialties" tomberait dessus et échouerait avec
+# une 422 ("me" n'étant pas un entier valide) au lieu d'atteindre
+# la route "/me/specialties" ci-dessus.
+@router.get("/{therapist_id}/specialties", response_model=List[TherapistSpecialtyResponse])
+async def get_therapist_specialties(
+    therapist_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    ✅ Récupère toutes les spécialités (types de massage) d'un thérapeute.
+    Accessible à tout utilisateur connecté.
+    """
+    from ..models.therapist import TherapistSpecialty
+    from ..models.massage import MassageType
+    
+    # Vérifier que le thérapeute existe
+    therapist = db.query(User).filter(
+        User.id == therapist_id,
+        User.role == "THERAPIST",
+        User.deleted_at.is_(None)
+    ).first()
+    
+    if not therapist:
+        raise HTTPException(status_code=404, detail="Thérapeute non trouvé")
+    
+    # Récupérer les spécialités avec le nom du type de massage
+    specialties = db.query(
+        TherapistSpecialty,
+        MassageType.name.label("massage_type_name")
+    ).join(
+        MassageType, 
+        TherapistSpecialty.massage_type_id == MassageType.id
+    ).filter(
+        TherapistSpecialty.therapist_id == therapist_id
+    ).all()
+    
+    result = []
+    for specialty, massage_type_name in specialties:
+        result.append({
+            "id": specialty.id,
+            "therapist_id": specialty.therapist_id,
+            "massage_type_id": specialty.massage_type_id,
+            "massage_type_name": massage_type_name,
+            "created_at": specialty.created_at
+        })
+    
+    return result
+
+# ============================================================
+# ✅ NOUVEAU : [ADMIN] METTRE À JOUR LES SPÉCIALITÉS D'UN THÉRAPEUTE
+# ============================================================
+# ⚠️ Comme pour la route GET ci-dessus, cette route DOIT rester
+# déclarée APRÈS "/me/specialties" (PUT) pour ne pas intercepter
+# "/therapists/me/specialties" (voir explication plus haut).
+@router.put("/{therapist_id}/specialties")
+async def admin_update_therapist_specialties(
+    therapist_id: int,
+    data: TherapistSpecialtiesUpdate,
+    current_user: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    ✅ [ADMIN] Remplace complètement les spécialités (types de massage)
+    d'un thérapeute donné, quel que soit son propriétaire.
+
+    Permet à l'administrateur de corriger/gérer lui-même les
+    spécialités déclarées par un thérapeute (ex: depuis l'écran
+    "Approbations" ou "Thérapeutes" du panneau admin).
+
+    Si le thérapeute est déjà approuvé et possède un certificat
+    officiel valide, ce certificat est régénéré automatiquement
+    pour refléter la nouvelle liste de spécialités.
+    """
+    from ..models.therapist import TherapistSpecialty
+    from ..models.massage import MassageType
+
+    therapist = db.query(User).filter(
+        User.id == therapist_id,
+        User.role == "THERAPIST"
+    ).first()
+
+    if not therapist:
+        raise HTTPException(status_code=404, detail="Thérapeute non trouvé")
+
+    # Vérifier que tous les types de massage existent et sont actifs
+    existing_types = db.query(MassageType).filter(
+        MassageType.id.in_(data.massage_type_ids),
+        MassageType.is_active == True
+    ).all()
+
+    if len(existing_types) != len(data.massage_type_ids):
+        raise HTTPException(
+            status_code=400,
+            detail="Un ou plusieurs types de massage sont invalides ou inactifs"
+        )
+
+    # Remplacer toutes les spécialités existantes du thérapeute
+    db.query(TherapistSpecialty).filter(
+        TherapistSpecialty.therapist_id == therapist_id
+    ).delete(synchronize_session=False)
+
+    new_specialties = []
+    for massage_type_id in data.massage_type_ids:
+        specialty = TherapistSpecialty(
+            therapist_id=therapist_id,
+            massage_type_id=massage_type_id
+        )
+        db.add(specialty)
+        new_specialties.append(specialty)
+
+    db.commit()
+
+    for specialty in new_specialties:
+        db.refresh(specialty)
+
+    massage_types_by_id = {mt.id: mt.name for mt in existing_types}
+
+    logger.info(
+        "✅ [ADMIN] Spécialités du thérapeute %s mises à jour par admin %s (%s spécialité(s))",
+        therapist_id, current_user.id, len(new_specialties)
+    )
+
+    # --------------------------------------------------------
+    # ✅ Régénérer le certificat officiel si déjà approuvé, pour que
+    # la liste des spécialités affichée sur le certificat reste
+    # synchronisée avec ce que l'admin vient de définir.
+    # --------------------------------------------------------
+    certificate_regenerated = False
+    if therapist.verification_status == "approved":
+        try:
+            from ..services.certificate_service import (
+                revoke_certificate,
+                generate_certificate_for_therapist,
+            )
+
+            revoke_certificate(therapist_id, db)
+
+            specialty_str = ", ".join(
+                massage_types_by_id.get(mt_id, "")
+                for mt_id in data.massage_type_ids
+            ) or None
+
+            generate_certificate_for_therapist(
+                therapist=therapist,
+                admin_id=current_user.id,
+                admin_fullname=current_user.fullname,
+                db=db,
+                specialty=specialty_str,
+            )
+            certificate_regenerated = True
+        except Exception as exc:
+            logger.exception(
+                "❌ Erreur lors de la régénération du certificat après modification "
+                "des spécialités (therapist_id=%s) : %s", therapist_id, exc
+            )
+
+    return {
+        "message": "Spécialités mises à jour avec succès",
+        "certificate_regenerated": certificate_regenerated,
+        "specialties": [
+            {
+                "id": s.id,
+                "therapist_id": s.therapist_id,
+                "massage_type_id": s.massage_type_id,
+                "massage_type_name": massage_types_by_id.get(s.massage_type_id)
+            }
+            for s in new_specialties
+        ]
+    }

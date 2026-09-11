@@ -3,6 +3,8 @@
 // ✅ Modal hisafidianana adiresy amin'ny carte:
 //    - Mampiseho ny toerana misy ny client ANKEHITRINY (GPS)
 //    - Mamela hisafidy toerana hafa amin'ny TAPE na DRAG eo amin'ny carte
+//    - ✅ NOUVEAU : Barre de recherche (lot, rue, adresse, ville) avec
+//      suggestions en direct — branchée sur services/geocoding.js
 //    - Mamerina ny adiresy an-tsoratra (reverse geocoding) + coordonnées
 //
 // ✅ FIXÉ (BUG LEHIBE) : nesorina ny composant <Modal> avy amin'i
@@ -23,12 +25,15 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Platform,
+  TextInput,
+  ScrollView,
+  Keyboard,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../theme';
 import MapViewWrapper from './MapViewWrapper';
 import useLocationTracking from '../../hooks/useLocationTracking';
-import { reverseGeocode } from '../../services/geocoding';
+import { reverseGeocode, getAddressSuggestions, getPlaceDetails } from '../../services/geocoding';
 import { DEFAULT_REGION } from '../../config/googleMaps';
 
 const AddressMapPickerModal = ({
@@ -43,6 +48,13 @@ const AddressMapPickerModal = ({
   const [hasCenteredOnGps, setHasCenteredOnGps] = useState(false);
   const mapRef = useRef(null);
 
+  // ✅ NOUVEAU : état de la barre de recherche (lot / rue / adresse / ville)
+  const [searchText, setSearchText] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchDebounceRef = useRef(null);
+
   // ✅ Tracking GPS — mahazo ny toerana ANKEHITRINY misy ny client
   const {
     location: userLocation,
@@ -52,9 +64,6 @@ const AddressMapPickerModal = ({
     permissionGranted,
   } = useLocationTracking({ enabled: visible, distanceIntervalMeters: 10, timeIntervalMs: 3000 });
 
-  // ✅ FIXÉ : console.log fanampiny mba hahitana AO ANATIN'NY CONSOLE
-  // (F12 -> Console amin'ny browser) raha tena misokatra ilay modal,
-  // sy izay antony tsy hisehoany raha mbola misy olana.
   useEffect(() => {
     console.log('🗺️ [AddressMapPickerModal] visible =', visible, '| initialCoordinate =', initialCoordinate);
   }, [visible, initialCoordinate]);
@@ -79,6 +88,10 @@ const AddressMapPickerModal = ({
     }
     if (!visible) {
       setHasCenteredOnGps(false);
+      // ✅ Réinitialise la recherche à la fermeture du modal
+      setSearchText('');
+      setSuggestions([]);
+      setShowSuggestions(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, initialCoordinate]);
@@ -101,9 +114,95 @@ const AddressMapPickerModal = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, initialCoordinate, selectedCoord, userLocation, hasCenteredOnGps]);
 
+  // ============================================================
+  // ✅ NOUVEAU : recherche d'adresse (lot / rue / adresse / ville réels)
+  // Debounce de 400ms pour éviter de spammer l'API à chaque frappe.
+  // Utilise getAddressSuggestions() de services/geocoding.js, qui
+  // combine déjà Google Places Autocomplete + OpenStreetMap.
+  // ============================================================
+  useEffect(() => {
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
+    const query = searchText.trim();
+    if (query.length < 2) {
+      setSuggestions([]);
+      setIsSearching(false);
+      return undefined;
+    }
+
+    setIsSearching(true);
+    searchDebounceRef.current = setTimeout(async () => {
+      try {
+        const results = await getAddressSuggestions(query);
+        setSuggestions(results || []);
+        setShowSuggestions(true);
+      } catch (e) {
+        console.warn('⚠️ [AddressMapPickerModal] getAddressSuggestions error:', e?.message);
+        setSuggestions([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    };
+  }, [searchText]);
+
+  const clearSearch = useCallback(() => {
+    setSearchText('');
+    setSuggestions([]);
+    setShowSuggestions(false);
+    Keyboard.dismiss();
+  }, []);
+
+  // ✅ Sélection d'une suggestion : on récupère les coordonnées
+  // (déjà présentes pour OSM, ou via getPlaceDetails pour Google
+  // Places qui ne renvoie qu'un place_id), puis on recentre la carte
+  // et on place le marqueur exactement dessus.
+  const handleSelectSuggestion = useCallback(async (item) => {
+    Keyboard.dismiss();
+    setShowSuggestions(false);
+    setSearchText(item.description || item.main_text || '');
+
+    let coord = null;
+
+    if (item.latitude != null && item.longitude != null) {
+      coord = { latitude: item.latitude, longitude: item.longitude };
+    } else if (item.place_id) {
+      setIsResolvingAddress(true);
+      try {
+        const details = await getPlaceDetails(item.place_id);
+        if (details) {
+          coord = { latitude: details.latitude, longitude: details.longitude };
+        }
+      } catch (e) {
+        console.warn('⚠️ [AddressMapPickerModal] getPlaceDetails error:', e?.message);
+      } finally {
+        setIsResolvingAddress(false);
+      }
+    }
+
+    if (!coord) {
+      console.warn('⚠️ [AddressMapPickerModal] Aucune coordonnée trouvée pour la suggestion sélectionnée.');
+      return;
+    }
+
+    setSelectedCoord(coord);
+    setSelectedAddress(item.description || item.main_text || selectedAddress);
+
+    mapRef.current?.animateToRegion({
+      latitude: coord.latitude,
+      longitude: coord.longitude,
+      latitudeDelta: 0.008,
+      longitudeDelta: 0.008,
+    });
+  }, [selectedAddress]);
+
   const handleMapPress = useCallback((coord) => {
     setSelectedCoord(coord);
     resolveAddress(coord);
+    setShowSuggestions(false);
   }, [resolveAddress]);
 
   const handleSelectionDragEnd = useCallback((coord) => {
@@ -116,6 +215,7 @@ const AddressMapPickerModal = ({
     const coord = { latitude: userLocation.latitude, longitude: userLocation.longitude };
     setSelectedCoord(coord);
     resolveAddress(coord);
+    setShowSuggestions(false);
     mapRef.current?.animateToRegion({
       latitude: coord.latitude,
       longitude: coord.longitude,
@@ -134,24 +234,13 @@ const AddressMapPickerModal = ({
     onClose();
   };
 
-  // ✅ FIXÉ : centre initial azo antoka foana (DEFAULT_REGION amin'ny
-  // farany), ka ny MapViewWrapper dia azo naforona AVY HATRANY.
   const mapCenter = selectedCoord
     || initialCoordinate
     || (userLocation ? { latitude: userLocation.latitude, longitude: userLocation.longitude } : DEFAULT_REGION);
 
-  // ✅ FIXÉ (BUG LEHIBE) : raha tsy visible, dia aoka tsy hisy na inona
-  // na inona haforona mihitsy (tsy toy ny <Modal visible={false}> izay
-  // mbola manorina ny anatiny ao amin'ny DOM na dia miafina aza —
-  // io dia mety hisakana ny useEffect/GPS koa amin'ny endrika tsy
-  // ampoizina). Return null tanteraka dia mazava kokoa.
   if (!visible) return null;
 
   return (
-    // ✅ FIXÉ : overlay MANOKANA misolo ny <Modal>. Amin'ny web dia
-    // "position: fixed" (mihazona ny toerany na mikisaka aza ny page),
-    // amin'ny Android/iOS dia "position: absolute" (mameno ny écran
-    // rehetra satria tsy misy "fixed" amin'ny native).
     <View style={styles.overlayRoot}>
       <View style={styles.container}>
         {/* Header */}
@@ -177,6 +266,67 @@ const AddressMapPickerModal = ({
 
         {/* Carte — APOSAKA MANDRAKARIVA, tsy miandry GPS */}
         <View style={styles.mapWrapper}>
+          {/* ✅ NOUVEAU : Barre de recherche flottante (lot / rue / adresse / ville) */}
+          <View style={styles.searchBarContainer}>
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={18} color="#666" style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Rechercher : lot, rue, adresse, ville..."
+                placeholderTextColor="#999"
+                value={searchText}
+                onChangeText={setSearchText}
+                onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                returnKeyType="search"
+                autoCorrect={false}
+              />
+              {isSearching ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : searchText.length > 0 ? (
+                <TouchableOpacity onPress={clearSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Ionicons name="close-circle" size={18} color="#999" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {showSuggestions && suggestions.length > 0 && (
+              <View style={styles.suggestionsBox}>
+                <ScrollView
+                  keyboardShouldPersistTaps="handled"
+                  style={styles.suggestionsScroll}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator={false}
+                >
+                  {suggestions.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.suggestionRow}
+                      onPress={() => handleSelectSuggestion(item)}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="location-outline" size={16} color={colors.primary} style={{ marginRight: 8, marginTop: 2 }} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.suggestionMain} numberOfLines={1}>{item.main_text}</Text>
+                        {item.secondary_text ? (
+                          <Text style={styles.suggestionSecondary} numberOfLines={1}>{item.secondary_text}</Text>
+                        ) : null}
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {showSuggestions && !isSearching && searchText.trim().length >= 2 && suggestions.length === 0 && (
+              <View style={styles.suggestionsBox}>
+                <View style={styles.noResultsRow}>
+                  <Ionicons name="alert-circle-outline" size={16} color="#999" style={{ marginRight: 6 }} />
+                  <Text style={styles.noResultsText}>Aucune adresse trouvée pour « {searchText} »</Text>
+                </View>
+              </View>
+            )}
+          </View>
+
           <MapViewWrapper
             ref={mapRef}
             style={styles.map}
@@ -192,13 +342,15 @@ const AddressMapPickerModal = ({
             selectionMarker={selectedCoord}
             onMapPress={handleMapPress}
             onSelectionDragEnd={handleSelectionDragEnd}
-            showMapTypeControl={false}
+            showMapTypeControl
           />
 
-          <View style={styles.mapHint}>
-            <Ionicons name="hand-left-outline" size={14} color="#fff" />
-            <Text style={styles.mapHintText}>Touchez la carte pour choisir un point</Text>
-          </View>
+          {!showSuggestions && (
+            <View style={styles.mapHint}>
+              <Ionicons name="hand-left-outline" size={14} color="#fff" />
+              <Text style={styles.mapHintText}>Touchez la carte pour choisir un point</Text>
+            </View>
+          )}
 
           <TouchableOpacity
             style={styles.currentLocationButton}
@@ -225,7 +377,7 @@ const AddressMapPickerModal = ({
               </View>
             ) : (
               <Text style={styles.addressPreviewText} numberOfLines={2}>
-                {selectedAddress || 'Touchez la carte ou utilisez votre position actuelle'}
+                {selectedAddress || 'Touchez la carte, recherchez, ou utilisez votre position actuelle'}
               </Text>
             )}
           </View>
@@ -246,9 +398,6 @@ const AddressMapPickerModal = ({
 };
 
 const styles = StyleSheet.create({
-  // ✅ FIXÉ : overlay plein écran, au-dessus de TOUT (zIndex/elevation
-  // très élevés), position "fixed" sur web pour ignorer le scroll de
-  // la page parente, "absolute" sur natif.
   overlayRoot: {
     ...Platform.select({
       web: {
@@ -300,9 +449,68 @@ const styles = StyleSheet.create({
   trackingText: { fontSize: 12, color: '#666', fontFamily: typography.fontFamily.regular, flex: 1 },
   mapWrapper: { flex: 1, minHeight: 300, position: 'relative', backgroundColor: '#f5f5f5' },
   map: { flex: 1, width: '100%', height: '100%' },
-  mapHint: {
+
+  // ✅ NOUVEAU : barre de recherche flottante, style "Google Maps"
+  searchBarContainer: {
     position: 'absolute',
     top: 12,
+    left: 12,
+    right: 12,
+    zIndex: 20,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 5,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#333',
+    fontFamily: typography.fontFamily.regular,
+    paddingVertical: 0,
+  },
+  suggestionsBox: {
+    marginTop: 6,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 5,
+    overflow: 'hidden',
+  },
+  suggestionsScroll: { maxHeight: 220 },
+  suggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  suggestionMain: { fontSize: 13, color: '#333', fontFamily: typography.fontFamily.medium },
+  suggestionSecondary: { fontSize: 11, color: '#888', marginTop: 2, fontFamily: typography.fontFamily.regular },
+  noResultsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  noResultsText: { fontSize: 12, color: '#888', flex: 1 },
+
+  mapHint: {
+    position: 'absolute',
+    top: 68,
     alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',

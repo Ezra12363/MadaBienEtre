@@ -1,10 +1,27 @@
 // src/screens/client/OffersScreen.js
-import React, { useState, useEffect, useRef } from 'react';
+//
+// ✅ V2 — alignée sur le vrai contrat du backend (app/api/offers.py) :
+//
+//  - Le statut "actif" d'une offre est "sent", jamais "pending".
+//    (v1 vérifiait "pending" → les boutons Accepter/Contre-proposer/
+//    Refuser n'apparaissaient donc jamais, silencieusement.)
+//  - Le nom de l'autre partie est un champ plat "user_name" (string),
+//    pas un objet imbriqué "user.fullname" (qui n'existe pas côté
+//    API) → corrigé dans offerService.normalizeOffer.
+//  - Chaque offre expire 15 minutes après sa création
+//    (Negotiation.expires_at côté backend) → affichage d'un compte
+//    à rebours, comme sur l'écran équivalent du thérapeute.
+//  - Le modèle Negotiation n'a pas de lien explicite entre une
+//    contre-offre du client et le thérapeute visé : on ne tente donc
+//    plus de "regrouper par thérapeute" (ça produisait de faux fils
+//    de négociation). On affiche : (1) les offres actives à traiter
+//    maintenant, (2) l'historique chronologique complet en dessous.
+
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -14,114 +31,215 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
-import Button from '../../components/common/Button';
-import axios from 'axios';
-import { API_URL } from '../../config';
+import offerService from '../../services/offerService';
+import bookingService from '../../services/bookingService';
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+const GREEN = '#00C853';
+const ORANGE = '#B26A00';
+
+const money = (value) => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '0 Ar';
+  return `${number.toLocaleString('fr-FR')} Ar`;
+};
+
+const formatDate = (date) => {
+  if (!date) return '';
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const getDisplayName = (offer, fallback = 'Thérapeute') => {
+  return offer?.user_name || offer?.user?.fullname || fallback;
+};
+
+// ✅ Le backend renvoie "sent" pour une offre active, jamais "pending".
+// On garde "pending" en synonyme au cas où une ancienne donnée traîne,
+// mais "sent" est la valeur réelle à traiter.
+const isActive = (offer) => offer?.status === 'sent' || offer?.status === 'pending';
+
+const statusLabel = (status) => {
+  const map = {
+    sent: 'En attente',
+    pending: 'En attente',
+    accepted: 'Acceptée',
+    rejected: 'Refusée',
+    expired: 'Expirée',
+    cancelled: 'Annulée',
+  };
+  return map[String(status || '').toLowerCase()] || status || 'En attente';
+};
+
+const statusColor = (status) => {
+  const value = String(status || '').toLowerCase();
+  if (value === 'accepted') return GREEN;
+  if (value === 'rejected' || value === 'expired' || value === 'cancelled') return colors.error;
+  return colors.primary;
+};
+
+// Secondes restantes avant expiration (offre valable 15 min côté backend)
+const getRemainingSeconds = (expiresAt) => {
+  if (!expiresAt) return null;
+  const ms = new Date(expiresAt).getTime() - Date.now();
+  if (!Number.isFinite(ms)) return null;
+  return Math.max(0, Math.floor(ms / 1000));
+};
+
+const formatRemaining = (seconds) => {
+  if (seconds === null) return null;
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${minutes}:${String(secs).padStart(2, '0')}`;
+};
+
+// ============================================================
+// SCREEN
+// ============================================================
 
 const OffersScreen = ({ navigation, route }) => {
   const { bookingId } = route?.params || {};
-  const { colors: themeColors, isDark } = useTheme();
-  const { token } = useAuth();
+  const { colors: themeColors } = useTheme();
+  const { user } = useAuth();
+  const { refreshUnreadCount } = useNotifications();
+
   const [offers, setOffers] = useState([]);
   const [booking, setBooking] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedOffer, setSelectedOffer] = useState(null);
+  const [error, setError] = useState(null);
+  const [actioningId, setActioningId] = useState(null);
+  const [, forceTick] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    loadData();
-  }, [bookingId]);
+  const loadData = useCallback(async () => {
+    if (!bookingId) {
+      setError('Réservation introuvable.');
+      setIsLoading(false);
+      return;
+    }
 
-  const loadData = async () => {
-    setIsLoading(true);
     try {
-      // Charger les offres
-      const offersResponse = await axios.get(`${API_URL}/offers/booking/${bookingId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setOffers(offersResponse.data);
-
-      // Charger les détails de la réservation
-      const bookingResponse = await axios.get(`${API_URL}/bookings/${bookingId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setBooking(bookingResponse.data);
-    } catch (error) {
-      console.error('Error loading offers:', error);
-      // Données mockées
-      setOffers([
-        {
-          id: 1,
-          therapistName: 'Sarah B.',
-          rating: 4.8,
-          reviews: 32,
-          experience: 'Confirmée',
-          distance: 1.2,
-          price: 75000,
-          status: 'pending',
-          message: 'Je serai disponible à 14h30',
-        },
-        {
-          id: 2,
-          therapistName: 'Jean R.',
-          rating: 4.9,
-          reviews: 45,
-          experience: 'Expert',
-          distance: 2.5,
-          price: 80000,
-          status: 'pending',
-          message: 'Je propose 80 000 Ar pour un massage de qualité',
-        },
-        {
-          id: 3,
-          therapistName: 'Marie L.',
-          rating: 4.7,
-          reviews: 28,
-          experience: 'Confirmée',
-          distance: 0.8,
-          price: 70000,
-          status: 'pending',
-          message: 'Disponible immédiatement',
-        },
+      const [offersResult, bookingResult] = await Promise.all([
+        offerService.getOffersByBooking(bookingId),
+        bookingService.getBooking(bookingId),
       ]);
-      setBooking({
-        id: bookingId,
-        massageType: 'Massage Relaxant',
-        duration: 60,
-        clientPriceProposed: 80000,
-        address: 'Lot III A 78, Antananarivo',
-        date: '2026-07-15T14:30:00',
-      });
+
+      if (!offersResult.success) {
+        setError(offersResult.error);
+        setOffers([]);
+      } else {
+        setError(null);
+        // Plus récent en premier
+        const sorted = [...offersResult.data].sort(
+          (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+        );
+        setOffers(sorted);
+      }
+
+      if (bookingResult.success) {
+        setBooking(bookingResult.data);
+      }
+    } catch (err) {
+      console.error('❌ [OffersScreen] loadData:', err);
+      setError('Impossible de charger les offres.');
     } finally {
       setIsLoading(false);
     }
+  }, [bookingId]);
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 600,
+      useNativeDriver: true,
+    }).start();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
+  // ✅ Rafraîchit l'affichage du compte à rebours chaque seconde
+  useEffect(() => {
+    const interval = setInterval(() => forceTick((n) => n + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
   };
 
-  const handleAccept = async (offer) => {
+  const isMine = (offer) => {
+    if (user?.id && offer?.user_id) {
+      return String(offer.user_id) === String(user.id);
+    }
+    return offer?.user_type === 'client';
+  };
+
+  const handleAccept = (offer) => {
     Alert.alert(
-      'Accepter l\'offre',
-      `Acceptez-vous l'offre de ${offer.therapistName} à ${offer.price.toLocaleString()} Ar ?`,
+      "Accepter l'offre",
+      `Accepter l'offre de ${getDisplayName(offer)} à ${money(offer.price_offered)} ?`,
       [
         { text: 'Annuler', style: 'cancel' },
         {
           text: 'Accepter',
           onPress: async () => {
-            try {
-              await axios.post(
-                `${API_URL}/offers/${offer.id}/accept`,
-                {},
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
-              Alert.alert('✅ Offre acceptée', 'La réservation est confirmée !');
-              navigation.navigate('BookingDetail', { bookingId });
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible d\'accepter l\'offre');
+            setActioningId(offer.id);
+            const result = await offerService.acceptOffer(offer.id);
+            setActioningId(null);
+            if (!result.success) {
+              Alert.alert('Erreur', result.error);
+              return;
             }
+            Alert.alert('✅ Offre acceptée', 'La réservation est confirmée !');
+            await refreshUnreadCount?.();
+            navigation.navigate('BookingDetail', { bookingId });
+          },
+        },
+      ]
+    );
+  };
+
+  const handleReject = (offer) => {
+    Alert.alert(
+      "Refuser l'offre",
+      `Voulez-vous vraiment refuser l'offre de ${getDisplayName(offer)} ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Refuser',
+          style: 'destructive',
+          onPress: async () => {
+            setActioningId(offer.id);
+            const result = await offerService.rejectOffer(offer.id);
+            setActioningId(null);
+            if (!result.success) {
+              Alert.alert('Erreur', result.error);
+              return;
+            }
+            await refreshUnreadCount?.();
+            loadData();
           },
         },
       ]
@@ -131,43 +249,10 @@ const OffersScreen = ({ navigation, route }) => {
   const handleCounter = (offer) => {
     navigation.navigate('Negotiation', {
       offerId: offer.id,
-      bookingId: bookingId,
-      currentPrice: offer.price,
-      therapistName: offer.therapistName,
+      bookingId,
+      currentPrice: offer.price_offered,
+      therapistName: getDisplayName(offer),
     });
-  };
-
-  const handleReject = async (offer) => {
-    Alert.alert(
-      'Refuser l\'offre',
-      `Voulez-vous vraiment refuser l'offre de ${offer.therapistName} ?`,
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Refuser',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await axios.post(
-                `${API_URL}/offers/${offer.id}/reject`,
-                {},
-                { headers: { Authorization: `Bearer ${token}` } }
-              );
-              Alert.alert('✅ Offre refusée');
-              loadData();
-            } catch (error) {
-              Alert.alert('Erreur', 'Impossible de refuser l\'offre');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
   };
 
   if (isLoading) {
@@ -181,9 +266,12 @@ const OffersScreen = ({ navigation, route }) => {
     );
   }
 
+  const activeOffers = offers.filter(isActive);
+  const historyOffers = offers.filter((o) => !isActive(o));
+
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <Header title="Offres reçues" showBack />
+      <Header title="Négociations" showBack />
 
       <Animated.ScrollView
         style={[styles.scrollView, { opacity: fadeAnim }]}
@@ -191,125 +279,191 @@ const OffersScreen = ({ navigation, route }) => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
         }
       >
-        {/* Détails de la demande */}
+        {error && (
+          <View style={styles.errorBanner}>
+            <Ionicons name="alert-circle-outline" size={18} color={colors.error} />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
         {booking && (
-          <Animatable.View animation="fadeInDown" duration={600}>
+          <Animatable.View animation="fadeInDown" duration={500}>
             <View style={[styles.bookingSummary, { backgroundColor: themeColors.surface }]}>
               <View style={styles.bookingSummaryHeader}>
                 <Text style={[styles.bookingSummaryTitle, { color: themeColors.text }]}>
                   Votre demande
                 </Text>
                 <View style={styles.bookingSummaryPrice}>
-                  <Text style={styles.bookingSummaryPriceLabel}>Prix initial</Text>
+                  <Text style={styles.bookingSummaryPriceLabel}>Votre prix proposé</Text>
                   <Text style={styles.bookingSummaryPriceValue}>
-                    {booking.clientPriceProposed.toLocaleString()} Ar
+                    {money(booking.client_price_proposed)}
                   </Text>
                 </View>
               </View>
-              <View style={styles.bookingSummaryDetails}>
-                <Text style={[styles.bookingSummaryText, { color: themeColors.text }]}>
-                  {booking.massageType} • {booking.duration} min
-                </Text>
-                <Text style={[styles.bookingSummaryText, { color: themeColors.textSecondary }]}>
-                  📍 {booking.address}
-                </Text>
-              </View>
+              <Text style={[styles.bookingSummaryText, { color: themeColors.text }]}>
+                {booking.massage_type_name} • {booking.duration_minutes} min
+              </Text>
+              <Text style={[styles.bookingSummaryText, { color: themeColors.textSecondary }]}>
+                📍 {booking.address}
+              </Text>
             </View>
           </Animatable.View>
         )}
 
-        {/* Liste des offres */}
+        {/* -------------------------------------------------- */}
+        {/* OFFRES ACTIVES — à traiter maintenant               */}
+        {/* -------------------------------------------------- */}
         <View style={styles.offersList}>
           <Text style={[styles.offersTitle, { color: themeColors.text }]}>
-            {offers.length} offre(s) reçue(s)
+            {activeOffers.length > 0
+              ? `${activeOffers.length} offre${activeOffers.length > 1 ? 's' : ''} en cours`
+              : 'Aucune offre en cours'}
           </Text>
 
-          {offers.map((offer, index) => (
-            <Animatable.View
-              key={offer.id}
-              animation="fadeInUp"
-              delay={200 * (index + 1)}
-              duration={600}
-            >
-              <View style={[styles.offerCard, { backgroundColor: themeColors.surface }]}>
-                <View style={styles.offerHeader}>
-                  <View style={styles.therapistInfo}>
-                    <View style={styles.therapistAvatar}>
-                      <Text style={styles.therapistAvatarText}>
-                        {offer.therapistName.charAt(0)}
-                      </Text>
-                    </View>
-                    <View>
-                      <Text style={[styles.therapistName, { color: themeColors.text }]}>
-                        {offer.therapistName}
-                      </Text>
-                      <View style={styles.therapistRating}>
-                        <Ionicons name="star" size={14} color="#FFD700" />
-                        <Text style={styles.ratingText}>{offer.rating}</Text>
-                        <Text style={styles.reviewsText}>({offer.reviews} avis)</Text>
-                        <View style={styles.experienceBadge}>
-                          <Text style={styles.experienceBadgeText}>{offer.experience}</Text>
+          {activeOffers.map((offer, index) => {
+            const mine = isMine(offer);
+            const remaining = getRemainingSeconds(offer.expires_at);
+            const isExpiringSoon = remaining !== null && remaining < 120;
+            const isActioning = actioningId === offer.id;
+
+            return (
+              <Animatable.View
+                key={offer.id}
+                animation="fadeInUp"
+                delay={150 * (index + 1)}
+                duration={500}
+              >
+                <View style={[styles.offerCard, { backgroundColor: themeColors.surface }]}>
+                  <View style={styles.offerHeader}>
+                    <View style={styles.therapistInfo}>
+                      <View style={styles.therapistAvatar}>
+                        <Text style={styles.therapistAvatarText}>
+                          {getDisplayName(offer).charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View>
+                        <Text style={[styles.therapistName, { color: themeColors.text }]}>
+                          {mine ? 'Votre contre-offre' : getDisplayName(offer)}
+                        </Text>
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            { backgroundColor: statusColor(offer.status) + '20' },
+                          ]}
+                        >
+                          <Text style={[styles.statusBadgeText, { color: statusColor(offer.status) }]}>
+                            {statusLabel(offer.status)}
+                          </Text>
                         </View>
                       </View>
                     </View>
-                  </View>
-                  <View style={styles.distanceBadge}>
-                    <Ionicons name="location-outline" size={14} color={colors.primary} />
-                    <Text style={styles.distanceText}>{offer.distance} km</Text>
-                  </View>
-                </View>
 
-                <View style={styles.offerPriceContainer}>
-                  <Text style={[styles.offerPrice, { color: colors.primary }]}>
-                    {offer.price.toLocaleString()} Ar
-                  </Text>
-                  {booking && (
-                    <Text style={[styles.offerPriceComparison, { color: themeColors.textSecondary }]}>
-                      vs {booking.clientPriceProposed.toLocaleString()} Ar
+                    {remaining !== null && (
+                      <View
+                        style={[
+                          styles.timerBadge,
+                          isExpiringSoon && styles.timerBadgeUrgent,
+                        ]}
+                      >
+                        <Ionicons
+                          name="time-outline"
+                          size={12}
+                          color={isExpiringSoon ? colors.error : colors.textSecondary}
+                        />
+                        <Text
+                          style={[
+                            styles.timerBadgeText,
+                            isExpiringSoon && { color: colors.error },
+                          ]}
+                        >
+                          {remaining > 0 ? formatRemaining(remaining) : 'Expirée'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.offerPriceContainer}>
+                    <Text style={[styles.offerPrice, { color: colors.primary }]}>
+                      {money(offer.price_offered)}
                     </Text>
+                    {booking && (
+                      <Text style={[styles.offerPriceComparison, { color: themeColors.textSecondary }]}>
+                        (votre prix initial : {money(booking.client_price_proposed)})
+                      </Text>
+                    )}
+                  </View>
+
+                  {offer.message ? (
+                    <Text style={[styles.offerMessage, { color: themeColors.textSecondary }]}>
+                      "{offer.message}"
+                    </Text>
+                  ) : null}
+
+                  {/* ✅ Indication claire de qui doit agir */}
+                  {!mine ? (
+                    <View style={styles.turnBanner}>
+                      <Ionicons name="hand-left-outline" size={16} color={colors.primary} />
+                      <Text style={styles.turnBannerText}>
+                        C'est à vous de répondre à cette offre
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.turnBanner, { backgroundColor: '#FFF7E6' }]}>
+                      <Ionicons name="time-outline" size={16} color={ORANGE} />
+                      <Text style={[styles.turnBannerText, { color: ORANGE }]}>
+                        En attente de la réponse du thérapeute
+                      </Text>
+                    </View>
+                  )}
+
+                  <Text style={[styles.offerDate, { color: themeColors.textSecondary }]}>
+                    {formatDate(offer.created_at)}
+                  </Text>
+
+                  {!mine && (
+                    <View style={styles.offerActions}>
+                      {isActioning ? (
+                        <ActivityIndicator color={colors.primary} style={{ flex: 1 }} />
+                      ) : (
+                        <>
+                          <TouchableOpacity
+                            style={styles.acceptButton}
+                            onPress={() => handleAccept(offer)}
+                            activeOpacity={0.8}
+                          >
+                            <LinearGradient
+                              colors={[colors.primary, colors.primaryLight]}
+                              style={styles.acceptGradient}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                            >
+                              <Text style={styles.acceptButtonText}>Accepter</Text>
+                            </LinearGradient>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.counterButton}
+                            onPress={() => handleCounter(offer)}
+                          >
+                            <Text style={styles.counterButtonText}>Contre-proposer</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.rejectButton}
+                            onPress={() => handleReject(offer)}
+                          >
+                            <Ionicons name="close-outline" size={22} color={colors.error} />
+                          </TouchableOpacity>
+                        </>
+                      )}
+                    </View>
                   )}
                 </View>
+              </Animatable.View>
+            );
+          })}
 
-                {offer.message && (
-                  <Text style={[styles.offerMessage, { color: themeColors.textSecondary }]}>
-                    "{offer.message}"
-                  </Text>
-                )}
-
-                <View style={styles.offerActions}>
-                  <TouchableOpacity
-                    style={styles.acceptButton}
-                    onPress={() => handleAccept(offer)}
-                  >
-                    <LinearGradient
-                      colors={[colors.primary, colors.primaryLight]}
-                      style={styles.acceptGradient}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                    >
-                      <Text style={styles.acceptButtonText}>Accepter</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.counterButton}
-                    onPress={() => handleCounter(offer)}
-                  >
-                    <Text style={styles.counterButtonText}>Contre-proposer</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.rejectButton}
-                    onPress={() => handleReject(offer)}
-                  >
-                    <Ionicons name="close-outline" size={24} color={colors.error} />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </Animatable.View>
-          ))}
-
-          {offers.length === 0 && (
+          {activeOffers.length === 0 && !error && (
             <View style={styles.emptyState}>
               <Ionicons name="pricetag-outline" size={64} color={themeColors.textSecondary} />
               <Text style={[styles.emptyStateTitle, { color: themeColors.text }]}>
@@ -321,32 +475,63 @@ const OffersScreen = ({ navigation, route }) => {
             </View>
           )}
         </View>
+
+        {/* -------------------------------------------------- */}
+        {/* HISTORIQUE — tous les échanges passés               */}
+        {/* -------------------------------------------------- */}
+        {historyOffers.length > 0 && (
+          <View style={styles.historySection}>
+            <Text style={[styles.historyTitle, { color: themeColors.text }]}>
+              Historique des échanges
+            </Text>
+            {historyOffers.map((h) => (
+              <View
+                key={h.id}
+                style={[styles.historyRow, { backgroundColor: themeColors.surface }]}
+              >
+                <View
+                  style={[
+                    styles.historyDot,
+                    { backgroundColor: isMine(h) ? colors.secondary : colors.primary },
+                  ]}
+                />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.historyRowText, { color: themeColors.text }]}>
+                    {isMine(h) ? 'Vous' : getDisplayName(h)} — {money(h.price_offered)}
+                  </Text>
+                  <Text style={[styles.historyRowDate, { color: themeColors.textSecondary }]}>
+                    {formatDate(h.created_at)} · {statusLabel(h.status)}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
       </Animated.ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  loadingText: { marginTop: spacing.md, fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.regular },
+  scrollView: { flex: 1, paddingHorizontal: spacing.md },
+  errorBanner: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.error + '15',
+    borderRadius: 12,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
   },
-  loadingText: {
-    marginTop: spacing.md,
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.regular,
-  },
-  scrollView: {
-    flex: 1,
-    paddingHorizontal: spacing.md,
-  },
+  errorText: { color: colors.error, fontSize: typography.fontSize.sm, flex: 1 },
   bookingSummary: {
     borderRadius: 16,
     padding: spacing.md,
+    marginTop: spacing.sm,
     marginBottom: spacing.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -358,39 +543,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.xs,
   },
-  bookingSummaryTitle: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-  bookingSummaryPrice: {
-    alignItems: 'flex-end',
-  },
-  bookingSummaryPriceLabel: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textSecondary,
-  },
-  bookingSummaryPriceValue: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.primary,
-  },
-  bookingSummaryDetails: {
-    gap: 2,
-  },
-  bookingSummaryText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-  },
-  offersList: {
-    paddingBottom: spacing.xl,
-  },
-  offersTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
-    marginBottom: spacing.md,
-  },
+  bookingSummaryTitle: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
+  bookingSummaryPrice: { alignItems: 'flex-end' },
+  bookingSummaryPriceLabel: { fontSize: typography.fontSize.xs, color: colors.textSecondary },
+  bookingSummaryPriceValue: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, color: colors.primary },
+  bookingSummaryText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, marginTop: 2 },
+  offersList: { paddingBottom: spacing.md },
+  offersTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, marginBottom: spacing.md },
   offerCard: {
     borderRadius: 16,
     padding: spacing.md,
@@ -401,149 +562,78 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  offerHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  therapistInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
+  offerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  therapistInfo: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   therapistAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: colors.primary + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
-  therapistAvatarText: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.primary,
+  therapistAvatarText: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, color: colors.primary },
+  therapistName: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginTop: 2,
   },
-  therapistName: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-  therapistRating: {
+  statusBadgeText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium },
+  timerBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-  },
-  ratingText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
-    color: colors.text,
-  },
-  reviewsText: {
-    fontSize: typography.fontSize.xs,
-    color: colors.textSecondary,
-  },
-  experienceBadge: {
-    backgroundColor: colors.primary + '10',
+    backgroundColor: '#F3F4F6',
     paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  experienceBadgeText: {
-    fontSize: 8,
-    color: colors.primary,
-    fontFamily: typography.fontFamily.medium,
-  },
-  distanceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    backgroundColor: colors.primary + '10',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: 4,
     borderRadius: 8,
   },
-  distanceText: {
-    fontSize: typography.fontSize.xs,
-    color: colors.primary,
-    fontFamily: typography.fontFamily.medium,
-  },
-  offerPriceContainer: {
+  timerBadgeUrgent: { backgroundColor: colors.error + '15' },
+  timerBadgeText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, color: colors.textSecondary },
+  offerPriceContainer: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginTop: spacing.sm, flexWrap: 'wrap' },
+  offerPrice: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold },
+  offerPriceComparison: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular },
+  offerMessage: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, fontStyle: 'italic', marginTop: spacing.xs },
+  turnBanner: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primary + '10',
+    borderRadius: 8,
+    padding: spacing.sm,
     marginTop: spacing.sm,
   },
-  offerPrice: {
-    fontSize: typography.fontSize.xl,
-    fontFamily: typography.fontFamily.bold,
+  turnBannerText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, color: colors.primary },
+  offerDate: { fontSize: typography.fontSize.xs, marginTop: spacing.xs },
+  offerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
+  acceptButton: { flex: 1, borderRadius: 8, overflow: 'hidden' },
+  acceptGradient: { paddingVertical: spacing.sm, alignItems: 'center' },
+  acceptButtonText: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold },
+  counterButton: {
+    flex: 1, paddingVertical: spacing.sm, borderRadius: 8,
+    borderWidth: 1, borderColor: colors.primary, alignItems: 'center',
   },
-  offerPriceComparison: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
+  counterButtonText: { color: colors.primary, fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
+  rejectButton: {
+    padding: spacing.sm, borderRadius: 8, borderWidth: 1,
+    borderColor: colors.error + '30', alignItems: 'center', justifyContent: 'center',
   },
-  offerMessage: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-    fontStyle: 'italic',
-    marginTop: spacing.xs,
-  },
-  offerActions: {
+  historySection: { marginTop: spacing.sm, paddingBottom: spacing.xl },
+  historyTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, marginBottom: spacing.sm },
+  historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  acceptButton: {
-    flex: 1,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  acceptGradient: {
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-  },
-  acceptButtonText: {
-    color: '#fff',
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-  counterButton: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    alignItems: 'center',
-  },
-  counterButtonText: {
-    color: colors.primary,
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
-  },
-  rejectButton: {
+    borderRadius: 12,
     padding: spacing.sm,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.error + '30',
-    alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: spacing.xs,
   },
-  emptyState: {
-    alignItems: 'center',
-    padding: spacing.xl,
-    paddingTop: spacing.xxl,
-  },
-  emptyStateTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
-    marginTop: spacing.md,
-  },
-  emptyStateText: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.regular,
-    textAlign: 'center',
-    marginTop: spacing.xs,
-  },
+  historyDot: { width: 8, height: 8, borderRadius: 4 },
+  historyRowText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
+  historyRowDate: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular, marginTop: 2 },
+  emptyState: { alignItems: 'center', padding: spacing.xl, paddingTop: spacing.xxl },
+  emptyStateTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, marginTop: spacing.md },
+  emptyStateText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.regular, textAlign: 'center', marginTop: spacing.xs },
 });
 
 export default OffersScreen;

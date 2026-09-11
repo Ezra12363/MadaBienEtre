@@ -14,7 +14,6 @@ import {
   Animated,
   Easing,
   Platform,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   TouchableOpacity,
@@ -37,25 +36,36 @@ import {
 
 import { useTheme } from '../context/ThemeContext';
 import { colors } from '../theme';
-import { useNotifications } from '../context/NotificationContext';
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+import NotificationScreen from '../screens/therapist/NotificationScreen';
 
 // ============================================================
 // ÉCRANS THÉRAPEUTE
 // ============================================================
 
 import DashboardScreen from '../screens/therapist/DashboardScreen';
-import RequestsScreen from '../screens/therapist/RequestsScreen';
+import OffersScreen from '../screens/therapist/OffersScreen';
 import CalendarScreen from '../screens/therapist/CalendarScreen';
 import EarningsScreen from '../screens/therapist/EarningsScreen';
 import ProfileScreen from '../screens/therapist/ProfileScreen';
+
 import OfferScreen from '../screens/therapist/OfferScreen';
 import NegotiationScreen from '../screens/therapist/NegotiationScreen';
 import NavigationScreen from '../screens/therapist/NavigationScreen';
 import TrackingScreen from '../screens/therapist/TrackingScreen';
+
 import WithdrawScreen from '../screens/therapist/WithdrawScreen';
 import AvailabilityScreen from '../screens/therapist/AvailabilityScreen';
 import ReviewsScreen from '../screens/therapist/ReviewsScreen';
 import UploadDocumentsScreen from '../screens/therapist/UploadDocumentsScreen';
+
+// ============================================================
+// BOOKING DETAIL
+// ============================================================
 
 import BookingDetailScreen from '../screens/client/BookingDetailScreen';
 
@@ -97,92 +107,161 @@ export const useTherapistTabBar = () => {
 // ============================================================
 
 const DashboardStack = () => {
-  const { colors: themeColors } = useTheme();
+  const {
+    colors: themeColors,
+  } = useTheme();
 
   return (
     <Stack.Navigator
+      initialRouteName="DashboardScreen"
       screenOptions={{
         headerShown: false,
         animation: 'fade',
         contentStyle: {
-          backgroundColor: themeColors.background,
+          backgroundColor:
+            themeColors.background,
         },
       }}
     >
+
+      {/* ======================================================
+          DASHBOARD
+      ====================================================== */}
+
       <Stack.Screen
         name="DashboardScreen"
         component={DashboardScreen}
       />
+
+      {/* ======================================================
+          NOTIFICATION THÉRAPEUTE
+          
+          IMPORTANT :
+          Nom UNIQUE pour éviter le conflit avec le
+          route "Notifications" du ClientNavigator.
+      ====================================================== */}
+
+      <Stack.Screen
+        name="TherapistNotifications"
+        component={NotificationScreen}
+      />
+
+      {/* ======================================================
+          GAINS
+      ====================================================== */}
 
       <Stack.Screen
         name="Earnings"
         component={EarningsScreen}
       />
 
+      {/* ======================================================
+          RETRAIT
+      ====================================================== */}
+
       <Stack.Screen
         name="Withdraw"
         component={WithdrawScreen}
       />
+
+      {/* ======================================================
+          DISPONIBILITÉ
+      ====================================================== */}
 
       <Stack.Screen
         name="Availability"
         component={AvailabilityScreen}
       />
 
+      {/* ======================================================
+          AVIS
+      ====================================================== */}
+
       <Stack.Screen
         name="Reviews"
         component={ReviewsScreen}
       />
 
+      {/* ======================================================
+          DOCUMENTS
+      ====================================================== */}
+
       <Stack.Screen
         name="UploadDocuments"
         component={UploadDocumentsScreen}
       />
+
     </Stack.Navigator>
   );
 };
 
 // ============================================================
-// REQUESTS STACK
+// REQUESTS / DEMANDES STACK
 // ============================================================
 
 const RequestsStack = () => {
-  const { colors: themeColors } = useTheme();
+  const {
+    colors: themeColors,
+  } = useTheme();
 
   return (
     <Stack.Navigator
+      initialRouteName="Offers"
       screenOptions={{
         headerShown: false,
         animation: 'fade',
         contentStyle: {
-          backgroundColor: themeColors.background,
+          backgroundColor:
+            themeColors.background,
         },
       }}
     >
+
+      {/* ======================================================
+          LISTE DES DEMANDES
+      ====================================================== */}
+
       <Stack.Screen
-        name="RequestsScreen"
-        component={RequestsScreen}
+        name="Offers"
+        component={OffersScreen}
       />
+
+      {/* ======================================================
+          DÉTAIL OFFRE
+      ====================================================== */}
 
       <Stack.Screen
         name="Offer"
         component={OfferScreen}
       />
 
+      {/* ======================================================
+          NÉGOCIATION
+      ====================================================== */}
+
       <Stack.Screen
         name="Negotiation"
         component={NegotiationScreen}
       />
+
+      {/* ======================================================
+          NAVIGATION
+      ====================================================== */}
+
+      <Stack.Screen
+        name="Navigation"
+        component={NavigationScreen}
+      />
+
+      {/* ======================================================
+          TRACKING
+      ====================================================== */}
 
       <Stack.Screen
         name="Tracking"
         component={TrackingScreen}
       />
 
-      <Stack.Screen
-        name="Navigation"
-        component={NavigationScreen}
-      />
     </Stack.Navigator>
   );
 };
@@ -192,18 +271,23 @@ const RequestsStack = () => {
 // ============================================================
 
 const CalendarStack = () => {
-  const { colors: themeColors } = useTheme();
+  const {
+    colors: themeColors,
+  } = useTheme();
 
   return (
     <Stack.Navigator
+      initialRouteName="CalendarScreen"
       screenOptions={{
         headerShown: false,
         animation: 'fade',
         contentStyle: {
-          backgroundColor: themeColors.background,
+          backgroundColor:
+            themeColors.background,
         },
       }}
     >
+
       <Stack.Screen
         name="CalendarScreen"
         component={CalendarScreen}
@@ -213,6 +297,7 @@ const CalendarStack = () => {
         name="BookingDetail"
         component={BookingDetailScreen}
       />
+
     </Stack.Navigator>
   );
 };
@@ -222,18 +307,23 @@ const CalendarStack = () => {
 // ============================================================
 
 const EarningsStack = () => {
-  const { colors: themeColors } = useTheme();
+  const {
+    colors: themeColors,
+  } = useTheme();
 
   return (
     <Stack.Navigator
+      initialRouteName="EarningsScreen"
       screenOptions={{
         headerShown: false,
         animation: 'fade',
         contentStyle: {
-          backgroundColor: themeColors.background,
+          backgroundColor:
+            themeColors.background,
         },
       }}
     >
+
       <Stack.Screen
         name="EarningsScreen"
         component={EarningsScreen}
@@ -243,6 +333,7 @@ const EarningsStack = () => {
         name="Withdraw"
         component={WithdrawScreen}
       />
+
     </Stack.Navigator>
   );
 };
@@ -252,18 +343,23 @@ const EarningsStack = () => {
 // ============================================================
 
 const ProfileStack = () => {
-  const { colors: themeColors } = useTheme();
+  const {
+    colors: themeColors,
+  } = useTheme();
 
   return (
     <Stack.Navigator
+      initialRouteName="ProfileScreen"
       screenOptions={{
         headerShown: false,
         animation: 'fade',
         contentStyle: {
-          backgroundColor: themeColors.background,
+          backgroundColor:
+            themeColors.background,
         },
       }}
     >
+
       <Stack.Screen
         name="ProfileScreen"
         component={ProfileScreen}
@@ -288,6 +384,7 @@ const ProfileStack = () => {
         name="Reviews"
         component={ReviewsScreen}
       />
+
     </Stack.Navigator>
   );
 };
@@ -300,7 +397,9 @@ const getTabIcon = (
   routeName,
   focused
 ) => {
+
   switch (routeName) {
+
     case 'Tableau de bord':
       return focused
         ? 'grid'
@@ -338,7 +437,9 @@ const getTabIcon = (
 const getTabLabel = (
   routeName
 ) => {
+
   switch (routeName) {
+
     case 'Tableau de bord':
       return 'Tableau de bord';
 
@@ -360,7 +461,7 @@ const getTabLabel = (
 };
 
 // ============================================================
-// CUSTOM THERAPIST TAB BAR
+// CUSTOM TAB BAR
 // ============================================================
 
 const TherapistTabBar = ({
@@ -368,6 +469,7 @@ const TherapistTabBar = ({
   descriptors,
   navigation,
 }) => {
+
   const insets =
     useSafeAreaInsets();
 
@@ -379,10 +481,6 @@ const TherapistTabBar = ({
   const {
     tabBarVisible,
   } = useTherapistTabBar();
-
-  // ==========================================================
-  // ANIMATION
-  // ==========================================================
 
   const translateY =
     useRef(
@@ -398,10 +496,11 @@ const TherapistTabBar = ({
     useRef(true);
 
   // ==========================================================
-  // SHOW / HIDE ANIMATION
+  // ANIMATION
   // ==========================================================
 
   useEffect(() => {
+
     if (
       previousVisibility.current ===
       tabBarVisible
@@ -413,6 +512,7 @@ const TherapistTabBar = ({
       tabBarVisible;
 
     Animated.parallel([
+
       Animated.timing(
         translateY,
         {
@@ -429,7 +529,8 @@ const TherapistTabBar = ({
               Easing.cubic
             ),
 
-          useNativeDriver: true,
+          useNativeDriver:
+            true,
         }
       ),
 
@@ -449,10 +550,13 @@ const TherapistTabBar = ({
               Easing.cubic
             ),
 
-          useNativeDriver: true,
+          useNativeDriver:
+            true,
         }
       ),
+
     ]).start();
+
   }, [
     tabBarVisible,
     translateY,
@@ -470,7 +574,7 @@ const TherapistTabBar = ({
     );
 
   // ==========================================================
-  // TAB HEIGHT
+  // HEIGHT
   // ==========================================================
 
   const tabHeight =
@@ -483,7 +587,7 @@ const TherapistTabBar = ({
   // ==========================================================
 
   const activeColor =
-    colors.primary ||
+    colors?.primary ||
     '#0D2B7E';
 
   const inactiveColor =
@@ -499,19 +603,22 @@ const TherapistTabBar = ({
       style={[
         styles.tabBarWrapper,
         {
-          height: tabHeight,
+          height:
+            tabHeight,
+
           backgroundColor:
             themeColors.background,
         },
       ]}
       pointerEvents="box-none"
     >
+
       <Animated.View
         style={[
           styles.tabBar,
-
           {
-            height: tabHeight,
+            height:
+              tabHeight,
 
             paddingBottom:
               Platform.OS === 'web'
@@ -542,16 +649,19 @@ const TherapistTabBar = ({
           },
         ]}
       >
+
         <View
           style={
             styles.tabBarInner
           }
         >
+
           {state.routes.map(
             (
               route,
               index
             ) => {
+
               const {
                 options,
               } =
@@ -579,51 +689,43 @@ const TherapistTabBar = ({
                   ? activeColor
                   : inactiveColor;
 
-              // ==================================================
-              // PRESS
-              // ==================================================
-
               const onPress =
                 () => {
+
                   const event =
-                    navigation.emit(
-                      {
-                        type:
-                          'tabPress',
+                    navigation.emit({
+                      type:
+                        'tabPress',
 
-                        target:
-                          route.key,
+                      target:
+                        route.key,
 
-                        canPreventDefault:
-                          true,
-                      }
-                    );
+                      canPreventDefault:
+                        true,
+                    });
 
                   if (
                     !focused &&
                     !event.defaultPrevented
                   ) {
+
                     navigation.navigate(
                       route.name
                     );
                   }
                 };
 
-              // ==================================================
-              // LONG PRESS
-              // ==================================================
-
               const onLongPress =
                 () => {
-                  navigation.emit(
-                    {
-                      type:
-                        'tabLongPress',
 
-                      target:
-                        route.key,
-                    }
-                  );
+                  navigation.emit({
+                    type:
+                      'tabLongPress',
+
+                    target:
+                      route.key,
+                  });
+
                 };
 
               return (
@@ -670,14 +772,10 @@ const TherapistTabBar = ({
                     styles.tabButton
                   }
                 >
-                  {/* ========================================== */}
-                  {/* ICON */}
-                  {/* ========================================== */}
 
                   <View
                     style={[
                       styles.iconContainer,
-
                       {
                         backgroundColor:
                           focused
@@ -686,6 +784,7 @@ const TherapistTabBar = ({
                       },
                     ]}
                   >
+
                     <Ionicons
                       name={
                         iconName
@@ -701,20 +800,13 @@ const TherapistTabBar = ({
                         color
                       }
                     />
+
                   </View>
 
-                  {/* ========================================== */}
-                  {/* LABEL */}
-                  {/* ========================================== */}
-
                   <Animated.Text
-                    numberOfLines={
-                      1
-                    }
-
+                    numberOfLines={1}
                     style={[
                       styles.tabLabel,
-
                       {
                         color,
 
@@ -728,15 +820,10 @@ const TherapistTabBar = ({
                     {label}
                   </Animated.Text>
 
-                  {/* ========================================== */}
-                  {/* ACTIVE INDICATOR */}
-                  {/* ========================================== */}
-
                   {focused && (
                     <View
                       style={[
                         styles.activeIndicator,
-
                         {
                           backgroundColor:
                             activeColor,
@@ -744,12 +831,16 @@ const TherapistTabBar = ({
                       ]}
                     />
                   )}
+
                 </TouchableOpacity>
               );
             }
           )}
+
         </View>
+
       </Animated.View>
+
     </View>
   );
 };
@@ -759,40 +850,22 @@ const TherapistTabBar = ({
 // ============================================================
 
 const TherapistNavigator = () => {
+
   const {
     colors: themeColors,
     isDark,
   } = useTheme();
-
-  const { unreadCount } =
-    useNotifications();
-
-  // ==========================================================
-  // TAB BAR VISIBILITY
-  // ==========================================================
 
   const [
     tabBarVisible,
     setTabBarVisible,
   ] = useState(true);
 
-  // ==========================================================
-  // LAST SCROLL
-  // ==========================================================
-
   const lastScrollY =
     useRef(0);
 
-  // ==========================================================
-  // LAST SCROLL TIME
-  // ==========================================================
-
   const lastScrollTime =
     useRef(0);
-
-  // ==========================================================
-  // SCROLL DIRECTION
-  // ==========================================================
 
   const scrollDirection =
     useRef('idle');
@@ -803,9 +876,9 @@ const TherapistNavigator = () => {
 
   const showTherapistTabBar =
     useCallback(() => {
-      setTabBarVisible(
-        true
-      );
+
+      setTabBarVisible(true);
+
     }, []);
 
   // ==========================================================
@@ -814,9 +887,9 @@ const TherapistNavigator = () => {
 
   const hideTherapistTabBar =
     useCallback(() => {
-      setTabBarVisible(
-        false
-      );
+
+      setTabBarVisible(false);
+
     }, []);
 
   // ==========================================================
@@ -825,18 +898,21 @@ const TherapistNavigator = () => {
 
   const toggleTherapistTabBar =
     useCallback(() => {
+
       setTabBarVisible(
         previous =>
           !previous
       );
+
     }, []);
 
   // ==========================================================
-  // RESET SCROLL
+  // RESET
   // ==========================================================
 
   const resetTherapistScroll =
     useCallback(() => {
+
       lastScrollY.current =
         0;
 
@@ -846,18 +922,18 @@ const TherapistNavigator = () => {
       scrollDirection.current =
         'idle';
 
-      setTabBarVisible(
-        true
-      );
+      setTabBarVisible(true);
+
     }, []);
 
   // ==========================================================
-  // GLOBAL SCROLL HANDLER
+  // SCROLL
   // ==========================================================
 
   const handleTherapistScroll =
     useCallback(
       (event) => {
+
         if (
           !event ||
           !event.nativeEvent
@@ -869,20 +945,17 @@ const TherapistNavigator = () => {
           event.nativeEvent
             .contentOffset?.y || 0;
 
-        // ====================================================
-        // TOP
-        // ====================================================
-
         if (
           currentY <=
           SHOW_AT_TOP
         ) {
+
           if (
             !tabBarVisible
           ) {
-            setTabBarVisible(
-              true
-            );
+
+            setTabBarVisible(true);
+
           }
 
           lastScrollY.current =
@@ -894,17 +967,9 @@ const TherapistNavigator = () => {
           return;
         }
 
-        // ====================================================
-        // DELTA
-        // ====================================================
-
         const delta =
           currentY -
           lastScrollY.current;
-
-        // ====================================================
-        // SMALL MOVEMENT
-        // ====================================================
 
         if (
           Math.abs(delta) <
@@ -913,52 +978,42 @@ const TherapistNavigator = () => {
           return;
         }
 
-        // ====================================================
-        // SCROLL UP
-        // ====================================================
-        //
-        // contentOffset.y augmente
-        // => menu disparaît
-        //
-
         if (
           delta > 0
         ) {
+
           if (
             scrollDirection.current !==
             'up'
           ) {
+
             scrollDirection.current =
               'up';
 
             setTabBarVisible(
               false
             );
+
           }
-        }
 
-        // ====================================================
-        // SCROLL DOWN
-        // ====================================================
-        //
-        // contentOffset.y diminue
-        // => menu apparaît
-        //
-
-        else if (
+        } else if (
           delta < 0
         ) {
+
           if (
             scrollDirection.current !==
             'down'
           ) {
+
             scrollDirection.current =
               'down';
 
             setTabBarVisible(
               true
             );
+
           }
+
         }
 
         lastScrollY.current =
@@ -966,6 +1021,7 @@ const TherapistNavigator = () => {
 
         lastScrollTime.current =
           Date.now();
+
       },
       [
         tabBarVisible,
@@ -1006,7 +1062,8 @@ const TherapistNavigator = () => {
         contextValue
       }
     >
-      <SafeAreaView
+
+      <View
         style={[
           styles.container,
           {
@@ -1015,9 +1072,6 @@ const TherapistNavigator = () => {
           },
         ]}
       >
-        {/* ================================================== */}
-        {/* STATUS BAR */}
-        {/* ================================================== */}
 
         <StatusBar
           barStyle={
@@ -1030,16 +1084,11 @@ const TherapistNavigator = () => {
             themeColors.background
           }
 
-          translucent={
-            false
-          }
+          translucent={false}
         />
 
-        {/* ================================================== */}
-        {/* TABS */}
-        {/* ================================================== */}
-
         <Tab.Navigator
+
           tabBar={
             props => (
               <TherapistTabBar
@@ -1052,7 +1101,8 @@ const TherapistNavigator = () => {
             headerShown:
               false,
 
-            lazy: true,
+            lazy:
+              true,
 
             tabBarHideOnKeyboard:
               true,
@@ -1066,82 +1116,71 @@ const TherapistNavigator = () => {
               false,
           }}
         >
-          {/* ================================================= */}
-          {/* TABLEAU DE BORD */}
-          {/* ================================================= */}
 
           <Tab.Screen
             name="Tableau de bord"
             component={
               DashboardStack
             }
+
             options={{
               tabBarLabel:
                 'Tableau de bord',
             }}
           />
 
-          {/* ================================================= */}
-          {/* DEMANDES */}
-          {/* ================================================= */}
-
           <Tab.Screen
             name="Demandes"
             component={
               RequestsStack
             }
+
             options={{
               tabBarLabel:
                 'Demandes',
             }}
           />
 
-          {/* ================================================= */}
-          {/* CALENDRIER */}
-          {/* ================================================= */}
-
           <Tab.Screen
             name="Calendrier"
             component={
               CalendarStack
             }
+
             options={{
               tabBarLabel:
                 'Calendrier',
             }}
           />
 
-          {/* ================================================= */}
-          {/* GAINS */}
-          {/* ================================================= */}
-
           <Tab.Screen
             name="Gains"
             component={
               EarningsStack
             }
+
             options={{
               tabBarLabel:
                 'Gains',
             }}
           />
 
-          {/* ================================================= */}
-          {/* PROFIL */}
-          {/* ================================================= */}
-
           <Tab.Screen
             name="Profil"
             component={
               ProfileStack
             }
+
             options={{
               tabBarLabel:
                 'Profil',
             }}
           />
+
         </Tab.Navigator>
-      </SafeAreaView>
+
+      </View>
+
     </TherapistTabBarContext.Provider>
   );
 };
@@ -1153,26 +1192,14 @@ const TherapistNavigator = () => {
 const styles =
   StyleSheet.create({
 
-    // ========================================================
-    // CONTAINER
-    // ========================================================
-
     container: {
       flex: 1,
     },
-
-    // ========================================================
-    // TAB WRAPPER
-    // ========================================================
 
     tabBarWrapper: {
       width: '100%',
       overflow: 'hidden',
     },
-
-    // ========================================================
-    // TAB BAR
-    // ========================================================
 
     tabBar: {
       width: '100%',
@@ -1193,10 +1220,6 @@ const styles =
       shadowRadius: 8,
     },
 
-    // ========================================================
-    // INNER
-    // ========================================================
-
     tabBarInner: {
       flex: 1,
 
@@ -1213,10 +1236,6 @@ const styles =
         6,
     },
 
-    // ========================================================
-    // BUTTON
-    // ========================================================
-
     tabButton: {
       flex: 1,
 
@@ -1231,14 +1250,12 @@ const styles =
       position:
         'relative',
 
-      paddingTop: 5,
+      paddingTop:
+        5,
 
-      paddingHorizontal: 2,
+      paddingHorizontal:
+        2,
     },
-
-    // ========================================================
-    // ICON
-    // ========================================================
 
     iconContainer: {
       width: 42,
@@ -1253,21 +1270,18 @@ const styles =
       justifyContent:
         'center',
 
-      marginBottom: 2,
+      marginBottom:
+        2,
     },
-
-    // ========================================================
-    // LABEL
-    // ========================================================
 
     tabLabel: {
       fontSize:
-        Platform.OS ===
-        'web'
+        Platform.OS === 'web'
           ? 11
           : 10,
 
-      lineHeight: 14,
+      lineHeight:
+        14,
 
       textAlign:
         'center',
@@ -1275,25 +1289,27 @@ const styles =
       includeFontPadding:
         false,
 
-      maxWidth: 100,
+      maxWidth:
+        100,
     },
-
-    // ========================================================
-    // ACTIVE INDICATOR
-    // ========================================================
 
     activeIndicator: {
       position:
         'absolute',
 
-      bottom: 0,
+      bottom:
+        0,
 
-      width: 24,
+      width:
+        24,
 
-      height: 3,
+      height:
+        3,
 
-      borderRadius: 3,
+      borderRadius:
+        3,
     },
+
   });
 
 export default TherapistNavigator;

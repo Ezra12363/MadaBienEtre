@@ -1,5 +1,37 @@
+// ============================================================
 // src/screens/client/TrackingScreen.js
-import React, { useState, useEffect, useRef } from 'react';
+//
+// FIX COMPLET demandé:
+//
+// 1. ✅ CARTE WEB = CARTE ANDROID
+//    Teo aloha dia "placeholder" tsotra (icône + texte) no niseho
+//    tamin'ny web ("Disponible sur l'application mobile"). Eto dia
+//    ny <MapView> MARINA (MapViewWrapper — Google Maps JS API amin'ny
+//    web, react-native-maps amin'ny mobile) no ampiasaina amin'ny
+//    PLATEFORME ROA, ka mitovy tanteraka ny fisehony.
+//
+// 2. ✅ LALANA MENA (itinéraire rouge) MANARAKA NY LALAM-BE MARINA
+//    Miantso ny Google Directions API (avy amin'ny position actuelle
+//    an'ny thérapeute mankany amin'ny adresse an'ny booking) ary
+//    "décoder" ny polyline azo avy any mba hisehoan'ny lalana marina
+//    (tsy tsipika mahitsy fotsiny), atao MENA (#E53935) mitovy
+//    amin'ny web sy ny mobile (jereo ny fanavaozana natao tao amin'ny
+//    MapViewWrapper.js: prop "route").
+//
+// 3. ✅ ANGONA REAL (tsy misy simulation/mock)
+//    - Booking marina: bookingService.getBooking(bookingId)
+//    - Thérapeute assigné marina: therapistService.getTherapist(id)
+//      (photo, téléphone, note, expérience, statut en ligne, position
+//      actuelle) — averina isaky ny 12 segondra mba hanaraka azy.
+//    - Distance + durée ARRIVÉE ESTIMÉE marina, avy amin'ny valiny
+//      Google Directions (distance.text / duration.text).
+//
+// 4. ✅ PROFIL THÉRAPEUTE miseho tsara ambany carte (avatar carré à
+//    bords arrondis, note, expérience, statut en ligne, téléphone,
+//    boutons Contacter / Appeler).
+// ============================================================
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,292 +39,918 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Animated,
-  Dimensions,
+  Image,
+  Linking,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
 import * as Location from 'expo-location';
+import axios from 'axios';
+
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import SOSButton from '../../components/sos/SOSButton';
 
-// ✅ Importer depuis le wrapper
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from '../../components/map/MapViewWrapper';
+import { GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
 
-const { width, height } = Dimensions.get('window');
+import bookingService from '../../services/bookingService';
+import therapistService from '../../services/therapistService';
+import { geocodeAddress } from '../../services/geocoding';
 
-const TrackingScreen = ({ navigation, route }) => {
-  const { bookingId } = route.params;
-  const { colors: themeColors, isDark } = useTheme();
+// ✅ Importer depuis le wrapper (carte identique web / mobile)
+import MapView, { Marker, PROVIDER_GOOGLE } from '../../components/map/MapViewWrapper';
+
+// ============================================================
+// CONSTANTES
+// ============================================================
+
+const ROUTE_COLOR = '#E53935'; // rouge, comme demandé
+const REFRESH_INTERVAL_MS = 12000; // rafraîchissement position + itinéraire
+const ARRIVED_THRESHOLD_KM = 0.12; // ~120 m => considéré "arrivé"
+
+// ============================================================
+// HELPERS — DISTANCE (secours si Directions API indisponible)
+// ============================================================
+
+const toRad = (value) => (value * Math.PI) / 180;
+
+const haversineKm = (a, b) => {
+  if (!a || !b) return null;
+
+  const R = 6371;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+
+  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+};
+
+// ============================================================
+// HELPERS — DÉCODAGE POLYLINE GOOGLE
+//
+// L'API Directions renvoie un "encoded polyline" (chaîne compacte).
+// Cette fonction le transforme en liste de points {latitude,longitude}
+// utilisables directement par le <MapView>.
+// ============================================================
+
+const decodePolyline = (encoded) => {
+  if (!encoded) return [];
+
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+  const points = [];
+
+  while (index < encoded.length) {
+    let result = 0;
+    let shift = 0;
+    let byte;
+
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+
+    const deltaLat = result & 1 ? ~(result >> 1) : result >> 1;
+    lat += deltaLat;
+
+    result = 0;
+    shift = 0;
+
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+
+    const deltaLng = result & 1 ? ~(result >> 1) : result >> 1;
+    lng += deltaLng;
+
+    points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
+  }
+
+  return points;
+};
+
+// ============================================================
+// HELPER — ITINÉRAIRE RÉEL (Google Directions API)
+//
+// Renvoie: { coordinates: [...], distanceText, durationText,
+// distanceKm, durationMinutes } ou null si indisponible.
+// ============================================================
+
+const fetchRoute = async (origin, destination) => {
+  if (!origin || !destination || !GOOGLE_MAPS_API_KEY) {
+    return null;
+  }
+
+  try {
+    const response = await axios.get(
+      'https://maps.googleapis.com/maps/api/directions/json',
+      {
+        params: {
+          origin: `${origin.latitude},${origin.longitude}`,
+          destination: `${destination.latitude},${destination.longitude}`,
+          mode: 'driving',
+          language: 'fr',
+          key: GOOGLE_MAPS_API_KEY,
+        },
+        timeout: 10000,
+      }
+    );
+
+    if (
+      response.data?.status === 'OK' &&
+      Array.isArray(response.data.routes) &&
+      response.data.routes.length > 0
+    ) {
+      const routeData = response.data.routes[0];
+      const leg = routeData.legs?.[0];
+
+      return {
+        coordinates: decodePolyline(routeData.overview_polyline?.points),
+        distanceText: leg?.distance?.text || null,
+        durationText: leg?.duration?.text || null,
+        distanceKm: leg?.distance?.value ? leg.distance.value / 1000 : null,
+        durationMinutes: leg?.duration?.value
+          ? Math.round(leg.duration.value / 60)
+          : null,
+      };
+    }
+
+    console.log('ℹ️ [Directions] Statut:', response.data?.status);
+    return null;
+  } catch (error) {
+    console.warn('⚠️ [Directions] Erreur:', error.message);
+    return null;
+  }
+};
+
+// ============================================================
+// STATUS
+// ============================================================
+
+const normalizeBookingStatus = (status) =>
+  String(status || 'pending').trim().toLowerCase();
+
+const getStatusInfo = (status) => {
+  const map = {
+    waiting: {
+      label: 'En attente du thérapeute',
+      icon: 'time-outline',
+      color: '#FFA726',
+    },
+    en_route: {
+      label: 'Le thérapeute est en route',
+      icon: 'walk-outline',
+      color: '#4CAF50',
+    },
+    arrived: {
+      label: 'Le thérapeute est arrivé',
+      icon: 'checkmark-circle-outline',
+      color: '#2E7D32',
+    },
+    in_progress: {
+      label: 'Massage en cours',
+      icon: 'body-outline',
+      color: '#2196F3',
+    },
+  };
+  return map[status] || map.waiting;
+};
+
+// ============================================================
+// THERAPIST AVATAR — carré à bords arrondis (cohérent avec le
+// reste de l'application), avec pastille "en ligne".
+// ============================================================
+
+const TherapistPhoto = ({ photoUrl, name, online, size = 62 }) => {
+  const [failed, setFailed] = useState(false);
+  const showImage = !!photoUrl && !failed;
+
+  const dimension = { width: size, height: size, borderRadius: size * 0.28 };
+  const initial = String(name || 'T').trim().charAt(0).toUpperCase();
+
+  return (
+    <View style={{ position: 'relative' }}>
+      {showImage ? (
+        <Image
+          source={{ uri: photoUrl }}
+          style={[photoStyles.image, dimension]}
+          resizeMode="cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <View style={[photoStyles.fallback, dimension]}>
+          <Text style={[photoStyles.fallbackText, { fontSize: size * 0.36 }]}>
+            {initial}
+          </Text>
+        </View>
+      )}
+      {online ? <View style={photoStyles.onlineDot} /> : null}
+    </View>
+  );
+};
+
+const photoStyles = StyleSheet.create({
+  image: {
+    backgroundColor: `${colors.primary}15`,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    ...Platform.select({
+      web: { boxShadow: '0 3px 8px rgba(0,0,0,0.15)' },
+      default: { elevation: 3 },
+    }),
+  },
+  fallback: {
+    backgroundColor: `${colors.primary}20`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    ...Platform.select({
+      web: { boxShadow: '0 3px 8px rgba(0,0,0,0.15)' },
+      default: { elevation: 3 },
+    }),
+  },
+  fallbackText: { color: colors.primary, fontWeight: '900' },
+  onlineDot: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 15,
+    height: 15,
+    borderRadius: 7.5,
+    backgroundColor: '#4CAF50',
+    borderWidth: 2.5,
+    borderColor: '#FFFFFF',
+  },
+});
+
+// ============================================================
+// SCREEN
+// ============================================================
+
+const TrackingScreen = ({ navigation, route: navRoute }) => {
+  const { bookingId } = navRoute.params;
+  const { colors: themeColors } = useTheme();
   const { token } = useAuth();
-  
-  const [booking, setBooking] = useState(null);
-  const [therapistLocation, setTherapistLocation] = useState(null);
-  const [userLocation, setUserLocation] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [status, setStatus] = useState('waiting');
-  const [estimatedArrival, setEstimatedArrival] = useState(null);
-  const mapRef = useRef(null);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    loadData();
-    getUserLocation();
-    return () => {};
+  const [booking, setBooking] = useState(null);
+  const [therapistProfile, setTherapistProfile] = useState(null);
+
+  const [userLocation, setUserLocation] = useState(null);
+  const [destination, setDestination] = useState(null); // adresse du client (demande)
+  const [therapistLocation, setTherapistLocation] = useState(null); // position actuelle réelle
+
+  const [routeInfo, setRouteInfo] = useState(null); // { coordinates, distanceText, durationText, ... }
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [refreshingLocation, setRefreshingLocation] = useState(false);
+
+  const mapRef = useRef(null);
+  const pollTimerRef = useRef(null);
+  const hasFitBoundsRef = useRef(false);
+
+  // ==========================================================
+  // 1. CHARGER LA RÉSERVATION RÉELLE
+  // ==========================================================
+
+  const loadBooking = useCallback(async () => {
+    if (!bookingId) {
+      setLoadError('Identifiant de réservation manquant.');
+      setIsLoading(false);
+      return null;
+    }
+
+    try {
+      const result = await bookingService.getBooking(bookingId);
+
+      if (!result?.success || !result?.data) {
+        throw new Error(
+          result?.error || 'Impossible de charger la réservation.'
+        );
+      }
+
+      setBooking(result.data);
+      setLoadError('');
+      return result.data;
+    } catch (error) {
+      console.error('❌ [TRACKING] loadBooking:', error);
+      setLoadError(
+        error?.message || 'Impossible de charger le suivi de la réservation.'
+      );
+      return null;
+    }
+  }, [bookingId]);
+
+  // ==========================================================
+  // 2. DESTINATION RÉELLE (adresse de la demande du client)
+  //
+  // Priorité: client_latitude/client_longitude déjà enregistrés
+  // sur le booking. Sinon, on géocode l'adresse texte en dernier
+  // recours (geocoding.js — même service que le reste de l'app).
+  // ==========================================================
+
+  const resolveDestination = useCallback(async (bookingData) => {
+    if (!bookingData) return null;
+
+    const lat = Number(bookingData?.client_latitude);
+    const lng = Number(bookingData?.client_longitude);
+
+    if (Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0)) {
+      return { latitude: lat, longitude: lng };
+    }
+
+    const address =
+      bookingData?.address ??
+      bookingData?.client_location ??
+      bookingData?.location;
+
+    if (!address) return null;
+
+    try {
+      const geocoded = await geocodeAddress(address);
+      if (geocoded?.latitude && geocoded?.longitude) {
+        return { latitude: geocoded.latitude, longitude: geocoded.longitude };
+      }
+    } catch (error) {
+      console.warn('⚠️ [TRACKING] Géocodage adresse impossible:', error.message);
+    }
+
+    return null;
   }, []);
 
-  const loadData = async () => {
-    setIsLoading(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setBooking({
-        id: bookingId,
-        address: 'Lot III A 78, Antananarivo',
-        therapist: {
-          id: 1,
-          name: 'Sarah B.',
-          phone: '+261 34 12 345 67',
-        },
-      });
-      setStatus('waiting');
-    } catch (error) {
-      console.error('Error loading tracking data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // ==========================================================
+  // 3. PROFIL + POSITION RÉELLE DU THÉRAPEUTE ASSIGNÉ
+  // ==========================================================
 
-  const getUserLocation = async () => {
+  const loadTherapist = useCallback(async (therapistId) => {
+    if (!therapistId) return null;
+
     try {
-      const { status: permissionStatus } = await Location.requestForegroundPermissionsAsync();
+      const result = await therapistService.getTherapist(therapistId);
+
+      if (result?.success && result?.data) {
+        setTherapistProfile(result.data);
+
+        const lat = Number(result.data?.latitude);
+        const lng = Number(result.data?.longitude);
+
+        if (Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0)) {
+          setTherapistLocation({ latitude: lat, longitude: lng });
+        }
+
+        return result.data;
+      }
+    } catch (error) {
+      console.warn('⚠️ [TRACKING] Profil thérapeute indisponible:', error.message);
+    }
+
+    return null;
+  }, []);
+
+  // ==========================================================
+  // 4. POSITION DE L'UTILISATEUR (utile pour "showsUserLocation")
+  // ==========================================================
+
+  const getUserLocation = useCallback(async () => {
+    try {
+      const { status: permissionStatus } =
+        await Location.requestForegroundPermissionsAsync();
+
       if (permissionStatus !== 'granted') {
-        console.warn('Location permission denied');
         return;
       }
+
       const location = await Location.getCurrentPositionAsync({});
       setUserLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
       });
     } catch (error) {
-      console.error('Error getting user location:', error);
-      setUserLocation({
-        latitude: -18.8792,
-        longitude: 47.5079,
+      console.warn('⚠️ [TRACKING] Position utilisateur indisponible:', error.message);
+    }
+  }, []);
+
+  // ==========================================================
+  // 5. RAFRAÎCHIR ITINÉRAIRE (thérapeute → adresse client)
+  // ==========================================================
+
+  const refreshRoute = useCallback(async (origin, dest) => {
+    if (!origin || !dest) {
+      setRouteInfo(null);
+      return;
+    }
+
+    const directions = await fetchRoute(origin, dest);
+
+    if (directions?.coordinates?.length) {
+      setRouteInfo(directions);
+    } else {
+      // Secours: ligne directe + distance approximative, tsy misy
+      // "lalana" marina fa mba tsy ho banga ny carte.
+      setRouteInfo({
+        coordinates: [origin, dest],
+        distanceText: null,
+        durationText: null,
+        distanceKm: haversineKm(origin, dest),
+        durationMinutes: null,
       });
+    }
+  }, []);
+
+  // ==========================================================
+  // CYCLE PRINCIPAL: charge + rafraîchit périodiquement
+  // ==========================================================
+
+  const runFullRefresh = useCallback(
+    async (showLoader) => {
+      if (showLoader) setIsLoading(true);
+      else setRefreshingLocation(true);
+
+      const bookingData = await loadBooking();
+
+      if (bookingData) {
+        const dest = await resolveDestination(bookingData);
+        setDestination(dest);
+
+        const therapistId =
+          bookingData?.therapist_id ?? bookingData?.therapist?.id ?? null;
+
+        const therapist = await loadTherapist(therapistId);
+
+        const originForRoute =
+          (Number.isFinite(Number(therapist?.latitude)) &&
+          Number.isFinite(Number(therapist?.longitude)) &&
+          (Number(therapist?.latitude) !== 0 || Number(therapist?.longitude) !== 0)
+            ? { latitude: Number(therapist.latitude), longitude: Number(therapist.longitude) }
+            : therapistLocation) || null;
+
+        await refreshRoute(originForRoute, dest);
+      }
+
+      setIsLoading(false);
+      setRefreshingLocation(false);
+    },
+    [loadBooking, resolveDestination, loadTherapist, refreshRoute, therapistLocation]
+  );
+
+  useEffect(() => {
+    runFullRefresh(true);
+    getUserLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Rafraîchissement périodique (position + itinéraire "en direct")
+  useEffect(() => {
+    pollTimerRef.current = setInterval(() => {
+      runFullRefresh(false);
+    }, REFRESH_INTERVAL_MS);
+
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runFullRefresh]);
+
+  // ==========================================================
+  // STATUT AFFICHÉ — dérivé du statut réel de la réservation +
+  // de la distance réelle thérapeute ↔ client.
+  // ==========================================================
+
+  const distanceKm = routeInfo?.distanceKm ?? haversineKm(therapistLocation, destination);
+
+  const displayStatus = useMemo(() => {
+    const bookingStatus = normalizeBookingStatus(booking?.status);
+
+    if (bookingStatus === 'in_progress') return 'in_progress';
+
+    if (bookingStatus === 'confirmed') {
+      if (!therapistLocation) return 'waiting';
+      if (distanceKm !== null && distanceKm <= ARRIVED_THRESHOLD_KM) return 'arrived';
+      return 'en_route';
+    }
+
+    return 'waiting';
+  }, [booking?.status, therapistLocation, distanceKm]);
+
+  const statusInfo = getStatusInfo(displayStatus);
+
+  // ==========================================================
+  // DONNÉES THÉRAPEUTE (réelles) POUR L'AFFICHAGE
+  // ==========================================================
+
+  const therapistName =
+    therapistProfile?.fullname ??
+    booking?.therapist_name ??
+    (booking?.therapist_id ? 'Thérapeute' : null);
+
+  const therapistPhone = therapistProfile?.phone ?? null;
+  const therapistPhoto = therapistProfile?.profile_image ?? null;
+  const therapistRating = therapistProfile?.rating ?? null;
+  const therapistExperience = therapistProfile?.experience_years ?? null;
+  const therapistOnline = !!therapistProfile?.is_online;
+
+  const address =
+    booking?.address ?? booking?.client_location ?? booking?.location ?? 'Adresse non disponible';
+
+  // ==========================================================
+  // AJUSTER LA VUE DE LA CARTE (fitToCoordinates) une fois que
+  // les deux points (thérapeute + destination) sont connus.
+  // ==========================================================
+
+  useEffect(() => {
+    if (!mapRef.current || hasFitBoundsRef.current) return;
+
+    const points = [therapistLocation, destination, userLocation].filter(Boolean);
+
+    if (points.length >= 2) {
+      mapRef.current.fitToCoordinates(points);
+      hasFitBoundsRef.current = true;
+    }
+  }, [therapistLocation, destination, userLocation]);
+
+  // ==========================================================
+  // ACTIONS
+  // ==========================================================
+
+  const handleContact = () => {
+    if (!booking) return;
+
+    navigation.navigate('Chat', {
+      bookingId,
+      therapistId: booking?.therapist_id,
+      therapistName,
+    });
+  };
+
+  const handleCall = async () => {
+    if (!therapistPhone) {
+      if (Platform.OS === 'web') {
+        window?.alert?.('Le numéro du thérapeute est indisponible.');
+      } else {
+        Alert.alert('Téléphone', 'Le numéro du thérapeute est indisponible.');
+      }
+      return;
+    }
+
+    try {
+      await Linking.openURL(`tel:${therapistPhone}`);
+    } catch (error) {
+      console.error('❌ Appel impossible:', error);
     }
   };
 
-  const getStatusInfo = () => {
-    const map = {
-      waiting: {
-        label: 'En attente du thérapeute',
-        icon: 'time-outline',
-        color: '#FFA726',
-      },
-      en_route: {
-        label: 'Le thérapeute est en route',
-        icon: 'walk-outline',
-        color: '#4CAF50',
-      },
-      arrived: {
-        label: 'Le thérapeute est arrivé',
-        icon: 'checkmark-circle-outline',
-        color: '#2E7D32',
-      },
-      in_progress: {
-        label: 'Massage en cours',
-        icon: 'spa-outline',
-        color: '#2196F3',
-      },
-    };
-    return map[status] || map.waiting;
-  };
+  // ==========================================================
+  // MARQUEURS DE LA CARTE (thérapeute + client) — identiques
+  // web / mobile via MapViewWrapper.
+  // ==========================================================
 
-  const statusInfo = getStatusInfo();
+  const mapMarkers = useMemo(() => {
+    const list = [];
+
+    if (destination) {
+      list.push({
+        id: 'client-destination',
+        coordinate: destination,
+        title: 'Adresse de la demande',
+        description: address,
+        pinColor: colors.primary,
+      });
+    }
+
+    if (therapistLocation) {
+      list.push({
+        id: 'therapist-position',
+        coordinate: therapistLocation,
+        title: therapistName || 'Thérapeute',
+        description: 'Position actuelle',
+        pinColor: ROUTE_COLOR,
+      });
+    }
+
+    return list;
+  }, [destination, therapistLocation, therapistName, address]);
+
+  // ==========================================================
+  // LOADING
+  // ==========================================================
 
   if (isLoading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
-          Chargement du suivi...
-        </Text>
-      </View>
-    );
-  }
-
-  // ✅ Version Web - Affichage simplifié
-  if (Platform.OS === 'web') {
-    return (
-      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
         <Header title="Suivi en direct" showBack />
-        <View style={[styles.webMapFallback, { backgroundColor: themeColors.surface }]}>
-          <Ionicons name="map" size={64} color={themeColors.textSecondary} />
-          <Text style={[styles.webMapText, { color: themeColors.text }]}>
-            🗺️ Suivi du thérapeute
+        <View style={styles.centerFlex}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
+            Chargement du suivi...
           </Text>
-          <Text style={[styles.webMapSubtext, { color: themeColors.textSecondary }]}>
-            Disponible sur l'application mobile
-          </Text>
-          <View style={styles.webStatusContainer}>
-            <View style={[styles.webStatusDot, { backgroundColor: statusInfo.color }]} />
-            <Text style={[styles.webStatusText, { color: statusInfo.color }]}>
-              {statusInfo.label}
-            </Text>
-          </View>
-          <View style={[styles.webAddressContainer, { backgroundColor: themeColors.background }]}>
-            <Ionicons name="location-outline" size={16} color={colors.primary} />
-            <Text style={[styles.webAddressText, { color: themeColors.text }]}>
-              {booking?.address || 'Adresse non disponible'}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.webTherapistCard}>
-          <SOSButton bookingId={bookingId} variant="compact" />
         </View>
       </View>
     );
   }
 
-  // ✅ Version Mobile - Carte complète
+  if (loadError && !booking) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
+        <Header title="Suivi en direct" showBack />
+        <View style={styles.centerFlex}>
+          <Ionicons name="cloud-offline-outline" size={48} color={colors.primary} />
+          <Text style={[styles.errorTitle, { color: themeColors.text }]}>
+            Impossible de charger le suivi
+          </Text>
+          <Text style={[styles.errorText, { color: themeColors.textSecondary }]}>
+            {loadError}
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => runFullRefresh(true)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="refresh" size={18} color="#fff" />
+            <Text style={styles.retryButtonText}>Réessayer</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // ==========================================================
+  // RENDER — CARTE IDENTIQUE WEB / MOBILE
+  // ==========================================================
+
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <Header title="Suivi en direct" showBack />
 
-      {/* Carte Mobile */}
+      {/* ==================================================
+          CARTE — MapViewWrapper (Google Maps JS sur le web,
+          react-native-maps sur mobile). Plus de "placeholder"
+          sur le web : la vraie carte s'affiche partout.
+      ================================================== */}
+
       <View style={styles.mapContainer}>
         <MapView
           ref={mapRef}
           style={styles.map}
           provider={PROVIDER_GOOGLE}
           initialRegion={{
-            latitude: userLocation?.latitude || -18.8792,
-            longitude: userLocation?.longitude || 47.5079,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
+            latitude:
+              therapistLocation?.latitude ??
+              userLocation?.latitude ??
+              destination?.latitude ??
+              -18.8792,
+            longitude:
+              therapistLocation?.longitude ??
+              userLocation?.longitude ??
+              destination?.longitude ??
+              47.5079,
+            latitudeDelta: 0.03,
+            longitudeDelta: 0.03,
           }}
-          showsUserLocation
+          markers={mapMarkers}
+          userLocation={userLocation}
+          showUserLocation
           showsMyLocationButton={false}
+          // ✅ Lalana MENA manaraka ny lalam-be marina
+          route={routeInfo?.coordinates || []}
+          routeColor={ROUTE_COLOR}
+          routeWidth={5}
         >
-          {userLocation && (
-            <Marker
-              coordinate={userLocation}
-              title="Votre position"
-              pinColor={colors.primary}
-            >
-              <View style={styles.userMarker}>
-                <Ionicons name="person" size={20} color="#fff" />
-              </View>
-            </Marker>
-          )}
+          {/* Sur mobile, react-native-maps accepte aussi les enfants
+              Marker/Polyline directement — ici tout passe déjà par
+              les props "markers" / "route" ci-dessus, valables sur
+              web ET mobile. */}
         </MapView>
 
-        {/* Bouton SOS */}
+        {refreshingLocation && (
+          <View style={styles.refreshBadge}>
+            <ActivityIndicator size="small" color="#fff" />
+            <Text style={styles.refreshBadgeText}>Actualisation…</Text>
+          </View>
+        )}
+
         <View style={styles.sosButtonContainer}>
           <SOSButton bookingId={bookingId} />
         </View>
       </View>
 
-      {/* Statut Mobile */}
-      <Animatable.View animation="fadeInUp" delay={300} duration={600}>
+      {/* ==================================================
+          STATUT
+      ================================================== */}
+
+      <Animatable.View animation="fadeInUp" delay={150} duration={500}>
         <View style={[styles.statusCard, { backgroundColor: themeColors.surface }]}>
           <View style={styles.statusHeader}>
-            <Ionicons name={statusInfo.icon} size={24} color={statusInfo.color} />
+            <Ionicons name={statusInfo.icon} size={22} color={statusInfo.color} />
             <Text style={[styles.statusLabel, { color: statusInfo.color }]}>
               {statusInfo.label}
             </Text>
           </View>
+
           <View style={styles.statusItem}>
-            <Ionicons name="location-outline" size={20} color={themeColors.textSecondary} />
-            <Text style={[styles.statusItemText, { color: themeColors.text }]}>
-              {booking?.address || 'Adresse non disponible'}
+            <Ionicons name="location-outline" size={18} color={themeColors.textSecondary} />
+            <Text style={[styles.statusItemText, { color: themeColors.text }]} numberOfLines={2}>
+              {address}
             </Text>
           </View>
+
+          {(routeInfo?.distanceText || distanceKm !== null) && (
+            <View style={styles.statusMetaRow}>
+              <View style={styles.statusMetaBadge}>
+                <Ionicons name="navigate-outline" size={13} color={colors.primary} />
+                <Text style={styles.statusMetaText}>
+                  {routeInfo?.distanceText || `${distanceKm.toFixed(1)} km`}
+                </Text>
+              </View>
+
+              {routeInfo?.durationText && (
+                <View style={styles.statusMetaBadge}>
+                  <Ionicons name="time-outline" size={13} color={colors.primary} />
+                  <Text style={styles.statusMetaText}>
+                    Arrivée estimée : {routeInfo.durationText}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </Animatable.View>
 
-      {/* Informations du thérapeute */}
-      {booking?.therapist && (
-        <Animatable.View animation="fadeInUp" delay={500} duration={600}>
-          <TouchableOpacity
-            style={[styles.therapistCard, { backgroundColor: themeColors.surface }]}
-            onPress={() => navigation.navigate('Chat', {
-              bookingId: bookingId,
-              therapistId: booking.therapist.id,
-              therapistName: booking.therapist.name,
-            })}
-          >
-            <View style={styles.therapistCardContent}>
-              <View style={styles.therapistCardAvatar}>
-                <Text style={styles.therapistCardAvatarText}>
-                  {booking.therapist.name.charAt(0)}
+      {/* ==================================================
+          ✅ PROFIL THÉRAPEUTE — données réelles
+      ================================================== */}
+
+      {!!booking?.therapist_id && (
+        <Animatable.View animation="fadeInUp" delay={280} duration={500}>
+          <View style={[styles.therapistCard, { backgroundColor: themeColors.surface }]}>
+            <View style={styles.therapistTopRow}>
+              <TherapistPhoto
+                photoUrl={therapistPhoto}
+                name={therapistName}
+                online={therapistOnline}
+                size={60}
+              />
+
+              <View style={styles.therapistInfo}>
+                <Text style={[styles.therapistName, { color: themeColors.text }]} numberOfLines={1}>
+                  {therapistName || 'Thérapeute'}
                 </Text>
+
+                <View style={styles.metaRow}>
+                  {therapistRating !== null && therapistRating !== undefined && (
+                    <View style={styles.metaBadge}>
+                      <Ionicons name="star" size={11} color="#F5A623" />
+                      <Text style={styles.metaBadgeText}>
+                        {Number(therapistRating).toFixed(1)}
+                      </Text>
+                    </View>
+                  )}
+
+                  {therapistExperience !== null && therapistExperience !== undefined && (
+                    <View style={styles.metaBadge}>
+                      <Ionicons name="ribbon-outline" size={11} color={colors.primary} />
+                      <Text style={styles.metaBadgeText}>
+                        {therapistExperience} an{Number(therapistExperience) > 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                  )}
+
+                  <View style={styles.metaBadge}>
+                    <View
+                      style={[
+                        styles.dot,
+                        { backgroundColor: therapistOnline ? '#4CAF50' : '#BDBDBD' },
+                      ]}
+                    />
+                    <Text style={styles.metaBadgeText}>
+                      {therapistOnline ? 'En ligne' : 'Hors ligne'}
+                    </Text>
+                  </View>
+                </View>
+
+                {!!therapistPhone && (
+                  <Text style={[styles.therapistPhone, { color: themeColors.textSecondary }]}>
+                    <Ionicons name="call-outline" size={11} /> {therapistPhone}
+                  </Text>
+                )}
               </View>
-              <View style={styles.therapistCardInfo}>
-                <Text style={[styles.therapistCardName, { color: themeColors.text }]}>
-                  {booking.therapist.name}
-                </Text>
-                <Text style={[styles.therapistCardStatus, { color: colors.primary }]}>
-                  • En ligne
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
             </View>
-          </TouchableOpacity>
+
+            <View style={styles.therapistActions}>
+              <TouchableOpacity
+                style={styles.secondaryAction}
+                onPress={handleContact}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="chatbubble-outline" size={18} color={colors.primary} />
+                <Text style={[styles.secondaryActionText, { color: colors.primary }]}>
+                  Contacter
+                </Text>
+              </TouchableOpacity>
+
+              {!!therapistPhone && (
+                <TouchableOpacity
+                  style={[styles.secondaryAction, styles.callAction]}
+                  onPress={handleCall}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="call" size={18} color="#fff" />
+                  <Text style={[styles.secondaryActionText, { color: '#fff' }]}>
+                    Appeler
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
         </Animatable.View>
       )}
     </View>
   );
 };
 
+// ============================================================
+// STYLES
+// ============================================================
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1 },
+  centerFlex: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
   loadingText: {
     marginTop: spacing.md,
     fontSize: typography.fontSize.md,
     fontFamily: typography.fontFamily.regular,
   },
+  errorTitle: {
+    marginTop: spacing.md,
+    fontSize: typography.fontSize.lg,
+    fontFamily: typography.fontFamily.semiBold,
+    textAlign: 'center',
+  },
+  errorText: {
+    marginTop: spacing.xs,
+    fontSize: typography.fontSize.sm,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  retryButton: {
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+
   mapContainer: {
-    height: 400,
+    height: 380,
     marginHorizontal: spacing.md,
     marginTop: spacing.md,
     borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
   },
-  map: {
-    flex: 1,
-  },
-  userMarker: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  sosButtonContainer: {
+  map: { flex: 1 },
+
+  refreshBadge: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
+    top: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
+  refreshBadgeText: { color: '#fff', fontSize: 10.5, fontWeight: '700' },
+
+  sosButtonContainer: { position: 'absolute', bottom: 20, left: 20 },
+
   statusCard: {
     marginHorizontal: spacing.md,
+    marginTop: spacing.md,
     padding: spacing.md,
     borderRadius: 16,
     shadowColor: '#000',
@@ -301,11 +959,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  statusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
+  statusHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   statusLabel: {
     fontSize: typography.fontSize.md,
     fontFamily: typography.fontFamily.semiBold,
@@ -317,11 +971,25 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   statusItemText: {
-    fontSize: typography.fontSize.md,
+    flex: 1,
+    fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.regular,
   },
+  statusMetaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: spacing.sm },
+  statusMetaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: `${colors.primary}12`,
+  },
+  statusMetaText: { fontSize: 11, fontWeight: '700', color: colors.primary },
+
   therapistCard: {
     marginHorizontal: spacing.md,
+    marginTop: spacing.md,
     marginBottom: spacing.md,
     padding: spacing.md,
     borderRadius: 16,
@@ -331,93 +999,47 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  therapistCardContent: {
+  therapistTopRow: { flexDirection: 'row', alignItems: 'center' },
+  therapistInfo: { flex: 1, marginLeft: spacing.md, minWidth: 0 },
+  therapistName: {
+    fontSize: typography.fontSize.md,
+    fontFamily: typography.fontFamily.bold,
+  },
+  therapistPhone: { marginTop: 6, fontSize: typography.fontSize.sm },
+
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  metaBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: `${colors.primary}0D`,
   },
-  therapistCardAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary + '20',
+  metaBadgeText: { fontSize: 10.5, fontWeight: '700', color: colors.primary },
+  dot: { width: 7, height: 7, borderRadius: 3.5 },
+
+  therapistActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  secondaryAction: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  therapistCardAvatarText: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.primary,
-  },
-  therapistCardInfo: {
-    flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+    gap: 6,
   },
-  therapistCardName: {
-    fontSize: typography.fontSize.md,
+  callAction: { backgroundColor: colors.primary, borderColor: colors.primary },
+  secondaryActionText: {
+    fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.semiBold,
-  },
-  therapistCardStatus: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
-  },
-  // Styles Web
-  webMapFallback: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.xl,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-    borderRadius: 16,
-    minHeight: 300,
-  },
-  webMapText: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
-    marginTop: spacing.sm,
-  },
-  webMapSubtext: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.regular,
-    marginTop: 4,
-  },
-  webStatusContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    padding: spacing.sm,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-  },
-  webStatusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  webStatusText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
-  },
-  webAddressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    padding: spacing.sm,
-    borderRadius: 8,
-  },
-  webAddressText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-  },
-  webTherapistCard: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-    alignItems: 'center',
   },
 });
 

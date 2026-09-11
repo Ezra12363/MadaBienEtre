@@ -47,6 +47,7 @@ import { getMassageTypeIconMCI } from '../../constants/massageTypeIcons';
 const { width } = Dimensions.get('window');
 
 const IS_WEB = Platform.OS === 'web';
+const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 const TABLET_BREAKPOINT = 768;
 
 /* ============================================================
@@ -58,19 +59,23 @@ const TABLET_BREAKPOINT = 768;
 ============================================================ */
 
 const Reveal = ({ animation = 'fadeInUp', delay = 0, duration = 450, style, children, ...rest }) => {
-  if (IS_WEB) {
+  // Expo Web: react-native-animatable may try to access native animation modules
+  // (RCTAnimation). Render a normal View on the web to avoid the crash.
+  if (Platform.OS === 'web') {
     return (
       <View style={style} {...rest}>
         {children}
       </View>
     );
   }
+
+  // Native platforms only.
   return (
     <Animatable.View
       animation={animation}
       delay={delay}
       duration={duration}
-      useNativeDriver
+      useNativeDriver={false}
       style={style}
       {...rest}
     >
@@ -243,18 +248,18 @@ const Toast = ({ visible, message, type = 'info', onHide, isDark }) => {
           toValue: 0,
           tension: 75,
           friction: 8,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(opacity, {
           toValue: 1,
           duration: 180,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.spring(scale, {
           toValue: 1,
           tension: 80,
           friction: 7,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]).start();
     } else {
@@ -262,17 +267,17 @@ const Toast = ({ visible, message, type = 'info', onHide, isDark }) => {
         Animated.timing(translateY, {
           toValue: -90,
           duration: 180,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(opacity, {
           toValue: 0,
           duration: 140,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(scale, {
           toValue: 0.92,
           duration: 140,
-          useNativeDriver: true,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ]).start();
     }
@@ -630,6 +635,7 @@ const HomeScreen = ({ navigation }) => {
   const renderQuickAction = useCallback(
     ({ item, index }) => (
       <Reveal
+        key={item.id ?? index}
         animation="fadeInUp"
         delay={index * 70}
         duration={450}
@@ -953,7 +959,7 @@ const HomeScreen = ({ navigation }) => {
         }
         onScroll={Animated.event(
           [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
+          { useNativeDriver: USE_NATIVE_DRIVER }
         )}
         scrollEventThrottle={16}
       >

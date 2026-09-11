@@ -10,4 +10,4 @@ from .ai import *
 from .negotiation import *
 from .therapist import *
 from .availability import *
-from .massage import *   
+from .massage import *

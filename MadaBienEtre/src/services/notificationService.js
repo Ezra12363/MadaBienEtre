@@ -193,6 +193,44 @@ class NotificationService {
   // ============================================
 
   /**
+   * Affiche une notification déjà créée par le BACKEND.
+   *
+   * Important :
+   * sendNotification()/sendWebNotification() ne peuvent pas recevoir
+   * automatiquement une notification créée sur FastAPI. Le frontend
+   * doit d'abord appeler GET /notifications, puis afficher la nouvelle
+   * notification localement.
+   */
+  async presentBackendNotification(notification) {
+    if (!notification) return false;
+
+    const title = notification.title || 'Mada Bien-Être';
+    const body =
+      notification.body ||
+      notification.message ||
+      'Vous avez une nouvelle notification.';
+
+    const data = {
+      ...(notification.data || {}),
+      notificationId: notification.id,
+      booking_id:
+        notification.booking_id ??
+        notification.data?.booking_id ??
+        notification.data?.bookingId,
+      offer_id:
+        notification.offer_id ??
+        notification.data?.offer_id,
+      type: notification.type || 'system',
+    };
+
+    if (Platform.OS === 'web') {
+      return this.sendWebNotification(title, body, data);
+    }
+
+    return this.sendMobileNotification(title, body, data);
+  }
+
+  /**
    * Fandefasana notification (Web ou Mobile)
    */
   async sendNotification(title, body, data = {}) {
@@ -287,6 +325,19 @@ class NotificationService {
   }
 
   /**
+   * ✅ Notification de négociation / offre
+   * (nouvelle offre, contre-offre, acceptation, refus)
+   */
+  async sendOfferNotification(title, body, bookingId, data = {}) {
+    return this.sendNotification(title, body, {
+      ...data,
+      type: 'offer',
+      bookingId: bookingId,
+      screen: 'Offers'
+    });
+  }
+
+  /**
    * Notification de paiement
    */
   async sendPaymentNotification(title, body, paymentId, data = {}) {
@@ -311,7 +362,26 @@ class NotificationService {
       if (response.error) {
         return { success: false, error: response.error.message };
       }
-      return { success: true, data: response.data };
+
+      // FastAPI peut renvoyer directement une liste ou un objet
+      // {notifications/items/results/data: [...]}. On conserve la
+      // réponse brute mais on expose aussi une liste normalisée.
+      const raw = response.data;
+      const list = Array.isArray(raw)
+        ? raw
+        : (
+            raw?.notifications ||
+            raw?.items ||
+            raw?.results ||
+            raw?.data ||
+            []
+          );
+
+      return {
+        success: true,
+        data: raw,
+        notifications: Array.isArray(list) ? list : [],
+      };
     } catch (error) {
       return { success: false, error: error.message || 'Erreur lors du chargement' };
     }

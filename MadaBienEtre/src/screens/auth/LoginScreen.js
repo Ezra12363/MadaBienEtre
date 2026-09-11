@@ -1,26 +1,8 @@
 // src/screens/auth/LoginScreen.js
 // ============================================================
-// LOGIN SCREEN — MADA BIEN-ÊTRE
-// ============================================================
-// RESPONSIVE WEB + MOBILE
-//
-// THEME GREEN
-// -> #2E7D32
-//
-// WEB >= 1024px
-//    -> Interface Desktop
-//
-// WEB < 1024px
-//    -> Interface Mobile
-//
-// ANDROID / IOS
-//    -> Interface Mobile
-//
-// LOGO
-//    -> Cadre blanc/translucide premium
-//    -> Padding autour du logo
-//    -> Légère ombre
-//    -> Adapté Web + Android + iOS
+// MADA BIEN-ÊTRE — LOGIN SCREEN
+// RESPONSIVE WEB + MOBILE + ANDROID
+// Design cohérent avec WelcomeScreen
 // ============================================================
 
 import React, {
@@ -33,87 +15,66 @@ import React, {
 import {
   View,
   Text,
-  TouchableOpacity,
+  TextInput,
+  Pressable,
   StyleSheet,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
+  KeyboardAvoidingView,
+  Keyboard,
+  Platform,
+  StatusBar,
   ActivityIndicator,
   Animated,
-  StatusBar,
-  Keyboard,
   TouchableWithoutFeedback,
-  SafeAreaView,
-  TextInput,
   useWindowDimensions,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import * as Animatable from 'react-native-animatable';
 
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
-
-import {
-  colors,
-  typography,
-} from '../../theme';
-
 import notificationService from '../../services/notificationService';
 
-// ============================================================
-// PLATFORM
-// ============================================================
+/* ============================================================
+   COLORS
+============================================================ */
+
+const COLORS = {
+  primary: '#2E7D32',
+  primaryDark: '#164B2A',
+  primaryMid: '#1F6B38',
+  primaryLight: '#EAF5EC',
+
+  background: '#F6FAF7',
+  white: '#FFFFFF',
+
+  text: '#17201A',
+  textSoft: '#66736A',
+  muted: '#8A948C',
+
+  border: '#DDE7DF',
+  borderLight: '#E8EFE9',
+
+  red: '#DC2626',
+  redLight: '#FEF2F2',
+
+  blue: '#2563EB',
+  blueLight: '#EFF6FF',
+};
+
+/* ============================================================
+   PLATFORM
+============================================================ */
 
 const IS_WEB = Platform.OS === 'web';
 const IS_ANDROID = Platform.OS === 'android';
 const IS_IOS = Platform.OS === 'ios';
 
-// ============================================================
-// THEME
-// ============================================================
+const DESKTOP_BREAKPOINT = 950;
 
-const GREEN_THEME = '#2E7D32';
-
-const GREEN_DARK = '#1B5E20';
-
-const GREEN_LIGHT = '#43A047';
-
-const WHITE = '#FFFFFF';
-
-// ============================================================
-// BREAKPOINT
-// ============================================================
-
-const DESKTOP_BREAKPOINT = 1024;
-const SMALL_MOBILE_HEIGHT = 700;
-
-// ============================================================
-// FONT
-// ============================================================
-
-const APP_FONT =
-  typography?.fontFamily?.regular ||
-  'System';
-
-const APP_FONT_MEDIUM =
-  typography?.fontFamily?.medium ||
-  APP_FONT;
-
-const APP_FONT_SEMIBOLD =
-  typography?.fontFamily?.semiBold ||
-  typography?.fontFamily?.bold ||
-  APP_FONT_MEDIUM;
-
-const APP_FONT_BOLD =
-  typography?.fontFamily?.bold ||
-  APP_FONT_SEMIBOLD ||
-  APP_FONT;
-
-// ============================================================
-// TOAST
-// ============================================================
+/* ============================================================
+   TOAST
+============================================================ */
 
 const Toast = ({
   visible,
@@ -171,10 +132,7 @@ const Toast = ({
       pointerEvents="box-none"
       style={styles.toastOverlay}
     >
-      <Animatable.View
-        animation="slideInDown"
-        duration={350}
-        easing="ease-out"
+      <Animated.View
         style={[
           styles.toastContainer,
           {
@@ -185,7 +143,7 @@ const Toast = ({
       >
         <View
           style={[
-            styles.toastIconContainer,
+            styles.toastIcon,
             {
               backgroundColor:
                 current.iconBackground,
@@ -194,80 +152,74 @@ const Toast = ({
         >
           <Ionicons
             name={current.icon}
-            size={22}
+            size={21}
             color={current.iconColor}
           />
         </View>
 
-        <View
-          style={styles.toastMessageContainer}
+        <Text
+          style={[
+            styles.toastText,
+            {
+              color: current.text,
+            },
+          ]}
         >
-          <Text
-            style={[
-              styles.toastMessage,
-              {
-                color: current.text,
-              },
-            ]}
-          >
-            {message}
-          </Text>
-        </View>
+          {message}
+        </Text>
 
-        <TouchableOpacity
+        <Pressable
           onPress={onDismiss}
           style={styles.toastClose}
-          activeOpacity={0.7}
-          hitSlop={{
-            top: 10,
-            bottom: 10,
-            left: 10,
-            right: 10,
-          }}
+          hitSlop={10}
         >
           <Ionicons
             name="close"
             size={18}
             color={current.text}
           />
-        </TouchableOpacity>
-      </Animatable.View>
+        </Pressable>
+      </Animated.View>
     </View>
   );
 };
 
-// ============================================================
-// LOGIN SCREEN
-// ============================================================
+/* ============================================================
+   LOGIN SCREEN
+============================================================ */
 
-const LoginScreen = ({
+export default function LoginScreen({
   navigation,
-}) => {
-  const {
-    width,
-    height,
-  } = useWindowDimensions();
+}) {
+  const { width, height } =
+    useWindowDimensions();
 
-  // ==========================================================
-  // RESPONSIVE
-  // ==========================================================
+  /* ==========================================================
+     RESPONSIVE
+  ========================================================== */
 
-  const isDesktopWeb =
+  const isDesktop =
     IS_WEB &&
     width >= DESKTOP_BREAKPOINT;
 
-  const isSmallScreen =
-    width < 480;
+  const isSmall =
+    width < 380;
 
-  const isVerySmallScreen =
-    width < 360;
+  const isVerySmall =
+    width < 340;
 
-  const isShortScreen =
-    height < SMALL_MOBILE_HEIGHT;
+  const isShort =
+    height < 680;
 
-  // ==========================================================
-  // STATES
-  // ==========================================================
+  /* ==========================================================
+     AUTH
+  ========================================================== */
+
+  const { login } = useAuth();
+
+  /* ==========================================================
+     STATES
+  ========================================================== */
 
   const [email, setEmail] =
     useState('');
@@ -275,14 +227,14 @@ const LoginScreen = ({
   const [password, setPassword] =
     useState('');
 
-  const [errors, setErrors] =
-    useState({});
+  const [showPassword, setShowPassword] =
+    useState(false);
 
   const [isLoading, setIsLoading] =
     useState(false);
 
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const [errors, setErrors] =
+    useState({});
 
   const [toast, setToast] =
     useState({
@@ -291,35 +243,22 @@ const LoginScreen = ({
       message: '',
     });
 
-  // ==========================================================
-  // REFS
-  // ==========================================================
+  /* ==========================================================
+     REFS
+  ========================================================== */
 
-  const toastTimerRef =
+  const emailRef =
     useRef(null);
 
-  const emailInputRef =
+  const passwordRef =
     useRef(null);
 
-  const passwordInputRef =
+  const toastTimer =
     useRef(null);
 
-  const scrollViewRef =
-    useRef(null);
-
-  // ==========================================================
-  // CONTEXT
-  // ==========================================================
-
-  const { login } =
-    useAuth();
-
-  const { isDark } =
-    useTheme();
-
-  // ==========================================================
-  // ANIMATION
-  // ==========================================================
+  /* ==========================================================
+     ANIMATION
+  ========================================================== */
 
   const fadeAnim =
     useRef(
@@ -328,12 +267,21 @@ const LoginScreen = ({
 
   const slideAnim =
     useRef(
-      new Animated.Value(40)
+      new Animated.Value(25)
     ).current;
 
-  // ==========================================================
-  // INITIALIZATION
-  // ==========================================================
+  /* ==========================================================
+     SAFE TOP
+  ========================================================== */
+
+  const androidStatusBar =
+    IS_ANDROID
+      ? StatusBar.currentHeight || 0
+      : 0;
+
+  /* ==========================================================
+     INITIALIZATION
+  ========================================================== */
 
   useEffect(() => {
     Animated.parallel([
@@ -341,7 +289,7 @@ const LoginScreen = ({
         fadeAnim,
         {
           toValue: 1,
-          duration: 650,
+          duration: 500,
           useNativeDriver: true,
         }
       ),
@@ -350,7 +298,7 @@ const LoginScreen = ({
         slideAnim,
         {
           toValue: 0,
-          duration: 550,
+          duration: 500,
           useNativeDriver: true,
         }
       ),
@@ -359,20 +307,20 @@ const LoginScreen = ({
     requestNotificationPermission();
 
     return () => {
-      if (toastTimerRef.current) {
+      if (toastTimer.current) {
         clearTimeout(
-          toastTimerRef.current
+          toastTimer.current
         );
       }
     };
   }, []);
 
-  // ==========================================================
-  // NOTIFICATION PERMISSION
-  // ==========================================================
+  /* ==========================================================
+     NOTIFICATION
+  ========================================================== */
 
   const requestNotificationPermission =
-    async () => {
+    useCallback(async () => {
       try {
         const hasPermission =
           await notificationService.checkPermission();
@@ -386,22 +334,22 @@ const LoginScreen = ({
           error
         );
       }
-    };
+    }, []);
 
-  // ==========================================================
-  // TOAST
-  // ==========================================================
+  /* ==========================================================
+     TOAST
+  ========================================================== */
 
   const showToast =
     useCallback(
       (
         type,
         message,
-        duration = 4000
+        duration = 3500
       ) => {
-        if (toastTimerRef.current) {
+        if (toastTimer.current) {
           clearTimeout(
-            toastTimerRef.current
+            toastTimer.current
           );
         }
 
@@ -411,7 +359,7 @@ const LoginScreen = ({
           message,
         });
 
-        toastTimerRef.current =
+        toastTimer.current =
           setTimeout(() => {
             setToast(
               previous => ({
@@ -426,13 +374,12 @@ const LoginScreen = ({
 
   const dismissToast =
     useCallback(() => {
-      if (toastTimerRef.current) {
+      if (toastTimer.current) {
         clearTimeout(
-          toastTimerRef.current
+          toastTimer.current
         );
 
-        toastTimerRef.current =
-          null;
+        toastTimer.current = null;
       }
 
       setToast(
@@ -443,19 +390,14 @@ const LoginScreen = ({
       );
     }, []);
 
-  // ==========================================================
-  // VALIDATION
-  // ==========================================================
+  /* ==========================================================
+     VALIDATION EMAIL
+  ========================================================== */
 
   const validateEmail =
-    useCallback(value => {
-      if (
-        !value ||
-        !value.trim()
-      ) {
-        return (
-          "L'adresse email est requise"
-        );
+    useCallback((value) => {
+      if (!value || !value.trim()) {
+        return "L'adresse email est requise";
       }
 
       const emailRegex =
@@ -466,48 +408,44 @@ const LoginScreen = ({
           value.trim()
         )
       ) {
-        return (
-          'Veuillez saisir une adresse email valide'
-        );
+        return 'Veuillez saisir une adresse email valide';
       }
 
       return '';
     }, []);
 
+  /* ==========================================================
+     VALIDATION PASSWORD
+  ========================================================== */
+
   const validatePassword =
-    useCallback(value => {
+    useCallback((value) => {
       if (!value) {
-        return (
-          'Le mot de passe est requis'
-        );
+        return 'Le mot de passe est requis';
       }
 
       if (value.length < 8) {
-        return (
-          'Le mot de passe doit contenir au moins 8 caractères'
-        );
+        return 'Le mot de passe doit contenir au moins 8 caractères';
       }
 
       return '';
     }, []);
 
-  // ==========================================================
-  // EMAIL CHANGE
-  // ==========================================================
+  /* ==========================================================
+     EMAIL CHANGE
+  ========================================================== */
 
   const handleEmailChange =
     useCallback(
-      text => {
-        setEmail(text);
+      value => {
+        setEmail(value);
 
         if (errors.email) {
-          const error =
-            validateEmail(text);
-
           setErrors(
             previous => ({
               ...previous,
-              email: error,
+              email:
+                validateEmail(value),
             })
           );
         }
@@ -518,23 +456,23 @@ const LoginScreen = ({
       ]
     );
 
-  // ==========================================================
-  // PASSWORD CHANGE
-  // ==========================================================
+  /* ==========================================================
+     PASSWORD CHANGE
+  ========================================================== */
 
   const handlePasswordChange =
     useCallback(
-      text => {
-        setPassword(text);
+      value => {
+        setPassword(value);
 
         if (errors.password) {
-          const error =
-            validatePassword(text);
-
           setErrors(
             previous => ({
               ...previous,
-              password: error,
+              password:
+                validatePassword(
+                  value
+                ),
             })
           );
         }
@@ -545,9 +483,9 @@ const LoginScreen = ({
       ]
     );
 
-  // ==========================================================
-  // BLUR
-  // ==========================================================
+  /* ==========================================================
+     EMAIL BLUR
+  ========================================================== */
 
   const handleEmailBlur =
     useCallback(() => {
@@ -565,10 +503,16 @@ const LoginScreen = ({
       validateEmail,
     ]);
 
+  /* ==========================================================
+     PASSWORD BLUR
+  ========================================================== */
+
   const handlePasswordBlur =
     useCallback(() => {
       const error =
-        validatePassword(password);
+        validatePassword(
+          password
+        );
 
       setErrors(
         previous => ({
@@ -581,12 +525,16 @@ const LoginScreen = ({
       validatePassword,
     ]);
 
-  // ==========================================================
-  // LOGIN
-  // ==========================================================
+  /* ==========================================================
+     LOGIN
+  ========================================================== */
 
   const handleLogin =
     useCallback(async () => {
+      if (isLoading) {
+        return;
+      }
+
       Keyboard.dismiss();
 
       const emailError =
@@ -638,20 +586,35 @@ const LoginScreen = ({
             password
           );
 
-        if (result.success) {
+        if (result?.success) {
           showToast(
             'success',
             'Connexion réussie. Bienvenue sur Mada Bien-être !',
-            4500
+            1800
           );
-        } else {
-          showToast(
-            'error',
-            result.error ||
-              'Email ou mot de passe incorrect.',
-            4500
-          );
+
+          /*
+           * IMPORTANT
+           *
+           * On ne fait PAS :
+           *
+           * navigation.reset()
+           * navigation.navigate('Main')
+           * navigation.replace('Main')
+           *
+           * Le AuthContext gère automatiquement
+           * le changement d'état d'authentification.
+           */
+
+          return;
         }
+
+        showToast(
+          'error',
+          result?.error ||
+            'Email ou mot de passe incorrect.',
+          4500
+        );
       } catch (error) {
         console.error(
           'Login error:',
@@ -669,1078 +632,1152 @@ const LoginScreen = ({
     }, [
       email,
       password,
+      isLoading,
+      login,
       validateEmail,
       validatePassword,
-      login,
       showToast,
     ]);
 
-  // ==========================================================
-  // FOCUS
-  // ==========================================================
+  /* ==========================================================
+     NAVIGATION
+  ========================================================== */
 
-  const focusEmail =
+  const handleBack =
     useCallback(() => {
-      requestAnimationFrame(() => {
-        emailInputRef.current?.focus();
-      });
-    }, []);
+      Keyboard.dismiss();
 
-  const focusPassword =
+      if (
+        navigation?.canGoBack?.()
+      ) {
+        navigation.goBack();
+      }
+    }, [navigation]);
+
+  const goToRegister =
     useCallback(() => {
-      requestAnimationFrame(() => {
-        passwordInputRef.current?.focus();
-      });
-    }, []);
+      if (isLoading) {
+        return;
+      }
 
-  // ==========================================================
-  // INPUT
-  // ==========================================================
+      Keyboard.dismiss();
 
-  const renderInput =
-    ({
-      label,
-      icon,
-      value,
-      onChangeText,
-      onBlur,
-      placeholder,
-      keyboardType,
-      secureTextEntry,
-      autoCapitalize,
-      autoCorrect,
-      returnKeyType,
-      onSubmitEditing,
-      error,
-      rightAction,
-      inputRef,
-    }) => {
-      return (
-        <View
-          style={styles.inputGroup}
+      navigation.navigate(
+        'Register'
+      );
+    }, [
+      navigation,
+      isLoading,
+    ]);
+
+  const goToForgotPassword =
+    useCallback(() => {
+      if (isLoading) {
+        return;
+      }
+
+      Keyboard.dismiss();
+
+      navigation.navigate(
+        'ForgotPassword'
+      );
+    }, [
+      navigation,
+      isLoading,
+    ]);
+
+  /* ==========================================================
+     INPUT COMPONENT
+  ========================================================== */
+
+  const renderInput = ({
+    label,
+    icon,
+    value,
+    onChangeText,
+    onBlur,
+    placeholder,
+    keyboardType,
+    secureTextEntry,
+    returnKeyType,
+    onSubmitEditing,
+    error,
+    inputRef,
+    rightAction,
+  }) => {
+    return (
+      <View
+        style={styles.inputGroup}
+      >
+        <Text
+          style={styles.inputLabel}
         >
-          <Text
-            style={[
-              styles.inputLabel,
-              {
-                color: isDark
-                  ? '#E5E7EB'
-                  : '#1F2937',
-              },
-            ]}
-          >
-            {label}
-          </Text>
+          {label}
+        </Text>
 
+        <View
+          style={[
+            styles.inputWrapper,
+            error &&
+              styles.inputWrapperError,
+          ]}
+        >
           <View
             style={[
-              styles.inputWrapper,
+              styles.inputIconBox,
               error &&
-                styles.inputWrapperError,
-              {
-                backgroundColor:
-                  isDark
-                    ? '#252733'
-                    : '#F9FAFB',
-
-                borderColor:
-                  error
-                    ? '#EF4444'
-                    : isDark
-                    ? '#3A3F4D'
-                    : '#E5E7EB',
-              },
+                styles.inputIconBoxError,
             ]}
           >
             <Ionicons
               name={icon}
-              size={20}
+              size={19}
               color={
                 error
-                  ? '#EF4444'
-                  : '#9CA3AF'
+                  ? COLORS.red
+                  : COLORS.primary
               }
             />
-
-            <TextInput
-              ref={inputRef}
-              style={[
-                styles.input,
-                {
-                  color: isDark
-                    ? '#FFFFFF'
-                    : '#1F2937',
-                },
-              ]}
-              value={value}
-              onChangeText={
-                onChangeText
-              }
-              onBlur={onBlur}
-              placeholder={placeholder}
-              placeholderTextColor={
-                isDark
-                  ? '#6B7280'
-                  : '#9CA3AF'
-              }
-              keyboardType={keyboardType}
-              secureTextEntry={
-                secureTextEntry
-              }
-              autoCapitalize={
-                autoCapitalize
-              }
-              autoCorrect={autoCorrect}
-              returnKeyType={
-                returnKeyType
-              }
-              onSubmitEditing={
-                onSubmitEditing
-              }
-              editable={!isLoading}
-              selectionColor={
-                GREEN_THEME
-              }
-              blurOnSubmit={false}
-              disableFullscreenUI
-              textAlignVertical="center"
-            />
-
-            {rightAction}
           </View>
 
-          {error ? (
-            <View
-              style={
-                styles.fieldErrorRow
-              }
-            >
-              <Ionicons
-                name="alert-circle-outline"
-                size={14}
-                color="#EF4444"
-              />
+          <TextInput
+            ref={inputRef}
+            style={styles.input}
+            value={value}
+            onChangeText={
+              onChangeText
+            }
+            onBlur={onBlur}
+            placeholder={
+              placeholder
+            }
+            placeholderTextColor={
+              '#9AA59D'
+            }
+            keyboardType={
+              keyboardType
+            }
+            secureTextEntry={
+              secureTextEntry
+            }
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType={
+              returnKeyType
+            }
+            onSubmitEditing={
+              onSubmitEditing
+            }
+            editable={!isLoading}
+            selectionColor={
+              COLORS.primary
+            }
+            textContentType={
+              keyboardType ===
+              'email-address'
+                ? 'emailAddress'
+                : 'password'
+            }
+            autoComplete={
+              keyboardType ===
+              'email-address'
+                ? 'email'
+                : 'password'
+            }
+            blurOnSubmit={
+              keyboardType ===
+              'email-address'
+                ? false
+                : true
+            }
+          />
 
-              <Text
-                style={
-                  styles.errorText
-                }
-              >
-                {error}
-              </Text>
-            </View>
-          ) : null}
+          {rightAction}
         </View>
-      );
-    };
 
-  // ==========================================================
-  // LOGIN FORM
-  // ==========================================================
+        {error ? (
+          <View
+            style={
+              styles.errorRow
+            }
+          >
+            <Ionicons
+              name="alert-circle-outline"
+              size={14}
+              color={COLORS.red}
+            />
 
-  const renderLoginForm =
-    () => (
-      <Animated.View
-        style={[
-          styles.formContainer,
+            <Text
+              style={styles.errorText}
+            >
+              {error}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+    );
+  };
 
-          isDesktopWeb &&
-            styles.formContainerDesktop,
+  /* ==========================================================
+     FORM
+  ========================================================== */
 
-          isSmallScreen &&
-            styles.formContainerSmall,
+  const renderForm = () => (
+    <Animated.View
+      style={[
+        styles.formContainer,
+        isDesktop &&
+          styles.formContainerDesktop,
+        isSmall &&
+          styles.formContainerSmall,
+        {
+          opacity: fadeAnim,
+          transform: [
+            {
+              translateY:
+                slideAnim,
+            },
+          ],
+        },
+      ]}
+    >
+      {/* FORM HEADER */}
 
-          {
-            opacity: fadeAnim,
+      <View
+        style={styles.formHeader}
+      >
+        <View
+          style={styles.formIcon}
+        >
+          <Ionicons
+            name="leaf-outline"
+            size={25}
+            color={COLORS.primary}
+          />
+        </View>
 
-            transform: [
-              {
-                translateY:
-                  slideAnim,
-              },
-            ],
-          },
+        <Text
+          style={styles.formTitle}
+        >
+          Bon retour parmi nous
+        </Text>
+
+        <Text
+          style={styles.formSubtitle}
+        >
+          Connectez-vous pour accéder
+          à votre espace bien-être.
+        </Text>
+      </View>
+
+      {/* EMAIL */}
+
+      {renderInput({
+        label: 'Adresse email',
+        icon: 'mail-outline',
+        value: email,
+        onChangeText:
+          handleEmailChange,
+        onBlur:
+          handleEmailBlur,
+        placeholder:
+          'exemple@email.com',
+        keyboardType:
+          'email-address',
+        returnKeyType: 'next',
+        onSubmitEditing: () => {
+          passwordRef.current?.focus();
+        },
+        error: errors.email,
+        inputRef: emailRef,
+      })}
+
+      {/* PASSWORD */}
+
+      {renderInput({
+        label: 'Mot de passe',
+        icon: 'lock-closed-outline',
+        value: password,
+        onChangeText:
+          handlePasswordChange,
+        onBlur:
+          handlePasswordBlur,
+        placeholder:
+          'Votre mot de passe',
+        secureTextEntry:
+          !showPassword,
+        returnKeyType: 'done',
+        onSubmitEditing:
+          handleLogin,
+        error: errors.password,
+        inputRef:
+          passwordRef,
+
+        rightAction: (
+          <Pressable
+            onPress={() =>
+              setShowPassword(
+                previous =>
+                  !previous
+              )
+            }
+            style={
+              styles.eyeButton
+            }
+            disabled={isLoading}
+            hitSlop={8}
+          >
+            <Ionicons
+              name={
+                showPassword
+                  ? 'eye-off-outline'
+                  : 'eye-outline'
+              }
+              size={21}
+              color={
+                COLORS.textSoft
+              }
+            />
+          </Pressable>
+        ),
+      })}
+
+      {/* FORGOT PASSWORD */}
+
+      <Pressable
+        onPress={
+          goToForgotPassword
+        }
+        disabled={isLoading}
+        style={
+          styles.forgotButton
+        }
+      >
+        <Text
+          style={
+            styles.forgotText
+          }
+        >
+          Mot de passe oublié ?
+        </Text>
+      </Pressable>
+
+      {/* LOGIN */}
+
+      <Pressable
+        onPress={handleLogin}
+        disabled={isLoading}
+        style={({ pressed }) => [
+          styles.loginButton,
+          pressed &&
+            styles.loginButtonPressed,
+          isLoading &&
+            styles.loginButtonDisabled,
         ]}
       >
-        {/* FORM HEADER */}
-
-        <View
-          style={styles.formHeader}
-        >
-          <View
-            style={[
-              styles.formIcon,
-              {
-                backgroundColor:
-                  GREEN_THEME + '12',
-              },
-            ]}
-          >
-            <Ionicons
-              name="lock-open-outline"
-              size={25}
-              color={GREEN_THEME}
+        {isLoading ? (
+          <>
+            <ActivityIndicator
+              size="small"
+              color={
+                COLORS.white
+              }
             />
-          </View>
 
-          <Text
-            style={[
-              styles.formTitle,
-              {
-                color: isDark
-                  ? '#FFFFFF'
-                  : '#111827',
-              },
-            ]}
-          >
-            Bon retour parmi nous
-          </Text>
-
-          <Text
-            style={[
-              styles.formSubtitle,
-              {
-                color: isDark
-                  ? '#9CA3AF'
-                  : '#6B7280',
-              },
-            ]}
-          >
-            Connectez-vous pour accéder
-            à votre espace bien-être.
-          </Text>
-        </View>
-
-        {/* EMAIL */}
-
-        {renderInput({
-          label: 'Adresse email',
-          icon: 'mail-outline',
-          value: email,
-          onChangeText:
-            handleEmailChange,
-          onBlur:
-            handleEmailBlur,
-          placeholder:
-            'exemple@email.com',
-          keyboardType:
-            'email-address',
-          autoCapitalize: 'none',
-          autoCorrect: false,
-          returnKeyType: 'next',
-          error: errors.email,
-          inputRef:
-            emailInputRef,
-          onSubmitEditing:
-            focusPassword,
-        })}
-
-        {/* PASSWORD */}
-
-        {renderInput({
-          label: 'Mot de passe',
-          icon:
-            'lock-closed-outline',
-          value: password,
-          onChangeText:
-            handlePasswordChange,
-          onBlur:
-            handlePasswordBlur,
-          placeholder:
-            'Votre mot de passe',
-          secureTextEntry:
-            !showPassword,
-          autoCapitalize: 'none',
-          autoCorrect: false,
-          returnKeyType: 'done',
-          onSubmitEditing:
-            handleLogin,
-          error:
-            errors.password,
-          inputRef:
-            passwordInputRef,
-
-          rightAction: (
-            <TouchableOpacity
-              onPress={() => {
-                setShowPassword(
-                  previous =>
-                    !previous
-                );
-
-                showToast(
-                  'info',
-                  showPassword
-                    ? 'Mot de passe masqué.'
-                    : 'Mot de passe affiché.',
-                  1800
-                );
-              }}
+            <Text
               style={
-                styles.eyeButton
+                styles.loginButtonText
               }
-              disabled={
-                isLoading
+            >
+              Connexion...
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text
+              style={
+                styles.loginButtonText
               }
-              hitSlop={{
-                top: 10,
-                bottom: 10,
-                left: 10,
-                right: 10,
-              }}
+            >
+              Se connecter
+            </Text>
+
+            <View
+              style={
+                styles.loginArrow
+              }
             >
               <Ionicons
-                name={
-                  showPassword
-                    ? 'eye-off-outline'
-                    : 'eye-outline'
-                }
-                size={21}
+                name="arrow-forward"
+                size={18}
                 color={
-                  isDark
-                    ? '#9CA3AF'
-                    : '#6B7280'
+                  COLORS.primary
                 }
               />
-            </TouchableOpacity>
-          ),
-        })}
+            </View>
+          </>
+        )}
+      </Pressable>
 
-        {/* FORGOT PASSWORD */}
+      {/* DIVIDER */}
 
-        <TouchableOpacity
+      <View
+        style={
+          styles.dividerContainer
+        }
+      >
+        <View
+          style={styles.divider}
+        />
+
+        <Text
           style={
-            styles.forgotPassword
+            styles.dividerText
           }
-          onPress={() => {
-            Keyboard.dismiss();
+        >
+          ou continuer avec
+        </Text>
 
+        <View
+          style={styles.divider}
+        />
+      </View>
+
+      {/* SOCIAL */}
+
+      <View
+        style={styles.socialRow}
+      >
+        <Pressable
+          style={
+            styles.socialButton
+          }
+          onPress={() =>
             showToast(
               'info',
-              'Ouverture de la récupération du mot de passe...',
-              1500
-            );
-
-            setTimeout(() => {
-              navigation.navigate(
-                'ForgotPassword'
-              );
-            }, 250);
-          }}
-          disabled={isLoading}
-          activeOpacity={0.7}
-        >
-          <Text
-            style={
-              styles.forgotPasswordText
-            }
-          >
-            Mot de passe oublié ?
-          </Text>
-        </TouchableOpacity>
-
-        {/* LOGIN BUTTON */}
-
-        <TouchableOpacity
-          style={[
-            styles.loginButton,
-            isLoading &&
-              styles.loginButtonDisabled,
-          ]}
-          onPress={handleLogin}
-          disabled={isLoading}
-          activeOpacity={0.85}
+              'La connexion avec Google sera bientôt disponible.',
+              3000
+            )
+          }
         >
           <View
             style={
-              styles.loginGradient
+              styles.googleCircle
             }
           >
-            {isLoading ? (
-              <>
-                <ActivityIndicator
-                  color="#FFFFFF"
-                  size="small"
-                />
-
-                <Text
-                  style={
-                    styles.loginButtonText
-                  }
-                >
-                  Connexion...
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text
-                  style={
-                    styles.loginButtonText
-                  }
-                >
-                  Se connecter
-                </Text>
-
-                <Ionicons
-                  name="arrow-forward"
-                  size={20}
-                  color="#FFFFFF"
-                />
-              </>
-            )}
+            <Text
+              style={
+                styles.googleG
+              }
+            >
+              G
+            </Text>
           </View>
-        </TouchableOpacity>
-
-        {/* DIVIDER */}
-
-        <View
-          style={
-            styles.dividerContainer
-          }
-        >
-          <View
-            style={[
-              styles.divider,
-              {
-                backgroundColor:
-                  isDark
-                    ? '#374151'
-                    : '#E5E7EB',
-              },
-            ]}
-          />
 
           <Text
-            style={[
-              styles.dividerText,
-              {
-                color: isDark
-                  ? '#6B7280'
-                  : '#9CA3AF',
-              },
-            ]}
-          >
-            ou continuer avec
-          </Text>
-
-          <View
-            style={[
-              styles.divider,
-              {
-                backgroundColor:
-                  isDark
-                    ? '#374151'
-                    : '#E5E7EB',
-              },
-            ]}
-          />
-        </View>
-
-        {/* SOCIAL */}
-
-        <View
-          style={
-            styles.socialContainer
-          }
-        >
-          <TouchableOpacity
-            style={[
-              styles.socialButton,
-              {
-                backgroundColor:
-                  isDark
-                    ? '#252733'
-                    : '#FFFFFF',
-
-                borderColor:
-                  isDark
-                    ? '#3A3F4D'
-                    : '#E5E7EB',
-              },
-            ]}
-            activeOpacity={0.8}
-            onPress={() =>
-              showToast(
-                'info',
-                'La connexion avec Google sera bientôt disponible.',
-                3500
-              )
+            style={
+              styles.socialText
             }
           >
-            <Image
-              source={require('../../../assets/icons/google.png')}
-              style={
-                styles.googleIcon
-              }
-            />
-
-            <Text
-              style={[
-                styles.socialButtonText,
-                {
-                  color: isDark
-                    ? '#FFFFFF'
-                    : '#1F2937',
-                },
-              ]}
-            >
-              Google
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.socialButton,
-              styles.appleButton,
-            ]}
-            activeOpacity={0.8}
-            onPress={() =>
-              showToast(
-                'info',
-                'La connexion avec Apple sera bientôt disponible.',
-                3500
-              )
-            }
-          >
-            <Ionicons
-              name="logo-apple"
-              size={22}
-              color="#FFFFFF"
-            />
-
-            <Text
-              style={
-                styles.appleButtonText
-              }
-            >
-              Apple
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* REGISTER */}
-
-        <View
-          style={
-            styles.registerContainer
-          }
-        >
-          <Text
-            style={[
-              styles.registerText,
-              {
-                color: isDark
-                  ? '#9CA3AF'
-                  : '#6B7280',
-              },
-            ]}
-          >
-            Pas encore de compte ?
+            Google
           </Text>
+        </Pressable>
 
-          <TouchableOpacity
-            onPress={() => {
-              Keyboard.dismiss();
-
-              showToast(
-                'info',
-                'Ouverture de la création de compte...',
-                1500
-              );
-
-              setTimeout(() => {
-                navigation.navigate(
-                  'Register'
-                );
-              }, 250);
-            }}
-            disabled={isLoading}
-          >
-            <Text
-              style={
-                styles.registerLink
-              }
-            >
-              Créer un compte
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* SECURITY */}
-
-        <View
+        <Pressable
           style={[
-            styles.securityBox,
-            {
-              backgroundColor:
-                isDark
-                  ? '#20232D'
-                  : '#F8FAFC',
-
-              borderColor:
-                isDark
-                  ? '#374151'
-                  : '#E5E7EB',
-            },
+            styles.socialButton,
+            styles.appleButton,
           ]}
+          onPress={() =>
+            showToast(
+              'info',
+              'La connexion avec Apple sera bientôt disponible.',
+              3000
+            )
+          }
+        >
+          <Ionicons
+            name="logo-apple"
+            size={21}
+            color="#FFFFFF"
+          />
+
+          <Text
+            style={
+              styles.appleText
+            }
+          >
+            Apple
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* REGISTER */}
+
+      <View
+        style={
+          styles.registerContainer
+        }
+      >
+        <Text
+          style={
+            styles.registerText
+          }
+        >
+          Pas encore de compte ?
+        </Text>
+
+        <Pressable
+          onPress={
+            goToRegister
+          }
+          disabled={isLoading}
+        >
+          <Text
+            style={
+              styles.registerLink
+            }
+          >
+            Créer un compte
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* SECURITY */}
+
+      <View
+        style={
+          styles.securityBox
+        }
+      >
+        <View
+          style={
+            styles.securityIcon
+          }
         >
           <Ionicons
             name="shield-checkmark-outline"
             size={18}
-            color={GREEN_THEME}
+            color={
+              COLORS.primary
+            }
           />
-
-          <Text
-            style={[
-              styles.securityText,
-              {
-                color: isDark
-                  ? '#9CA3AF'
-                  : '#64748B',
-              },
-            ]}
-          >
-            Vos informations sont
-            protégées et sécurisées.
-          </Text>
         </View>
-      </Animated.View>
+
+        <Text
+          style={
+            styles.securityText
+          }
+        >
+          Vos informations sont
+          protégées et sécurisées.
+        </Text>
+      </View>
+    </Animated.View>
+  );
+
+  /* ==========================================================
+     MOBILE HEADER
+  ========================================================== */
+
+  const renderMobileHeader =
+    () => (
+      <View
+        style={[
+          styles.mobileHeader,
+          {
+            paddingTop:
+              androidStatusBar +
+              (isShort ? 7 : 10),
+          },
+        ]}
+      >
+        <Pressable
+          onPress={handleBack}
+          style={
+            styles.backButton
+          }
+          hitSlop={8}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={21}
+            color={
+              COLORS.primaryDark
+            }
+          />
+        </Pressable>
+
+        <View
+          style={
+            styles.mobileBrand
+          }
+        >
+          <View
+            style={
+              styles.mobileLogoBox
+            }
+          >
+            <Image
+              source={require('../../../assets/logo.png')}
+              style={
+                styles.mobileLogo
+              }
+              resizeMode="contain"
+            />
+          </View>
+
+          <View
+            style={
+              styles.mobileBrandText
+            }
+          >
+            <Text
+              style={
+                styles.mobileBrandName
+              }
+            >
+              Mada Bien-être
+            </Text>
+
+            <Text
+              style={
+                styles.mobileBrandSubtitle
+              }
+            >
+              Votre bien-être, notre priorité
+            </Text>
+          </View>
+        </View>
+      </View>
     );
 
-  // ==========================================================
-  // MOBILE
-  // ==========================================================
+  /* ==========================================================
+     MOBILE
+  ========================================================== */
 
   const renderMobile =
     () => (
       <KeyboardAvoidingView
-        style={styles.keyboardView}
+        style={
+          styles.mobileRoot
+        }
         behavior={
           IS_IOS
             ? 'padding'
-            : 'height'
+            : undefined
         }
-        keyboardVerticalOffset={0}
       >
         <TouchableWithoutFeedback
           onPress={() =>
             Keyboard.dismiss()
           }
-          accessible={false}
         >
           <ScrollView
-            ref={scrollViewRef}
-            style={
-              styles.mobileScroll
+            showsVerticalScrollIndicator={
+              false
             }
-            contentContainerStyle={[
-              styles.mobileScrollContent,
-
-              isShortScreen &&
-                styles.mobileScrollShort,
-            ]}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode={
               IS_IOS
                 ? 'interactive'
                 : 'on-drag'
             }
-            showsVerticalScrollIndicator={
-              false
-            }
-            automaticallyAdjustKeyboardInsets={
-              IS_IOS
-            }
-            contentInsetAdjustmentBehavior="never"
-            nestedScrollEnabled
-            bounces={false}
-            removeClippedSubviews={false}
+            contentContainerStyle={[
+              styles.mobileScrollContent,
+              isShort &&
+                styles.mobileScrollShort,
+            ]}
           >
-            {/* MOBILE HEADER */}
+            {renderMobileHeader()}
 
-            <Animatable.View
-              animation="fadeInDown"
-              duration={600}
+            <View
+              style={
+                styles.mobileHero
+              }
             >
               <View
-                style={[
-                  styles.mobileHeader,
-
-                  isVerySmallScreen &&
-                    styles.mobileHeaderSmall,
-                ]}
+                style={
+                  styles.mobileHeroBadge
+                }
               >
-                <TouchableOpacity
-                  style={
-                    styles.mobileBackButton
-                  }
-                  onPress={() => {
-                    Keyboard.dismiss();
-                    navigation.goBack();
-                  }}
-                  hitSlop={{
-                    top: 10,
-                    bottom: 10,
-                    left: 10,
-                    right: 10,
-                  }}
-                >
-                  <Ionicons
-                    name="arrow-back"
-                    size={23}
-                    color="#FFFFFF"
-                  />
-                </TouchableOpacity>
-
                 <View
                   style={
-                    styles.mobileHeaderContent
+                    styles.badgeDot
+                  }
+                />
+
+                <Text
+                  style={
+                    styles.mobileHeroBadgeText
                   }
                 >
-                  {/* =================================================
-                      LOGO PREMIUM MOBILE
-                  ================================================= */}
+                  BIEN-ÊTRE • SANTÉ • SÉRÉNITÉ
+                </Text>
+              </View>
 
-                  <View
-                    style={[
-                      styles.mobileLogoFrame,
-                      isVerySmallScreen &&
-                        styles.mobileLogoFrameSmall,
-                    ]}
-                  >
-                    <Image
-                      source={require('../../../assets/logo.png')}
-                      style={[
-                        styles.mobileLogo,
-                        isVerySmallScreen &&
-                          styles.mobileLogoSmall,
-                      ]}
-                      resizeMode="contain"
-                    />
-                  </View>
+              <Text
+                style={
+                  styles.mobileHeroTitle
+                }
+              >
+                Votre bien-être,
+                {'\n'}
+                <Text
+                  style={
+                    styles.mobileHeroGreen
+                  }
+                >
+                  commence ici.
+                </Text>
+              </Text>
 
-                  <Text
-                    style={[
-                      styles.mobileAppName,
-                      isVerySmallScreen &&
-                        styles.mobileAppNameSmall,
-                    ]}
-                  >
-                    Mada Bien-être
-                  </Text>
+              <Text
+                style={
+                  styles.mobileHeroDescription
+                }
+              >
+                Retrouvez votre espace personnel
+                et profitez d'une expérience
+                simple, sécurisée et personnalisée.
+              </Text>
+            </View>
+
+            {renderForm()}
+
+            {/* MOBILE FOOTER */}
+
+            <View
+              style={
+                styles.mobileFooter
+              }
+            >
+              <View
+                style={
+                  styles.footerLine
+                }
+              />
+
+              <View
+                style={
+                  styles.footerFeatures
+                }
+              >
+                <View
+                  style={
+                    styles.footerFeature
+                  }
+                >
+                  <Ionicons
+                    name="shield-checkmark-outline"
+                    size={16}
+                    color={
+                      COLORS.primary
+                    }
+                  />
 
                   <Text
                     style={
-                      styles.mobileHeaderSubtitle
+                      styles.footerFeatureText
                     }
                   >
-                    Massage à domicile premium
+                    Sécurisé
+                  </Text>
+                </View>
+
+                <View
+                  style={
+                    styles.footerFeature
+                  }
+                >
+                  <Ionicons
+                    name="location-outline"
+                    size={16}
+                    color={
+                      COLORS.primary
+                    }
+                  />
+
+                  <Text
+                    style={
+                      styles.footerFeatureText
+                    }
+                  >
+                    À domicile
+                  </Text>
+                </View>
+
+                <View
+                  style={
+                    styles.footerFeature
+                  }
+                >
+                  <Ionicons
+                    name="heart-outline"
+                    size={16}
+                    color={
+                      COLORS.primary
+                    }
+                  />
+
+                  <Text
+                    style={
+                      styles.footerFeatureText
+                    }
+                  >
+                    Bien-être
                   </Text>
                 </View>
               </View>
-            </Animatable.View>
 
-            {renderLoginForm()}
+              <Text
+                style={
+                  styles.footerCopyright
+                }
+              >
+                © 2026 Mada Bien-être
+              </Text>
+            </View>
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     );
 
-  // ==========================================================
-  // DESKTOP WEB
-  // ==========================================================
+  /* ==========================================================
+     WEB
+  ========================================================== */
 
   const renderWeb =
     () => (
       <View
         style={
-          styles.webContainer
+          styles.webRoot
         }
       >
-        {/* LEFT PANEL */}
+        {/* ==================================================
+            LEFT SIDE
+        ================================================== */}
 
         <View
           style={
-            styles.webLeftPanel
+            styles.webLeft
           }
         >
           <View
             style={
-              styles.webLeftGradient
+              styles.webCircleOne
+            }
+          />
+
+          <View
+            style={
+              styles.webCircleTwo
+            }
+          />
+
+          <View
+            style={
+              styles.webLeftContent
             }
           >
+            {/* BRAND */}
+
             <View
               style={
-                styles.webLeftContent
+                styles.webBrand
               }
             >
-              {/* =================================================
-                  LOGO PREMIUM WEB
-              ================================================= */}
-
               <View
                 style={
-                  styles.webLogoContainer
+                  styles.webLogoBox
                 }
               >
-                <View
+                <Image
+                  source={require('../../../assets/logo.png')}
                   style={
-                    styles.webLogoFrame
+                    styles.webLogo
                   }
-                >
-                  <Image
-                    source={require('../../../assets/logo.png')}
-                    style={
-                      styles.webLogoImage
-                    }
-                    resizeMode="contain"
-                  />
-                </View>
+                  resizeMode="contain"
+                />
+              </View>
 
+              <View>
                 <Text
                   style={
-                    styles.webLogoText
+                    styles.webBrandName
                   }
                 >
                   Mada Bien-être
                 </Text>
-              </View>
-
-              {/* HERO */}
-
-              <View
-                style={
-                  styles.webHero
-                }
-              >
-                <Text
-                  style={
-                    styles.webHeroTitle
-                  }
-                >
-                  Votre bien-être,
-                  {'\n'}
-                  commence ici.
-                </Text>
 
                 <Text
                   style={
-                    styles.webHeroSubtitle
+                    styles.webBrandSubtitle
                   }
                 >
-                  Retrouvez votre espace
-                  personnel et profitez
-                  d'une expérience de
-                  massage à domicile simple,
-                  sécurisée et personnalisée.
+                  Votre bien-être, notre priorité
                 </Text>
               </View>
+            </View>
 
-              {/* FEATURES */}
+            {/* HERO */}
 
+            <View
+              style={
+                styles.webHero
+              }
+            >
               <View
                 style={
-                  styles.webFeatures
+                  styles.webBadge
                 }
               >
                 <View
                   style={
-                    styles.webFeature
+                    styles.webBadgeDot
                   }
-                >
-                  <View
-                    style={
-                      styles.webFeatureIcon
-                    }
-                  >
-                    <Ionicons
-                      name="location-outline"
-                      size={20}
-                      color="#FFFFFF"
-                    />
-                  </View>
+                />
 
-                  <View
-                    style={
-                      styles.webFeatureContent
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.webFeatureTitle
-                      }
-                    >
-                      Thérapeutes à proximité
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.webFeatureText
-                      }
-                    >
-                      Trouvez facilement un
-                      professionnel près de
-                      chez vous.
-                    </Text>
-                  </View>
-                </View>
-
-                <View
+                <Text
                   style={
-                    styles.webFeature
+                    styles.webBadgeText
                   }
                 >
-                  <View
-                    style={
-                      styles.webFeatureIcon
-                    }
-                  >
-                    <Ionicons
-                      name="calendar-outline"
-                      size={20}
-                      color="#FFFFFF"
-                    />
-                  </View>
-
-                  <View
-                    style={
-                      styles.webFeatureContent
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.webFeatureTitle
-                      }
-                    >
-                      Réservation simplifiée
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.webFeatureText
-                      }
-                    >
-                      Organisez vos séances
-                      directement depuis
-                      votre compte.
-                    </Text>
-                  </View>
-                </View>
-
-                <View
-                  style={
-                    styles.webFeature
-                  }
-                >
-                  <View
-                    style={
-                      styles.webFeatureIcon
-                    }
-                  >
-                    <Ionicons
-                      name="shield-checkmark-outline"
-                      size={20}
-                      color="#FFFFFF"
-                    />
-                  </View>
-
-                  <View
-                    style={
-                      styles.webFeatureContent
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.webFeatureTitle
-                      }
-                    >
-                      Expérience sécurisée
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.webFeatureText
-                      }
-                    >
-                      Vos données personnelles
-                      restent protégées.
-                    </Text>
-                  </View>
-                </View>
+                  BIEN-ÊTRE • SANTÉ • SÉRÉNITÉ
+                </Text>
               </View>
 
-              {/* FOOTER */}
+              <Text
+                style={
+                  styles.webHeroTitle
+                }
+              >
+                Votre bien-être,
+                {'\n'}
+                commence ici.
+              </Text>
+
+              <Text
+                style={
+                  styles.webHeroDescription
+                }
+              >
+                Retrouvez votre espace personnel
+                et profitez d'une expérience de
+                massage à domicile simple,
+                sécurisée et personnalisée.
+              </Text>
+            </View>
+
+            {/* FEATURES */}
+
+            <View
+              style={
+                styles.webFeatures
+              }
+            >
+              <View
+                style={
+                  styles.webFeature
+                }
+              >
+                <View
+                  style={
+                    styles.webFeatureIcon
+                  }
+                >
+                  <Ionicons
+                    name="location-outline"
+                    size={21}
+                    color="#FFFFFF"
+                  />
+                </View>
+
+                <View
+                  style={
+                    styles.webFeatureContent
+                  }
+                >
+                  <Text
+                    style={
+                      styles.webFeatureTitle
+                    }
+                  >
+                    Proche de vous
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.webFeatureText
+                    }
+                  >
+                    Trouvez facilement les
+                    services disponibles autour
+                    de vous.
+                  </Text>
+                </View>
+              </View>
 
               <View
                 style={
-                  styles.webLeftFooter
+                  styles.webFeature
                 }
               >
-                <Text
+                <View
                   style={
-                    styles.webFooterText
+                    styles.webFeatureIcon
                   }
                 >
-                  © 2026 Mada Bien-être
-                </Text>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={21}
+                    color="#FFFFFF"
+                  />
+                </View>
 
-                <Text
+                <View
                   style={
-                    styles.webFooterText
+                    styles.webFeatureContent
                   }
                 >
-                  Bien-être • Confiance •
-                  Proximité
-                </Text>
+                  <Text
+                    style={
+                      styles.webFeatureTitle
+                    }
+                  >
+                    Réservation simple
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.webFeatureText
+                    }
+                  >
+                    Organisez facilement votre
+                    moment de détente.
+                  </Text>
+                </View>
               </View>
+
+              <View
+                style={
+                  styles.webFeature
+                }
+              >
+                <View
+                  style={
+                    styles.webFeatureIcon
+                  }
+                >
+                  <Ionicons
+                    name="shield-checkmark-outline"
+                    size={21}
+                    color="#FFFFFF"
+                  />
+                </View>
+
+                <View
+                  style={
+                    styles.webFeatureContent
+                  }
+                >
+                  <Text
+                    style={
+                      styles.webFeatureTitle
+                    }
+                  >
+                    Expérience sécurisée
+                  </Text>
+
+                  <Text
+                    style={
+                      styles.webFeatureText
+                    }
+                  >
+                    Vos informations personnelles
+                    restent protégées.
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* FOOTER */}
+
+            <View
+              style={
+                styles.webFooter
+              }
+            >
+              <Text
+                style={
+                  styles.webFooterText
+                }
+              >
+                © 2026 Mada Bien-être
+              </Text>
+
+              <Text
+                style={
+                  styles.webFooterText
+                }
+              >
+                Bien-être • Confiance • Proximité
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* RIGHT PANEL */}
+        {/* ==================================================
+            RIGHT SIDE
+        ================================================== */}
 
-        <ScrollView
+        <View
           style={
-            styles.webRightPanel
+            styles.webRight
           }
-          contentContainerStyle={
-            styles.webRightScrollContent
-          }
-          showsVerticalScrollIndicator={
-            false
-          }
-          keyboardShouldPersistTaps="handled"
         >
-          <View
-            style={
-              styles.webRightInner
+          <ScrollView
+            showsVerticalScrollIndicator={
+              false
+            }
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={
+              styles.webRightContent
             }
           >
-            {renderLoginForm()}
-          </View>
-        </ScrollView>
+            <View
+              style={
+                styles.webFormWrapper
+              }
+            >
+              {renderForm()}
+            </View>
+          </ScrollView>
+        </View>
       </View>
     );
 
-  // ==========================================================
-  // MAIN
-  // ==========================================================
+  /* ==========================================================
+     MAIN
+  ========================================================== */
 
   return (
-    <SafeAreaView
-      style={[
-        styles.safeArea,
-        {
-          backgroundColor:
-            isDark
-              ? '#121212'
-              : '#F8FAFC',
-        },
-      ]}
+    <View
+      style={
+        styles.screen
+      }
     >
       <StatusBar
-        barStyle="light-content"
-        backgroundColor={GREEN_THEME}
+        barStyle={
+          isDesktop
+            ? 'light-content'
+            : 'dark-content'
+        }
+        backgroundColor={
+          isDesktop
+            ? COLORS.primaryDark
+            : COLORS.white
+        }
         translucent={false}
       />
 
@@ -1759,66 +1796,52 @@ const LoginScreen = ({
         }
       />
 
-      {isDesktopWeb
+      {isDesktop
         ? renderWeb()
         : renderMobile()}
-    </SafeAreaView>
+    </View>
   );
-};
+}
 
-// ============================================================
-// STYLES
-// ============================================================
+/* ============================================================
+   STYLES
+============================================================ */
 
 const styles = StyleSheet.create({
 
-  // ==========================================================
-  // GENERAL
-  // ==========================================================
+  /* ==========================================================
+     GENERAL
+  ========================================================== */
 
-  safeArea: {
+  screen: {
     flex: 1,
+    backgroundColor:
+      COLORS.background,
   },
 
-  keyboardView: {
-    flex: 1,
-  },
-
-  // ==========================================================
-  // TOAST
-  // ==========================================================
+  /* ==========================================================
+     TOAST
+  ========================================================== */
 
   toastOverlay: {
     position: 'absolute',
-
-    top: 0,
-    left: 0,
-    right: 0,
-
+    top: IS_ANDROID
+      ? (StatusBar.currentHeight || 0) + 8
+      : 15,
+    left: 12,
+    right: 12,
     zIndex: 99999,
     elevation: 99999,
-
     alignItems: 'center',
-
     pointerEvents: 'box-none',
-
-    paddingHorizontal: 14,
-
-    paddingTop: IS_IOS
-      ? 52
-      : IS_WEB
-      ? 22
-      : 38,
   },
 
   toastContainer: {
     width: '100%',
     maxWidth: 560,
-    minHeight: 64,
-
+    minHeight: 60,
     borderRadius: 16,
     borderWidth: 1,
-
     paddingHorizontal: 11,
     paddingVertical: 9,
 
@@ -1830,17 +1853,15 @@ const styles = StyleSheet.create({
       width: 0,
       height: 6,
     },
-    shadowOpacity: 0.14,
-    shadowRadius: 15,
-
-    elevation: 10,
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 8,
   },
 
-  toastIconContainer: {
-    width: 42,
-    height: 42,
-
-    borderRadius: 13,
+  toastIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -1848,21 +1869,16 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
 
-  toastMessageContainer: {
+  toastText: {
     flex: 1,
-  },
-
-  toastMessage: {
     fontSize: 13,
     lineHeight: 18,
-    fontFamily:
-      APP_FONT_MEDIUM,
+    fontWeight: '600',
   },
 
   toastClose: {
     width: 34,
     height: 34,
-
     borderRadius: 17,
 
     alignItems: 'center',
@@ -1871,616 +1887,821 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
 
-  // ==========================================================
-  // MOBILE SCROLL
-  // ==========================================================
+  /* ==========================================================
+     MOBILE ROOT
+  ========================================================== */
 
-  mobileScroll: {
+  mobileRoot: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor:
+      COLORS.background,
   },
 
   mobileScrollContent: {
     flexGrow: 1,
-    paddingBottom: 80,
+    paddingBottom: 25,
   },
 
   mobileScrollShort: {
-    paddingBottom: 110,
+    paddingBottom: 15,
   },
 
-  // ==========================================================
-  // MOBILE HEADER
-  // ==========================================================
+  /* ==========================================================
+     MOBILE HEADER
+  ========================================================== */
 
   mobileHeader: {
-    backgroundColor: GREEN_THEME,
+    width: '100%',
+    minHeight: 76,
 
-    paddingTop:
-      IS_IOS
-        ? 48
-        : 34,
-
-    paddingBottom: 28,
-    paddingHorizontal: 20,
-
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-  },
-
-  mobileHeaderSmall: {
-    paddingTop:
-      IS_IOS
-        ? 42
-        : 28,
-
-    paddingBottom: 22,
-  },
-
-  mobileBackButton: {
-    width: 42,
-    height: 42,
-
-    borderRadius: 21,
-
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingBottom: 9,
 
     backgroundColor:
-      'rgba(255,255,255,0.14)',
+      COLORS.white,
 
-    marginBottom: 13,
-  },
+    borderBottomWidth: 1,
+    borderBottomColor:
+      COLORS.borderLight,
 
-  mobileHeaderContent: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-
-  // ==========================================================
-  // LOGO MOBILE PREMIUM
-  // ==========================================================
-
-  mobileLogoFrame: {
-    width: 82,
-    height: 82,
-
-    borderRadius: 23,
-
-    padding: 9,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor:
-      'rgba(255,255,255,0.96)',
-
-    borderWidth: 1,
-
-    borderColor:
-      'rgba(255,255,255,0.70)',
-
-    marginBottom: 10,
 
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 5,
+      height: 2,
     },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-
-    elevation: 5,
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 3,
   },
 
-  mobileLogoFrameSmall: {
-    width: 70,
-    height: 70,
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
 
-    borderRadius: 20,
+    backgroundColor:
+      COLORS.primaryLight,
 
-    padding: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
 
-    marginBottom: 8,
+    marginRight: 11,
+  },
+
+  mobileBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    flex: 1,
+  },
+
+  mobileLogoBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+
+    backgroundColor:
+      COLORS.primaryLight,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginRight: 10,
   },
 
   mobileLogo: {
-    width: 62,
-    height: 62,
+    width: 37,
+    height: 37,
   },
 
-  mobileLogoSmall: {
-    width: 52,
-    height: 52,
+  mobileBrandText: {
+    flex: 1,
   },
 
-  mobileAppName: {
-    fontSize: 23,
-
-    fontFamily:
-      APP_FONT_BOLD,
-
-    color: WHITE,
-
-    letterSpacing: 0.2,
-  },
-
-  mobileAppNameSmall: {
-    fontSize: 20,
-  },
-
-  mobileHeaderSubtitle: {
-    fontSize: 12.5,
-
-    fontFamily: APP_FONT,
-
+  mobileBrandName: {
     color:
-      'rgba(255,255,255,0.88)',
+      COLORS.primaryDark,
 
-    marginTop: 4,
-
-    textAlign: 'center',
+    fontSize: 17,
+    fontWeight: '900',
   },
 
-  // ==========================================================
-  // FORM
-  // ==========================================================
+  mobileBrandSubtitle: {
+    color:
+      COLORS.textSoft,
+
+    fontSize: 9.5,
+
+    marginTop: 2,
+  },
+
+  /* ==========================================================
+     MOBILE HERO
+  ========================================================== */
+
+  mobileHero: {
+    paddingHorizontal: 20,
+    paddingTop: 28,
+    paddingBottom: 4,
+  },
+
+  mobileHeroBadge: {
+    alignSelf: 'flex-start',
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+
+    backgroundColor:
+      COLORS.white,
+
+    borderRadius: 100,
+
+    borderWidth: 1,
+    borderColor:
+      COLORS.border,
+
+    marginBottom: 17,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 1,
+  },
+
+  badgeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+
+    backgroundColor:
+      COLORS.primary,
+
+    marginRight: 7,
+  },
+
+  mobileHeroBadgeText: {
+    color:
+      COLORS.primaryDark,
+
+    fontSize: 9,
+    fontWeight: '900',
+
+    letterSpacing: 0.5,
+  },
+
+  mobileHeroTitle: {
+    color:
+      COLORS.text,
+
+    fontSize: 34,
+    lineHeight: 40,
+
+    fontWeight: '900',
+
+    letterSpacing: -0.7,
+  },
+
+  mobileHeroGreen: {
+    color:
+      COLORS.primary,
+  },
+
+  mobileHeroDescription: {
+    color:
+      COLORS.textSoft,
+
+    fontSize: 14,
+    lineHeight: 21,
+
+    marginTop: 12,
+
+    maxWidth: 440,
+  },
+
+  /* ==========================================================
+     FORM
+  ========================================================== */
 
   formContainer: {
     width: '100%',
 
     paddingHorizontal: 20,
-
-    paddingTop: 24,
-
-    paddingBottom: 40,
+    paddingTop: 25,
+    paddingBottom: 28,
   },
 
   formContainerSmall: {
     paddingHorizontal: 16,
-
-    paddingTop: 20,
-
-    paddingBottom: 35,
+    paddingTop: 22,
   },
 
   formContainerDesktop: {
     paddingHorizontal: 0,
-
     paddingTop: 0,
-
     paddingBottom: 0,
+
+    maxWidth: 470,
+    alignSelf: 'center',
   },
 
   formHeader: {
-    marginBottom: 25,
+    marginBottom: 22,
   },
 
   formIcon: {
     width: 48,
     height: 48,
+    borderRadius: 15,
 
-    borderRadius: 14,
+    backgroundColor:
+      COLORS.primaryLight,
 
     alignItems: 'center',
     justifyContent: 'center',
 
-    marginBottom: 14,
+    marginBottom: 13,
   },
 
   formTitle: {
+    color:
+      COLORS.text,
+
     fontSize: 25,
+    lineHeight: 31,
 
-    fontFamily:
-      APP_FONT_BOLD,
+    fontWeight: '900',
 
-    lineHeight: 32,
-
-    marginBottom: 7,
+    letterSpacing: -0.4,
   },
 
   formSubtitle: {
-    fontSize: 14,
+    color:
+      COLORS.textSoft,
 
-    fontFamily: APP_FONT,
+    fontSize: 13.5,
+    lineHeight: 20,
 
-    lineHeight: 21,
+    marginTop: 6,
 
-    maxWidth: 500,
+    maxWidth: 440,
   },
 
-  // ==========================================================
-  // INPUT
-  // ==========================================================
+  /* ==========================================================
+     INPUT
+  ========================================================== */
 
   inputGroup: {
-    marginBottom: 17,
+    marginBottom: 15,
   },
 
   inputLabel: {
-    fontSize: 13,
+    color:
+      COLORS.text,
 
-    fontFamily:
-      APP_FONT_MEDIUM,
+    fontSize: 13,
+    fontWeight: '800',
 
     marginBottom: 7,
   },
 
   inputWrapper: {
-    minHeight: 54,
+    minHeight: 56,
 
-    borderRadius: 13,
+    borderRadius: 14,
 
-    borderWidth: 1.3,
+    borderWidth: 1,
 
-    paddingHorizontal: 14,
+    borderColor:
+      COLORS.border,
+
+    backgroundColor:
+      COLORS.white,
 
     flexDirection: 'row',
-
     alignItems: 'center',
+
+    paddingLeft: 8,
+    paddingRight: 7,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.025,
+    shadowRadius: 4,
+    elevation: 1,
   },
 
   inputWrapperError: {
-    borderWidth: 1.5,
+    borderColor:
+      COLORS.red,
+
+    backgroundColor:
+      '#FFFDFD',
+  },
+
+  inputIconBox: {
+    width: 39,
+    height: 39,
+    borderRadius: 11,
+
+    backgroundColor:
+      COLORS.primaryLight,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginRight: 3,
+  },
+
+  inputIconBoxError: {
+    backgroundColor:
+      COLORS.redLight,
   },
 
   input: {
     flex: 1,
 
-    minHeight: 50,
+    minHeight: 52,
 
-    fontSize: 15,
+    color:
+      COLORS.text,
 
-    fontFamily: APP_FONT,
+    fontSize: 14.5,
 
     paddingHorizontal: 10,
-
-    paddingVertical: 10,
-
-    textAlignVertical: 'center',
+    paddingVertical: 9,
 
     outlineStyle: 'none',
   },
 
   eyeButton: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 42,
 
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  fieldErrorRow: {
+  errorRow: {
     flexDirection: 'row',
-
     alignItems: 'center',
 
     marginTop: 5,
 
-    gap: 4,
+    gap: 5,
   },
 
   errorText: {
-    color: '#EF4444',
-
-    fontSize: 12,
-
-    fontFamily: APP_FONT,
-
-    lineHeight: 17,
-
     flex: 1,
+
+    color:
+      COLORS.red,
+
+    fontSize: 11.5,
+    lineHeight: 16,
   },
 
-  // ==========================================================
-  // FORGOT
-  // ==========================================================
+  /* ==========================================================
+     FORGOT
+  ========================================================== */
 
-  forgotPassword: {
+  forgotButton: {
     alignSelf: 'flex-end',
 
-    marginTop: -3,
-
-    marginBottom: 19,
-
     paddingVertical: 5,
+
+    marginTop: -3,
+    marginBottom: 15,
   },
 
-  forgotPasswordText: {
-    color: GREEN_THEME,
+  forgotText: {
+    color:
+      COLORS.primary,
 
-    fontSize: 13,
-
-    fontFamily:
-      APP_FONT_BOLD,
+    fontSize: 12.5,
+    fontWeight: '800',
   },
 
-  // ==========================================================
-  // LOGIN BUTTON
-  // ==========================================================
+  /* ==========================================================
+     LOGIN BUTTON
+  ========================================================== */
 
   loginButton: {
+    width: '100%',
+    minHeight: 55,
+
     borderRadius: 14,
 
-    overflow: 'hidden',
+    backgroundColor:
+      COLORS.primary,
 
-    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
 
-    backgroundColor: GREEN_THEME,
+    paddingHorizontal: 18,
+
+    gap: 10,
 
     shadowColor:
-      GREEN_THEME,
+      COLORS.primary,
 
     shadowOffset: {
       width: 0,
       height: 5,
     },
 
-    shadowOpacity: 0.22,
-
+    shadowOpacity: 0.20,
     shadowRadius: 10,
 
     elevation: 5,
   },
 
-  loginButtonDisabled: {
-    opacity: 0.75,
+  loginButtonPressed: {
+    opacity: 0.88,
+    transform: [
+      {
+        scale: 0.99,
+      },
+    ],
   },
 
-  loginGradient: {
-    minHeight: 56,
-
-    paddingHorizontal: 20,
-
-    alignItems: 'center',
-
-    justifyContent: 'center',
-
-    flexDirection: 'row',
-
-    gap: 10,
-
-    backgroundColor: GREEN_THEME,
+  loginButtonDisabled: {
+    opacity: 0.65,
   },
 
   loginButtonText: {
-    color: WHITE,
+    color:
+      COLORS.white,
 
-    fontSize: 16,
-
-    fontFamily:
-      APP_FONT_BOLD,
+    fontSize: 15,
+    fontWeight: '900',
   },
 
-  // ==========================================================
-  // DIVIDER
-  // ==========================================================
+  loginArrow: {
+    width: 31,
+    height: 31,
+    borderRadius: 16,
+
+    backgroundColor:
+      COLORS.white,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginLeft: 2,
+  },
+
+  /* ==========================================================
+     DIVIDER
+  ========================================================== */
 
   dividerContainer: {
     flexDirection: 'row',
-
     alignItems: 'center',
 
-    marginBottom: 20,
+    marginVertical: 19,
   },
 
   divider: {
     flex: 1,
-
     height: 1,
+
+    backgroundColor:
+      COLORS.border,
   },
 
   dividerText: {
-    marginHorizontal: 12,
+    color:
+      COLORS.muted,
 
-    fontSize: 12,
+    fontSize: 10.5,
 
-    fontFamily: APP_FONT,
+    marginHorizontal: 11,
   },
 
-  // ==========================================================
-  // SOCIAL
-  // ==========================================================
+  /* ==========================================================
+     SOCIAL
+  ========================================================== */
 
-  socialContainer: {
+  socialRow: {
     flexDirection: 'row',
 
     gap: 10,
 
-    marginBottom: 23,
+    marginBottom: 19,
   },
 
   socialButton: {
     flex: 1,
 
-    minHeight: 50,
+    minHeight: 49,
 
-    borderRadius: 12,
+    borderRadius: 13,
 
     borderWidth: 1,
 
+    borderColor:
+      COLORS.border,
+
+    backgroundColor:
+      COLORS.white,
+
     flexDirection: 'row',
-
     alignItems: 'center',
-
     justifyContent: 'center',
 
     gap: 8,
   },
 
-  googleIcon: {
-    width: 20,
-    height: 20,
+  googleCircle: {
+    width: 22,
+    height: 22,
+
+    borderRadius: 11,
+
+    backgroundColor:
+      '#F5F7F5',
+
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  socialButtonText: {
-    fontSize: 14,
+  googleG: {
+    color: '#4285F4',
 
-    fontFamily:
-      APP_FONT_MEDIUM,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+
+  socialText: {
+    color:
+      COLORS.text,
+
+    fontSize: 13,
+    fontWeight: '700',
   },
 
   appleButton: {
-    backgroundColor: '#000000',
+    backgroundColor:
+      '#111111',
 
-    borderColor: '#000000',
+    borderColor:
+      '#111111',
   },
 
-  appleButtonText: {
-    color: WHITE,
+  appleText: {
+    color:
+      COLORS.white,
 
-    fontSize: 14,
-
-    fontFamily:
-      APP_FONT_MEDIUM,
+    fontSize: 13,
+    fontWeight: '700',
   },
 
-  // ==========================================================
-  // REGISTER
-  // ==========================================================
+  /* ==========================================================
+     REGISTER
+  ========================================================== */
 
   registerContainer: {
     flexDirection: 'row',
-
     alignItems: 'center',
-
     justifyContent: 'center',
 
     flexWrap: 'wrap',
 
-    marginBottom: 19,
+    marginBottom: 18,
   },
 
   registerText: {
-    fontSize: 13.5,
+    color:
+      COLORS.textSoft,
 
-    fontFamily: APP_FONT,
+    fontSize: 12.5,
 
     marginRight: 4,
   },
 
   registerLink: {
-    color: GREEN_THEME,
+    color:
+      COLORS.primary,
 
-    fontSize: 13.5,
+    fontSize: 12.5,
 
-    fontFamily:
-      APP_FONT_BOLD,
+    fontWeight: '900',
   },
 
-  // ==========================================================
-  // SECURITY
-  // ==========================================================
+  /* ==========================================================
+     SECURITY
+  ========================================================== */
 
   securityBox: {
-    minHeight: 46,
+    minHeight: 47,
 
-    borderRadius: 11,
+    borderRadius: 12,
 
     borderWidth: 1,
 
-    paddingHorizontal: 12,
+    borderColor:
+      COLORS.borderLight,
+
+    backgroundColor:
+      '#F9FBF9',
+
+    paddingHorizontal: 11,
 
     flexDirection: 'row',
-
     alignItems: 'center',
 
     gap: 8,
   },
 
+  securityIcon: {
+    width: 31,
+    height: 31,
+    borderRadius: 9,
+
+    backgroundColor:
+      COLORS.primaryLight,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   securityText: {
     flex: 1,
 
-    fontSize: 11,
+    color:
+      COLORS.textSoft,
 
-    lineHeight: 16,
-
-    fontFamily: APP_FONT,
+    fontSize: 10.5,
+    lineHeight: 15,
   },
 
-  // ==========================================================
-  // WEB DESKTOP
-  // ==========================================================
+  /* ==========================================================
+     MOBILE FOOTER
+  ========================================================== */
 
-  webContainer: {
+  mobileFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 5,
+  },
+
+  footerLine: {
+    height: 1,
+
+    backgroundColor:
+      COLORS.border,
+
+    marginBottom: 17,
+  },
+
+  footerFeatures: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+
+    maxWidth: 430,
+    width: '100%',
+    alignSelf: 'center',
+  },
+
+  footerFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 5,
+  },
+
+  footerFeatureText: {
+    color:
+      COLORS.textSoft,
+
+    fontSize: 10.5,
+    fontWeight: '700',
+  },
+
+  footerCopyright: {
+    color:
+      COLORS.muted,
+
+    fontSize: 9.5,
+
+    textAlign: 'center',
+
+    marginTop: 15,
+    marginBottom: 5,
+  },
+
+  /* ==========================================================
+     WEB ROOT
+  ========================================================== */
+
+  webRoot: {
     flex: 1,
 
     flexDirection: 'row',
 
     backgroundColor:
-      '#F8FAFC',
-
-    minHeight: 0,
+      COLORS.background,
   },
 
-  webLeftPanel: {
+  /* ==========================================================
+     WEB LEFT
+  ========================================================== */
+
+  webLeft: {
     flex: 1,
 
-    maxWidth: '50%',
+    maxWidth: '52%',
 
     minHeight: '100%',
 
+    backgroundColor:
+      COLORS.primaryDark,
+
     overflow: 'hidden',
 
-    backgroundColor: GREEN_THEME,
+    position: 'relative',
   },
 
-  // ==========================================================
-  // WEB LEFT HEADER / PANEL
-  // ==========================================================
+  webCircleOne: {
+    position: 'absolute',
 
-  webLeftGradient: {
-    flex: 1,
+    width: 420,
+    height: 420,
 
-    paddingHorizontal: 55,
+    borderRadius: 210,
 
-    paddingVertical: 45,
+    right: -160,
+    top: -90,
 
-    backgroundColor: GREEN_THEME,
+    backgroundColor:
+      'rgba(255,255,255,0.06)',
+  },
+
+  webCircleTwo: {
+    position: 'absolute',
+
+    width: 350,
+    height: 350,
+
+    borderRadius: 175,
+
+    left: -160,
+    bottom: -130,
+
+    backgroundColor:
+      'rgba(67,160,71,0.20)',
   },
 
   webLeftContent: {
     flex: 1,
 
-    justifyContent:
-      'space-between',
-
-    maxWidth: 600,
+    width: '100%',
+    maxWidth: 650,
 
     alignSelf: 'center',
 
-    width: '100%',
+    paddingHorizontal: 48,
+    paddingVertical: 38,
+
+    justifyContent:
+      'space-between',
   },
 
-  // ==========================================================
-  // LOGO WEB PREMIUM
-  // ==========================================================
+  /* ==========================================================
+     WEB BRAND
+  ========================================================== */
 
-  webLogoContainer: {
+  webBrand: {
     flexDirection: 'row',
-
     alignItems: 'center',
   },
 
-  webLogoFrame: {
-    width: 66,
-    height: 66,
+  webLogoBox: {
+    width: 58,
+    height: 58,
 
-    borderRadius: 18,
+    borderRadius: 17,
 
-    padding: 8,
+    backgroundColor:
+      COLORS.white,
 
     alignItems: 'center',
     justifyContent: 'center',
 
-    backgroundColor:
-      'rgba(255,255,255,0.96)',
-
-    borderWidth: 1,
-
-    borderColor:
-      'rgba(255,255,255,0.75)',
-
-    marginRight: 14,
+    marginRight: 12,
 
     shadowColor: '#000',
     shadowOffset: {
@@ -2489,84 +2710,130 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.12,
     shadowRadius: 10,
-
     elevation: 5,
   },
 
-  webLogoImage: {
-    width: 49,
-    height: 49,
+  webLogo: {
+    width: 44,
+    height: 44,
   },
 
-  webLogoText: {
-    color: WHITE,
+  webBrandName: {
+    color:
+      COLORS.white,
 
-    fontSize: 22,
-
-    fontFamily:
-      APP_FONT_BOLD,
-
-    letterSpacing: 0.2,
+    fontSize: 20,
+    fontWeight: '900',
   },
 
-  // ==========================================================
-  // WEB HERO
-  // ==========================================================
+  webBrandSubtitle: {
+    color:
+      'rgba(255,255,255,0.72)',
+
+    fontSize: 10.5,
+
+    marginTop: 3,
+  },
+
+  /* ==========================================================
+     WEB HERO
+  ========================================================== */
 
   webHero: {
-    marginVertical: 35,
+    marginTop: 55,
+
+    marginBottom: 35,
+  },
+
+  webBadge: {
+    alignSelf: 'flex-start',
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    backgroundColor:
+      'rgba(255,255,255,0.10)',
+
+    borderWidth: 1,
+    borderColor:
+      'rgba(255,255,255,0.15)',
+
+    borderRadius: 100,
+
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+
+    marginBottom: 20,
+  },
+
+  webBadgeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+
+    backgroundColor:
+      '#8BD394',
+
+    marginRight: 8,
+  },
+
+  webBadgeText: {
+    color:
+      '#D9F0DD',
+
+    fontSize: 9.5,
+    fontWeight: '900',
+
+    letterSpacing: 0.7,
   },
 
   webHeroTitle: {
-    color: WHITE,
+    color:
+      COLORS.white,
 
-    fontSize: 40,
+    fontSize: 43,
+    lineHeight: 52,
 
-    lineHeight: 49,
+    fontWeight: '900',
 
-    fontFamily:
-      APP_FONT_BOLD,
-
-    marginBottom: 17,
+    letterSpacing: -1,
   },
 
-  webHeroSubtitle: {
+  webHeroDescription: {
     color:
-      'rgba(255,255,255,0.90)',
+      'rgba(255,255,255,0.82)',
 
     fontSize: 15,
+    lineHeight: 24,
 
-    lineHeight: 25,
+    marginTop: 17,
 
-    fontFamily: APP_FONT,
-
-    maxWidth: 510,
+    maxWidth: 520,
   },
 
-  // ==========================================================
-  // WEB FEATURES
-  // ==========================================================
+  /* ==========================================================
+     WEB FEATURES
+  ========================================================== */
 
   webFeatures: {
-    gap: 17,
+    gap: 18,
   },
 
   webFeature: {
     flexDirection: 'row',
-
     alignItems: 'flex-start',
 
     gap: 13,
   },
 
   webFeatureIcon: {
-    width: 42,
-    height: 42,
+    width: 43,
+    height: 43,
 
-    borderRadius: 12,
+    borderRadius: 13,
 
     backgroundColor:
-      'rgba(255,255,255,0.14)',
+      'rgba(255,255,255,0.13)',
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -2577,91 +2844,77 @@ const styles = StyleSheet.create({
   },
 
   webFeatureTitle: {
-    color: WHITE,
+    color:
+      COLORS.white,
 
-    fontSize: 14,
-
-    fontFamily:
-      APP_FONT_BOLD,
+    fontSize: 13.5,
+    fontWeight: '900',
 
     marginBottom: 3,
   },
 
   webFeatureText: {
     color:
-      'rgba(255,255,255,0.82)',
+      'rgba(255,255,255,0.68)',
 
-    fontSize: 12,
+    fontSize: 11.5,
+    lineHeight: 17,
 
-    lineHeight: 18,
-
-    fontFamily: APP_FONT,
-
-    maxWidth: 400,
+    maxWidth: 410,
   },
 
-  // ==========================================================
-  // WEB FOOTER
-  // ==========================================================
+  /* ==========================================================
+     WEB FOOTER
+  ========================================================== */
 
-  webLeftFooter: {
+  webFooter: {
     flexDirection: 'row',
-
+    alignItems: 'center',
     justifyContent:
       'space-between',
 
-    alignItems: 'center',
-
-    marginTop: 35,
-
-    paddingTop: 18,
-
     borderTopWidth: 1,
-
     borderTopColor:
-      'rgba(255,255,255,0.20)',
+      'rgba(255,255,255,0.15)',
+
+    paddingTop: 17,
+
+    marginTop: 30,
   },
 
   webFooterText: {
     color:
-      'rgba(255,255,255,0.70)',
+      'rgba(255,255,255,0.55)',
 
-    fontSize: 11,
-
-    fontFamily: APP_FONT,
+    fontSize: 10,
   },
 
-  // ==========================================================
-  // WEB RIGHT
-  // ==========================================================
+  /* ==========================================================
+     WEB RIGHT
+  ========================================================== */
 
-  webRightPanel: {
+  webRight: {
     flex: 1,
 
-    maxWidth: '50%',
+    maxWidth: '48%',
 
-    backgroundColor: '#FFFFFF',
-
-    minHeight: 0,
+    backgroundColor:
+      COLORS.background,
   },
 
-  webRightScrollContent: {
+  webRightContent: {
     flexGrow: 1,
 
     justifyContent: 'center',
 
-    paddingHorizontal: 55,
-
-    paddingVertical: 50,
+    paddingHorizontal: 50,
+    paddingVertical: 40,
   },
 
-  webRightInner: {
+  webFormWrapper: {
     width: '100%',
-
-    maxWidth: 500,
+    maxWidth: 470,
 
     alignSelf: 'center',
   },
 });
-
-export default LoginScreen;

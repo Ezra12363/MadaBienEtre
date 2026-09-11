@@ -23,6 +23,36 @@ const GOOGLE_GEOCODE_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org';
 
 // ============================================
+// ✅ COUPE-CIRCUIT GOOGLE (évite de spammer la console et le réseau)
+//
+// "REQUEST_DENIED" est une erreur DE CONFIGURATION (clé invalide,
+// Geocoding/Places API non activée, facturation coupée, restrictions
+// de la clé) — ce n'est jamais transitoire. Retenter la même requête
+// juste après donnera TOUJOURS le même résultat. On désactive donc
+// Google pour le reste de la session dès la première occurrence, et
+// on retombe directement sur OpenStreetMap sans attendre 4 appels
+// réseau inutiles à chaque recherche.
+// ============================================
+let googleDisabled = false;
+let googleDisabledLogged = false;
+
+const disableGoogle = (reason) => {
+  googleDisabled = true;
+  if (!googleDisabledLogged) {
+    googleDisabledLogged = true;
+    console.warn(
+      `🚫 [Google Geocoding] Désactivé pour cette session (${reason}).\n` +
+      '   → Vérifiez dans Google Cloud Console :\n' +
+      '     1. La clé API est correcte (config/googleMaps.js)\n' +
+      '     2. "Geocoding API" ET "Places API" sont ACTIVÉES\n' +
+      '     3. La facturation du projet est active\n' +
+      '     4. Les restrictions de la clé (référents HTTP / IP) autorisent ce domaine\n' +
+      '   → En attendant, toutes les recherches utilisent OpenStreetMap (gratuit).'
+    );
+  }
+};
+
+// ============================================
 // ✅ PARTIE 1 : GOOGLE GEOCODING API (précision maximale)
 // ============================================
 
@@ -74,6 +104,9 @@ const geocodeWithGoogle = async (address) => {
     return null;
   }
 
+  // Coupe-circuit actif : on ne retente pas une requête vouée à échouer.
+  if (googleDisabled) return null;
+
   try {
     console.log(`🔍 [Google] Geocoding: "${address}"`);
     const response = await axios.get(GOOGLE_GEOCODE_URL, {
@@ -92,7 +125,7 @@ const geocodeWithGoogle = async (address) => {
     }
 
     if (response.data.status === 'REQUEST_DENIED') {
-      console.warn('⚠️ [Google Geocoding] REQUEST_DENIED — vérifiez : clé API, Geocoding API activée, facturation active, restrictions de la clé.');
+      disableGoogle('REQUEST_DENIED');
     } else if (response.data.status === 'OVER_QUERY_LIMIT') {
       console.warn('⚠️ [Google Geocoding] Quota dépassé pour ce mois.');
     } else {
@@ -202,78 +235,77 @@ export const geocodeAddress = async (address) => {
  * (tsy ny Lot marina, fa ny quartier/ville manodidina).
  */
 export const searchLocation = async (query) => {
-  if (!query || query.trim().length < 2) {
-    console.log('⚠️ Query trop court');
-    return null;
+  if (!query || query.trim().length < 2) return null;
+
+  const rawQuery = query.trim().replace(/\s+/g, ' ');
+  const lower = rawQuery.toLowerCase();
+  const hasMadagascar = /madagascar|mg\b/i.test(rawQuery);
+  const cityNames = [
+    'antananarivo', 'tananarive', 'fianarantsoa', 'toamasina',
+    'mahajanga', 'antsiranana', 'toliara', 'antsirabe', 'moramanga'
+  ];
+  const hasCity = cityNames.some((c) => lower.includes(c));
+  const hasLot = /\blot\b/i.test(rawQuery);
+
+  // Pour les recherches de type "Lot 123", on ajoute Madagascar/Antananarivo
+  // mais on ne supprime JAMAIS le numéro du lot : Google doit recevoir la requête complète.
+  const queries = [];
+  const addQuery = (q) => {
+    const clean = q.trim().replace(/\s+/g, ' ');
+    if (clean && !queries.some((x) => x.toLowerCase() === clean.toLowerCase())) queries.push(clean);
+  };
+
+  addQuery(rawQuery);
+  if (!hasMadagascar) {
+    addQuery(`${rawQuery}, Madagascar`);
+    if (hasLot && !hasCity) addQuery(`${rawQuery}, Antananarivo, Madagascar`);
   }
 
-  const rawQuery = query.trim();
-  console.log(`🔍 [searchLocation] Recherche hybride progressive: "${rawQuery}"`);
-
-  const hasLot = /lot/i.test(rawQuery);
-  const hasCityHint = /antananarivo|tananarive|fianarantsoa|toamasina|mahajanga|antsiranana|toliara/i.test(rawQuery);
-
-  // ✅ DINGANA 1 : query feno (miampy "Antananarivo, Madagascar" raha
-  // ilaina)
-  let fullQuery = rawQuery;
-  if (hasLot && !hasCityHint) {
-    fullQuery = `${rawQuery}, Antananarivo, Madagascar`;
-  }
-  if (!/madagascar/i.test(fullQuery)) {
-    fullQuery = `${fullQuery}, Madagascar`;
-  }
-
-  let result = await geocodeAddress(fullQuery);
-  if (result) return { ...result, isApproximate: false };
-
-  // ✅ DINGANA 2 : esory ilay "Lot XXX", avelao ny sisa
-  const withoutLot = rawQuery
-    .replace(/lot\s+[a-z0-9\s]+?(?=,|$)/i, '')
-    .replace(/^[,\s]+/, '')
-    .trim();
-
-  if (withoutLot && withoutLot !== rawQuery) {
-    console.log(`🔄 [Fallback] Sans le "Lot": "${withoutLot}"`);
-    let q2 = withoutLot;
-    if (!/antananarivo|tananarive|madagascar/i.test(q2)) {
-      q2 = `${q2}, Antananarivo, Madagascar`;
-    }
-    result = await geocodeAddress(q2);
-    if (result) {
-      console.log('✅ [Fallback] Toerana akaiky hita (approximatif)');
-      return { ...result, isApproximate: true };
-    }
-  }
-
-  // ✅ DINGANA 3 : raiso ny teny farany aorian'ny virgule farany
-  const parts = rawQuery.split(',').map((p) => p.trim()).filter(Boolean);
-  if (parts.length > 1) {
-    const lastPart = parts[parts.length - 1];
-    const secondLastPart = parts.length > 2 ? parts[parts.length - 2] : null;
-    const candidate = secondLastPart && !/madagascar/i.test(secondLastPart) ? secondLastPart : lastPart;
-
-    if (candidate && !/madagascar/i.test(candidate)) {
-      const q3 = /antananarivo/i.test(candidate) ? `${candidate}, Madagascar` : `${candidate}, Antananarivo, Madagascar`;
-      console.log(`🔄 [Fallback] Quartier/ville seul: "${q3}"`);
-      result = await geocodeAddress(q3);
-      if (result) {
-        console.log('✅ [Fallback] Toerana akaiky hita (quartier/ville)');
-        return { ...result, isApproximate: true };
+  // Variantes utiles pour les lots mal indexés par les fournisseurs.
+  if (hasLot) {
+    const lotNumber = rawQuery.match(/\blot\s+([a-z0-9][a-z0-9\-\/]*)/i)?.[1];
+    if (lotNumber) {
+      const rest = rawQuery.replace(/\blot\s+[a-z0-9][a-z0-9\-\/]*\s*/i, '').replace(/^[-,\s]+|[-,\s]+$/g, '');
+      if (rest) {
+        addQuery(`${lotNumber}, ${rest}, Madagascar`);
+        addQuery(`Lot ${lotNumber}, ${rest}, Madagascar`);
       }
     }
   }
 
-  // ✅ DINGANA 4 : centre-ville Antananarivo (farany, azo antoka)
-  if (hasCityHint || hasLot) {
-    console.log('🔄 [Fallback] Centre "Antananarivo, Madagascar"');
-    result = await geocodeAddress('Antananarivo, Madagascar');
+  // 1) Google Geocoding : meilleure chance pour les adresses/POI précis.
+  for (const q of queries) {
+    const result = await geocodeWithGoogle(q);
+    if (result) return { ...result, isApproximate: false, searchedQuery: rawQuery };
+  }
+
+  // 2) OSM : plusieurs résultats, puis sélection du meilleur résultat.
+  for (const q of queries) {
+    const result = await geocodeWithNominatim(q);
+    if (result) return { ...result, isApproximate: false, searchedQuery: rawQuery };
+  }
+
+  // 3) Si le lot exact n'est pas indexé, chercher la rue/quartier sans inventer un lot.
+  const withoutLot = rawQuery
+    .replace(/\blot\s+[a-z0-9][a-z0-9\-\/]*\s*,?\s*/i, '')
+    .replace(/^[-,\s]+|[-,\s]+$/g, '')
+    .trim();
+
+  if (withoutLot && withoutLot.toLowerCase() !== rawQuery.toLowerCase()) {
+    const q = /madagascar/i.test(withoutLot)
+      ? withoutLot
+      : `${withoutLot}, Antananarivo, Madagascar`;
+    const result = await geocodeWithGoogle(q) || await geocodeWithNominatim(q);
     if (result) {
-      console.log('✅ [Fallback] Centre-ville utilisé comme approximation');
-      return { ...result, isApproximate: true, isCityFallback: true };
+      return {
+        ...result,
+        isApproximate: true,
+        searchedQuery: rawQuery,
+        warning: `Le lot exact "${rawQuery}" n'est pas indexé. Emplacement de la rue/quartier affiché.`
+      };
     }
   }
 
-  console.log('❌ [searchLocation] Aucun résultat, même en fallback, pour:', rawQuery);
   return null;
 };
 
@@ -284,8 +316,8 @@ export const searchLocation = async (query) => {
 const mapGoogleReverseResult = (result) => mapGoogleResult(result, '');
 
 export const reverseGeocode = async (latitude, longitude) => {
-  // ✅ 1) Google d'abord
-  if (GOOGLE_MAPS_API_KEY) {
+  // ✅ 1) Google d'abord (sauf si désactivé par le coupe-circuit)
+  if (GOOGLE_MAPS_API_KEY && !googleDisabled) {
     try {
       console.log(`🔍 [Google] Reverse Geocoding: ${latitude}, ${longitude}`);
       const response = await axios.get(GOOGLE_GEOCODE_URL, {
@@ -312,6 +344,10 @@ export const reverseGeocode = async (latitude, longitude) => {
           codePostal: mapped.codePostal,
           source: 'google',
         };
+      }
+
+      if (response.data.status === 'REQUEST_DENIED') {
+        disableGoogle('REQUEST_DENIED');
       }
     } catch (error) {
       console.warn('⚠️ [Google Reverse] Erreur:', error.message);
@@ -361,14 +397,26 @@ export const reverseGeocode = async (latitude, longitude) => {
  * hampiseho soso-kevitra AVY HATRANY (tsy miandry ny "Rechercher").
  */
 export const getAddressSuggestions = async (input) => {
-  if (!input || input.trim().length < 3) return [];
+  if (!input || input.trim().length < 2) return [];
 
-  // ✅ 1) Google Places Autocomplete d'abord
-  if (GOOGLE_MAPS_API_KEY) {
+  const text = input.trim().replace(/\s+/g, ' ');
+  const suggestions = [];
+  const seen = new Set();
+
+  const push = (item) => {
+    if (!item?.description) return;
+    const key = `${item.description}|${item.latitude}|${item.longitude}`.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    suggestions.push(item);
+  };
+
+  // Google Places Autocomplete : utile pour maisons, commerces, hôtels, rues et POI.
+  if (GOOGLE_MAPS_API_KEY && !googleDisabled) {
     try {
       const response = await axios.get('https://maps.googleapis.com/maps/api/place/autocomplete/json', {
         params: {
-          input,
+          input: text,
           key: GOOGLE_MAPS_API_KEY,
           components: 'country:mg',
           language: 'fr',
@@ -376,47 +424,63 @@ export const getAddressSuggestions = async (input) => {
         timeout: 8000,
       });
 
-      if (response.data.status === 'OK' && response.data.predictions.length > 0) {
-        return response.data.predictions.map((p) => ({
-          id: p.place_id,
-          description: p.description,
-          main_text: p.structured_formatting?.main_text || p.description,
-          secondary_text: p.structured_formatting?.secondary_text || '',
-          source: 'google',
-        }));
+      if (response.data?.status === 'OK') {
+        response.data.predictions?.slice(0, 8).forEach((p) => {
+          push({
+            id: p.place_id,
+            description: p.description,
+            main_text: p.structured_formatting?.main_text || p.description,
+            secondary_text: p.structured_formatting?.secondary_text || '',
+            source: 'google',
+            place_id: p.place_id,
+          });
+        });
+      } else if (response.data?.status === 'REQUEST_DENIED') {
+        disableGoogle('REQUEST_DENIED');
       }
     } catch (error) {
       console.warn('⚠️ [Google Autocomplete] Erreur:', error.message);
     }
   }
 
-  // ✅ 2) OpenStreetMap en secours (moins précis mais gratuit)
+  // Pour "Lot ...", OSM peut parfois trouver un house_number même si Google Places
+  // ne propose aucune suggestion.
   try {
     const data = await nominatimRequest('/search', {
-      q: input,
+      q: /\blot\b/i.test(text) && !/madagascar/i.test(text) ? `${text}, Madagascar` : text,
       format: 'json',
       addressdetails: 1,
-      limit: 5,
+      limit: 8,
       countrycodes: 'mg',
       'accept-language': 'fr',
     });
 
-    if (data && data.length > 0) {
-      return data.map((result) => ({
-        id: result.place_id,
-        description: result.display_name,
-        main_text: result.display_name.split(',')[0],
-        secondary_text: result.display_name.split(',').slice(1).join(',').trim(),
-        latitude: parseFloat(result.lat),
-        longitude: parseFloat(result.lon),
-        source: 'osm',
-      }));
+    if (Array.isArray(data)) {
+      data.forEach((result) => {
+        const a = result.address || {};
+        const lot = a.house_number || '';
+        const rue = a.road || a.pedestrian || a.street || '';
+        const ville = a.city || a.town || a.village || a.municipality || a.suburb || '';
+        push({
+          id: `osm-${result.place_id}`,
+          description: result.display_name,
+          main_text: lot ? `Lot ${lot}${rue ? `, ${rue}` : ''}` : (result.display_name?.split(',')[0] || text),
+          secondary_text: [rue, ville].filter(Boolean).join(', '),
+          latitude: Number(result.lat),
+          longitude: Number(result.lon),
+          place_id: result.place_id,
+          lot,
+          rue,
+          ville,
+          source: 'osm',
+        });
+      });
     }
   } catch (error) {
     console.warn('⚠️ [OSM Autocomplete] Erreur:', error.message);
   }
 
-  return [];
+  return suggestions.slice(0, 8);
 };
 
 /**
@@ -424,13 +488,13 @@ export const getAddressSuggestions = async (input) => {
  * car OSM n'a pas de système de "place_id" équivalent réutilisable).
  */
 export const getPlaceDetails = async (placeId) => {
-  if (!GOOGLE_MAPS_API_KEY) return null;
+  if (!GOOGLE_MAPS_API_KEY || googleDisabled) return null;
   try {
     const response = await axios.get('https://maps.googleapis.com/maps/api/place/details/json', {
       params: {
         place_id: placeId,
         key: GOOGLE_MAPS_API_KEY,
-        fields: 'name,formatted_address,geometry,address_component',
+        fields: 'name,formatted_address,geometry,address_component,place_id',
         language: 'fr',
       },
       timeout: 10000,
@@ -439,9 +503,12 @@ export const getPlaceDetails = async (placeId) => {
     if (response.data.status === 'OK') {
       const result = response.data.result;
       return mapGoogleResult(
-        { ...result, formatted_address: result.formatted_address, address_components: result.address_component },
+        { ...result, formatted_address: result.formatted_address, address_components: result.address_component, place_id: result.place_id },
         result.name
       );
+    }
+    if (response.data.status === 'REQUEST_DENIED') {
+      disableGoogle('REQUEST_DENIED');
     }
     return null;
   } catch (error) {

@@ -43,6 +43,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
+import AdminSpecialtiesManager from '../../components/admin/AdminSpecialtiesManager';
 import { API_URL } from '../../config/env';
 
 const IS_WEB = Platform.OS === 'web';
@@ -3598,6 +3599,16 @@ const ApprovalsScreen = () => {
                       </Text>
                     </View>
                   )}
+                </View>
+
+                {/* ✅ NOUVEAU : SPÉCIALITÉS du thérapeute (types de massage) */}
+
+                <View style={styles.documentCompact}>
+                  <AdminSpecialtiesManager
+                    therapistId={selected.id}
+                    therapistName={selected.fullname}
+                    variant="compact"
+                  />
                 </View>
 
                 {/* ✅ CERTIFICAT PROFESSIONNEL (uploadé par le thérapeute) */}

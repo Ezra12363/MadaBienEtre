@@ -1,5 +1,5 @@
 // src/services/therapistService.js
-import { get, post, put, del, handleApiError } from './api';
+import { get, post, put, del, uploadFile, handleApiError } from './api';
 
 class TherapistService {
   /**
@@ -7,11 +7,8 @@ class TherapistService {
    */
   async applyAsTherapist(formData) {
     try {
-      const response = await post('/therapists/apply', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // ✅ FIXÉ: uploadFile() laisse axios générer automatiquement le Content-Type
+      const response = await uploadFile('/therapists/apply', formData);
       if (response.error) {
         return { success: false, error: response.error.message };
       }
@@ -116,11 +113,7 @@ class TherapistService {
    */
   async uploadCIN(formData) {
     try {
-      const response = await post('/therapists/upload-cin', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await uploadFile('/therapists/upload-cin', formData);
       if (response.error) {
         return { success: false, error: response.error.message };
       }
@@ -135,11 +128,7 @@ class TherapistService {
    */
   async uploadCertificate(formData) {
     try {
-      const response = await post('/therapists/upload-certificate', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await uploadFile('/therapists/upload-certificate', formData);
       if (response.error) {
         return { success: false, error: response.error.message };
       }
@@ -198,10 +187,6 @@ class TherapistService {
     }
   }
 
-  // ============================================================
-  // ✅ NOUVELLES MÉTHODES POUR LA VÉRIFICATION ET LE CERTIFICAT
-  // ============================================================
-
   /**
    * Obtenir le statut de vérification du thérapeute connecté
    */
@@ -253,21 +238,14 @@ class TherapistService {
     return '/therapists/me/certificate/download';
   }
 
-  // ============================================================
-  // ✅ NOUVEAU : CERTIFICAT PROFESSIONNEL (uploadé par le thérapeute)
-  // ============================================================
-
   /**
    * Uploader le certificat professionnel (diplôme / attestation)
-   * dans le formulaire de mise à jour du profil.
    */
   async uploadCertificateProfessionnel(formData) {
     try {
-      const response = await post('/users/upload-certificate-professionnel', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // ✅ FIXÉ (BUG WEB) : ne plus fixer manuellement le Content-Type.
+      // uploadFile() laisse axios générer l'en-tête multipart avec le bon boundary.
+      const response = await uploadFile('/users/upload-certificate-professionnel', formData);
       if (response.error) {
         return { success: false, error: response.error.message };
       }
@@ -283,6 +261,118 @@ class TherapistService {
       };
     }
   }
+  // src/services/therapistService.js - AJOUTER CES MÉTHODES
+
+  /**
+   * ✅ Récupérer les spécialités d'un thérapeute spécifique
+   */
+  async getTherapistSpecialties(therapistId) {
+    try {
+      const response = await get(`/therapists/${therapistId}/specialties`);
+      if (response.error) {
+        return { success: false, error: response.error.message };
+      }
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.message || 'Erreur lors du chargement des spécialités' 
+      };
+    }
+  }
+
+  /**
+   * ✅ Récupérer les spécialités du thérapeute connecté
+   */
+  async getMySpecialties() {
+    try {
+      const response = await get('/therapists/me/specialties');
+      if (response.error) {
+        return { success: false, error: response.error.message };
+      }
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.message || 'Erreur lors du chargement de vos spécialités' 
+      };
+    }
+  }
+
+  /**
+   * ✅ Mettre à jour les spécialités (remplacement complet)
+   */
+  async updateMySpecialties(massageTypeIds) {
+    try {
+      const response = await put('/therapists/me/specialties', { 
+        massage_type_ids: massageTypeIds 
+      });
+      if (response.error) {
+        return { success: false, error: response.error.message };
+      }
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.message || 'Erreur lors de la mise à jour des spécialités' 
+      };
+    }
+  }
+
+  /**
+   * ✅ Ajouter une spécialité
+   */
+  async addSpecialty(massageTypeId) {
+    try {
+      const response = await post(`/therapists/me/specialties/${massageTypeId}`);
+      if (response.error) {
+        return { success: false, error: response.error.message };
+      }
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.message || 'Erreur lors de l\'ajout de la spécialité' 
+      };
+    }
+  }
+
+  /**
+   * ✅ Supprimer une spécialité
+   */
+  async removeSpecialty(massageTypeId) {
+    try {
+      const response = await del(`/therapists/me/specialties/${massageTypeId}`);
+      if (response.error) {
+        return { success: false, error: response.error.message };
+      }
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error.message || 'Erreur lors de la suppression de la spécialité' 
+      };
+    }
+  }
+  // src/services/therapistService.js RECHERCHER PAR CLIENTS
+
+async searchTherapistsBySpecialty(specialtyId, params = {}) {
+  try {
+    const response = await get('/therapists/search', {
+      specialty_id: specialtyId,
+      ...params,
+    });
+    if (response.error) {
+      return { success: false, error: response.error.message };
+    }
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error.message || 'Erreur lors de la recherche' 
+    };
+  }
+}
 }
 
 export default new TherapistService();

@@ -1,4 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+// src/screens/therapist/ProfileScreen.js
+
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useMemo,
+  useCallback,
+} from 'react';
+
 import {
   View,
   Text,
@@ -12,26 +21,36 @@ import {
   Switch,
   TextInput,
   Modal,
+  Linking,
   Platform,
-  Dimensions,
+  Pressable,
 } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import * as Animatable from 'react-native-animatable';
 import * as Location from 'expo-location';
+import * as Animatable from 'react-native-animatable';
+
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, typography } from '../../theme';
+
+import { colors, typography } from '../../theme';
+
 import Header from '../../components/common/Header';
-import { searchLocation, formatFullAddress, getAddressFromCoords } from '../../services/geocoding';
-import { DEFAULT_REGION, MARKER_COLORS } from '../../config/googleMaps';
 import MapViewWrapper from '../../components/map/MapViewWrapper';
+
+import {
+  searchLocation,
+  getAddressFromCoords,
+} from '../../services/geocoding';
+
+import { DEFAULT_REGION } from '../../config/googleMaps';
 import useLocationTracking from '../../hooks/useLocationTracking';
 import { haversineDistance } from '../../services/routing';
-import { put, handleApiError } from '../../services/api';
+
+import { put } from '../../services/api';
 import api from '../../services/api';
-import { API_URL } from '../../config/env';
 
 // ✅ IMPORT DU CERTIFICATE CARD
 import CertificateCard from '../../components/therapist/CertificateCard';
@@ -39,37 +58,147 @@ import CertificateCard from '../../components/therapist/CertificateCard';
 // ✅ IMPORT DU CIN SECTION
 import CinSection from '../../components/common/CinSection';
 
-// ✅ IMPORT DE LA SECTION CERTIFICAT PROFESSIONNEL (NOUVEAU)
+// ✅ IMPORT DE LA SECTION CERTIFICAT PROFESSIONNEL
 import CertificateProfessionnelSection from '../../components/common/CertificateProfessionnelSection';
 
-const { width, height } = Dimensions.get('window');
+// ✅ IMPORT DU COMPOSANT SPÉCIALITÉS
+import SpecialtiesSelector from '../../components/therapist/SpecialtiesSelector';
 
-// ✅ Icons personnalisés pour les marqueurs
-const getMarkerIcon = (color, scale = 12) => {
-  return {
-    path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
-    fillColor: color,
-    fillOpacity: 1,
-    strokeColor: '#ffffff',
-    strokeWeight: 2,
-    scale: 1.5,
-    anchor: { x: 12, y: 24 },
-  };
-};
+// ✅ IMPORT DU SERVICE THÉRAPEUTE (nécessaire pour recharger les
+// spécialités depuis le serveur — voir loadMySpecialtiesSummary
+// plus bas, indispensable pour que l'affichage "Spécialités" en
+// mode lecture reste correct après un logout/login).
+import therapistService from '../../services/therapistService';
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+
+const GREEN = '#22C55E';
+const GREEN_DARK = '#16A34A';
+const BLUE = colors.primary || '#0D2B7E';
+const RED = '#E53935';
+const ORANGE = '#F59E0B';
+
+// ============================================================
+// PROFILE SCREEN
+// ============================================================
 
 const ProfileScreen = ({ navigation }) => {
-  const { user, logout, updateProfile, token } = useAuth();
-  const { colors: themeColors, isDark, toggleTheme } = useTheme();
+  // ==========================================================
+  // HOOKS
+  // ==========================================================
 
-  // ✅ Hook pour la localisation GPS en temps réel
+  const { user, logout, updateProfile } = useAuth();
+  const {
+    colors: themeColors,
+    isDark,
+    toggleTheme,
+  } = useTheme();
+
+  // ✅ Localisation GPS en temps réel (utilisée pour le calcul de distance)
   const { location: deviceLocation } = useLocationTracking({
     enabled: true,
     distanceIntervalMeters: 10,
     timeIntervalMs: 5000,
   });
 
+  // ==========================================================
+  // REFS
+  // ==========================================================
+
+  const fadeAnim = useRef(
+    new Animated.Value(0)
+  ).current;
+
+  const mapRef = useRef(null);
+
+  const toastTimerRef = useRef(null);
+
+  const toastOpacity = useRef(
+    new Animated.Value(0)
+  ).current;
+
+  const toastTranslateY = useRef(
+    new Animated.Value(-24)
+  ).current;
+
+  // ==========================================================
+  // STATES
+  // ==========================================================
+
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(0);
+
+  const [showLogoutModal, setShowLogoutModal] =
+    useState(false);
+
+  const [showMapModal, setShowMapModal] =
+    useState(false);
+
+  // ==========================================================
+  // TOAST STATE
+  // ==========================================================
+
+  const [toast, setToast] = useState({
+    visible: false,
+    type: 'info',
+    title: '',
+    message: '',
+  });
+
+  // ==========================================================
+  // LOCATION STATES
+  // ==========================================================
+
+  const [
+    addressSearchQuery,
+    setAddressSearchQuery,
+  ] = useState('');
+
+  const [
+    isSearchingAddress,
+    setIsSearchingAddress,
+  ] = useState(false);
+
+  const [
+    isLoadingLocation,
+    setIsLoadingLocation,
+  ] = useState(false);
+
+  const [searchResult, setSearchResult] =
+    useState(null);
+
+  const [mapRegion, setMapRegion] = useState({
+    latitude:
+      DEFAULT_REGION?.latitude || -18.8792,
+    longitude:
+      DEFAULT_REGION?.longitude || 47.5079,
+    latitudeDelta: 0.015,
+    longitudeDelta: 0.015,
+  });
+
+  const [selectedLocation, setSelectedLocation] =
+    useState({
+      latitude: null,
+      longitude: null,
+      address: '',
+      fullAddress: {
+        lot: '',
+        rue: '',
+        ville: '',
+        pays: '',
+        codePostal: '',
+        display_name: '',
+      },
+    });
+
+  // ==========================================================
+  // PROFILE DATA
+  // ==========================================================
+
   const [profileData, setProfileData] = useState({
     fullname: '',
     email: '',
@@ -82,121 +211,448 @@ const ProfileScreen = ({ navigation }) => {
     address: '',
     coordinate: null,
     distance: null,
-    // ✅ NOUVEAU : CIN
+    // ✅ CIN
     cin_number: '',
     identity_document_url: '',
-    // ✅ NOUVEAU : Certificat professionnel
+    // ✅ Certificat professionnel
     certificate_professionnel: '',
+    // ✅ Spécialités (IDs des types de massage)
+    specialty_ids: [],
   });
-  const [isUploading, setIsUploading] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [showMapModal, setShowMapModal] = useState(false);
-  const [mapRegion, setMapRegion] = useState({
-    latitude: DEFAULT_REGION.latitude || -18.8792,
-    longitude: DEFAULT_REGION.longitude || 47.5079,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
-  });
-  const [selectedLocation, setSelectedLocation] = useState({
-    latitude: null,
-    longitude: null,
-    address: '',
-    fullAddress: {
-      lot: '',
-      rue: '',
-      ville: '',
-      pays: '',
-      codePostal: '',
-      display_name: '',
-    },
-  });
-  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-  const [addressSearchQuery, setAddressSearchQuery] = useState('');
-  const [isSearchingAddress, setIsSearchingAddress] = useState(false);
-  const [searchResult, setSearchResult] = useState(null);
-  const [mapKey, setMapKey] = useState(0);
-  // ✅ Force refresh pour recharger l'image après upload
-  const [forceRefresh, setForceRefresh] = useState(0);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const mapRef = useRef(null);
+  // ==========================================================
+  // ✅ SPÉCIALITÉS — SOURCE DE VÉRITÉ SERVEUR
+  // ==========================================================
+  // `user.specialty_ids` (venant du AuthContext) n'est jamais rempli
+  // par le backend : les spécialités vivent dans la table
+  // "therapist_specialties", pas sur l'objet User/token. On les
+  // récupère donc explicitement via GET /therapists/me/specialties,
+  // dans un état séparé, pour que l'affichage en mode lecture (et le
+  // formulaire d'édition) reflète toujours les vraies données —
+  // y compris juste après un logout puis un login.
+  const [mySpecialtyIds, setMySpecialtyIds] = useState([]);
 
-  const menuItems = [
-    {
-      id: 'documents',
-      icon: 'document-text-outline',
-      label: 'Mes documents',
-      onPress: () => navigation.navigate('UploadDocuments'),
-    },
-    {
-      id: 'earnings',
-      icon: 'wallet-outline',
-      label: 'Mes gains',
-      onPress: () => navigation.navigate('Earnings'),
-    },
-    {
-      id: 'availability',
-      icon: 'calendar-outline',
-      label: 'Disponibilités',
-      onPress: () => navigation.navigate('Availability'),
-    },
-    {
-      id: 'settings',
-      icon: 'settings-outline',
-      label: 'Paramètres',
-      onPress: () => {},
-    },
-    {
-      id: 'help',
-      icon: 'help-circle-outline',
-      label: 'Aide et support',
-      onPress: () => {},
-    },
-    {
-      id: 'about',
-      icon: 'information-circle-outline',
-      label: 'À propos',
-      onPress: () => {},
-    },
-  ];
+  // ✅ FIXÉ (BOUCLE INFINIE ao amin'ny SpecialtiesSelector) :
+  // Talohan'ity, ny <SpecialtiesSelector> dia nahazo
+  // `initialSpecialties={profileData.specialty_ids || []}` (array
+  // VAOVAO isaky ny render rehefa undefined ny specialty_ids) sy
+  // `onSpecialtiesChange={(ids) => {...}}` (arrow function VAOVAO
+  // isaky ny render). Ireo reference miova ireo dia nampandeha
+  // indray hatrany ny useEffect ao anatin'ilay component zanaka →
+  // GET /therapists/me/specialties miverimberina → 429 Too many
+  // requests. `useCallback`/`useMemo` eto ambany dia mitazona ny
+  // reference ho tsy miova raha tsy misy tena niova ny votoatiny.
+  const handleSpecialtiesChange = useCallback((selectedIds) => {
+    setProfileData(prev => ({
+      ...prev,
+      specialty_ids: selectedIds,
+    }));
+    // Met aussi à jour immédiatement le résumé en mode lecture,
+    // sans attendre un rechargement de l'écran.
+    setMySpecialtyIds(selectedIds);
+  }, []);
 
-  // ============================================================
-  // ✅ EXTRAIRE LES COMPOSANTS D'ADRESSE
-  // ============================================================
-  const extractAddressComponents = (address) => {
-    if (!address) {
-      return { lot: '', rue: '', ville: '', pays: '', codePostal: '', display_name: '' };
+  const mySpecialtyIdsInitial = useMemo(
+    () => profileData.specialty_ids || [],
+    [profileData.specialty_ids]
+  );
+
+  // ==========================================================
+  // TOAST HELPER
+  // ==========================================================
+
+  const showToast = (
+    type = 'info',
+    title = '',
+    message = ''
+  ) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
     }
 
-    const parts = address.split(',').map((s) => s.trim());
+    setToast({
+      visible: true,
+      type,
+      title,
+      message,
+    });
+
+    toastOpacity.setValue(0);
+    toastTranslateY.setValue(-24);
+
+    Animated.parallel([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 230,
+        useNativeDriver: true,
+      }),
+      Animated.spring(toastTranslateY, {
+        toValue: 0,
+        friction: 8,
+        tension: 70,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    toastTimerRef.current = setTimeout(() => {
+      hideToast();
+    }, 3200);
+  };
+
+  const hideToast = () => {
+    Animated.parallel([
+      Animated.timing(toastOpacity, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastTranslateY, {
+        toValue: -18,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      if (finished) {
+        setToast((previous) => ({
+          ...previous,
+          visible: false,
+        }));
+      }
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  // ==========================================================
+  // TOAST CONFIG
+  // ==========================================================
+
+  const toastConfig = useMemo(() => {
+    switch (toast.type) {
+      case 'success':
+        return {
+          icon: 'checkmark-circle',
+          color: GREEN,
+          background: isDark
+            ? '#12351F'
+            : '#F0FDF4',
+          border: isDark
+            ? '#1F6B3A'
+            : '#BBF7D0',
+        };
+
+      case 'error':
+        return {
+          icon: 'close-circle',
+          color: RED,
+          background: isDark
+            ? '#3A1717'
+            : '#FEF2F2',
+          border: isDark
+            ? '#7F2929'
+            : '#FECACA',
+        };
+
+      case 'warning':
+        return {
+          icon: 'warning',
+          color: ORANGE,
+          background: isDark
+            ? '#3A2B10'
+            : '#FFFBEB',
+          border: isDark
+            ? '#795A1A'
+            : '#FDE68A',
+        };
+
+      default:
+        return {
+          icon: 'information-circle',
+          color: BLUE,
+          background: isDark
+            ? '#121E3D'
+            : '#EFF6FF',
+          border: isDark
+            ? '#28468D'
+            : '#BFDBFE',
+        };
+    }
+  }, [toast.type, isDark]);
+
+  // ==========================================================
+  // ADDRESS HELPERS
+  // ==========================================================
+
+  const extractAddressComponents = (address) => {
+    if (!address) {
+      return {
+        lot: '',
+        rue: '',
+        ville: '',
+        pays: '',
+        codePostal: '',
+        display_name: '',
+      };
+    }
+
+    const parts = address
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
     const result = {
       lot: '',
-      rue: '',
-      ville: '',
-      pays: '',
+      rue: parts[0] || '',
+      ville: parts[1] || '',
+      pays: parts[2] || 'Madagascar',
       codePostal: '',
       display_name: address,
     };
 
-    if (parts.length >= 1) result.rue = parts[0] || '';
-    if (parts.length >= 2) result.ville = parts[1] || '';
-    if (parts.length >= 3) result.pays = parts[2] || '';
+    const lotMatch = address.match(
+      /Lot\s+([A-Z0-9\s\-]+)/i
+    );
 
-    const lotMatch = address.match(/Lot\s+([A-Z0-9\s]+)/i);
-    if (lotMatch) result.lot = lotMatch[1].trim();
+    if (lotMatch) {
+      result.lot = lotMatch[1].trim();
+    }
 
-    const postalMatch = address.match(/\b(\d{5})\b/);
-    if (postalMatch) result.codePostal = postalMatch[1];
+    const postalMatch = address.match(
+      /\b(\d{5})\b/
+    );
+
+    if (postalMatch) {
+      result.codePostal = postalMatch[1];
+    }
 
     return result;
   };
 
-  // ============================================================
-  // ✅ RECHERCHE DE LOCALISATION AVEC searchLocation HYBRIDE
-  // ============================================================
+  const getInitials = (name) => {
+    if (!name) return 'U';
+
+    const parts = name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    if (parts.length === 1) {
+      return parts[0]
+        .substring(0, 2)
+        .toUpperCase();
+    }
+
+    return `${parts[0][0]}${
+      parts[parts.length - 1][0]
+    }`.toUpperCase();
+  };
+
+  const hasLocation =
+    profileData.latitude !== null &&
+    profileData.latitude !== undefined &&
+    profileData.longitude !== null &&
+    profileData.longitude !== undefined;
+
+  const hasSelectedLocation =
+    selectedLocation.latitude !== null &&
+    selectedLocation.latitude !== undefined &&
+    selectedLocation.longitude !== null &&
+    selectedLocation.longitude !== undefined;
+
+  // ==========================================================
+  // MENU ITEMS
+  // ==========================================================
+
+  const menuItems = useMemo(
+    () => [
+      {
+        id: 'documents',
+        icon: 'document-text-outline',
+        label: 'Mes documents',
+        description:
+          'CIN, certificats et justificatifs',
+        onPress: () => {
+          showToast(
+            'info',
+            'Mes documents',
+            'Ouverture de vos documents...'
+          );
+
+          navigation.navigate('UploadDocuments');
+        },
+      },
+
+      {
+        id: 'earnings',
+        icon: 'wallet-outline',
+        label: 'Mes gains',
+        description:
+          'Suivre mes revenus et paiements',
+        onPress: () => {
+          showToast(
+            'info',
+            'Mes gains',
+            'Ouverture de vos gains...'
+          );
+
+          navigation.navigate('Earnings');
+        },
+      },
+
+      {
+        id: 'availability',
+        icon: 'calendar-outline',
+        label: 'Disponibilités',
+        description:
+          'Gérer mon planning de travail',
+        onPress: () => {
+          showToast(
+            'info',
+            'Disponibilités',
+            'Ouverture de votre planning...'
+          );
+
+          navigation.navigate('Availability');
+        },
+      },
+
+      {
+        id: 'settings',
+        icon: 'settings-outline',
+        label: 'Paramètres',
+        description:
+          'Préférences de votre compte',
+        onPress: () => {
+          showToast(
+            'info',
+            'Paramètres',
+            'Ouverture des paramètres...'
+          );
+
+          navigation.navigate('Settings');
+        },
+      },
+
+      {
+        id: 'help',
+        icon: 'help-circle-outline',
+        label: 'Aide et support',
+        description:
+          'Besoin d’aide ? Contactez-nous',
+        onPress: async () => {
+          try {
+            await Linking.openURL(
+              'mailto:support@madabienetre.com'
+            );
+          } catch (error) {
+            showToast(
+              'error',
+              'Erreur',
+              'Impossible d’ouvrir votre application e-mail.'
+            );
+          }
+        },
+      },
+
+      {
+        id: 'about',
+        icon: 'information-circle-outline',
+        label: 'À propos',
+        description:
+          'Mada Bien-être • Version 1.0.0',
+        onPress: () =>
+          showToast(
+            'info',
+            'Mada Bien-être',
+            'Version 1.0.0 • Application de mise en relation à domicile.'
+          ),
+      },
+    ],
+    [navigation]
+  );
+
+  // ==========================================================
+  // STATS
+  // ==========================================================
+
+  const stats = [
+    {
+      icon: 'star',
+      label: 'Note',
+      value: user?.rating || 0,
+    },
+    {
+      icon: 'chatbubble-ellipses-outline',
+      label: 'Avis',
+      value: user?.total_reviews || 0,
+    },
+    {
+      icon: 'briefcase-outline',
+      label: 'Expérience',
+      value: `${user?.experience_years || 0} ans`,
+    },
+  ];
+
+  // ==========================================================
+  // MAP
+  // ==========================================================
+
+  const openMapModal = () => {
+    if (hasLocation) {
+      const region = {
+        latitude: Number(
+          profileData.latitude
+        ),
+        longitude: Number(
+          profileData.longitude
+        ),
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.015,
+      };
+
+      setMapRegion(region);
+
+      setSelectedLocation({
+        latitude: Number(
+          profileData.latitude
+        ),
+        longitude: Number(
+          profileData.longitude
+        ),
+        address: profileData.address || '',
+        fullAddress:
+          extractAddressComponents(
+            profileData.address || ''
+          ),
+      });
+    }
+
+    setSearchResult(null);
+    setShowMapModal(true);
+
+    showToast(
+      'info',
+      'Position',
+      'Sélectionnez votre adresse sur la carte.'
+    );
+  };
+
   const handleLocationSearch = async () => {
-    if (!addressSearchQuery.trim()) {
-      Alert.alert('⚠️ Erreur', 'Veuillez saisir une adresse, un lot ou un lieu');
+    const query =
+      addressSearchQuery.trim();
+
+    if (!query) {
+      showToast(
+        'warning',
+        'Adresse manquante',
+        'Veuillez saisir une adresse ou un lieu.'
+      );
       return;
     }
 
@@ -204,1442 +660,4491 @@ const ProfileScreen = ({ navigation }) => {
     setSearchResult(null);
 
     try {
-      console.log(`🔍 Recherche de: "${addressSearchQuery}"`);
-      console.log('🌐 Mampiasa searchLocation hybride (Google + OSM)');
+      const result =
+        await searchLocation(query);
 
-      const result = await searchLocation(addressSearchQuery);
-
-      console.log('📦 Résultat:', result);
-      console.log(`📦 Lot: "${result?.lot}", Approx: ${result?.isApproximate}`);
-
-      if (result) {
-        setSelectedLocation({
-          latitude: result.latitude,
-          longitude: result.longitude,
-          address: result.display_name || addressSearchQuery,
-          fullAddress: {
-            lot: result.lot || '',
-            rue: result.rue || '',
-            ville: result.ville || '',
-            pays: result.pays || 'Madagascar',
-            codePostal: result.codePostal || '',
-            display_name: result.display_name || addressSearchQuery,
-          },
-        });
-
-        setMapRegion({
-          latitude: result.latitude,
-          longitude: result.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        });
-
-        setSearchResult({
-          latitude: result.latitude,
-          longitude: result.longitude,
-          address: result.display_name,
-          isApproximate: result.isApproximate || false,
-          fullAddress: {
-            lot: result.lot || '',
-            rue: result.rue || '',
-            ville: result.ville || '',
-            pays: result.pays || 'Madagascar',
-            codePostal: result.codePostal || '',
-            display_name: result.display_name,
-          },
-        });
-
-        setMapKey(prev => prev + 1);
-
-        setTimeout(() => {
-          if (mapRef.current) {
-            mapRef.current.animateToRegion({
-              latitude: result.latitude,
-              longitude: result.longitude,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            }, 500);
-          }
-        }, 300);
-
-        const fullAddress = formatFullAddress(result.fullAddress);
-        const approxNote = result.isApproximate
-          ? (result.isCityFallback
-              ? "\n\n⚠️ Lot exact non trouvé — position approximative (centre-ville d'Antananarivo)."
-              : "\n\n⚠️ Lot exact non trouvé — position approximative du quartier/zone.")
-          : '';
-
-        Alert.alert(
-          result.isApproximate ? '📍 Zone approximative trouvée' : '✅ Lieu trouvé',
-          `📍 ${fullAddress || result.display_name}${approxNote}\n\nLatitude: ${result.latitude.toFixed(6)}\nLongitude: ${result.longitude.toFixed(6)}`,
-          [{ text: 'OK' }]
+      if (!result) {
+        showToast(
+          'warning',
+          'Lieu introuvable',
+          `Aucun résultat trouvé pour "${query}".`
         );
-      } else {
-        Alert.alert(
-          '❌ Erreur',
-          `Aucun résultat trouvé pour "${addressSearchQuery}".\n\n💡 Suggestions:\n- Vérifiez l'orthographe\n- Essayez: "Fianarantsoa, Madagascar"\n- Essayez: "Lot III A 78, Antananarivo"\n- Essayez: "Toamasina"`,
-          [{ text: 'OK' }]
-        );
+        return;
       }
+
+      const latitude = Number(
+        result.latitude
+      );
+
+      const longitude = Number(
+        result.longitude
+      );
+
+      const fullAddress = {
+        lot: result.lot || '',
+        rue: result.rue || '',
+        ville: result.ville || '',
+        pays:
+          result.pays || 'Madagascar',
+        codePostal:
+          result.codePostal || '',
+        display_name:
+          result.display_name || query,
+      };
+
+      const location = {
+        latitude,
+        longitude,
+        address:
+          result.display_name || query,
+        fullAddress,
+      };
+
+      setSelectedLocation(location);
+
+      setSearchResult({
+        latitude,
+        longitude,
+        address:
+          result.display_name || query,
+        isApproximate:
+          result.isApproximate || false,
+        fullAddress,
+      });
+
+      const region = {
+        latitude,
+        longitude,
+        latitudeDelta: 0.012,
+        longitudeDelta: 0.012,
+      };
+
+      setMapRegion(region);
+
+      setTimeout(() => {
+        mapRef.current?.animateToRegion(
+          region,
+          500
+        );
+      }, 150);
+
+      showToast(
+        'success',
+        'Adresse trouvée',
+        'La position a été placée sur la carte.'
+      );
     } catch (error) {
-      console.error('❌ Error searching location:', error);
-      Alert.alert('❌ Erreur', "Impossible de rechercher l'adresse. Vérifiez votre connexion internet.");
+      console.error(
+        'Location search error:',
+        error
+      );
+
+      showToast(
+        'error',
+        'Erreur de recherche',
+        'Impossible de rechercher cette adresse.'
+      );
     } finally {
       setIsSearchingAddress(false);
     }
   };
 
-  // ============================================================
-  // ✅ OBTENIR LA LOCALISATION ACTUELLE
-  // ============================================================
   const getCurrentLocation = async () => {
     setIsLoadingLocation(true);
+
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      const { status } =
+        await Location.requestForegroundPermissionsAsync();
+
       if (status !== 'granted') {
-        Alert.alert('⚠️ Permission refusée', "Veuillez autoriser l'accès à la localisation");
+        showToast(
+          'warning',
+          'Permission nécessaire',
+          'Autorisez la localisation dans les paramètres.'
+        );
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
+      const location =
+        await Location.getCurrentPositionAsync(
+          {
+            accuracy:
+              Location.Accuracy.High,
+          }
+        );
 
-      const { latitude, longitude } = location.coords;
-
-      const address = await getAddressFromCoords(latitude, longitude);
-      const fullAddress = extractAddressComponents(address || '');
-
-      setSelectedLocation({
+      const {
         latitude,
         longitude,
-        address: address || 'Position actuelle',
+      } = location.coords;
+
+      let address = '';
+
+      try {
+        address =
+          (await getAddressFromCoords(
+            latitude,
+            longitude
+          )) || '';
+      } catch (error) {
+        console.log(
+          'Reverse geocoding error:',
+          error
+        );
+      }
+
+      const fullAddress =
+        extractAddressComponents(address);
+
+      const newLocation = {
+        latitude,
+        longitude,
+        address:
+          address ||
+          'Ma position actuelle',
         fullAddress: {
           ...fullAddress,
-          display_name: address || 'Position actuelle',
+          display_name:
+            address ||
+            'Ma position actuelle',
         },
+      };
+
+      setSelectedLocation(
+        newLocation
+      );
+
+      setSearchResult({
+        latitude,
+        longitude,
+        address:
+          address ||
+          'Ma position actuelle',
+        isApproximate: false,
+        fullAddress,
+      });
+
+      const region = {
+        latitude,
+        longitude,
+        latitudeDelta: 0.012,
+        longitudeDelta: 0.012,
+      };
+
+      setMapRegion(region);
+
+      setTimeout(() => {
+        mapRef.current?.animateToRegion(
+          region,
+          500
+        );
+      }, 150);
+
+      showToast(
+        'success',
+        'Position trouvée',
+        'Votre position actuelle a été détectée.'
+      );
+    } catch (error) {
+      console.error(
+        'Current location error:',
+        error
+      );
+
+      showToast(
+        'error',
+        'Position indisponible',
+        'Impossible d’obtenir votre position actuelle.'
+      );
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  };
+
+  const handleMapPress = async (
+    coordinate
+  ) => {
+    if (
+      !coordinate ||
+      coordinate.latitude === undefined ||
+      coordinate.longitude === undefined
+    ) {
+      return;
+    }
+
+    const latitude = Number(
+      coordinate.latitude
+    );
+
+    const longitude = Number(
+      coordinate.longitude
+    );
+
+    setIsLoadingLocation(true);
+
+    try {
+      let address = '';
+
+      try {
+        address =
+          (await getAddressFromCoords(
+            latitude,
+            longitude
+          )) || '';
+      } catch (error) {
+        console.log(
+          'Reverse geocoding error:',
+          error
+        );
+      }
+
+      const fullAddress =
+        extractAddressComponents(address);
+
+      const newLocation = {
+        latitude,
+        longitude,
+        address:
+          address ||
+          `${latitude.toFixed(
+            6
+          )}, ${longitude.toFixed(6)}`,
+        fullAddress: {
+          ...fullAddress,
+          display_name:
+            address ||
+            `${latitude.toFixed(
+              6
+            )}, ${longitude.toFixed(6)}`,
+        },
+      };
+
+      setSelectedLocation(
+        newLocation
+      );
+
+      setSearchResult({
+        latitude,
+        longitude,
+        address:
+          address ||
+          `${latitude.toFixed(
+            6
+          )}, ${longitude.toFixed(6)}`,
+        isApproximate: false,
+        fullAddress,
       });
 
       setMapRegion({
         latitude,
         longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
+        latitudeDelta: 0.012,
+        longitudeDelta: 0.012,
       });
 
-      setSearchResult({
-        latitude,
-        longitude,
-        address: address || 'Position actuelle',
-        isApproximate: false,
-        fullAddress: fullAddress,
-      });
-
-      setMapKey(prev => prev + 1);
-
-      setTimeout(() => {
-        if (mapRef.current) {
-          mapRef.current.animateToRegion({
-            latitude,
-            longitude,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-          }, 500);
-        }
-      }, 300);
-
-      Alert.alert('✅ Localisation trouvée', `📍 ${address || 'Position actuelle'}`);
+      showToast(
+        'success',
+        'Position sélectionnée',
+        'Cette position sera utilisée comme adresse.'
+      );
     } catch (error) {
-      console.error('❌ Error getting location:', error);
-      Alert.alert('❌ Erreur', "Impossible d'obtenir votre position");
+      console.error(
+        'Map press error:',
+        error
+      );
+
+      showToast(
+        'error',
+        'Erreur',
+        'Impossible de récupérer cette adresse.'
+      );
     } finally {
       setIsLoadingLocation(false);
     }
   };
 
-  // ============================================================
-  // ✅ GESTION DU CLIC SUR LA CARTE
-  // ============================================================
-  const handleMapPress = async (coordinate) => {
-    if (!coordinate || !coordinate.latitude || !coordinate.longitude) return;
-
-    const { latitude, longitude } = coordinate;
-
-    setIsLoadingLocation(true);
-    try {
-      const address = await getAddressFromCoords(latitude, longitude);
-      const fullAddress = extractAddressComponents(address || '');
-
-      setSelectedLocation({
-        latitude,
-        longitude,
-        address: address || `${latitude}, ${longitude}`,
-        fullAddress: {
-          ...fullAddress,
-          display_name: address || `${latitude}, ${longitude}`,
-        },
-      });
-
-      setSearchResult({
-        latitude,
-        longitude,
-        address: address || `${latitude}, ${longitude}`,
-        isApproximate: false,
-        fullAddress: fullAddress,
-      });
-    } catch (error) {
-      console.error('❌ Error getting address from coords:', error);
-      setSelectedLocation({
-        latitude,
-        longitude,
-        address: `${latitude}, ${longitude}`,
-        fullAddress: {
-          display_name: `${latitude}, ${longitude}`,
-          lot: '',
-          rue: '',
-          ville: '',
-          pays: '',
-          codePostal: '',
-        },
-      });
-    } finally {
-      setIsLoadingLocation(false);
-    }
-  };
-
-  // ============================================================
-  // ✅ VALIDER LA LOCALISATION AVEC COORDINATE ET DISTANCE
-  // ============================================================
   const validateLocation = () => {
-    if (!selectedLocation.latitude || !selectedLocation.longitude) {
-      Alert.alert('⚠️ Erreur', 'Veuillez sélectionner une position sur la carte');
+    if (!hasSelectedLocation) {
+      showToast(
+        'warning',
+        'Position manquante',
+        'Sélectionnez d’abord une position sur la carte.'
+      );
       return;
     }
 
     let computedDistance = null;
-    if (deviceLocation?.latitude && deviceLocation?.longitude) {
+
+    if (
+      deviceLocation?.latitude &&
+      deviceLocation?.longitude
+    ) {
       computedDistance = haversineDistance(
         deviceLocation.latitude,
         deviceLocation.longitude,
         selectedLocation.latitude,
         selectedLocation.longitude
       );
+
       if (computedDistance != null) {
-        computedDistance = Number(computedDistance.toFixed(1));
+        computedDistance = Number(
+          computedDistance.toFixed(1)
+        );
       }
     }
 
-    setProfileData({
-      ...profileData,
-      latitude: selectedLocation.latitude,
-      longitude: selectedLocation.longitude,
-      address: selectedLocation.address,
+    setProfileData((previous) => ({
+      ...previous,
+      latitude:
+        selectedLocation.latitude,
+      longitude:
+        selectedLocation.longitude,
+      address:
+        selectedLocation.address ||
+        `${selectedLocation.latitude.toFixed(
+          6
+        )}, ${selectedLocation.longitude.toFixed(
+          6
+        )}`,
       coordinate: {
-        latitude: selectedLocation.latitude,
-        longitude: selectedLocation.longitude,
+        latitude:
+          selectedLocation.latitude,
+        longitude:
+          selectedLocation.longitude,
       },
       distance: computedDistance,
-    });
+    }));
 
     setShowMapModal(false);
     setSearchResult(null);
-    Alert.alert('✅ Succès', `📍 ${selectedLocation.address || 'Position enregistrée'}`);
+
+    showToast(
+      'success',
+      'Position enregistrée',
+      'Pensez à enregistrer votre profil.'
+    );
   };
 
-  // ============================================================
-  // ✅ METTRE À JOUR LE PROFIL VERS LE BACKEND (AVEC CIN)
-  // ============================================================
-  const handleUpdateProfile = async () => {
-    setIsLoading(true);
+  // ==========================================================
+  // PROFILE UPDATE
+  // ==========================================================
 
-    if (!profileData.latitude || !profileData.longitude) {
-      Alert.alert(
-        '📍 Localisation requise',
-        'Veuillez définir votre position sur la carte avant de continuer',
-        [
-          { text: 'Annuler', style: 'cancel' },
-          { text: 'Définir', onPress: () => setShowMapModal(true) },
-        ]
+  const handleUpdateProfile = async () => {
+    if (!profileData.fullname.trim()) {
+      showToast(
+        'warning',
+        'Nom requis',
+        'Veuillez renseigner votre nom complet.'
       );
-      setIsLoading(false);
       return;
     }
 
+    if (
+      !profileData.latitude ||
+      !profileData.longitude
+    ) {
+      showToast(
+        'warning',
+        'Localisation requise',
+        'Définissez votre position sur la carte avant de continuer.'
+      );
+
+      setShowMapModal(true);
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
       const userId = user?.id;
-      
+
       if (!userId) {
-        Alert.alert('❌ Erreur', 'Utilisateur non identifié');
-        setIsLoading(false);
+        showToast(
+          'error',
+          'Erreur',
+          'Utilisateur non identifié.'
+        );
         return;
       }
 
-      // ✅ Données à envoyer (incluant cin_number et identity_document_url)
       const updateData = {
-        fullname: profileData.fullname,
-        phone: profileData.phone,
-        bio: profileData.bio,
-        experience_years: profileData.experience_years,
-        base_price: profileData.base_price,
-        latitude: profileData.latitude,
-        longitude: profileData.longitude,
-        address: profileData.address,
-        // ✅ NOUVEAU : CIN
-        cin_number: profileData.cin_number,
-        identity_document_url: profileData.identity_document_url,
-        // ✅ NOUVEAU : Certificat professionnel
-        certificate_professionnel: profileData.certificate_professionnel,
+        fullname:
+          profileData.fullname.trim(),
+
+        phone:
+          profileData.phone?.trim() || '',
+
+        bio:
+          profileData.bio?.trim() || '',
+
+        experience_years:
+          profileData.experience_years,
+
+        base_price:
+          profileData.base_price,
+
+        latitude:
+          profileData.latitude,
+
+        longitude:
+          profileData.longitude,
+
+        address:
+          profileData.address || '',
+
+        // ✅ CIN
+        cin_number:
+          profileData.cin_number,
+
+        identity_document_url:
+          profileData.identity_document_url,
+
+        // ✅ Certificat professionnel
+        certificate_professionnel:
+          profileData.certificate_professionnel,
+
+        // ✅ Spécialités (IDs des types de massage)
+        specialty_ids:
+          profileData.specialty_ids || [],
       };
 
-      console.log('📤 Envoi des données au backend (Thérapeute):', updateData);
-
-      const { data, error } = await put(`/users/${userId}`, updateData);
+      const { data, error } =
+        await put(
+          `/users/${userId}`,
+          updateData
+        );
 
       if (error) {
-        console.error('❌ Erreur mise à jour:', error);
-        Alert.alert('❌ Erreur', error.message || 'Impossible de mettre à jour le profil');
-        setIsLoading(false);
+        showToast(
+          'error',
+          'Mise à jour impossible',
+          error.message ||
+            'Impossible de mettre à jour votre profil.'
+        );
         return;
       }
 
-      console.log('✅ Profil mis à jour avec succès:', data);
-
-      if (updateProfile) {
-        await updateProfile(updateData);
+      if (
+        typeof updateProfile ===
+        'function'
+      ) {
+        await updateProfile(
+          updateData
+        );
       }
 
-      Alert.alert('✅ Succès', 'Votre profil a été mis à jour avec succès');
       setIsEditing(false);
 
+      showToast(
+        'success',
+        'Profil mis à jour',
+        'Vos informations ont été enregistrées avec succès.'
+      );
     } catch (error) {
-      console.error('❌ Erreur lors de la mise à jour:', error);
-      Alert.alert('❌ Erreur', 'Une erreur est survenue lors de la mise à jour du profil');
+      console.error(
+        'Update profile error:',
+        error
+      );
+
+      showToast(
+        'error',
+        'Erreur',
+        'Une erreur est survenue lors de la mise à jour.'
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    setShowLogoutModal(false);
-    await logout();
-  };
+  // ==========================================================
+  // UPLOAD PHOTO
+  // ==========================================================
 
-  // ============================================================
-  // ✅ UPLOADER UNE PHOTO DE PROFIL (AVEC CORRECTION POUR WEB)
-  // ============================================================
-  const pickImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Erreur', 'Permission de galerie refusée');
-      return;
-    }
+  const handleUploadPhoto = async () => {
+    try {
+      const permission =
+        await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      setIsUploading(true);
-      try {
-        const asset = result.assets[0];
-        const uriParts = asset.uri.split('.');
-        const fileExtension = uriParts[uriParts.length - 1] || 'jpg';
-        const mimeType = asset.mimeType || `image/${fileExtension === 'jpg' ? 'jpeg' : fileExtension}`;
-        const filename = `profile.${fileExtension}`;
-
-        let fileToSend;
-
-        // ✅ Si on est sur le web, il faut récupérer le blob et créer un File
-        if (Platform.OS === 'web') {
-          const response = await fetch(asset.uri);
-          const blob = await response.blob();
-          fileToSend = new File([blob], filename, { type: mimeType });
-        } else {
-          // Sur mobile, on utilise l'objet avec uri, type, name
-          fileToSend = {
-            uri: asset.uri,
-            type: mimeType,
-            name: filename,
-          };
-        }
-
-        const formData = new FormData();
-        formData.append('file', fileToSend);
-
-        // ✅ Utiliser api.post directement
-        const response = await api.post('/users/upload-profile-photo', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-
-        if (response.data && response.data.profile_image) {
-          // ✅ Mettre à jour le contexte Auth
-          if (typeof updateProfile === 'function') {
-            await updateProfile({ profile_image: response.data.profile_image });
-          } else {
-            // ✅ Fallback : mise à jour directe via PUT
-            const userId = user?.id;
-            if (userId) {
-              await put(`/users/${userId}`, { profile_image: response.data.profile_image });
-            }
-          }
-          // ✅ Forcer le re-rendu de l'avatar
-          setForceRefresh(prev => prev + 1);
-          Alert.alert('✅ Succès', 'Photo de profil mise à jour');
-        } else {
-          console.warn('⚠️ Réponse backend sans "profile_image":', response.data);
-          Alert.alert('⚠️ Attention', "La photo a été envoyée mais l'URL n'a pas été reçue en retour.");
-        }
-      } catch (error) {
-        console.error('❌ Error uploading photo:', error);
-        Alert.alert('Erreur', 'Impossible de télécharger la photo');
-      } finally {
-        setIsUploading(false);
+      if (!permission.granted) {
+        showToast(
+          'warning',
+          'Permission nécessaire',
+          'Autorisez l’accès à votre galerie pour choisir une photo.'
+        );
+        return;
       }
-    }
-  };
 
-  // ============================================================
-  // RENDU DE LA CARTE AVEC MARQUEURS PERSONNALISÉS
-  // ============================================================
-  const renderMapModal = () => {
-    if (!showMapModal) return null;
+      const result =
+        await ImagePicker.launchImageLibraryAsync(
+          {
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.85,
+          }
+        );
 
-    const markers = [];
+      if (
+        result.canceled ||
+        !result.assets?.length
+      ) {
+        return;
+      }
 
-    if (searchResult && searchResult.latitude && searchResult.longitude) {
-      markers.push({
-        id: 'search-result',
-        coordinate: {
-          latitude: searchResult.latitude,
-          longitude: searchResult.longitude,
-        },
-        title: searchResult.isApproximate ? '📍 Zone approximative' : '📍 Adresse recherchée',
-        description: searchResult.address || 'Adresse recherchée',
-        pinColor: '#FF6B00',
-        icon: getMarkerIcon('#FF6B00'),
-        available: true,
-      });
-    }
+      setIsUploading(true);
 
-    if (selectedLocation.latitude && selectedLocation.longitude) {
-      const isSame = markers.some(
-        (m) =>
-          Math.abs(m.coordinate.latitude - selectedLocation.latitude) < 0.0001 &&
-          Math.abs(m.coordinate.longitude - selectedLocation.longitude) < 0.0001
+      const asset = result.assets[0];
+
+      const extension =
+        asset.fileName?.split('.').pop() ||
+        asset.uri.split('.').pop() ||
+        'jpg';
+
+      const mimeType =
+        asset.mimeType ||
+        (extension.toLowerCase() ===
+        'png'
+          ? 'image/png'
+          : 'image/jpeg');
+
+      const filename = `profile.${extension}`;
+
+      let fileToSend;
+
+      if (Platform.OS === 'web') {
+        const response =
+          await fetch(asset.uri);
+
+        const blob =
+          await response.blob();
+
+        fileToSend = new File(
+          [blob],
+          filename,
+          {
+            type: mimeType,
+          }
+        );
+      } else {
+        fileToSend = {
+          uri: asset.uri,
+          type: mimeType,
+          name: filename,
+        };
+      }
+
+      const formData =
+        new FormData();
+
+      formData.append(
+        'file',
+        fileToSend
       );
 
-      if (!isSame) {
-        markers.push({
-          id: 'selected-location',
-          coordinate: {
-            latitude: selectedLocation.latitude,
-            longitude: selectedLocation.longitude,
-          },
-          title: 'Position sélectionnée',
-          description: selectedLocation.address || '',
-          pinColor: '#22C55E',
-          icon: getMarkerIcon('#22C55E'),
-          available: true,
-        });
+      const response =
+        await api.post(
+          '/users/upload-profile-photo',
+          formData,
+          {
+            headers: {
+              'Content-Type':
+                'multipart/form-data',
+            },
+          }
+        );
+
+      if (
+        response.data?.profile_image
+      ) {
+        if (
+          typeof updateProfile ===
+          'function'
+        ) {
+          await updateProfile({
+            profile_image:
+              response.data
+                .profile_image,
+          });
+        }
+
+        setForceRefresh(
+          (value) => value + 1
+        );
+
+        showToast(
+          'success',
+          'Photo mise à jour',
+          'Votre photo de profil a été modifiée.'
+        );
+      } else {
+        showToast(
+          'warning',
+          'Attention',
+          'La photo a été envoyée mais son adresse n’a pas été reçue.'
+        );
       }
+    } catch (error) {
+      console.error(
+        'Upload photo error:',
+        error
+      );
+
+      showToast(
+        'error',
+        'Erreur',
+        'Impossible de mettre à jour votre photo.'
+      );
+    } finally {
+      setIsUploading(false);
     }
-
-    return (
-      <View style={styles.mapModalOverlayRoot}>
-        <View style={styles.mapModalContainer}>
-          <View style={[styles.mapModalContent, { backgroundColor: themeColors.surface }]}>
-            <View style={styles.mapModalHeader}>
-              <Text style={[styles.mapModalTitle, { color: themeColors.text }]}>
-                📍 Sélectionnez votre position
-              </Text>
-              <TouchableOpacity onPress={() => setShowMapModal(false)}>
-                <Ionicons name="close" size={24} color={themeColors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.addressSearchContainer}>
-              <View
-                style={[
-                  styles.addressSearchBar,
-                  {
-                    backgroundColor: isDark ? '#1a1a1a' : '#F5F5F5',
-                    borderColor: themeColors.border || '#E0E0E0',
-                  },
-                ]}
-              >
-                <Ionicons name="search-outline" size={20} color={themeColors.textSecondary} />
-                <TextInput
-                  style={[styles.addressSearchInput, { color: themeColors.text }]}
-                  placeholder="Rechercher une adresse, lot ou lieu..."
-                  placeholderTextColor={themeColors.textSecondary}
-                  value={addressSearchQuery}
-                  onChangeText={setAddressSearchQuery}
-                  onSubmitEditing={handleLocationSearch}
-                  returnKeyType="search"
-                />
-                {isSearchingAddress ? (
-                  <ActivityIndicator size="small" color={colors.primary} />
-                ) : (
-                  addressSearchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setAddressSearchQuery('')}>
-                      <Ionicons name="close-circle" size={20} color={themeColors.textSecondary} />
-                    </TouchableOpacity>
-                  )
-                )}
-              </View>
-              <TouchableOpacity
-                style={[styles.searchButton, { backgroundColor: colors.primary }]}
-                onPress={handleLocationSearch}
-                disabled={isSearchingAddress}
-              >
-                <Text style={styles.searchButtonText}>🔍 Rechercher</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={styles.currentLocationInlineButton}
-              onPress={getCurrentLocation}
-              disabled={isLoadingLocation}
-              activeOpacity={0.8}
-            >
-              {isLoadingLocation ? (
-                <ActivityIndicator size="small" color={colors.primary} />
-              ) : (
-                <Ionicons name="locate" size={16} color={colors.primary} />
-              )}
-              <Text style={styles.currentLocationInlineText}>Utiliser ma position actuelle</Text>
-            </TouchableOpacity>
-
-            <View style={styles.mapContainer}>
-              <MapViewWrapper
-                ref={mapRef}
-                key={mapKey}
-                style={styles.map}
-                region={mapRegion}
-                initialRegion={mapRegion}
-                markers={markers}
-                selectionMarker={
-                  selectedLocation.latitude
-                    ? {
-                        latitude: selectedLocation.latitude,
-                        longitude: selectedLocation.longitude,
-                      }
-                    : null
-                }
-                onMapPress={handleMapPress}
-                onSelectionDragEnd={handleMapPress}
-                showUserLocation={true}
-                trackUserLocation={false}
-                showMapTypeControl={true}
-                onMapReady={() => console.log('✅ Carte prête')}
-                fitToMarkersOnLoad={true}
-              />
-
-              {isSearchingAddress && (
-                <View style={styles.searchingOverlay}>
-                  <ActivityIndicator size="large" color={colors.primary} />
-                  <Text style={[styles.searchingText, { color: themeColors.text }]}>
-                    Recherche en cours...
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            {searchResult && searchResult.address && (
-              <ScrollView style={styles.searchResultScroll}>
-                <View style={[
-                  styles.searchResultContainer,
-                  { backgroundColor: themeColors.background },
-                  searchResult.isApproximate && styles.searchResultContainerApprox
-                ]}>
-                  <View style={styles.searchResultHeader}>
-                    <Ionicons
-                      name={searchResult.isApproximate ? 'warning' : 'checkmark-circle'}
-                      size={20}
-                      color={searchResult.isApproximate ? '#F59E0B' : '#4CAF50'}
-                    />
-                    <Text style={[styles.searchResultTitle, { color: themeColors.text }]}>
-                      {searchResult.isApproximate ? '📍 Zone approximative' : '✅ Lieu trouvé'}
-                    </Text>
-                  </View>
-
-                  <View style={styles.addressDetails}>
-                    {searchResult.fullAddress?.lot ? (
-                      <View style={styles.addressRow}>
-                        <Text style={[styles.addressLabel, { color: themeColors.textSecondary }]}>Lot :</Text>
-                        <Text style={[styles.addressValue, { color: themeColors.text }]}>
-                          {searchResult.fullAddress.lot}
-                        </Text>
-                      </View>
-                    ) : null}
-
-                    {searchResult.fullAddress?.rue ? (
-                      <View style={styles.addressRow}>
-                        <Text style={[styles.addressLabel, { color: themeColors.textSecondary }]}>Rue :</Text>
-                        <Text style={[styles.addressValue, { color: themeColors.text }]}>
-                          {searchResult.fullAddress.rue}
-                        </Text>
-                      </View>
-                    ) : null}
-
-                    {searchResult.fullAddress?.ville ? (
-                      <View style={styles.addressRow}>
-                        <Text style={[styles.addressLabel, { color: themeColors.textSecondary }]}>Ville :</Text>
-                        <Text style={[styles.addressValue, { color: themeColors.text }]}>
-                          {searchResult.fullAddress.ville}
-                        </Text>
-                      </View>
-                    ) : null}
-
-                    {searchResult.fullAddress?.pays ? (
-                      <View style={styles.addressRow}>
-                        <Text style={[styles.addressLabel, { color: themeColors.textSecondary }]}>Pays :</Text>
-                        <Text style={[styles.addressValue, { color: themeColors.text }]}>
-                          {searchResult.fullAddress.pays}
-                        </Text>
-                      </View>
-                    ) : null}
-
-                    {searchResult.fullAddress?.codePostal ? (
-                      <View style={styles.addressRow}>
-                        <Text style={[styles.addressLabel, { color: themeColors.textSecondary }]}>Code Postal :</Text>
-                        <Text style={[styles.addressValue, { color: themeColors.text }]}>
-                          {searchResult.fullAddress.codePostal}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-
-                  <View style={styles.addressDivider} />
-
-                  <Text style={[styles.addressFullText, { color: themeColors.text }]} numberOfLines={2}>
-                    📍 {searchResult.address}
-                  </Text>
-
-                  {searchResult.isApproximate && (
-                    <Text style={[styles.approxNote, { color: '#F59E0B' }]}>
-                      ⚠️ Position approximative — le lot exact n'est pas trouvé dans la base de données.
-                    </Text>
-                  )}
-
-                  <View style={styles.coordsContainer}>
-                    <View style={styles.coordRow}>
-                      <Text style={[styles.coordLabel, { color: themeColors.textSecondary }]}>Latitude :</Text>
-                      <Text style={[styles.coordValue, { color: themeColors.text }]}>
-                        {searchResult.latitude.toFixed(6)}
-                      </Text>
-                    </View>
-                    <View style={styles.coordRow}>
-                      <Text style={[styles.coordLabel, { color: themeColors.textSecondary }]}>Longitude :</Text>
-                      <Text style={[styles.coordValue, { color: themeColors.text }]}>
-                        {searchResult.longitude.toFixed(6)}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {deviceLocation?.latitude && deviceLocation?.longitude && (
-                    <View style={styles.distanceContainer}>
-                      <Ionicons name="navigate-outline" size={14} color={colors.primary} />
-                      <Text style={[styles.distanceText, { color: themeColors.textSecondary }]}>
-                        📏 {haversineDistance(
-                          deviceLocation.latitude,
-                          deviceLocation.longitude,
-                          searchResult.latitude,
-                          searchResult.longitude
-                        )?.toFixed(1) || '?'} km de votre position actuelle
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </ScrollView>
-            )}
-
-            <View style={styles.mapModalButtons}>
-              <TouchableOpacity
-                style={[styles.mapModalButton, styles.mapModalCancel]}
-                onPress={() => {
-                  setShowMapModal(false);
-                  setSearchResult(null);
-                }}
-              >
-                <Text style={[styles.mapModalButtonText, { color: themeColors.text }]}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.mapModalButton, styles.mapModalConfirm]}
-                onPress={validateLocation}
-                disabled={!selectedLocation.latitude || !selectedLocation.longitude}
-              >
-                <Ionicons name="checkmark" size={20} color="#fff" />
-                <Text style={styles.mapModalButtonConfirmText}>Valider</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </View>
-    );
   };
 
-  // ============================================================
-  // ✅ USE EFFECT - CHARGEMENT DES DONNÉES UTILISATEUR (AVEC CIN)
-  // ============================================================
+  // ==========================================================
+  // LOGOUT
+  // ==========================================================
+
+  const handleLogout = async () => {
+    setShowLogoutModal(false);
+
+    try {
+      await logout();
+    } catch (error) {
+      console.error(
+        'Logout error:',
+        error
+      );
+
+      showToast(
+        'error',
+        'Erreur',
+        'Impossible de vous déconnecter.'
+      );
+    }
+  };
+
+  // ==========================================================
+  // EFFECTS
+  // ==========================================================
+
   // ⚠️ Ce useEffect resynchronise profileData depuis le user du
   // AuthContext. Il ne doit PAS s'exécuter pendant que le formulaire
   // est en cours d'édition (isEditing === true), sinon toute mise à
   // jour de "user" survenant en arrière-plan (ex: refreshUser() appelé
   // après l'upload du certificat professionnel ou du CIN, ou après
   // l'upload de la photo de profil) écrase les champs que l'utilisateur
-  // est en train de remplir (nom, bio, adresse, prix, etc.) avant
-  // même qu'il ait appuyé sur "Enregistrer".
-  //
-  // ✅ CORRECTIF : on ne resynchronise le formulaire depuis le serveur
-  // que lorsqu'on N'EST PAS en train d'éditer. Les uploads de documents
-  // (certificat professionnel, CIN, photo) continuent de s'afficher
-  // immédiatement grâce aux callbacks onCertificateUploaded /
-  // onCinImageUploaded qui mettent à jour uniquement leur propre champ
-  // dans profileData, sans toucher au reste du formulaire.
+  // est en train de remplir avant même qu'il ait appuyé sur "Enregistrer".
   useEffect(() => {
     if (user && !isEditing) {
+      const latitude =
+        user.latitude !==
+          undefined &&
+        user.latitude !== null
+          ? Number(user.latitude)
+          : null;
+
+      const longitude =
+        user.longitude !==
+          undefined &&
+        user.longitude !== null
+          ? Number(user.longitude)
+          : null;
+
       setProfileData({
-        fullname: user.fullname || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        bio: user.bio || '',
-        experience_years: user.experience_years || 0,
-        base_price: user.base_price || 0,
-        latitude: user.latitude || null,
-        longitude: user.longitude || null,
-        address: user.address || '',
-        coordinate: user.latitude && user.longitude ? {
-          latitude: user.latitude,
-          longitude: user.longitude,
-        } : null,
+        fullname:
+          user.fullname || '',
+
+        email:
+          user.email || '',
+
+        phone:
+          user.phone || '',
+
+        bio:
+          user.bio || '',
+
+        experience_years:
+          user.experience_years || 0,
+
+        base_price:
+          user.base_price || 0,
+
+        latitude,
+        longitude,
+
+        address:
+          user.address || '',
+
+        coordinate:
+          latitude !== null &&
+          longitude !== null
+            ? {
+                latitude,
+                longitude,
+              }
+            : null,
+
         distance: null,
-        // ✅ NOUVEAU : CIN
-        cin_number: user.cin_number || '',
-        identity_document_url: user.identity_document_url || '',
-        // ✅ NOUVEAU : Certificat professionnel
-        certificate_professionnel: user.certificate_professionnel || '',
+
+        // ✅ CIN
+        cin_number:
+          user.cin_number || '',
+
+        identity_document_url:
+          user.identity_document_url || '',
+
+        // ✅ Certificat professionnel
+        certificate_professionnel:
+          user.certificate_professionnel || '',
+
+        // ✅ Spécialités (IDs des types de massage) : `user.specialty_ids`
+        // n'existe pas côté backend — on utilise `mySpecialtyIds`,
+        // chargé séparément depuis GET /therapists/me/specialties
+        // (voir le useEffect dédié plus haut).
+        specialty_ids: mySpecialtyIds,
       });
 
-      if (user.latitude && user.longitude) {
+      if (
+        latitude !== null &&
+        longitude !== null
+      ) {
         setMapRegion({
-          latitude: user.latitude,
-          longitude: user.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
+          latitude,
+          longitude,
+          latitudeDelta: 0.015,
+          longitudeDelta: 0.015,
         });
+
         setSelectedLocation({
-          latitude: user.latitude,
-          longitude: user.longitude,
-          address: user.address || '',
-          fullAddress: extractAddressComponents(user.address || ''),
+          latitude,
+          longitude,
+          address:
+            user.address || '',
+          fullAddress:
+            extractAddressComponents(
+              user.address || ''
+            ),
         });
       }
     }
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
     // ✅ isEditing est volontairement dans les dépendances : quand on
-    // quitte le mode édition (bouton crayon ou après enregistrement),
-    // le formulaire se resynchronise avec les dernières données serveur.
-  }, [user, forceRefresh, isEditing]);
+    // quitte le mode édition, le formulaire se resynchronise avec les
+    // dernières données serveur. mySpecialtyIds y est aussi, pour que
+    // profileData.specialty_ids reste synchro dès que le fetch des
+    // spécialités termine (il arrive après ce useEffect au premier
+    // rendu).
+  }, [user, forceRefresh, isEditing, mySpecialtyIds]);
 
-  // ============================================================
-  // ✅ RENDU PRINCIPAL
-  // ============================================================
-  return (
-    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <Header title="Profil" />
+  // ✅ Recharge les spécialités depuis le serveur à chaque fois que
+  // l'utilisateur connecté change (login, logout/login, changement
+  // de compte). Se déclenche indépendamment de isEditing pour que le
+  // résumé en mode lecture soit toujours juste, même si l'utilisateur
+  // n'ouvre jamais le formulaire d'édition.
+  useEffect(() => {
+    let isMounted = true;
 
-      <Animated.ScrollView
-        style={[styles.scrollView, { opacity: fadeAnim }]}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+    const loadMySpecialtiesSummary = async () => {
+      if (!user || user.role !== 'THERAPIST') {
+        if (isMounted) setMySpecialtyIds([]);
+        return;
+      }
+      const result = await therapistService.getMySpecialties();
+      if (isMounted && result.success && result.data) {
+        const ids = result.data.map((s) => s.massage_type_id);
+        setMySpecialtyIds(ids);
+        setProfileData((previous) => ({
+          ...previous,
+          specialty_ids: ids,
+        }));
+      }
+    };
+
+    loadMySpecialtiesSummary();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    Animated.timing(
+      fadeAnim,
+      {
+        toValue: 1,
+        duration: 550,
+        useNativeDriver: true,
+      }
+    ).start();
+  }, []);
+
+  // ==========================================================
+  // MAP MARKERS
+  // ==========================================================
+
+  const markers = [];
+
+  if (hasSelectedLocation) {
+    markers.push({
+      id: 'selected-location',
+      coordinate: {
+        latitude: Number(
+          selectedLocation.latitude
+        ),
+        longitude: Number(
+          selectedLocation.longitude
+        ),
+      },
+      title: 'Ma position',
+      description:
+        selectedLocation.address ||
+        'Position sélectionnée',
+      pinColor: GREEN,
+      available: true,
+    });
+  }
+
+  const selectionMarker =
+    hasSelectedLocation
+      ? {
+          latitude: Number(
+            selectedLocation.latitude
+          ),
+          longitude: Number(
+            selectedLocation.longitude
+          ),
+        }
+      : null;
+
+  // ==========================================================
+  // TOAST COMPONENT
+  // ==========================================================
+
+  const renderToast = () => {
+    if (!toast.visible) {
+      return null;
+    }
+
+    return (
+      <View
+        pointerEvents="box-none"
+        style={styles.toastLayer}
       >
-        {/* En-tête du profil */}
-        <View style={styles.profileHeader}>
-          <LinearGradient
-            colors={[colors.primary, colors.primaryLight || colors.primary]}
-            style={styles.headerGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+        <Animated.View
+          style={[
+            styles.toastContainer,
+            {
+              backgroundColor:
+                toastConfig.background,
+
+              borderColor:
+                toastConfig.border,
+
+              opacity: toastOpacity,
+
+              transform: [
+                {
+                  translateY:
+                    toastTranslateY,
+                },
+              ],
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.toastIconContainer,
+              {
+                backgroundColor:
+                  `${toastConfig.color}18`,
+              },
+            ]}
           >
-            <View style={styles.avatarContainer}>
-              <TouchableOpacity onPress={pickImage} disabled={isUploading}>
-                {user?.profile_image ? (
-                  <Image
-                    key={`profile-${forceRefresh}`}
-                    source={{ uri: user.profile_image }}
-                    style={styles.avatar}
+            <Ionicons
+              name={toastConfig.icon}
+              size={22}
+              color={toastConfig.color}
+            />
+          </View>
+
+          <View
+            style={styles.toastContent}
+          >
+            {toast.title ? (
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.toastTitle,
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+              >
+                {toast.title}
+              </Text>
+            ) : null}
+
+            {toast.message ? (
+              <Text
+                numberOfLines={2}
+                style={[
+                  styles.toastMessage,
+                  {
+                    color:
+                      themeColors
+                        .textSecondary,
+                  },
+                ]}
+              >
+                {toast.message}
+              </Text>
+            ) : null}
+          </View>
+
+          <TouchableOpacity
+            onPress={hideToast}
+            style={styles.toastClose}
+            hitSlop={{
+              top: 8,
+              bottom: 8,
+              left: 8,
+              right: 8,
+            }}
+          >
+            <Ionicons
+              name="close"
+              size={17}
+              color={
+                themeColors
+                  .textSecondary
+              }
+            />
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    );
+  };
+
+  // ==========================================================
+  // MAP MODAL
+  // ==========================================================
+
+  const renderMapModal = () => {
+    return (
+      <Modal
+        visible={showMapModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setShowMapModal(false);
+          setSearchResult(null);
+        }}
+        statusBarTranslucent
+      >
+        <View
+          style={styles.mapModalOverlay}
+        >
+          <View
+            style={[
+              styles.mapSheet,
+              {
+                backgroundColor:
+                  themeColors.surface ||
+                  '#FFFFFF',
+              },
+            ]}
+          >
+            <View
+              style={styles.sheetHandle}
+            />
+
+            <View
+              style={styles.mapHeader}
+            >
+              <View
+                style={styles.mapHeaderLeft}
+              >
+                <View
+                  style={[
+                    styles.mapHeaderIcon,
+                    {
+                      backgroundColor: `${GREEN}18`,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="location"
+                    size={22}
+                    color={GREEN}
+                  />
+                </View>
+
+                <View
+                  style={
+                    styles.mapHeaderTextContainer
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.mapTitle,
+                      {
+                        color:
+                          themeColors.text,
+                      },
+                    ]}
+                  >
+                    Votre position
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.mapSubtitle,
+                      {
+                        color:
+                          themeColors
+                            .textSecondary,
+                      },
+                    ]}
+                  >
+                    Déplacez la carte ou recherchez une adresse
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[
+                  styles.closeMapButton,
+                  {
+                    backgroundColor:
+                      themeColors.background,
+                  },
+                ]}
+                onPress={() => {
+                  setShowMapModal(false);
+                  setSearchResult(null);
+                }}
+              >
+                <Ionicons
+                  name="close"
+                  size={21}
+                  color={
+                    themeColors.text
+                  }
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View
+              style={
+                styles.mapSearchSection
+              }
+            >
+              <View
+                style={[
+                  styles.mapSearchBox,
+                  {
+                    backgroundColor:
+                      themeColors.background,
+                    borderColor:
+                      themeColors.border ||
+                      '#E5E7EB',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="search-outline"
+                  size={20}
+                  color={
+                    themeColors
+                      .textSecondary
+                  }
+                />
+
+                <TextInput
+                  style={[
+                    styles.mapSearchInput,
+                    {
+                      color:
+                        themeColors.text,
+                    },
+                  ]}
+                  value={
+                    addressSearchQuery
+                  }
+                  onChangeText={
+                    setAddressSearchQuery
+                  }
+                  placeholder="Rechercher une adresse..."
+                  placeholderTextColor={
+                    themeColors
+                      .textSecondary
+                  }
+                  returnKeyType="search"
+                  onSubmitEditing={
+                    handleLocationSearch
+                  }
+                  autoCorrect={false}
+                />
+
+                {addressSearchQuery.length >
+                  0 && (
+                  <TouchableOpacity
+                    onPress={() =>
+                      setAddressSearchQuery(
+                        ''
+                      )
+                    }
+                  >
+                    <Ionicons
+                      name="close-circle"
+                      size={19}
+                      color={
+                        themeColors
+                          .textSecondary
+                      }
+                    />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TouchableOpacity                style={
+                  styles.searchActionButton
+                }
+                onPress={
+                  handleLocationSearch
+                }
+                disabled={
+                  isSearchingAddress
+                }
+                activeOpacity={0.8}
+              >
+                {isSearchingAddress ? (
+                  <ActivityIndicator
+                    color="#FFFFFF"
+                    size="small"
                   />
                 ) : (
-                  <View style={styles.avatarPlaceholder}>
-                    <Text style={styles.avatarText}>{user?.fullname?.charAt(0) || 'T'}</Text>
-                  </View>
-                )}
-                {isUploading ? (
-                  <View style={styles.avatarOverlay}>
-                    <ActivityIndicator size="small" color="#fff" />
-                  </View>
-                ) : (
-                  <View style={styles.avatarEdit}>
-                    <Ionicons name="camera" size={16} color="#fff" />
-                  </View>
+                  <Ionicons
+                    name="search"
+                    size={19}
+                    color="#FFFFFF"
+                  />
                 )}
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.userName}>{user?.fullname || 'Thérapeute'}</Text>
-
-            {/* ✅ Statut dynamique selon verification_status */}
-            <View style={[
-              styles.userBadge,
-              { backgroundColor: 
-                user?.verification_status === 'approved' ? '#4CAF50' :
-                user?.verification_status === 'pending' ? '#FF9800' :
-                user?.verification_status === 'rejected' ? '#F44336' : '#999'
+            <TouchableOpacity
+              style={[
+                styles.currentLocationButton,
+                {
+                  backgroundColor: `${GREEN}12`,
+                  borderColor: `${GREEN}35`,
+                },
+              ]}
+              onPress={
+                getCurrentLocation
               }
-            ]}>
-              <Text style={styles.userBadgeText}>
-                {user?.verification_status === 'approved' ? '✅ Vérifié' :
-                 user?.verification_status === 'pending' ? '⏳ En attente' :
-                 user?.verification_status === 'rejected' ? '❌ Rejeté' : 'Statut inconnu'}
+              disabled={
+                isLoadingLocation
+              }
+              activeOpacity={0.8}
+            >
+              <View
+                style={
+                  styles.currentLocationIcon
+                }
+              >
+                {isLoadingLocation ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={GREEN}
+                  />
+                ) : (
+                  <Ionicons
+                    name="navigate"
+                    size={18}
+                    color={GREEN}
+                  />
+                )}
+              </View>
+
+              <View
+                style={{ flex: 1 }}
+              >
+                <Text
+                  style={[
+                    styles.currentLocationTitle,
+                    {
+                      color:
+                        themeColors.text,
+                    },
+                  ]}
+                >
+                  Utiliser ma position actuelle
+                </Text>
+
+                <Text
+                  style={[
+                    styles.currentLocationSubtitle,
+                    {
+                      color:
+                        themeColors
+                          .textSecondary,
+                    },
+                  ]}
+                >
+                  Localisation GPS de votre téléphone
+                </Text>
+              </View>
+
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={GREEN}
+              />
+            </TouchableOpacity>
+
+            <View
+              style={styles.mapWrapper}
+            >
+              <MapViewWrapper
+                ref={mapRef}
+                style={styles.map}
+                region={mapRegion}
+                initialRegion={
+                  mapRegion
+                }
+                markers={markers}
+                selectionMarker={
+                  selectionMarker
+                }
+                onMapPress={
+                  handleMapPress
+                }
+                onSelectionDragEnd={
+                  handleMapPress
+                }
+                showUserLocation
+                trackUserLocation={
+                  false
+                }
+                showMapTypeControl
+                fitToMarkersOnLoad={
+                  false
+                }
+                onMapReady={() =>
+                  console.log(
+                    'Map ready'
+                  )
+                }
+              />
+
+              {hasSelectedLocation && (
+                <View
+                  pointerEvents="none"
+                  style={
+                    styles.centerMarkerOverlay
+                  }
+                >
+                  <View
+                    style={
+                      styles.markerShadow
+                    }
+                  />
+
+                  <View
+                    style={[
+                      styles.greenMarker,
+                      {
+                        backgroundColor:
+                          GREEN,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="location"
+                      size={25}
+                      color="#FFFFFF"
+                    />
+                  </View>
+                </View>
+              )}
+
+              {isLoadingLocation && (
+                <View
+                  style={
+                    styles.mapLoadingOverlay
+                  }
+                >
+                  <View
+                    style={[
+                      styles.mapLoadingCard,
+                      {
+                        backgroundColor:
+                          themeColors.surface,
+                      },
+                    ]}
+                  >
+                    <ActivityIndicator
+                      size="small"
+                      color={GREEN}
+                    />
+
+                    <Text
+                      style={[
+                        styles.mapLoadingText,
+                        {
+                          color:
+                            themeColors.text,
+                        },
+                      ]}
+                    >
+                      Localisation...
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              <View
+                style={
+                  styles.mapInstruction
+                }
+              >
+                <Ionicons
+                  name="hand-left-outline"
+                  size={15}
+                  color="#FFFFFF"
+                />
+
+                <Text
+                  style={
+                    styles.mapInstructionText
+                  }
+                >
+                  Appuyez sur la carte pour choisir
+                </Text>
+              </View>
+            </View>
+
+            {hasSelectedLocation && (
+              <View
+                style={[
+                  styles.selectedLocationCard,
+                  {
+                    backgroundColor:
+                      themeColors.background,
+                    borderColor: `${GREEN}40`,
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.selectedLocationIcon,
+                    {
+                      backgroundColor: `${GREEN}15`,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={21}
+                    color={GREEN}
+                  />
+                </View>
+
+                <View
+                  style={
+                    styles.selectedLocationContent
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.selectedLocationLabel,
+                      {
+                        color:
+                          themeColors
+                            .textSecondary,
+                      },
+                    ]}
+                  >
+                    POSITION SÉLECTIONNÉE
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.selectedLocationAddress,
+                      {
+                        color:
+                          themeColors.text,
+                      },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {selectedLocation.address ||
+                      'Position sélectionnée sur la carte'}
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.selectedLocationCoords,
+                      {
+                        color:
+                          themeColors
+                            .textSecondary,
+                      },
+                    ]}
+                  >
+                    {Number(
+                      selectedLocation.latitude
+                    ).toFixed(6)}{' '}
+                    •{' '}
+                    {Number(
+                      selectedLocation.longitude
+                    ).toFixed(6)}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View
+              style={[
+                styles.mapBottomActions,
+                {
+                  backgroundColor:
+                    themeColors.surface,
+                },
+              ]}
+            >
+              <TouchableOpacity
+                style={[
+                  styles.mapCancelButton,
+                  {
+                    backgroundColor:
+                      themeColors.background,
+                    borderColor:
+                      themeColors.border ||
+                      '#E5E7EB',
+                  },
+                ]}
+                onPress={() => {
+                  setShowMapModal(false);
+                  setSearchResult(null);
+
+                  showToast(
+                    'info',
+                    'Modification annulée',
+                    'La position actuelle n’a pas été modifiée.'
+                  );
+                }}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.mapCancelText,
+                    {
+                      color:
+                        themeColors.text,
+                    },
+                  ]}
+                >
+                  Annuler
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.mapConfirmButton,
+                  !hasSelectedLocation &&
+                    styles.mapConfirmButtonDisabled,
+                ]}
+                onPress={
+                  validateLocation
+                }
+                disabled={
+                  !hasSelectedLocation
+                }
+                activeOpacity={0.85}
+              >
+                <Ionicons
+                  name="checkmark-circle"
+                  size={21}
+                  color="#FFFFFF"
+                />
+
+                <Text
+                  style={
+                    styles.mapConfirmText
+                  }
+                >
+                  Valider la position
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
+  // ==========================================================
+  // MAIN RENDER
+  // ==========================================================
+
+  return (
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor:
+            themeColors.background,
+        },
+      ]}
+    >
+      <Header title="Profil" />
+
+      <Animated.ScrollView
+        style={{
+          opacity: fadeAnim,
+        }}
+        showsVerticalScrollIndicator={
+          false
+        }
+        contentContainerStyle={
+          styles.scrollContent
+        }
+      >
+        {/* ======================================================
+            PROFILE HERO
+        ====================================================== */}
+
+        <Animatable.View
+          animation="fadeInDown"
+          duration={550}
+          style={styles.heroContainer}
+        >
+          <LinearGradient
+            colors={[
+              BLUE,
+              colors.primaryLight ||
+                '#1A4FB5',
+            ]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.hero}
+          >
+            <View
+              style={
+                styles.heroDecorationOne
+              }
+            />
+
+            <View
+              style={
+                styles.heroDecorationTwo
+              }
+            />
+
+            <TouchableOpacity
+              onPress={
+                handleUploadPhoto
+              }
+              disabled={isUploading}
+              activeOpacity={0.85}
+              style={
+                styles.avatarTouchable
+              }
+            >
+              {user?.profile_image ? (
+                <Image
+                  key={`profile-${forceRefresh}`}
+                  source={{
+                    uri: user.profile_image,
+                  }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View
+                  style={
+                    styles.avatarPlaceholder
+                  }
+                >
+                  <Text
+                    style={
+                      styles.avatarText
+                    }
+                  >
+                    {getInitials(
+                      user?.fullname
+                    )}
+                  </Text>
+                </View>
+              )}
+
+              <View
+                style={
+                  styles.avatarCamera
+                }
+              >
+                {isUploading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color="#FFFFFF"
+                  />
+                ) : (
+                  <Ionicons
+                    name="camera"
+                    size={16}
+                    color="#FFFFFF"
+                  />
+                )}
+              </View>
+            </TouchableOpacity>
+
+            <Text
+              style={styles.heroName}
+            >
+              {user?.fullname ||
+                'Thérapeute'}
+            </Text>
+
+            <View
+              style={[
+                styles.verificationBadge,
+                {
+                  backgroundColor:
+                    user?.verification_status === 'approved'
+                      ? GREEN
+                      : user?.verification_status === 'pending'
+                      ? ORANGE
+                      : user?.verification_status === 'rejected'
+                      ? RED
+                      : 'rgba(255,255,255,0.25)',
+                },
+              ]}
+            >
+              <Ionicons
+                name={
+                  user?.verification_status === 'approved'
+                    ? 'checkmark-circle'
+                    : user?.verification_status === 'pending'
+                    ? 'time-outline'
+                    : user?.verification_status === 'rejected'
+                    ? 'close-circle'
+                    : 'help-circle-outline'
+                }
+                size={13}
+                color="#FFFFFF"
+              />
+
+              <Text style={styles.verificationBadgeText}>
+                {user?.verification_status === 'approved'
+                  ? 'Vérifié'
+                  : user?.verification_status === 'pending'
+                  ? 'En attente de vérification'
+                  : user?.verification_status === 'rejected'
+                  ? 'Rejeté'
+                  : 'Statut inconnu'}
               </Text>
             </View>
 
-            <Text style={styles.userEmail}>{user?.email}</Text>
+            <View
+              style={styles.emailBadge}
+            >
+              <Ionicons
+                name="mail-outline"
+                size={14}
+                color="#FFFFFF"
+              />
 
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{user?.rating || 0}</Text>
-                <Text style={styles.statLabel}>Note ⭐</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{user?.total_reviews || 0}</Text>
-                <Text style={styles.statLabel}>Avis</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{user?.experience_years || 0} ans</Text>
-                <Text style={styles.statLabel}>Expérience</Text>
-              </View>
+              <Text
+                style={styles.heroEmail}
+              >
+                {user?.email || ''}
+              </Text>
+            </View>
+
+            <View
+              style={styles.statsRow}
+            >
+              {stats.map(
+                (stat, index) => (
+                  <React.Fragment
+                    key={stat.label}
+                  >
+                    <View
+                      style={
+                        styles.statBox
+                      }
+                    >
+                      <View
+                        style={
+                          styles.statIcon
+                        }
+                      >
+                        <Ionicons
+                          name={stat.icon}
+                          size={15}
+                          color="#FFFFFF"
+                        />
+                      </View>
+
+                      <Text
+                        style={
+                          styles.statValue
+                        }
+                      >
+                        {stat.value}
+                      </Text>
+
+                      <Text
+                        style={
+                          styles.statLabel
+                        }
+                      >
+                        {stat.label}
+                      </Text>
+                    </View>
+
+                    {index <
+                      stats.length -
+                        1 && (
+                      <View
+                        style={
+                          styles.statSeparator
+                        }
+                      />
+                    )}
+                  </React.Fragment>
+                )
+              )}
             </View>
           </LinearGradient>
-        </View>
+        </Animatable.View>
 
-        {/* ✅ AFFICHAGE DU CERTIFICATE CARD */}
+        {/* ✅ CARTE DU CERTIFICAT (statut de vérification du compte) */}
         <CertificateCard />
 
-        {/* Informations du profil */}
-        <Animatable.View animation="fadeInUp" delay={200} duration={600}>
-          <View style={[styles.infoCard, { backgroundColor: themeColors.surface }]}>
-            <View style={styles.infoHeader}>
-              <Text style={[styles.infoTitle, { color: themeColors.text }]}>
-                Informations professionnelles
-              </Text>
-              <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
-                <Text style={styles.editButton}>{isEditing ? 'Annuler' : 'Modifier'}</Text>
+        {/* ======================================================
+            PERSONAL INFORMATION
+        ====================================================== */}
+
+        <Animatable.View
+          animation="fadeInUp"
+          delay={100}
+          duration={500}
+          style={
+            styles.sectionContainer
+          }
+        >
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor:
+                  themeColors.surface,
+              },
+            ]}
+          >
+            <View
+              style={styles.sectionHeader}
+            >
+              <View
+                style={
+                  styles.sectionHeaderLeft
+                }
+              >
+                <View
+                  style={[
+                    styles.sectionIcon,
+                    {
+                      backgroundColor: `${BLUE}12`,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="briefcase-outline"
+                    size={20}
+                    color={BLUE}
+                  />
+                </View>
+
+                <View>
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      {
+                        color:
+                          themeColors.text,
+                      },
+                    ]}
+                  >
+                    Informations professionnelles
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.sectionSubtitle,
+                      {
+                        color:
+                          themeColors
+                            .textSecondary,
+                      },
+                    ]}
+                  >
+                    Gérez votre profil de thérapeute
+                  </Text>
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={
+                  styles.editAction
+                }
+                onPress={() => {
+                  setIsEditing(
+                    !isEditing
+                  );
+
+                  showToast(
+                    'info',
+                    isEditing
+                      ? 'Modification annulée'
+                      : 'Mode modification',
+                    isEditing
+                      ? 'Vos modifications non enregistrées ont été annulées.'
+                      : 'Vous pouvez maintenant modifier vos informations.'
+                  );
+                }}
+              >
+                <Ionicons
+                  name={
+                    isEditing
+                      ? 'close-outline'
+                      : 'create-outline'
+                  }
+                  size={17}
+                  color={BLUE}
+                />
+
+                <Text
+                  style={
+                    styles.editActionText
+                  }
+                >
+                  {isEditing
+                    ? 'Annuler'
+                    : 'Modifier'}
+                </Text>
               </TouchableOpacity>
             </View>
 
             {isEditing ? (
-              // ✅ SECTION D'ÉDITION - TOUS LES CHAMPS (AVEC CIN)
               <View>
-                {/* Nom complet */}
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: themeColors.text }]}>Nom complet</Text>
-                  <TextInput
+                <View
+                  style={styles.inputGroup}
+                >
+                  <Text
                     style={[
-                      styles.input,
+                      styles.inputLabel,
                       {
-                        color: themeColors.text,
-                        borderColor: themeColors.border || '#E0E0E0',
+                        color:
+                          themeColors.text,
                       },
                     ]}
-                    value={profileData.fullname}
-                    onChangeText={(text) => setProfileData({ ...profileData, fullname: text })}
-                  />
-                </View>
+                  >
+                    Nom complet
+                  </Text>
 
-                {/* Téléphone */}
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: themeColors.text }]}>Téléphone</Text>
-                  <TextInput
+                  <View
                     style={[
-                      styles.input,
+                      styles.inputWrapper,
                       {
-                        color: themeColors.text,
-                        borderColor: themeColors.border || '#E0E0E0',
+                        backgroundColor:
+                          themeColors.background,
+                        borderColor:
+                          themeColors.border ||
+                          '#E5E7EB',
                       },
                     ]}
-                    value={profileData.phone}
-                    onChangeText={(text) => setProfileData({ ...profileData, phone: text })}
-                    keyboardType="phone-pad"
-                  />
+                  >
+                    <Ionicons
+                      name="person-outline"
+                      size={19}
+                      color={
+                        themeColors
+                          .textSecondary
+                      }
+                    />
+
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          color:
+                            themeColors.text,
+                        },
+                      ]}
+                      value={
+                        profileData.fullname
+                      }
+                      onChangeText={(
+                        text
+                      ) =>
+                        setProfileData(
+                          (
+                            previous
+                          ) => ({
+                            ...previous,
+                            fullname:
+                              text,
+                          })
+                        )
+                      }
+                      placeholder="Votre nom complet"
+                      placeholderTextColor={
+                        themeColors
+                          .textSecondary
+                      }
+                    />
+                  </View>
                 </View>
 
-                {/* Bio */}
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: themeColors.text }]}>Bio</Text>
-                  <TextInput
+                <View
+                  style={styles.inputGroup}
+                >
+                  <Text
                     style={[
-                      styles.input,
-                      styles.bioInput,
+                      styles.inputLabel,
                       {
-                        color: themeColors.text,
-                        borderColor: themeColors.border || '#E0E0E0',
+                        color:
+                          themeColors.text,
                       },
                     ]}
-                    value={profileData.bio}
-                    onChangeText={(text) => setProfileData({ ...profileData, bio: text })}
-                    multiline
-                    numberOfLines={3}
-                  />
+                  >
+                    Adresse e-mail
+                  </Text>
+
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      styles.disabledInput,
+                      {
+                        backgroundColor:
+                          themeColors.background,
+                        borderColor:
+                          themeColors.border ||
+                          '#E5E7EB',
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="mail-outline"
+                      size={19}
+                      color={
+                        themeColors
+                          .textSecondary
+                      }
+                    />
+
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          color:
+                            themeColors
+                              .textSecondary,
+                        },
+                      ]}
+                      value={
+                        profileData.email
+                      }
+                      editable={false}
+                    />
+
+                    <Ionicons
+                      name="lock-closed-outline"
+                      size={15}
+                      color={
+                        themeColors
+                          .textSecondary
+                      }
+                    />
+                  </View>
                 </View>
 
-                {/* Années d'expérience et Prix de base */}
-                <View style={styles.rowInputs}>
-                  <View style={[styles.rowInput, styles.halfInput]}>
-                    <Text style={[styles.inputLabel, { color: themeColors.text }]}>
+                <View
+                  style={styles.inputGroup}
+                >
+                  <Text
+                    style={[
+                      styles.inputLabel,
+                      {
+                        color:
+                          themeColors.text,
+                      },
+                    ]}
+                  >
+                    Téléphone
+                  </Text>
+
+                  <View
+                    style={[
+                      styles.inputWrapper,
+                      {
+                        backgroundColor:
+                          themeColors.background,
+                        borderColor:
+                          themeColors.border ||
+                          '#E5E7EB',
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="call-outline"
+                      size={19}
+                      color={
+                        themeColors
+                          .textSecondary
+                      }
+                    />
+
+                    <TextInput
+                      style={[
+                        styles.input,
+                        {
+                          color:
+                            themeColors.text,
+                        },
+                      ]}
+                      value={
+                        profileData.phone
+                      }
+                      onChangeText={(
+                        text
+                      ) =>
+                        setProfileData(
+                          (
+                            previous
+                          ) => ({
+                            ...previous,
+                            phone: text,
+                          })
+                        )
+                      }
+                      keyboardType="phone-pad"
+                      placeholder="Votre numéro"
+                      placeholderTextColor={
+                        themeColors
+                          .textSecondary
+                      }
+                    />
+                  </View>
+                </View>
+
+                <View
+                  style={styles.inputGroup}
+                >
+                  <Text
+                    style={[
+                      styles.inputLabel,
+                      {
+                        color:
+                          themeColors.text,
+                      },
+                    ]}
+                  >
+                    À propos de moi
+                  </Text>
+
+                  <View
+                    style={[
+                      styles.bioWrapper,
+                      {
+                        backgroundColor:
+                          themeColors.background,
+                        borderColor:
+                          themeColors.border ||
+                          '#E5E7EB',
+                      },
+                    ]}
+                  >
+                    <TextInput
+                      style={[
+                        styles.bioInput,
+                        {
+                          color:
+                            themeColors.text,
+                        },
+                      ]}
+                      value={
+                        profileData.bio
+                      }
+                      onChangeText={(
+                        text
+                      ) =>
+                        setProfileData(
+                          (
+                            previous
+                          ) => ({
+                            ...previous,
+                            bio: text,
+                          })
+                        )
+                      }
+                      multiline
+                      numberOfLines={4}
+                      textAlignVertical="top"
+                      placeholder="Présentez-vous en quelques mots..."
+                      placeholderTextColor={
+                        themeColors
+                          .textSecondary
+                      }
+                    />
+                  </View>
+                </View>
+
+                <View
+                  style={styles.rowInputs}
+                >
+                  <View
+                    style={[
+                      styles.inputGroup,
+                      styles.rowInputHalf,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color:
+                            themeColors.text,
+                        },
+                      ]}
+                    >
                       Années d'expérience
                     </Text>
-                    <TextInput
+
+                    <View
                       style={[
-                        styles.input,
+                        styles.inputWrapper,
                         {
-                          color: themeColors.text,
-                          borderColor: themeColors.border || '#E0E0E0',
+                          backgroundColor:
+                            themeColors.background,
+                          borderColor:
+                            themeColors.border ||
+                            '#E5E7EB',
                         },
                       ]}
-                      value={profileData.experience_years.toString()}
-                      onChangeText={(text) =>
-                        setProfileData({ ...profileData, experience_years: parseInt(text) || 0 })
-                      }
-                      keyboardType="numeric"
-                    />
+                    >
+                      <Ionicons
+                        name="briefcase-outline"
+                        size={19}
+                        color={
+                          themeColors
+                            .textSecondary
+                        }
+                      />
+
+                      <TextInput
+                        style={[
+                          styles.input,
+                          {
+                            color:
+                              themeColors.text,
+                          },
+                        ]}
+                        value={String(
+                          profileData.experience_years ??
+                            0
+                        )}
+                        onChangeText={(
+                          text
+                        ) =>
+                          setProfileData(
+                            (
+                              previous
+                            ) => ({
+                              ...previous,
+                              experience_years:
+                                parseInt(
+                                  text
+                                ) || 0,
+                            })
+                          )
+                        }
+                        keyboardType="numeric"
+                        placeholder="0"
+                        placeholderTextColor={
+                          themeColors
+                            .textSecondary
+                        }
+                      />
+                    </View>
                   </View>
-                  <View style={[styles.rowInput, styles.halfInput]}>
-                    <Text style={[styles.inputLabel, { color: themeColors.text }]}>Prix de base (Ar)</Text>
-                    <TextInput
+
+                  <View
+                    style={[
+                      styles.inputGroup,
+                      styles.rowInputHalf,
+                    ]}
+                  >
+                    <Text
                       style={[
-                        styles.input,
+                        styles.inputLabel,
                         {
-                          color: themeColors.text,
-                          borderColor: themeColors.border || '#E0E0E0',
+                          color:
+                            themeColors.text,
                         },
                       ]}
-                      value={profileData.base_price.toString()}
-                      onChangeText={(text) =>
-                        setProfileData({ ...profileData, base_price: parseInt(text) || 0 })
-                      }
-                      keyboardType="numeric"
-                    />
+                    >
+                      Prix de base (Ar)
+                    </Text>
+
+                    <View
+                      style={[
+                        styles.inputWrapper,
+                        {
+                          backgroundColor:
+                            themeColors.background,
+                          borderColor:
+                            themeColors.border ||
+                            '#E5E7EB',
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="cash-outline"
+                        size={19}
+                        color={
+                          themeColors
+                            .textSecondary
+                        }
+                      />
+
+                      <TextInput
+                        style={[
+                          styles.input,
+                          {
+                            color:
+                              themeColors.text,
+                          },
+                        ]}
+                        value={String(
+                          profileData.base_price ??
+                            0
+                        )}
+                        onChangeText={(
+                          text
+                        ) =>
+                          setProfileData(
+                            (
+                              previous
+                            ) => ({
+                              ...previous,
+                              base_price:
+                                parseInt(
+                                  text
+                                ) || 0,
+                            })
+                          )
+                        }
+                        keyboardType="numeric"
+                        placeholder="0"
+                        placeholderTextColor={
+                          themeColors
+                            .textSecondary
+                        }
+                      />
+                    </View>
                   </View>
                 </View>
 
-                {/* Adresse et position */}
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: themeColors.text }]}>📍 Adresse et position</Text>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.locationSelector,
-                      {
-                        borderColor: themeColors.border || '#E0E0E0',
-                        backgroundColor: themeColors.background,
-                      },
-                    ]}
-                    onPress={() => setShowMapModal(true)}
+                <View
+                  style={styles.inputGroup}
+                >
+                  <View
+                    style={
+                      styles.locationLabelRow
+                    }
                   >
-                    {profileData.latitude && profileData.longitude ? (
-                      <View style={styles.locationInfo}>
-                        <View style={styles.locationStatus}>
-                          <Ionicons name="checkmark-circle" size={18} color="#4CAF50" />
-                          <Text style={[styles.locationStatusText, { color: '#4CAF50' }]}>
-                            Position définie
-                          </Text>
-                        </View>
-                        {profileData.address && (
-                          <Text style={[styles.locationAddress, { color: themeColors.text }]} numberOfLines={2}>
-                            📍 {profileData.address}
-                          </Text>
-                        )}
-                        <Text style={[styles.locationCoords, { color: themeColors.textSecondary }]}>
-                          {profileData.latitude.toFixed(6)}, {profileData.longitude.toFixed(6)}
-                        </Text>
-                        {profileData.distance != null && (
-                          <Text style={[styles.locationCoords, { color: themeColors.textSecondary }]}>
-                            📏 {profileData.distance} km de votre position actuelle
-                          </Text>
-                        )}
-                      </View>
-                    ) : (
-                      <View style={styles.locationPlaceholder}>
-                        <Ionicons name="location-outline" size={24} color={themeColors.textSecondary} />
-                        <Text style={[styles.locationPlaceholderText, { color: themeColors.textSecondary }]}>
-                          Cliquez pour définir votre position sur la carte
+                    <Text
+                      style={[
+                        styles.inputLabel,
+                        {
+                          color:
+                            themeColors.text,
+                        },
+                      ]}
+                    >
+                      Adresse
+                    </Text>
+
+                    {hasLocation && (
+                      <View
+                        style={
+                          styles.locationBadge
+                        }
+                      >
+                        <View
+                          style={
+                            styles.locationDot
+                          }
+                        />
+
+                        <Text
+                          style={
+                            styles.locationBadgeText
+                          }
+                        >
+                          Définie
                         </Text>
                       </View>
                     )}
-                    <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.locationCard,
+                      {
+                        backgroundColor:
+                          themeColors.background,
+                        borderColor:
+                          hasLocation
+                            ? `${GREEN}45`
+                            : themeColors.border ||
+                              '#E5E7EB',
+                      },
+                    ]}
+                    onPress={
+                      openMapModal
+                    }
+                    activeOpacity={0.85}
+                  >
+                    <View
+                      style={[
+                        styles.locationCardIcon,
+                        {
+                          backgroundColor:
+                            hasLocation
+                              ? `${GREEN}15`
+                              : `${BLUE}12`,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="location-outline"
+                        size={22}
+                        color={
+                          hasLocation
+                            ? GREEN
+                            : BLUE
+                        }
+                      />
+                    </View>
+
+                    <View
+                      style={
+                        styles.locationCardContent
+                      }
+                    >
+                      <Text
+                        style={[
+                          styles.locationCardTitle,
+                          {
+                            color:
+                              themeColors.text,
+                          },
+                        ]}
+                      >
+                        {hasLocation
+                          ? 'Position enregistrée'
+                          : 'Ajouter votre position'}
+                      </Text>
+
+                      <Text
+                        style={[
+                          styles.locationCardAddress,
+                          {
+                            color:
+                              themeColors
+                                .textSecondary,
+                          },
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {profileData.address ||
+                          'Sélectionnez votre adresse sur la carte'}
+                      </Text>
+
+                      {hasLocation && (
+                        <Text
+                          style={[
+                            styles.locationCardCoords,
+                            {
+                              color:
+                                themeColors
+                                  .textSecondary,
+                            },
+                          ]}
+                        >
+                          {Number(
+                            profileData.latitude
+                          ).toFixed(6)}{' '}
+                          •{' '}
+                          {Number(
+                            profileData.longitude
+                          ).toFixed(6)}
+                        </Text>
+                      )}
+
+                      {profileData.distance !=
+                        null && (
+                        <Text
+                          style={[
+                            styles.locationCardCoords,
+                            {
+                              color:
+                                themeColors
+                                  .textSecondary,
+                            },
+                          ]}
+                        >
+                          📏{' '}
+                          {
+                            profileData.distance
+                          }{' '}
+                          km de votre position actuelle
+                        </Text>
+                      )}
+                    </View>
+
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color={
+                        themeColors
+                          .textSecondary
+                      }
+                    />
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.mapPreviewButton} onPress={() => setShowMapModal(true)}>
+                  <TouchableOpacity
+                    style={
+                      styles.openMapButton
+                    }
+                    onPress={
+                      openMapModal
+                    }
+                    activeOpacity={0.85}
+                  >
                     <LinearGradient
-                      colors={[colors.primary, colors.primaryLight || colors.primary]}
-                      style={styles.mapPreviewGradient}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
+                      colors={[
+                        BLUE,
+                        colors.primaryLight ||
+                          '#1A4FB5',
+                      ]}
+                      start={{
+                        x: 0,
+                        y: 0,
+                      }}
+                      end={{
+                        x: 1,
+                        y: 0,
+                      }}
+                      style={
+                        styles.openMapGradient
+                      }
                     >
-                      <Ionicons name="map-outline" size={18} color="#fff" />
-                      <Text style={styles.mapPreviewText}>
-                        {profileData.latitude ? '📌 Modifier la position' : '🗺️ Ouvrir la carte'}
+                      <Ionicons
+                        name="map-outline"
+                        size={19}
+                        color="#FFFFFF"
+                      />
+
+                      <Text
+                        style={
+                          styles.openMapText
+                        }
+                      >
+                        {hasLocation
+                          ? 'Modifier ma position'
+                          : 'Choisir sur la carte'}
                       </Text>
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>
 
-                {/* ✅ NOUVEAU : SECTION CIN */}
-                <CinSection
-                  cinNumber={profileData.cin_number}
-                  onChangeCinNumber={(text) => setProfileData({ ...profileData, cin_number: text })}
-                  cinImageUrl={profileData.identity_document_url || user?.identity_document_url}
-                  onCinImageUploaded={(url) => setProfileData({ ...profileData, identity_document_url: url })}
-                  themeColors={themeColors}
-                />
+                {/* ✅ SECTION CIN */}
+                <View
+                  style={styles.inputGroup}
+                >
+                  <CinSection
+                    cinNumber={
+                      profileData.cin_number
+                    }
+                    onChangeCinNumber={(
+                      text
+                    ) =>
+                      setProfileData(
+                        (previous) => ({
+                          ...previous,
+                          cin_number: text,
+                        })
+                      )
+                    }
+                    cinImageUrl={
+                      profileData.identity_document_url ||
+                      user?.identity_document_url
+                    }
+                    onCinImageUploaded={(
+                      url
+                    ) =>
+                      setProfileData(
+                        (previous) => ({
+                          ...previous,
+                          identity_document_url:
+                            url,
+                        })
+                      )
+                    }
+                    themeColors={
+                      themeColors
+                    }
+                  />
+                </View>
 
-                {/* ✅ NOUVEAU : SECTION CERTIFICAT PROFESSIONNEL */}
-                <CertificateProfessionnelSection
-                  certificateUrl={profileData.certificate_professionnel || user?.certificate_professionnel}
-                  onCertificateUploaded={(url) =>
-                    setProfileData({ ...profileData, certificate_professionnel: url })
-                  }
-                  themeColors={themeColors}
-                />
+                {/* ✅ SECTION CERTIFICAT PROFESSIONNEL */}
+                <View
+                  style={styles.inputGroup}
+                >
+                  <CertificateProfessionnelSection
+                    certificateUrl={
+                      profileData.certificate_professionnel ||
+                      user?.certificate_professionnel
+                    }
+                    onCertificateUploaded={(
+                      url
+                    ) =>
+                      setProfileData(
+                        (previous) => ({
+                          ...previous,
+                          certificate_professionnel:
+                            url,
+                        })
+                      )
+                    }
+                    themeColors={
+                      themeColors
+                    }
+                  />
+                </View>
+
+                {/* ✅ SECTION SPÉCIALITÉS */}
+                <View
+                  style={styles.inputGroup}
+                >
+                  <SpecialtiesSelector
+                    initialSpecialties={mySpecialtyIdsInitial}
+                    onSpecialtiesChange={handleSpecialtiesChange}
+                    themeColors={themeColors}
+                  />
+                </View>
 
                 <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={handleUpdateProfile}
+                  style={
+                    styles.saveButton
+                  }
+                  onPress={
+                    handleUpdateProfile
+                  }
                   disabled={isLoading}
+                  activeOpacity={0.85}
                 >
                   <LinearGradient
-                    colors={[colors.primary, colors.primaryLight || colors.primary]}
-                    style={styles.saveGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
+                    colors={[
+                      GREEN_DARK,
+                      GREEN,
+                    ]}
+                    start={{
+                      x: 0,
+                      y: 0,
+                    }}
+                    end={{
+                      x: 1,
+                      y: 0,
+                    }}
+                    style={
+                      styles.saveGradient
+                    }
                   >
                     {isLoading ? (
-                      <ActivityIndicator color="#fff" size="small" />
+                      <ActivityIndicator
+                        color="#FFFFFF"
+                      />
                     ) : (
-                      <Text style={styles.saveText}>💾 Enregistrer</Text>
+                      <>
+                        <Ionicons
+                          name="checkmark-circle-outline"
+                          size={21}
+                          color="#FFFFFF"
+                        />
+
+                        <Text
+                          style={
+                            styles.saveText
+                          }
+                        >
+                          Enregistrer les modifications
+                        </Text>
+                      </>
                     )}
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
             ) : (
-              // ✅ AFFICHAGE DES INFORMATIONS (Mode lecture)
               <View>
-                <View style={styles.infoRow}>
-                  <Ionicons name="person-outline" size={20} color={themeColors.textSecondary} />
-                  <Text style={[styles.infoValue, { color: themeColors.text }]}>{user?.fullname}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Ionicons name="call-outline" size={20} color={themeColors.textSecondary} />
-                  <Text style={[styles.infoValue, { color: themeColors.text }]}>{user?.phone}</Text>
-                </View>
-                {user?.bio && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="text-outline" size={20} color={themeColors.textSecondary} />
-                    <Text style={[styles.infoValue, { color: themeColors.text }]}>{user.bio}</Text>
-                  </View>
-                )}
-                <View style={styles.infoRow}>
-                  <Ionicons name="briefcase-outline" size={20} color={themeColors.textSecondary} />
-                  <Text style={[styles.infoValue, { color: themeColors.text }]}>
-                    {user?.experience_years || 0} ans d'expérience
-                  </Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Ionicons name="cash-outline" size={20} color={themeColors.textSecondary} />
-                  <Text style={[styles.infoValue, { color: colors.primary }]}>
-                    {user?.base_price?.toLocaleString() || 0} Ar / séance
-                  </Text>
-                </View>
-                {user?.address && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="location-outline" size={20} color={themeColors.textSecondary} />
-                    <Text style={[styles.infoValue, { color: themeColors.text }]}>📍 {user.address}</Text>
-                  </View>
-                )}
-                {user?.latitude && user?.longitude && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="navigate-outline" size={20} color={themeColors.textSecondary} />
-                    <Text style={[styles.infoValue, { color: themeColors.textSecondary, fontSize: 12 }]}>
-                      {user.latitude.toFixed(6)}, {user.longitude.toFixed(6)}
-                    </Text>
-                  </View>
-                )}
-                {/* ✅ NOUVEAU : Affichage du CIN en mode lecture */}
-                {user?.cin_number && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="card-outline" size={20} color={themeColors.textSecondary} />
-                    <Text style={[styles.infoValue, { color: themeColors.text }]}>
-                      {user.cin_number}
-                    </Text>
-                  </View>
-                )}
-                {user?.identity_document_url && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="document-outline" size={20} color={themeColors.textSecondary} />
-                    <Text style={[styles.infoValue, { color: colors.primary, fontSize: 12 }]}>
-                     CIN téléchargé
-                    </Text>
-                  </View>
-                )}
-                {/* ✅ NOUVEAU : Affichage du certificat professionnel en mode lecture */}
-                {user?.certificate_professionnel && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="ribbon-outline" size={20} color={themeColors.textSecondary} />
-                    <Text style={[styles.infoValue, { color: colors.primary, fontSize: 12 }]}>
-                      Certificat professionnel téléchargé
-                    </Text>
-                  </View>
-                )}
+                <ProfileInfoRow
+                  icon="person-outline"
+                  label="Nom complet"
+                  value={
+                    user?.fullname ||
+                    'Non renseigné'
+                  }
+                  themeColors={
+                    themeColors
+                  }
+                />
+
+                <ProfileInfoRow
+                  icon="mail-outline"
+                  label="E-mail"
+                  value={
+                    user?.email ||
+                    'Non renseigné'
+                  }
+                  themeColors={
+                    themeColors
+                  }
+                />
+
+                <ProfileInfoRow
+                  icon="call-outline"
+                  label="Téléphone"
+                  value={
+                    user?.phone ||
+                    'Non renseigné'
+                  }
+                  themeColors={
+                    themeColors
+                  }
+                />
+
+                {user?.bio ? (
+                  <ProfileInfoRow
+                    icon="document-text-outline"
+                    label="À propos"
+                    value={
+                      user.bio
+                    }
+                    themeColors={
+                      themeColors
+                    }
+                  />
+                ) : null}
+
+                <ProfileInfoRow
+                  icon="briefcase-outline"
+                  label="Expérience"
+                  value={`${
+                    user?.experience_years ||
+                    0
+                  } ans`}
+                  themeColors={
+                    themeColors
+                  }
+                />
+
+                <ProfileInfoRow
+                  icon="cash-outline"
+                  label="Prix de base"
+                  value={`${
+                    user?.base_price?.toLocaleString() ||
+                    0
+                  } Ar / séance`}
+                  themeColors={
+                    themeColors
+                  }
+                />
+
+                <ProfileInfoRow
+                  icon="location-outline"
+                  label="Adresse"
+                  value={
+                    user?.address ||
+                    'Aucune position enregistrée'
+                  }
+                  themeColors={
+                    themeColors
+                  }
+                />
+
+                {user?.cin_number ? (
+                  <ProfileInfoRow
+                    icon="card-outline"
+                    label="N° CIN"
+                    value={
+                      user.cin_number
+                    }
+                    themeColors={
+                      themeColors
+                    }
+                  />
+                ) : null}
+
+                {user?.identity_document_url ? (
+                  <ProfileInfoRow
+                    icon="document-outline"
+                    label="Pièce d'identité"
+                    value="CIN téléchargé ✓"
+                    themeColors={
+                      themeColors
+                    }
+                  />
+                ) : null}
+
+                <ProfileInfoRow
+                  icon="ribbon-outline"
+                  label="Certificat professionnel"
+                  value={
+                    user?.certificate_professionnel
+                      ? 'Téléchargé ✓'
+                      : 'Non téléchargé'
+                  }
+                  themeColors={
+                    themeColors
+                  }
+                  last
+                />
+
+                {/* ✅ SPÉCIALITÉS - mode lecture */}
+                <ProfileInfoRow
+                  icon="ribbon-outline"
+                  label="Spécialités"
+                  value={
+                    mySpecialtyIds && mySpecialtyIds.length > 0
+                      ? `${mySpecialtyIds.length} spécialité(s)`
+                      : 'Non défini'
+                  }
+                  themeColors={
+                    themeColors
+                  }
+                  last
+                />
               </View>
             )}
           </View>
         </Animatable.View>
 
-        {/* Menu */}
-        <Animatable.View animation="fadeInUp" delay={400} duration={600}>
-          <View style={[styles.menuCard, { backgroundColor: themeColors.surface }]}>
-            {menuItems.map((item, index) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[
-                  styles.menuItem,
-                  index < menuItems.length - 1 && styles.menuItemBorder,
-                  { borderBottomColor: themeColors.border },
-                ]}
-                onPress={item.onPress}
-              >
-                <View style={styles.menuLeft}>
-                  <Ionicons name={item.icon} size={24} color={colors.primary} />
-                  <Text style={[styles.menuLabel, { color: themeColors.text }]}>{item.label}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
-              </TouchableOpacity>
-            ))}
+        {/* ======================================================
+            SETTINGS
+        ====================================================== */}
 
-            <View style={[styles.menuItem, styles.menuItemBorder, { borderBottomColor: themeColors.border }]}>
-              <View style={styles.menuLeft}>
-                <Ionicons name={isDark ? 'moon' : 'sunny'} size={24} color={colors.primary} />
-                <Text style={[styles.menuLabel, { color: themeColors.text }]}>
-                  Mode {isDark ? 'sombre' : 'clair'}
+        <Animatable.View
+          animation="fadeInUp"
+          delay={200}
+          duration={500}
+          style={
+            styles.sectionContainer
+          }
+        >
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor:
+                  themeColors.surface,
+              },
+            ]}
+          >
+            <View
+              style={
+                styles.simpleSectionHeader
+              }
+            >
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+              >
+                Préférences
+              </Text>
+
+              <Text
+                style={[
+                  styles.sectionSubtitle,
+                  {
+                    color:
+                      themeColors
+                        .textSecondary,
+                  },
+                ]}
+              >
+                Personnalisez votre expérience
+              </Text>
+            </View>
+
+            {menuItems.map(
+              (item, index) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={[
+                    styles.menuItem,
+                    index <
+                      menuItems.length -
+                        1 && {
+                      borderBottomWidth: 1,
+                      borderBottomColor:
+                        themeColors.border ||
+                        '#E5E7EB',
+                    },
+                  ]}
+                  onPress={
+                    item.onPress
+                  }
+                  activeOpacity={0.75}
+                >
+                  <View
+                    style={[
+                      styles.menuIcon,
+                      {
+                        backgroundColor: `${BLUE}10`,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={item.icon}
+                      size={21}
+                      color={BLUE}
+                    />
+                  </View>
+
+                  <View
+                    style={
+                      styles.menuContent
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.menuLabel,
+                        {
+                          color:
+                            themeColors.text,
+                        },
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.menuDescription,
+                        {
+                          color:
+                            themeColors
+                              .textSecondary,
+                        },
+                      ]}
+                    >
+                      {item.description}
+                    </Text>
+                  </View>
+
+                  <Ionicons
+                    name="chevron-forward"
+                    size={19}
+                    color={
+                      themeColors
+                        .textSecondary
+                    }
+                  />
+                </TouchableOpacity>
+              )
+            )}
+
+            <View
+              style={[
+                styles.menuItem,
+                {
+                  paddingBottom: 4,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.menuIcon,
+                  {
+                    backgroundColor:
+                      isDark
+                        ? '#6366F115'
+                        : '#F59E0B15',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={
+                    isDark
+                      ? 'moon-outline'
+                      : 'sunny-outline'
+                  }
+                  size={21}
+                  color={
+                    isDark
+                      ? '#6366F1'
+                      : ORANGE
+                  }
+                />
+              </View>
+
+              <View
+                style={
+                  styles.menuContent
+                }
+              >
+                <Text
+                  style={[
+                    styles.menuLabel,
+                    {
+                      color:
+                        themeColors.text,
+                    },
+                  ]}
+                >
+                  Mode d'affichage
+                </Text>
+
+                <Text
+                  style={[
+                    styles.menuDescription,
+                    {
+                      color:
+                        themeColors
+                          .textSecondary,
+                    },
+                  ]}
+                >
+                  {isDark
+                    ? 'Mode sombre activé'
+                    : 'Mode clair activé'}
                 </Text>
               </View>
+
               <Switch
                 value={isDark}
-                onValueChange={toggleTheme}
-                trackColor={{ false: '#ccc', true: colors.primary }}
-                thumbColor="#fff"
+                onValueChange={() => {
+                  toggleTheme();
+
+                  showToast(
+                    'success',
+                    'Mode d’affichage',
+                    isDark
+                      ? 'Mode clair activé.'
+                      : 'Mode sombre activé.'
+                  );
+                }}
+                trackColor={{
+                  false: '#D1D5DB',
+                  true: BLUE,
+                }}
+                thumbColor="#FFFFFF"
               />
             </View>
           </View>
         </Animatable.View>
 
-        {/* Déconnexion */}
-        <Animatable.View animation="fadeInUp" delay={600} duration={600}>
-          <TouchableOpacity style={styles.logoutButton} onPress={() => setShowLogoutModal(true)}>
+        {/* ======================================================
+            LOGOUT
+        ====================================================== */}
+
+        <Animatable.View
+          animation="fadeInUp"
+          delay={300}
+          duration={500}
+          style={
+            styles.logoutSection
+          }
+        >
+          <TouchableOpacity
+            style={
+              styles.logoutButton
+            }
+            onPress={() =>
+              setShowLogoutModal(
+                true
+              )
+            }
+            activeOpacity={0.8}
+          >
             <LinearGradient
-              colors={['#D32F2F', '#E53935']}
-              style={styles.logoutGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+              colors={[
+                RED,
+                '#C62828',
+              ]}
+              start={{
+                x: 0,
+                y: 0,
+              }}
+              end={{
+                x: 1,
+                y: 0,
+              }}
+              style={
+                styles.logoutGradient
+              }
             >
-              <Ionicons name="log-out-outline" size={20} color="#fff" />
-              <Text style={styles.logoutText}>Se déconnecter</Text>
+              <Ionicons
+                name="log-out-outline"
+                size={20}
+                color="#FFFFFF"
+              />
+
+              <Text
+                style={
+                  styles.logoutText
+                }
+              >
+                Se déconnecter
+              </Text>
             </LinearGradient>
           </TouchableOpacity>
+
+          <Text
+            style={[
+              styles.versionText,
+              {
+                color:
+                  themeColors
+                    .textSecondary,
+              },
+            ]}
+          >
+            Mada Bien-être • Version 1.0.0
+          </Text>
         </Animatable.View>
       </Animated.ScrollView>
 
-      {/* Modal de déconnexion */}
-      {showLogoutModal && (
-        <View style={styles.mapModalOverlayRoot}>
-          <View style={styles.modalOverlay}>
-            <View style={[styles.modalContainer, { backgroundColor: themeColors.surface }]}>
-              <View style={styles.modalHeader}>
-                <Ionicons name="log-out-outline" size={48} color={colors.error} />
-                <Text style={[styles.modalTitle, { color: themeColors.text }]}>Déconnexion</Text>
-              </View>
-              <Text style={[styles.modalText, { color: themeColors.textSecondary }]}>
-                Êtes-vous sûr de vouloir vous déconnecter ?
-              </Text>
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.modalCancel]}
-                  onPress={() => setShowLogoutModal(false)}
-                >
-                  <Text style={styles.modalCancelText}>Annuler</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.modalButton, styles.modalConfirm]} onPress={handleLogout}>
-                  <Text style={styles.modalConfirmText}>Se déconnecter</Text>
-                </TouchableOpacity>
-              </View>
+      {/* ========================================================
+          LOGOUT MODAL
+      ======================================================== */}
+
+      <Modal
+        transparent
+        visible={
+          showLogoutModal
+        }
+        animationType="fade"
+        onRequestClose={() =>
+          setShowLogoutModal(
+            false
+          )
+        }
+      >
+        <Pressable
+          style={
+            styles.modalOverlay
+          }
+          onPress={() =>
+            setShowLogoutModal(
+              false
+            )
+          }
+        >
+          <Pressable
+            style={[
+              styles.logoutModalCard,
+              {
+                backgroundColor:
+                  themeColors.surface,
+              },
+            ]}
+            onPress={() => {}}
+          >
+            <View
+              style={[
+                styles.logoutModalIcon,
+                {
+                  backgroundColor:
+                    `${RED}12`,
+                },
+              ]}
+            >
+              <Ionicons
+                name="log-out-outline"
+                size={29}
+                color={RED}
+              />
             </View>
-          </View>
-        </View>
-      )}
+
+            <Text
+              style={[
+                styles.logoutModalTitle,
+                {
+                  color:
+                    themeColors.text,
+                },
+              ]}
+            >
+              Se déconnecter ?
+            </Text>
+
+            <Text
+              style={[
+                styles.logoutModalDescription,
+                {
+                  color:
+                    themeColors
+                      .textSecondary,
+                },
+              ]}
+            >
+              Êtes-vous sûr de vouloir vous
+              déconnecter de votre compte ?
+            </Text>
+
+            <View
+              style={
+                styles.logoutModalActions
+              }
+            >
+              <TouchableOpacity
+                style={[
+                  styles.logoutCancelButton,
+                  {
+                    backgroundColor:
+                      themeColors.background,
+                    borderColor:
+                      themeColors.border ||
+                      '#E5E7EB',
+                  },
+                ]}
+                onPress={() => {
+                  setShowLogoutModal(
+                    false
+                  );
+
+                  showToast(
+                    'info',
+                    'Déconnexion annulée',
+                    'Vous restez connecté à votre compte.'
+                  );
+                }}
+              >
+                <Text
+                  style={[
+                    styles.logoutCancelText,
+                    {
+                      color:
+                        themeColors.text,
+                    },
+                  ]}
+                >
+                  Annuler
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={
+                  styles.logoutConfirmButton
+                }
+                onPress={
+                  handleLogout
+                }
+              >
+                <Text
+                  style={
+                    styles.logoutConfirmText
+                  }
+                >
+                  Se déconnecter
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ========================================================
+          MAP MODAL
+      ======================================================== */}
 
       {renderMapModal()}
+
+      {/* ========================================================
+          GLOBAL TOP CENTER TOAST
+          IMPORTANT:
+          Rendered AFTER modals so it stays above the interface.
+      ======================================================== */}
+
+      {renderToast()}
     </View>
   );
 };
 
+// ============================================================
+// PROFILE INFO ROW
+// ============================================================
+
+const ProfileInfoRow = ({
+  icon,
+  label,
+  value,
+  themeColors,
+  last,
+}) => {
+  return (
+    <View
+      style={[
+        styles.profileInfoRow,
+        !last && {
+          borderBottomWidth: 1,
+          borderBottomColor:
+            themeColors.border ||
+            '#E5E7EB',
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.infoRowIcon,
+          {
+            backgroundColor: `${BLUE}10`,
+          },
+        ]}
+      >
+        <Ionicons
+          name={icon}
+          size={18}
+          color={BLUE}
+        />
+      </View>
+
+      <View
+        style={
+          styles.infoRowContent
+        }
+      >
+        <Text
+          style={[
+            styles.infoRowLabel,
+            {
+              color:
+                themeColors
+                  .textSecondary,
+            },
+          ]}
+        >
+          {label}
+        </Text>
+
+        <Text
+          style={[
+            styles.infoRowValue,
+            {
+              color:
+                themeColors.text,
+            },
+          ]}
+        >
+          {value}
+        </Text>
+      </View>
+    </View>
+  );
+};
+
+// ============================================================
+// STYLES
+// ============================================================
+
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scrollView: { flex: 1 },
-  scrollContent: { paddingBottom: spacing.xl },
-  profileHeader: { marginHorizontal: spacing.md, marginTop: spacing.md, borderRadius: 20, overflow: 'hidden' },
-  headerGradient: { padding: spacing.lg, alignItems: 'center' },
-  avatarContainer: { position: 'relative', marginBottom: spacing.md },
-  avatar: { width: 100, height: 100, borderRadius: 50, borderWidth: 4, borderColor: 'rgba(255,255,255,0.3)' },
+  // ==========================================================
+  // CONTAINER
+  // ==========================================================
+
+  container: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 40,
+  },
+
+  // ==========================================================
+  // TOAST
+  // ==========================================================
+
+  toastLayer: {
+    position: 'absolute',
+    top:
+      Platform.OS === 'web'
+        ? 18
+        : 52,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    zIndex: 99999,
+    elevation: 99999,
+    pointerEvents: 'box-none',
+  },
+
+  toastContainer: {
+    width:
+      Platform.OS === 'web'
+        ? 'min(460px, calc(100% - 32px))'
+        : '88%',
+
+    maxWidth: 460,
+    minHeight: 66,
+
+    borderWidth: 1,
+    borderRadius: 18,
+
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+
+    elevation: 12,
+  },
+
+  toastIconContainer: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginRight: 10,
+  },
+
+  toastContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  toastTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    lineHeight: 17,
+
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  toastMessage: {
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 2,
+
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  toastClose: {
+    width: 28,
+    height: 28,
+    borderRadius: 10,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginLeft: 5,
+  },
+
+  // ==========================================================
+  // HERO
+  // ==========================================================
+
+  heroContainer: {
+    marginBottom: 16,
+  },
+
+  hero: {
+    borderRadius: 26,
+    paddingHorizontal: 20,
+    paddingTop: 28,
+    paddingBottom: 18,
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+
+  heroDecorationOne: {
+    position: 'absolute',
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor:
+      'rgba(255,255,255,0.06)',
+    right: -70,
+    top: -80,
+  },
+
+  heroDecorationTwo: {
+    position: 'absolute',
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor:
+      'rgba(255,255,255,0.05)',
+    left: -70,
+    bottom: -60,
+  },
+
+  avatarTouchable: {
+    position: 'relative',
+    marginBottom: 13,
+  },
+
+  avatar: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    borderWidth: 4,
+    borderColor:
+      'rgba(255,255,255,0.85)',
+  },
+
   avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor:
+      'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor:
+      'rgba(255,255,255,0.75)',
   },
-  avatarText: { fontSize: typography.fontSize.xxxl, fontFamily: typography.fontFamily.bold, color: '#fff' },
-  avatarEdit: {
+
+  avatarText: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  avatarCamera: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: colors.primary,
-    width: 32,
-    height: 32,
+    right: -2,
+    bottom: -2,
+    width: 31,
+    height: 31,
     borderRadius: 16,
+    backgroundColor: GREEN,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: '#FFFFFF',
   },
-  avatarOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 50,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+
+  heroName: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 6,
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  verificationBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userName: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold, color: '#fff' },
-  userBadge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 4,
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
     borderRadius: 20,
-    marginTop: 4,
-    alignSelf: 'center',
+    marginBottom: 10,
   },
-  userBadgeText: {
-    color: '#fff',
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+
+  verificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
   },
-  userEmail: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.regular, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.2)',
-  },
-  statItem: { alignItems: 'center' },
-  statValue: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold, color: '#fff' },
-  statLabel: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
-  statDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
-  infoCard: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-    borderRadius: 16,
-    padding: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  infoHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  infoTitle: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
-  editButton: { color: colors.primary, fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
-  inputGroup: { marginBottom: spacing.sm },
-  inputLabel: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, marginBottom: 4 },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.regular,
-  },
-  bioInput: { minHeight: 80, textAlignVertical: 'top' },
-  rowInputs: { flexDirection: 'row', gap: spacing.sm },
-  rowInput: { flex: 1 },
-  halfInput: { flex: 0.5 },
-  saveButton: { borderRadius: 8, overflow: 'hidden', marginTop: spacing.sm },
-  saveGradient: { paddingVertical: spacing.sm, alignItems: 'center' },
-  saveText: { color: '#fff', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 4 },
-  infoValue: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.regular, flex: 1 },
-  locationSelector: {
+
+  emailBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    minHeight: 60,
-  },
-  locationInfo: { flex: 1 },
-  locationStatus: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  locationStatusText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
-  locationAddress: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, marginTop: 2 },
-  locationCoords: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular, marginTop: 1 },
-  locationPlaceholder: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 },
-  locationPlaceholderText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, flex: 1 },
-  mapPreviewButton: { marginTop: spacing.sm, borderRadius: 8, overflow: 'hidden' },
-  mapPreviewGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-    gap: spacing.sm,
-  },
-  mapPreviewText: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
-  menuCard: {
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-    borderRadius: 16,
-    paddingVertical: spacing.xs,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  menuItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.md },
-  menuItemBorder: { borderBottomWidth: 1 },
-  menuLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  menuLabel: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.regular },
-  logoutButton: { marginHorizontal: spacing.md, marginTop: spacing.md, borderRadius: 12, overflow: 'hidden' },
-  logoutGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    gap: spacing.sm,
-  },
-  logoutText: { color: '#fff', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
-  mapModalOverlayRoot: {
-    ...Platform.select({
-      web: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, width: '100vw', height: '100vh' },
-      default: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-    }),
-    zIndex: 9999,
-    elevation: 9999,
-  },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContainer: { borderRadius: 20, padding: spacing.lg, width: '85%', maxWidth: 400 },
-  modalHeader: { alignItems: 'center', marginBottom: spacing.md },
-  modalTitle: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold, marginTop: spacing.sm },
-  modalText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.regular, textAlign: 'center', marginBottom: spacing.lg },
-  modalButtons: { flexDirection: 'row', gap: spacing.sm },
-  modalButton: { flex: 1, paddingVertical: spacing.md, borderRadius: 12, alignItems: 'center' },
-  modalCancel: { backgroundColor: '#f5f5f5' },
-  modalCancelText: { color: colors.textSecondary, fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.medium },
-  modalConfirm: { backgroundColor: colors.error },
-  modalConfirmText: { color: '#fff', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold },
-  mapModalContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  mapModalContent: { borderRadius: 20, padding: spacing.md, width: '95%', maxHeight: '90%' },
-  mapModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
-  mapModalTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold },
-  addressSearchContainer: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
-  addressSearchBar: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderWidth: 1,
-  },
-  addressSearchInput: { flex: 1, paddingHorizontal: spacing.sm, fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.regular },
-  searchButton: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  searchButtonText: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
-  currentLocationInlineButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
-    marginBottom: spacing.sm,
+    marginBottom: 20,
   },
-  currentLocationInlineText: { color: colors.primary, fontSize: 13, fontFamily: typography.fontFamily.medium },
-  mapContainer: { height: 280, borderRadius: 12, overflow: 'hidden', position: 'relative' },
-  map: { width: '100%', height: '100%' },
-  searchingOverlay: {
+
+  heroEmail: {
+    color:
+      'rgba(255,255,255,0.82)',
+    fontSize: 13,
+    fontWeight: '500',
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  statsRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    borderTopWidth: 1,
+    borderTopColor:
+      'rgba(255,255,255,0.16)',
+    paddingTop: 16,
+  },
+
+  statBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+
+  statIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor:
+      'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 5,
+  },
+
+  statValue: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '800',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  statLabel: {
+    color:
+      'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: '500',
+    fontFamily:
+      typography?.fontFamily?.medium ||
+      'System',
+  },
+
+  statSeparator: {
+    width: 1,
+    height: 42,
+    backgroundColor:
+      'rgba(255,255,255,0.14)',
+  },
+
+  // ==========================================================
+  // CARDS
+  // ==========================================================
+
+  sectionContainer: {
+    marginBottom: 16,
+  },
+
+  card: {
+    borderRadius: 22,
+    padding: 17,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+
+    elevation: 2,
+  },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent:
+      'space-between',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+
+  sectionHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  sectionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+  },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  sectionSubtitle: {
+    fontSize: 11,
+    marginTop: 3,
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  simpleSectionHeader: {
+    marginBottom: 8,
+  },
+
+  editAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: `${BLUE}0D`,
+  },
+
+  editActionText: {
+    color: BLUE,
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  // ==========================================================
+  // INFO
+  // ==========================================================
+
+  profileInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+
+  infoRowIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+
+  infoRowContent: {
+    flex: 1,
+  },
+
+  infoRowLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 3,
+    fontFamily:
+      typography?.fontFamily?.semiBold ||
+      'System',
+  },
+
+  infoRowValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+    fontFamily:
+      typography?.fontFamily?.medium ||
+      'System',
+  },
+
+  // ==========================================================
+  // INPUTS
+  // ==========================================================
+
+  inputGroup: {
+    marginBottom: 15,
+  },
+
+  rowInputs: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
+  rowInputHalf: {
+    flex: 1,
+  },
+
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 7,
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  inputWrapper: {
+    minHeight: 50,
+    borderWidth: 1,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 13,
+  },
+
+  disabledInput: {
+    opacity: 0.72,
+  },
+
+  input: {
+    flex: 1,
+    fontSize: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    minHeight: 48,
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  bioWrapper: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 13,
+  },
+
+  bioInput: {
+    minHeight: 95,
+    fontSize: 14,
+    paddingVertical: 12,
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  // ==========================================================
+  // LOCATION
+  // ==========================================================
+
+  locationLabelRow: {
+    flexDirection: 'row',
+    justifyContent:
+      'space-between',
+    alignItems: 'center',
+  },
+
+  locationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 7,
+  },
+
+  locationDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: GREEN,
+  },
+
+  locationBadgeText: {
+    color: GREEN_DARK,
+    fontSize: 10,
+    fontWeight: '700',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  locationCard: {
+    minHeight: 86,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  locationCardIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+  },
+
+  locationCardContent: {
+    flex: 1,
+    paddingRight: 8,
+  },
+
+  locationCardTitle: {
+    fontSize: 13,
+    fontWeight: '750',
+    marginBottom: 3,
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  locationCardAddress: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  locationCardCoords: {
+    fontSize: 9,
+    marginTop: 3,
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  openMapButton: {
+    marginTop: 9,
+    borderRadius: 13,
+    overflow: 'hidden',
+  },
+
+  openMapGradient: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+
+  openMapText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  // ==========================================================
+  // SAVE
+  // ==========================================================
+
+  saveButton: {
+    marginTop: 5,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+
+  saveGradient: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+
+  saveText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '800',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  // ==========================================================
+  // MENU
+  // ==========================================================
+
+  menuItem: {
+    minHeight: 68,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+  },
+
+  menuIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+
+  menuContent: {
+    flex: 1,
+  },
+
+  menuLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  menuDescription: {
+    fontSize: 10,
+    marginTop: 3,
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  // ==========================================================
+  // LOGOUT
+  // ==========================================================
+
+  logoutSection: {
+    marginTop: 10,
+    alignItems: 'center',
+    width: '100%',
+  },
+
+  logoutButton: {
+    width: '100%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 2,
+
+    shadowColor: RED,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+
+  logoutGradient: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+
+  logoutText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  versionText: {
+    fontSize: 10,
+    marginTop: 13,
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  // ==========================================================
+  // LOGOUT MODAL
+  // ==========================================================
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor:
+      'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+  },
+
+  logoutModalCard: {
+    width: '100%',
+    maxWidth: 390,
+    borderRadius: 24,
+    padding: 22,
+    alignItems: 'center',
+  },
+
+  logoutModalIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+
+  logoutModalTitle: {
+    fontSize: 19,
+    fontWeight: '800',
+    marginBottom: 8,
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  logoutModalDescription: {
+    textAlign: 'center',
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 22,
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  logoutModalActions: {
+    width: '100%',
+    flexDirection: 'row',
+    gap: 10,
+  },
+
+  logoutCancelButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  logoutCancelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  logoutConfirmButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 13,
+    backgroundColor: RED,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  logoutConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  // ==========================================================
+  // MAP MODAL
+  // ==========================================================
+
+  mapModalOverlay: {
+    flex: 1,
+    backgroundColor:
+      'rgba(0,0,0,0.58)',
+    justifyContent: 'flex-end',
+  },
+
+  mapSheet: {
+    width: '100%',
+    maxHeight: '94%',
+    minHeight: '88%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 14,
+    paddingTop: 9,
+    paddingBottom:
+      Platform.OS === 'ios'
+        ? 28
+        : 15,
+    overflow: 'hidden',
+  },
+
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 42,
+    height: 4,
+    borderRadius: 3,
+    backgroundColor: '#D1D5DB',
+    marginBottom: 12,
+  },
+
+  mapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent:
+      'space-between',
+    marginBottom: 12,
+  },
+
+  mapHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  mapHeaderIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  mapHeaderTextContainer: {
+    flex: 1,
+  },
+
+  mapTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  mapSubtitle: {
+    fontSize: 10,
+    lineHeight: 15,
+    marginTop: 3,
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  closeMapButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+
+  mapSearchSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 9,
+  },
+
+  mapSearchBox: {
+    flex: 1,
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+  },
+
+  mapSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    paddingHorizontal: 9,
+    height: 46,
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  searchActionButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: BLUE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  currentLocationButton: {
+    minHeight: 57,
+    borderWidth: 1,
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 11,
+    marginBottom: 10,
+  },
+
+  currentLocationIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  currentLocationTitle: {
+    fontSize: 12,
+    fontWeight: '750',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  currentLocationSubtitle: {
+    fontSize: 9,
+    marginTop: 2,
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  mapWrapper: {
+    height: 300,
+    borderRadius: 19,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#E5E7EB',
+  },
+
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+
+  centerMarkerOverlay: {
     position: 'absolute',
-    top: 0,
+    left: '50%',
+    top: '50%',
+    marginLeft: -20,
+    marginTop: -43,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  greenMarker: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    elevation: 6,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+  },
+
+  markerShadow: {
+    position: 'absolute',
+    bottom: -8,
+    width: 15,
+    height: 7,
+    borderRadius: 10,
+    backgroundColor:
+      'rgba(0,0,0,0.22)',
+  },
+
+  mapInstruction: {
+    position: 'absolute',
+    bottom: 10,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor:
+      'rgba(0,0,0,0.58)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+
+  mapInstructionText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily:
+      typography?.fontFamily?.medium ||
+      'System',
+  },
+
+  mapLoadingOverlay: {
+    position: 'absolute',
     left: 0,
     right: 0,
+    top: 0,
     bottom: 0,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor:
+      'rgba(255,255,255,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  searchingText: { marginTop: spacing.sm, fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.medium },
-  searchResultScroll: { maxHeight: 180, marginTop: spacing.sm },
-  searchResultContainer: { padding: spacing.md, borderRadius: 8 },
-  searchResultContainerApprox: { borderWidth: 1, borderColor: '#F59E0B', backgroundColor: 'rgba(245, 158, 11, 0.05)' },
-  searchResultHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
-  searchResultTitle: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
-  addressDetails: { gap: 2 },
-  addressRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  addressLabel: { fontSize: 12, fontFamily: typography.fontFamily.medium, minWidth: 90 },
-  addressValue: { fontSize: 12, fontFamily: typography.fontFamily.regular, flex: 1 },
-  addressDivider: { height: 1, backgroundColor: '#E0E0E0', marginVertical: spacing.sm },
-  addressFullText: { fontSize: 13, fontFamily: typography.fontFamily.regular },
-  approxNote: { fontSize: 12, fontFamily: typography.fontFamily.medium, marginTop: 4 },
-  coordsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: '#E0E0E0' },
-  coordRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  coordLabel: { fontSize: 11, fontFamily: typography.fontFamily.medium },
-  coordValue: { fontSize: 11, fontFamily: typography.fontFamily.regular },
-  distanceContainer: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: 4 },
-  distanceText: { fontSize: 11, fontFamily: typography.fontFamily.regular },
-  mapModalButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  mapModalButton: { flex: 1, paddingVertical: spacing.md, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  mapModalCancel: { backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#E0E0E0' },
-  mapModalConfirm: { backgroundColor: colors.primary, flexDirection: 'row', gap: spacing.xs },
-  mapModalButtonText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.medium },
-  mapModalButtonConfirmText: { color: '#fff', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold },
+
+  mapLoadingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 13,
+    elevation: 3,
+  },
+
+  mapLoadingText: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  selectedLocationCard: {
+    minHeight: 68,
+    borderWidth: 1,
+    borderRadius: 15,
+    marginTop: 10,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  selectedLocationIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  selectedLocationContent: {
+    flex: 1,
+  },
+
+  selectedLocationLabel: {
+    fontSize: 8,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginBottom: 3,
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  selectedLocationAddress: {
+    fontSize: 11,
+    fontWeight: '700',
+    lineHeight: 16,
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  selectedLocationCoords: {
+    fontSize: 8,
+    marginTop: 2,
+    fontFamily:
+      typography?.fontFamily?.regular ||
+      'System',
+  },
+
+  mapBottomActions: {
+    flexDirection: 'row',
+    gap: 9,
+    paddingTop: 11,
+  },
+
+  mapCancelButton: {
+    flex: 0.8,
+    minHeight: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  mapCancelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
+
+  mapConfirmButton: {
+    flex: 1.5,
+    minHeight: 52,
+    borderRadius: 14,
+    backgroundColor:
+      GREEN_DARK,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    elevation: 3,
+
+    shadowColor: GREEN,
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+  },
+
+  mapConfirmButtonDisabled: {
+    backgroundColor: '#A7F3D0',
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+
+  mapConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+    fontFamily:
+      typography?.fontFamily?.bold ||
+      'System',
+  },
 });
 
 export default ProfileScreen;

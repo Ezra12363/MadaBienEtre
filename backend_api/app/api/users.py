@@ -7,6 +7,7 @@ from fastapi import (
     File,
     Form,
     Query,
+    Request,
     status,
 )
 from sqlalchemy.orm import Session
@@ -49,6 +50,7 @@ from ..schemas.user import (
 )
 from ..services.upload_service import upload_image
 from ..core.security import get_password_hash, verify_password, generate_secure_token
+from ..core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -583,6 +585,7 @@ async def update_my_profile(
 # ============================================================
 @router.post("/users/upload-profile-photo")
 async def upload_profile_photo(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -591,7 +594,15 @@ async def upload_profile_photo(
         allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
         if file.content_type not in allowed_types:
             raise HTTPException(400, "Format non supporté")
-        image_url = upload_image(file, "profiles")
+
+        # ✅ FIXÉ : on construit l'URL du fichier avec l'hôte RÉEL de
+        # la requête reçue (ex: "http://10.78.77.30:8000"), et non
+        # plus avec settings.BASE_URL figé dans le .env. C'est
+        # forcément la bonne IP actuelle puisque c'est exactement
+        # celle que le téléphone vient d'utiliser pour nous contacter.
+        base_url = str(request.base_url).rstrip("/")
+
+        image_url = upload_image(file, "profiles", base_url=base_url)
         current_user.profile_image = image_url
         current_user.updated_at = datetime.utcnow()
         db.commit()
@@ -607,6 +618,7 @@ async def upload_profile_photo(
 # ============================================================
 @router.post("/users/upload-cin")
 async def upload_cin_document(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -622,7 +634,11 @@ async def upload_cin_document(
                 detail="Format non supporté (jpg, png, webp, pdf)",
             )
 
-        image_url = upload_image(file, "cin")
+        # ✅ Même correctif que upload-profile-photo : hôte réel de la
+        # requête, pas settings.BASE_URL figé.
+        base_url = str(request.base_url).rstrip("/")
+
+        image_url = upload_image(file, "cin", base_url=base_url)
         current_user.identity_document_url = image_url
         current_user.updated_at = datetime.utcnow()
         db.commit()
@@ -641,6 +657,7 @@ async def upload_cin_document(
 # ============================================================
 @router.post("/users/upload-certificate-professionnel")
 async def upload_certificate_professionnel(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -660,7 +677,22 @@ async def upload_certificate_professionnel(
                 detail="Format non supporté (jpg, png, webp, pdf)",
             )
 
-        file_url = upload_image(file, "certificates_pro")
+        # ✅ FIXÉ : même correctif que upload-profile-photo et upload-cin —
+        # on utilise désormais l'hôte RÉEL de la requête reçue
+        # (request.base_url), et non plus settings.BASE_URL figé dans
+        # le .env. C'est forcément la bonne IP/domaine actuel, puisque
+        # c'est exactement celle que le client vient d'utiliser pour
+        # nous contacter — les 3 endpoints d'upload (profile-photo,
+        # cin, certificate-professionnel) sont maintenant cohérents.
+        #
+        # ⚠️ Note : certificate_service.py (génération du certificat
+        # officiel admin + QR code de vérification) continue lui
+        # d'utiliser settings.BASE_URL — c'est un contexte différent
+        # (tâche générée côté serveur, sans requête HTTP entrante à
+        # laquelle se raccrocher), donc pas concerné par ce correctif.
+        base_url = str(request.base_url).rstrip("/")
+
+        file_url = upload_image(file, "certificates_pro", base_url=base_url)
         current_user.certificate_professionnel = file_url
         current_user.updated_at = datetime.utcnow()
         db.commit()

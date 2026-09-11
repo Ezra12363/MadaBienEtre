@@ -20,7 +20,9 @@ import {
   KeyboardAvoidingView,
   Switch,
   Dimensions,
+  Linking,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
@@ -29,6 +31,7 @@ import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
 import AdminUserAddressModal from '../../components/admin/AdminUserAddressModal';
+import AdminSpecialtiesManager from '../../components/admin/AdminSpecialtiesManager';
 import useResponsive from '../../hooks/useResponsive';
 import { API_URL } from '../../config/env';
 import { exportToExcel } from '../../utils/exportExcel';
@@ -94,6 +97,27 @@ const UsersScreen = ({ navigation }) => {
   const [selectedUserForAddress, setSelectedUserForAddress] = useState(null);
 
   const [exportingExcel, setExportingExcel] = useState(false);
+
+  /* ==========================================================
+     ✅ NOUVEAU : VISIONNEUSE PLEIN ÉCRAN — certificat professionnel
+  ========================================================== */
+
+  const [showImageViewer, setShowImageViewer] = useState(false);
+  const [viewerImage, setViewerImage] = useState({
+    uri: null,
+    title: '',
+    fileName: 'document.jpg',
+  });
+
+  const openImageViewer = (uri, title, fileName) => {
+    if (!uri) return;
+    setViewerImage({ uri, title, fileName });
+    setShowImageViewer(true);
+  };
+
+  const closeImageViewer = () => {
+    setShowImageViewer(false);
+  };
 
   /* ==========================================================
      CONFIRMATION MODAL STATE
@@ -569,6 +593,98 @@ const UsersScreen = ({ navigation }) => {
     }
 
     return 'Adresse non renseignée';
+  };
+
+  /* ==========================================================
+     ✅ NOUVEAU : TÉLÉCHARGEMENT DE DOCUMENT (certificat pro, CIN...)
+  ========================================================== */
+
+  // Récupère le token JWT stocké côté client, quelle que soit la clé
+  // utilisée par le AuthContext.
+  const getAuthToken = async () => {
+    const possibleKeys = ['authToken', 'token', 'accessToken', 'access_token', 'jwt', 'userToken'];
+
+    try {
+      for (const key of possibleKeys) {
+        const value = await AsyncStorage.getItem(key);
+        if (value) {
+          try {
+            const parsed = JSON.parse(value);
+            if (parsed && typeof parsed === 'object' && parsed.token) {
+              return parsed.token;
+            }
+          } catch {
+            // value n'est pas du JSON, c'est probablement le token brut
+          }
+          return value;
+        }
+      }
+    } catch (err) {
+      console.warn('Impossible de récupérer le token auth:', err);
+    }
+
+    return null;
+  };
+
+  const handleDownload = async (url, suggestedFileName = 'document.pdf') => {
+    if (!url) {
+      showToast('Document indisponible', 'error');
+      return;
+    }
+
+    try {
+      const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
+
+      if (IS_WEB) {
+        // Sur le web, window.open() ne transmet aucun header
+        // Authorization : on télécharge donc nous-mêmes le fichier en
+        // blob avec le token JWT, puis on force le téléchargement.
+        const token = await getAuthToken();
+
+        const response = await fetch(fullUrl, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            throw new Error("Accès refusé : vous devez être connecté en tant qu'administrateur");
+          }
+          throw new Error(`Erreur ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+
+        let fileName = suggestedFileName;
+        const disposition = response.headers.get('content-disposition');
+        if (disposition) {
+          const match = disposition.match(/filename="?([^"]+)"?/);
+          if (match && match[1]) {
+            fileName = match[1];
+          }
+        }
+
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+
+        showToast('Téléchargement démarré', 'success');
+      } else {
+        const canOpen = await Linking.canOpenURL(fullUrl);
+        if (canOpen) {
+          await Linking.openURL(fullUrl);
+        } else {
+          showToast("Impossible d'ouvrir le document", 'error');
+        }
+      }
+    } catch (err) {
+      console.error('Download error:', err);
+      showToast(err?.message || 'Échec du téléchargement', 'error');
+    }
   };
 
   /* ==========================================================
@@ -2436,6 +2552,95 @@ const UsersScreen = ({ navigation }) => {
                               </View>
                             )}
 
+                            {/* ✅ NOUVEAU : CERTIFICAT PROFESSIONNEL (téléversé par le thérapeute) */}
+                            <View style={styles.cinContainer}>
+                              <Text
+                                style={[
+                                  styles.cinLabel,
+                                  {
+                                    color: themeColors.textSecondary,
+                                  },
+                                ]}
+                              >
+                                📄 Certificat professionnel
+                              </Text>
+
+                              {selectedUser.certificate_professionnel ? (
+                                <>
+                                  <TouchableOpacity
+                                    activeOpacity={0.85}
+                                    onPress={() =>
+                                      openImageViewer(
+                                        selectedUser.certificate_professionnel,
+                                        `Certificat professionnel — ${selectedUser.fullname || 'Thérapeute'}`,
+                                        `Certificat_${selectedUser.fullname || 'therapeute'}.jpg`
+                                      )
+                                    }
+                                    style={styles.certProPreview}
+                                  >
+                                    {selectedUser.certificate_professionnel.toLowerCase().endsWith('.pdf') ? (
+                                      <View style={styles.certProPdfBox}>
+                                        <Ionicons name="document-text-outline" size={30} color={colors.primary} />
+                                        <Text style={[styles.certProPdfText, { color: themeColors.textSecondary }]}>
+                                          Document PDF — Appuyer pour agrandir
+                                        </Text>
+                                      </View>
+                                    ) : (
+                                      <Image
+                                        source={{ uri: selectedUser.certificate_professionnel }}
+                                        style={styles.cinImage}
+                                        resizeMode="contain"
+                                      />
+                                    )}
+
+                                    <View style={styles.certProZoomBadge}>
+                                      <Ionicons name="expand-outline" size={13} color="#fff" />
+                                    </View>
+                                  </TouchableOpacity>
+
+                                  <TouchableOpacity
+                                    onPress={() =>
+                                      handleDownload(
+                                        selectedUser.certificate_professionnel,
+                                        `Certificat_${selectedUser.fullname || 'therapeute'}.jpg`
+                                      )
+                                    }
+                                    style={styles.downloadButton}
+                                    activeOpacity={0.85}
+                                  >
+                                    <Ionicons name="download-outline" size={18} color="#fff" />
+                                    <Text style={styles.downloadButtonText}>Télécharger le certificat</Text>
+                                  </TouchableOpacity>
+                                </>
+                              ) : (
+                                <View style={styles.noDocumentBox}>
+                                  <Ionicons name="alert-circle-outline" size={20} color="#E74C3C" />
+                                  <Text style={styles.noDocumentText}>
+                                    Aucun certificat professionnel téléversé par ce thérapeute
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+
+                            {/* ✅ NOUVEAU : SPÉCIALITÉS du thérapeute — modifiables par l'admin */}
+                            <View style={styles.cinContainer}>
+                              <Text
+                                style={[
+                                  styles.cinLabel,
+                                  {
+                                    color: themeColors.textSecondary,
+                                  },
+                                ]}
+                              >
+                                🧴 Spécialités
+                              </Text>
+                              <AdminSpecialtiesManager
+                                therapistId={selectedUser.id}
+                                therapistName={selectedUser.fullname}
+                                variant="compact"
+                              />
+                            </View>
+
                             {selectedUser.bio && (
                               <InfoRow
                                 label="Biographie"
@@ -3043,6 +3248,61 @@ const UsersScreen = ({ navigation }) => {
               </ScrollView>
             </View>
           </KeyboardAvoidingView>
+        </Modal>
+
+        {/* ======================================================
+            ✅ NOUVEAU : VISIONNEUSE PLEIN ÉCRAN — certificat professionnel
+        ====================================================== */}
+
+        <Modal
+          visible={showImageViewer}
+          transparent
+          animationType="fade"
+          onRequestClose={closeImageViewer}
+        >
+          <View style={styles.viewerOverlay}>
+            <View style={styles.viewerHeader}>
+              <Text style={styles.viewerTitle} numberOfLines={1}>
+                {viewerImage.title}
+              </Text>
+
+              <TouchableOpacity onPress={closeImageViewer} style={styles.viewerCloseButton}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={styles.viewerImageWrap}
+              maximumZoomScale={3}
+              minimumZoomScale={1}
+            >
+              {viewerImage.uri && viewerImage.uri.toLowerCase().endsWith('.pdf') ? (
+                <View style={styles.viewerPdfBox}>
+                  <Ionicons name="document-text-outline" size={64} color="#fff" />
+                  <Text style={styles.viewerPdfText}>
+                    Aperçu indisponible pour les fichiers PDF.{'\n'}Utilisez le bouton de
+                    téléchargement ci-dessous.
+                  </Text>
+                </View>
+              ) : (
+                <Image
+                  source={{ uri: viewerImage.uri }}
+                  style={styles.viewerImage}
+                  resizeMode="contain"
+                />
+              )}
+            </ScrollView>
+
+            <TouchableOpacity
+              onPress={() => handleDownload(viewerImage.uri, viewerImage.fileName)}
+              style={styles.viewerDownloadButton}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="download-outline" size={19} color="#fff" />
+              <Text style={styles.downloadButtonText}>Télécharger</Text>
+            </TouchableOpacity>
+          </View>
         </Modal>
 
         {/* ======================================================
@@ -4084,6 +4344,153 @@ const styles = StyleSheet.create({
     height: 180,
     borderRadius: 10,
     backgroundColor: '#F5F5F5',
+  },
+
+  /* ============================================================
+     ✅ NOUVEAU : CERTIFICAT PROFESSIONNEL
+  ============================================================ */
+
+  certProPreview: {
+    position: 'relative',
+    borderRadius: 10,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+
+  certProPdfBox: {
+    width: '100%',
+    height: 140,
+    borderRadius: 10,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+
+  certProPdfText: {
+    fontSize: 12,
+    textAlign: 'center',
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  certProZoomBadge: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  downloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: 11,
+    borderRadius: 10,
+  },
+
+  downloadButtonText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  noDocumentBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 10,
+    padding: 12,
+  },
+
+  noDocumentText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#E74C3C',
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  /* ============================================================
+     ✅ NOUVEAU : VISIONNEUSE PLEIN ÉCRAN
+  ============================================================ */
+
+  viewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+  },
+
+  viewerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 54 : 20,
+    paddingBottom: 12,
+  },
+
+  viewerTitle: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    fontFamily: typography.fontFamily.semiBold || typography.fontFamily.medium,
+    marginRight: 12,
+  },
+
+  viewerCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  viewerImageWrap: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+
+  viewerImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.65,
+  },
+
+  viewerPdfBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+    paddingHorizontal: 32,
+  },
+
+  viewerPdfText: {
+    color: '#fff',
+    fontSize: 13,
+    textAlign: 'center',
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  viewerDownloadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: colors.primary,
+    marginHorizontal: 16,
+    marginBottom: Platform.OS === 'ios' ? 34 : 18,
+    paddingVertical: 13,
+    borderRadius: 12,
   },
 
   /* ============================================================

@@ -106,30 +106,85 @@ const loadGoogleMapsScript = (apiKey) => {
   return googleMapsScriptPromise;
 };
 
+// ✅ FIXÉ : le mode "satellite" affiche désormais les tuiles HYBRID
+// (satellite + noms de rues, quartiers, POI) exactement comme dans
+// l'app Google Maps native — une image satellite "nue" sans aucun
+// repère est difficile à lire (on ne distingue pas les rues des
+// bâtiments). C'est ce qui rend les toits/bâtiments réellement
+// identifiables, comme sur la capture d'écran de référence.
 const toWebMapTypeId = (mapType) => {
   switch (mapType) {
-    case MAP_TYPES.satellite: return 'satellite';
+    case MAP_TYPES.satellite: return 'hybrid';
     case MAP_TYPES.hybrid: return 'hybrid';
     case MAP_TYPES.terrain: return 'terrain';
     default: return 'roadmap';
   }
 };
 
-// ✅ Icône personnalisée pour le marqueur (comme l'icône "local")
-const getCustomMarkerIcon = (color, scale = 1.2) => {
+// ============================================================
+// ✅ COULEURS DE MARQUEUR SELON LA SITUATION ("statut")
+// Palette de secours utilisée si `MARKER_COLORS` (config/googleMaps)
+// ne définit pas encore telle ou telle clé — permet d'avoir tout de
+// suite des couleurs différentes selon le contexte, sans dépendre
+// d'un fichier de config à jour.
+// ============================================================
+const DEFAULT_MARKER_COLORS = {
+  available: '#22C55E',   // vert — disponible
+  unavailable: '#9CA3AF', // gris — indisponible
+  selected: '#F59E0B',    // orange — position choisie par l'utilisateur
+  user: '#2563EB',        // bleu — position GPS de l'utilisateur
+  pending: '#3B82F6',     // bleu clair — en attente
+  confirmed: '#22C55E',   // vert — confirmé
+  in_progress: '#8B5CF6', // violet — en cours
+  completed: '#16A34A',   // vert foncé — terminé
+  cancelled: '#EF4444',   // rouge — annulé
+  default: '#EA4335',     // rouge Google par défaut
+};
+
+/**
+ * ✅ Détermine la couleur d'un marqueur selon son "état" (statut,
+ * disponibilité, couleur forcée). Ordre de priorité :
+ *   1) m.pinColor (couleur imposée explicitement)
+ *   2) m.status  (ex: 'pending', 'confirmed', 'cancelled', ...)
+ *   3) m.available (booléen — vert/gris)
+ *   4) couleur par défaut
+ */
+const resolveMarkerColor = (m = {}) => {
+  if (m.pinColor) return m.pinColor;
+
+  if (m.status) {
+    const key = String(m.status).toLowerCase();
+    if (MARKER_COLORS?.[key]) return MARKER_COLORS[key];
+    if (DEFAULT_MARKER_COLORS[key]) return DEFAULT_MARKER_COLORS[key];
+  }
+
+  if (typeof m.available === 'boolean') {
+    return m.available
+      ? (MARKER_COLORS?.available || DEFAULT_MARKER_COLORS.available)
+      : (MARKER_COLORS?.unavailable || DEFAULT_MARKER_COLORS.unavailable);
+  }
+
+  return MARKER_COLORS?.default || DEFAULT_MARKER_COLORS.default;
+};
+
+// ✅ FIXÉ : icône "pin" (goutte) personnalisée — plus de cercle autour
+// du marqueur. Le path SVG dessine directement la forme de goutte
+// (comme le repère rouge de Google Maps), avec un contour blanc pour
+// bien se détacher du fond (photo satellite, carte, etc.).
+const getCustomMarkerIcon = (color, scale = 1.4) => {
   return {
     path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
     fillColor: color,
     fillOpacity: 1,
     strokeColor: '#ffffff',
     strokeWeight: 2,
-    scale: 1.5,
+    scale,
     anchor: { x: 12, y: 24 },
   };
 };
 
 const MapTypeToggle = ({ mapType, onToggle, style }) => {
-  const isSatellite = mapType === MAP_TYPES.satellite;
+  const isSatellite = mapType === MAP_TYPES.satellite || mapType === MAP_TYPES.hybrid;
   return (
     <TouchableOpacity
       style={[styles.mapTypeButton, style]}
@@ -148,7 +203,7 @@ const ScrollableMarkerList = ({ markers = [], onMarkerPress }) => {
   return (
     <ScrollView style={styles.embedMarkerListScroll} showsVerticalScrollIndicator={false} nestedScrollEnabled>
       {markers.map((m) => {
-        const color = m.pinColor || (m.available ? MARKER_COLORS.available : MARKER_COLORS.unavailable);
+        const color = resolveMarkerColor(m);
         return (
           <TouchableOpacity key={m.id} style={styles.embedMarkerItem} onPress={() => onMarkerPress && onMarkerPress(m)} activeOpacity={0.7}>
             <View style={[styles.embedMarkerDot, { backgroundColor: color }]} />
@@ -262,6 +317,9 @@ const MapViewWrapper = forwardRef(({
             mapTypeControl: false,
             fullscreenControl: true,
             zoomControl: true,
+            tilt: 0,
+            // ✅ Rendu plus net des bâtiments/toits en mode satellite
+            gestureHandling: 'greedy',
           });
           webMapRef.current = map;
         }
@@ -298,9 +356,23 @@ const MapViewWrapper = forwardRef(({
     }
   })();
 
+  // ✅ FIXÉ : quand on bascule en mode satellite, on passe aussi en
+  // tuiles "hybrid" (labels visibles), on incline légèrement la vue
+  // (tilt 45°, comme Google Maps sur les zones prises en photo
+  // aérienne 3D) et on zoome un peu plus près pour bien distinguer
+  // la forme des bâtiments/toits.
   useEffect(() => {
     if (Platform.OS === 'web' && webMapRef.current) {
-      webMapRef.current.setMapTypeId(toWebMapTypeId(mapType));
+      const map = webMapRef.current;
+      map.setMapTypeId(toWebMapTypeId(mapType));
+
+      const isSatelliteMode = mapType === MAP_TYPES.satellite || mapType === MAP_TYPES.hybrid;
+      if (isSatelliteMode) {
+        try { map.setTilt(45); } catch (e) { /* tilt indisponible sur cette zone */ }
+        if ((map.getZoom() || 0) < 17) map.setZoom(18);
+      } else {
+        try { map.setTilt(0); } catch (e) { /* no-op */ }
+      }
     }
   }, [mapType]);
 
@@ -314,23 +386,26 @@ const MapViewWrapper = forwardRef(({
     markers.forEach((m) => {
       const id = String(m.id);
       seenIds.add(id);
-      const color = m.pinColor || (m.available ? MARKER_COLORS.available : MARKER_COLORS.unavailable);
+      const color = resolveMarkerColor(m);
       const position = { lat: m.coordinate.latitude, lng: m.coordinate.longitude };
 
       let marker = webMarkersRef.current[id];
       if (!marker) {
-        // ✅ Utiliser une icône personnalisée pour les marqueurs
+        // ✅ Icône "goutte" personnalisée — jamais de cercle autour
         const icon = m.icon || getCustomMarkerIcon(color);
         marker = new google.maps.Marker({
           map,
           position,
           title: m.title,
-          icon: icon,
+          icon,
+          optimized: true,
         });
         marker.addListener('click', () => onMarkerPress && onMarkerPress(m));
         webMarkersRef.current[id] = marker;
       } else {
         marker.setPosition(position);
+        // ✅ Met à jour la couleur si le statut du marqueur a changé
+        marker.setIcon(m.icon || getCustomMarkerIcon(color));
       }
     });
 
@@ -355,7 +430,8 @@ const MapViewWrapper = forwardRef(({
     }
 
     const position = { lat: userLocation.latitude, lng: userLocation.longitude };
-    const userIcon = getCustomMarkerIcon(MARKER_COLORS.user || '#2563EB');
+    const userColor = MARKER_COLORS?.user || DEFAULT_MARKER_COLORS.user;
+    const userIcon = getCustomMarkerIcon(userColor, 1.3);
 
     if (!webUserMarkerRef.current) {
       webUserMarkerRef.current = new google.maps.Marker({
@@ -392,9 +468,11 @@ const MapViewWrapper = forwardRef(({
     };
   }, [onMapPress, isLoading]);
 
-  // ✅ EFFECT DU MARQUEUR ORANGE (SelectionMarker) SUR LE WEB - CORRIGÉ
+  // ✅ EFFECT DU MARQUEUR DE SÉLECTION SUR LE WEB — CORRIGÉ
+  // ✅ FIXÉ : goutte orange bien visible (scale plus grand + petite
+  // animation "DROP" à la création, comme un vrai marqueur Google
+  // Maps qui "tombe" sur la carte), sans jamais de cercle autour.
   useEffect(() => {
-    // ⚠️ Tsy mandeha raha mbola misy error na tsy vita ny loading
     if (Platform.OS !== 'web') return;
     if (!webMapRef.current || !window.google) {
       console.log('⏳ Web map not ready yet, waiting...');
@@ -408,7 +486,6 @@ const MapViewWrapper = forwardRef(({
     const google = window.google;
     const map = webMapRef.current;
 
-    // ✅ Raha tsy misy selectionMarker, esory ny marqueur
     if (!selectionMarker || !selectionMarker.latitude || !selectionMarker.longitude) {
       if (webSelectionMarkerRef.current) {
         webSelectionMarkerRef.current.setMap(null);
@@ -419,12 +496,11 @@ const MapViewWrapper = forwardRef(({
     }
 
     const position = { lat: selectionMarker.latitude, lng: selectionMarker.longitude };
-    const markerColor = MARKER_COLORS?.selected || '#F59E0B';
+    const markerColor = MARKER_COLORS?.selected || DEFAULT_MARKER_COLORS.selected;
 
     console.log(`📍 Creating/updating selection marker at: ${position.lat}, ${position.lng}`);
 
-    // ✅ Mampiasa icône personnalisée pour le marqueur sélectionné
-    const selectedIcon = getCustomMarkerIcon(markerColor);
+    const selectedIcon = getCustomMarkerIcon(markerColor, 1.7);
 
     if (!webSelectionMarkerRef.current) {
       webSelectionMarkerRef.current = new google.maps.Marker({
@@ -434,6 +510,7 @@ const MapViewWrapper = forwardRef(({
         zIndex: 1000,
         icon: selectedIcon,
         title: 'Position sélectionnée',
+        animation: google.maps.Animation.DROP,
       });
       webSelectionMarkerRef.current.addListener('dragend', (e) => {
         const coord = { latitude: e.latLng.lat(), longitude: e.latLng.lng() };
@@ -445,9 +522,8 @@ const MapViewWrapper = forwardRef(({
       console.log('✅ Selection marker position updated');
     }
 
-    // ✅ Pan to position and zoom
     map.panTo(position);
-    map.setZoom(15);
+    if ((map.getZoom() || 0) < 15) map.setZoom(15);
     console.log('✅ Map panned to selection');
 
   }, [selectionMarker, onSelectionDragEnd, isLoading, mapError]);
@@ -463,9 +539,8 @@ const MapViewWrapper = forwardRef(({
   // ✅ RENDER WEB
   // ============================================================
   if (Platform.OS === 'web') {
-    const embedUrl = `https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${latitude},${longitude}&zoom=14&maptype=${mapType === MAP_TYPES.satellite ? 'satellite' : 'roadmap'}`;
+    const embedUrl = `https://www.google.com/maps/embed/v1/view?key=${GOOGLE_MAPS_API_KEY}&center=${latitude},${longitude}&zoom=14&maptype=${(mapType === MAP_TYPES.satellite || mapType === MAP_TYPES.hybrid) ? 'satellite' : 'roadmap'}`;
 
-    // ✅ Marqueur de sélection affiché dans le banner (fallback)
     const hasSelectionMarker = selectionMarker && selectionMarker.latitude && selectionMarker.longitude;
 
     return (
@@ -511,7 +586,6 @@ const MapViewWrapper = forwardRef(({
           <MapTypeToggle mapType={mapType} onToggle={toggleMapType} style={styles.mapTypeButtonWeb} />
         )}
 
-        {/* ✅ Afficher un banner pour confirmer la position si sélectionnée */}
         {!mapError && !isLoading && hasSelectionMarker && (
           <View style={styles.selectionInfoBanner}>
             <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
@@ -538,17 +612,20 @@ const MapViewWrapper = forwardRef(({
           provider={PROVIDER_GOOGLE}
           initialRegion={nativeInitialRegion}
           region={region}
-          mapType={mapType === MAP_TYPES.satellite ? 'satellite' : 'standard'}
+          // ✅ FIXÉ : "hybrid" au lieu de "satellite" pur — affiche
+          // les noms de rues/quartiers par-dessus la photo aérienne.
+          mapType={(mapType === MAP_TYPES.satellite || mapType === MAP_TYPES.hybrid) ? 'hybrid' : 'standard'}
           showsUserLocation={showUserLocation && !userLocation}
           followsUserLocation={trackUserLocation && !userLocation}
           showsMyLocationButton={false}
           showsCompass
+          showsBuildings
           onMapReady={() => { setIsLoading(false); onMapReady && onMapReady(); }}
           onPress={(e) => {
             if (onMapPress) onMapPress(e.nativeEvent.coordinate);
           }}
         >
-          {/* ✅ MARQUEUR ORANGE SELECTIONNÉ SUR MOBILE */}
+          {/* ✅ MARQUEUR SÉLECTIONNÉ SUR MOBILE — pin natif (goutte), pas de cercle */}
           {selectionMarker && selectionMarker.latitude && selectionMarker.longitude && (
             <RNMarker
               coordinate={{
@@ -556,7 +633,8 @@ const MapViewWrapper = forwardRef(({
                 longitude: selectionMarker.longitude,
               }}
               draggable
-              pinColor={MARKER_COLORS?.selected || '#F59E0B'}
+              pinColor={MARKER_COLORS?.selected || DEFAULT_MARKER_COLORS.selected}
+              anchor={{ x: 0.5, y: 1 }}
               onDragEnd={(e) => {
                 if (onSelectionDragEnd) onSelectionDragEnd(e.nativeEvent.coordinate);
               }}
@@ -569,7 +647,8 @@ const MapViewWrapper = forwardRef(({
               coordinate={m.coordinate}
               title={m.title}
               description={m.description}
-              pinColor={m.pinColor || (m.available ? MARKER_COLORS.available : MARKER_COLORS.unavailable)}
+              pinColor={resolveMarkerColor(m)}
+              anchor={{ x: 0.5, y: 1 }}
               onPress={() => onMarkerPress && onMarkerPress(m)}
             />
           ))}
@@ -710,7 +789,6 @@ const styles = StyleSheet.create({
   },
   retryButtonText: { color: '#fff', fontSize: 11, fontWeight: '600' },
   
-  // ✅ Nouveau banner d'information pour la sélection
   selectionInfoBanner: {
     position: 'absolute',
     bottom: 10,

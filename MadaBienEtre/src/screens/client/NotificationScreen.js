@@ -1,276 +1,388 @@
-// src/screens/client/NotificationScreen.js
+/**
+ * ============================================================
+ * CLIENT - NOTIFICATION SCREEN
+ * ============================================================
+ *
+ * Fonctionnalités :
+ *
+ * 1. Chargement réel depuis notificationService
+ * 2. Tri : plus récente -> plus ancienne
+ * 3. Durée réelle :
+ *      À l'instant
+ *      12 sec
+ *      2 min
+ *      1 h
+ *      1 h 25
+ *      3 j
+ *      2 sem
+ *      2 mois
+ *      1 an
+ *
+ * 4. Notification cliquable
+ * 5. Notification négociation -> Negotiation
+ * 6. Notification réservation -> BookingDetail
+ *
+ * 7. Marquage automatique comme lu
+ * 8. Suppression individuelle
+ * 9. Confirmation personnalisée avant suppression
+ * 10. Toast centré sous le Header
+ * 11. "Tout marquer comme lu"
+ *
+ * 12. Filtres :
+ *      Toutes
+ *      Réservations
+ *      Négociations
+ *      Paiements
+ *      Système
+ *
+ * 13. Texte conservé après lecture
+ * 14. Badge "NON LUE"
+ * 15. Pull-to-refresh
+ * 16. Android + Web
+ * 17. Dark mode
+ * 18. Mise à jour réelle du temps toutes les secondes
+ * ============================================================
+ */
 
 import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
   useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
 } from 'react';
 
 import {
   View,
   Text,
   StyleSheet,
+  FlatList,
   ScrollView,
   TouchableOpacity,
-  FlatList,
-  Platform,
-  Switch,
+  ActivityIndicator,
+  RefreshControl,
   Animated,
-  Dimensions,
-  SafeAreaView,
-  StatusBar,
+  Platform,
+  Modal,
+  Pressable,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import * as Animatable from 'react-native-animatable';
+
+import { useFocusEffect } from '@react-navigation/native';
 
 import { useTheme } from '../../context/ThemeContext';
 import { useNotifications } from '../../context/NotificationContext';
 
-import {
-  colors,
-  spacing,
-  typography,
-} from '../../theme';
+import { colors, spacing, typography } from '../../theme';
 
 import Header from '../../components/common/Header';
 
-// ============================================================
-// CONSTANTS
-// ============================================================
+import notificationService from '../../services/notificationService';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const IS_WEB = Platform.OS === 'web';
+/* ============================================================
+   HELPERS
+============================================================ */
 
-const TOAST_DURATION = 2600;
+/**
+ * Retourne le timestamp d'une notification.
+ */
+const getNotificationTimestamp = (notification) => {
+  const rawDate =
+    notification?.created_at ||
+    notification?.createdAt ||
+    notification?.date ||
+    notification?.timestamp ||
+    notification?.sent_at ||
+    notification?.sentAt;
 
-// ============================================================
-// TOAST COMPONENT
-// ============================================================
-
-const Toast = ({
-  visible,
-  type = 'success',
-  title,
-  message,
-  onHide,
-}) => {
-  const translateY = useRef(
-    new Animated.Value(-30)
-  ).current;
-
-  const opacity = useRef(
-    new Animated.Value(0)
-  ).current;
-
-  const progress = useRef(
-    new Animated.Value(1)
-  ).current;
-
-  useEffect(() => {
-    if (!visible) return;
-
-    translateY.setValue(-30);
-    opacity.setValue(0);
-    progress.setValue(1);
-
-    Animated.parallel([
-      Animated.spring(translateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        tension: 70,
-        friction: 9,
-      }),
-
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    const timer = setTimeout(() => {
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: -20,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-      ]).start(({ finished }) => {
-        if (finished) {
-          onHide?.();
-        }
-      });
-    }, TOAST_DURATION);
-
-    return () => clearTimeout(timer);
-  }, [
-    visible,
-    translateY,
-    opacity,
-    progress,
-    onHide,
-  ]);
-
-  if (!visible) {
-    return null;
+  if (!rawDate) {
+    return 0;
   }
 
-  const toastConfig = {
-    success: {
-      icon: 'checkmark-circle',
-      iconColor: '#00C853',
-      background: '#E8F5E9',
-      titleColor: '#1B5E20',
-    },
+  const timestamp = new Date(rawDate).getTime();
 
-    error: {
-      icon: 'close-circle',
-      iconColor: '#E53935',
-      background: '#FFEBEE',
-      titleColor: '#B71C1C',
-    },
+  return Number.isNaN(timestamp)
+    ? 0
+    : timestamp;
+};
 
-    info: {
-      icon: 'information-circle',
-      iconColor: '#2196F3',
-      background: '#E3F2FD',
-      titleColor: '#0D47A1',
-    },
 
-    warning: {
-      icon: 'warning',
-      iconColor: '#FF9800',
-      background: '#FFF3E0',
-      titleColor: '#E65100',
-    },
-  };
-
-  const config =
-    toastConfig[type] || toastConfig.success;
-
+/**
+ * Retourne l'identifiant de la notification.
+ */
+const getNotificationId = (notification) => {
   return (
-    <Animated.View
-      pointerEvents="box-none"
-      style={[
-        styles.toastWrapper,
-        {
-          opacity,
-          transform: [
-            {
-              translateY,
-            },
-          ],
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.toast,
-          {
-            backgroundColor:
-              config.background,
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.toastIconContainer,
-            {
-              backgroundColor:
-                `${config.iconColor}18`,
-            },
-          ]}
-        >
-          <Ionicons
-            name={config.icon}
-            size={23}
-            color={config.iconColor}
-          />
-        </View>
-
-        <View style={styles.toastContent}>
-          {!!title && (
-            <Text
-              style={[
-                styles.toastTitle,
-                {
-                  color:
-                    config.titleColor,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {title}
-            </Text>
-          )}
-
-          {!!message && (
-            <Text
-              style={[
-                styles.toastMessage,
-                {
-                  color:
-                    config.titleColor,
-                },
-              ]}
-              numberOfLines={2}
-            >
-              {message}
-            </Text>
-          )}
-        </View>
-
-        <TouchableOpacity
-          style={styles.toastClose}
-          activeOpacity={0.7}
-          onPress={onHide}
-        >
-          <Ionicons
-            name="close"
-            size={18}
-            color={config.titleColor}
-          />
-        </TouchableOpacity>
-      </View>
-    </Animated.View>
+    notification?.id ??
+    notification?.notification_id ??
+    notification?.notificationId
   );
 };
 
-// ============================================================
-// COMPONENT
-// ============================================================
+
+/**
+ * Vérifie si une notification est lue.
+ */
+const isNotificationRead = (notification) => {
+  if (!notification) {
+    return true;
+  }
+
+  if (typeof notification.is_read === 'boolean') {
+    return notification.is_read;
+  }
+
+  if (typeof notification.read === 'boolean') {
+    return notification.read;
+  }
+
+  if (notification.read_at) {
+    return true;
+  }
+
+  if (notification.readAt) {
+    return true;
+  }
+
+  return false;
+};
+
+
+/**
+ * Détermine la catégorie.
+ */
+const resolveCategory = (type) => {
+  const value = String(type || '')
+    .toLowerCase()
+    .trim();
+
+  if (
+    value.includes('offer') ||
+    value.includes('negotiation') ||
+    value.includes('negociation') ||
+    value.includes('counter')
+  ) {
+    return 'offer';
+  }
+
+  if (value.includes('sos')) {
+    return 'sos';
+  }
+
+  if (
+    value.includes('payment') ||
+    value.includes('paiement') ||
+    value.includes('earning') ||
+    value.includes('withdraw')
+  ) {
+    return 'payment';
+  }
+
+  if (
+    value.includes('booking') ||
+    value.includes('reservation') ||
+    value.includes('réservation')
+  ) {
+    return 'booking';
+  }
+
+  return 'system';
+};
+
+
+/**
+ * Détermine l'action de navigation.
+ */
+const resolveNotificationAction = (notification) => {
+  const type = String(notification?.type || '')
+    .toLowerCase()
+    .trim();
+
+  const category = resolveCategory(type);
+
+  if (
+    category === 'offer' ||
+    type.includes('counter_offer') ||
+    type.includes('counter-offer') ||
+    type.includes('counteroffer') ||
+    type.includes('negotiation') ||
+    type.includes('negociation')
+  ) {
+    return 'negotiation';
+  }
+
+  if (category === 'booking') {
+    return 'booking';
+  }
+
+  return 'none';
+};
+
+
+/**
+ * Récupère bookingId.
+ */
+const getBookingIdFromNotification = (notification) => {
+  const data =
+    notification?.data ||
+    notification?.metadata ||
+    notification?.payload ||
+    {};
+
+  return (
+    notification?.booking_id ??
+    notification?.bookingId ??
+    data?.booking_id ??
+    data?.bookingId ??
+    data?.id_booking ??
+    data?.idBooking ??
+    data?.booking?.id ??
+    data?.booking?.booking_id ??
+    null
+  );
+};
+
+
+/**
+ * Récupère offerId.
+ */
+const getOfferIdFromNotification = (notification) => {
+  const data =
+    notification?.data ||
+    notification?.metadata ||
+    notification?.payload ||
+    {};
+
+  return (
+    notification?.offer_id ??
+    notification?.offerId ??
+    data?.offer_id ??
+    data?.offerId ??
+    data?.offer?.id ??
+    null
+  );
+};
+
+
+/**
+ * Temps écoulé réel.
+ */
+const formatTimeAgo = (date) => {
+  if (!date) {
+    return '';
+  }
+
+  const created = new Date(date).getTime();
+
+  if (Number.isNaN(created)) {
+    return '';
+  }
+
+  const now = Date.now();
+
+  let diff = now - created;
+
+  if (diff < 0) {
+    diff = 0;
+  }
+
+  const seconds = Math.floor(diff / 1000);
+
+  if (seconds < 10) {
+    return "À l'instant";
+  }
+
+  if (seconds < 60) {
+    return `${seconds} sec`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+
+  const remainingMinutes =
+    minutes % 60;
+
+  if (hours < 24) {
+    if (remainingMinutes > 0) {
+      return `${hours} h ${remainingMinutes}`;
+    }
+
+    return `${hours} h`;
+  }
+
+  const days = Math.floor(hours / 24);
+
+  if (days < 7) {
+    return `${days} j`;
+  }
+
+  const weeks = Math.floor(days / 7);
+
+  if (weeks < 5) {
+    return `${weeks} sem`;
+  }
+
+  const months = Math.floor(days / 30);
+
+  if (months < 12) {
+    return `${months} mois`;
+  }
+
+  const years = Math.floor(days / 365);
+
+  return `${years} an${years > 1 ? 's' : ''}`;
+};
+
+
+/**
+ * Texte sécurisé.
+ */
+const safeText = (
+  value,
+  fallback = ''
+) => {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return fallback;
+  }
+
+  return String(value);
+};
+
+
+/* ============================================================
+   COMPONENT
+============================================================ */
 
 const NotificationScreen = ({
   navigation,
 }) => {
+
   const {
     colors: themeColors,
     isDark,
   } = useTheme();
 
-  const notificationContext =
-    useNotifications?.() || {};
-
   const {
-    notification,
-    expoPushToken,
-    isPushEnabled,
-    sendLocalNotification,
-    cancelAllNotifications,
-  } = notificationContext;
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    refreshUnreadCount,
+  } = useNotifications();
 
-  // ==========================================================
-  // STATES
-  // ==========================================================
+
+  /* ==========================================================
+     STATE
+  ========================================================== */
 
   const [
     notifications,
@@ -278,16 +390,49 @@ const NotificationScreen = ({
   ] = useState([]);
 
   const [
-    activeFilter,
-    setActiveFilter,
+    isLoading,
+    setIsLoading,
+  ] = useState(true);
+
+  const [
+    refreshing,
+    setRefreshing,
+  ] = useState(false);
+
+  const [
+    selectedFilter,
+    setSelectedFilter,
   ] = useState('all');
 
   const [
-    pushEnabled,
-    setPushEnabled,
-  ] = useState(
-    Boolean(isPushEnabled)
-  );
+    deletingId,
+    setDeletingId,
+  ] = useState(null);
+
+  const [
+    readingId,
+    setReadingId,
+  ] = useState(null);
+
+
+  /* ==========================================================
+     DELETE MODAL
+  ========================================================== */
+
+  const [
+    deleteModalVisible,
+    setDeleteModalVisible,
+  ] = useState(false);
+
+  const [
+    notificationToDelete,
+    setNotificationToDelete,
+  ] = useState(null);
+
+
+  /* ==========================================================
+     TOAST
+  ========================================================== */
 
   const [
     toast,
@@ -299,693 +444,2085 @@ const NotificationScreen = ({
     message: '',
   });
 
-  // ==========================================================
-  // MOCK DATA
-  // ==========================================================
+  const toastTimerRef =
+    useRef(null);
 
-  useEffect(() => {
-    const mockNotifications = [
-      {
-        id: 1,
-        title: 'Nouvelle offre reçue',
-        body:
-          'Sarah B. a proposé 75 000 Ar pour votre massage.',
-        type: 'booking',
-        date: '2024-01-15T10:30:00',
-        read: false,
-      },
+  const toastAnimation =
+    useRef(
+      new Animated.Value(0)
+    ).current;
 
-      {
-        id: 2,
-        title: 'Massage confirmé',
-        body:
-          'Votre massage avec Jean R. est confirmé pour demain à 14h.',
-        type: 'booking',
-        date: '2024-01-14T08:00:00',
-        read: true,
-      },
 
-      {
-        id: 3,
-        title: 'Alerte SOS',
-        body:
-          'Un SOS a été déclenché par un utilisateur à proximité.',
-        type: 'sos',
-        date: '2024-01-13T22:15:00',
-        read: false,
-      },
+  /* ==========================================================
+     LIST ANIMATION
+  ========================================================== */
 
-      {
-        id: 4,
-        title: 'Promotion -20%',
-        body:
-          "Offre spéciale massage relaxant jusqu'à la fin du mois.",
-        type: 'promo',
-        date: '2024-01-12T09:00:00',
-        read: true,
-      },
-    ];
+  const fadeAnim =
+    useRef(
+      new Animated.Value(0)
+    ).current;
 
-    setNotifications(
-      mockNotifications
-    );
-  }, []);
 
-  // ==========================================================
-  // SYNC PUSH STATE
-  // ==========================================================
-
-  useEffect(() => {
-    if (
-      typeof isPushEnabled ===
-      'boolean'
-    ) {
-      setPushEnabled(
-        isPushEnabled
-      );
-    }
-  }, [isPushEnabled]);
-
-  // ==========================================================
-  // TOAST
-  // ==========================================================
+  /* ==========================================================
+     SHOW TOAST
+  ========================================================== */
 
   const showToast = useCallback(
     ({
       type = 'success',
       title = '',
       message = '',
+      duration = 2600,
     }) => {
+
+      if (toastTimerRef.current) {
+        clearTimeout(
+          toastTimerRef.current
+        );
+      }
+
       setToast({
         visible: true,
         type,
         title,
         message,
       });
+
+      toastAnimation.setValue(0);
+
+      Animated.spring(
+        toastAnimation,
+        {
+          toValue: 1,
+          friction: 7,
+          tension: 65,
+          useNativeDriver: true,
+        }
+      ).start();
+
+      toastTimerRef.current =
+        setTimeout(() => {
+
+          Animated.timing(
+            toastAnimation,
+            {
+              toValue: 0,
+              duration: 220,
+              useNativeDriver: true,
+            }
+          ).start(() => {
+            setToast(
+              (previous) => ({
+                ...previous,
+                visible: false,
+              })
+            );
+          });
+
+        }, duration);
+
     },
-    []
+    [toastAnimation]
   );
 
-  const hideToast = useCallback(() => {
-    setToast((previous) => ({
-      ...previous,
-      visible: false,
-    }));
-  }, []);
 
-  // ==========================================================
-  // FILTERS
-  // ==========================================================
+  /* ==========================================================
+     CLEAN TOAST TIMER
+  ========================================================== */
 
-  const filters = useMemo(
-    () => [
-      {
-        id: 'all',
-        label: 'Toutes',
-        icon: 'apps-outline',
-      },
-
-      {
-        id: 'booking',
-        label: 'Réservations',
-        icon: 'calendar-outline',
-      },
-
-      {
-        id: 'sos',
-        label: 'SOS',
-        icon: 'alert-circle-outline',
-      },
-
-      {
-        id: 'promo',
-        label: 'Promotions',
-        icon: 'pricetag-outline',
-      },
-    ],
-    []
-  );
-
-  // ==========================================================
-  // FILTERED NOTIFICATIONS
-  // ==========================================================
-
-  const filteredNotifications =
-    useMemo(() => {
-      if (
-        activeFilter === 'all'
-      ) {
-        return notifications;
-      }
-
-      return notifications.filter(
-        (item) =>
-          item.type ===
-          activeFilter
-      );
-    }, [
-      notifications,
-      activeFilter,
-    ]);
-
-  // ==========================================================
-  // UNREAD COUNT
-  // ==========================================================
-
-  const unreadCount = useMemo(
-    () =>
-      notifications.filter(
-        (item) => !item.read
-      ).length,
-    [notifications]
-  );
-
-  // ==========================================================
-  // FILTER ACTION
-  // ==========================================================
-
-  const handleFilterPress = (
-    filterId
-  ) => {
-    if (
-      activeFilter === filterId
-    ) {
-      return;
-    }
-
-    setActiveFilter(filterId);
-
-    const selected =
-      filters.find(
-        (item) =>
-          item.id === filterId
-      );
-
-    showToast({
-      type: 'info',
-      title: 'Filtre appliqué',
-      message:
-        selected?.label ||
-        'Notifications filtrées',
-    });
-  };
-
-  // ==========================================================
-  // GET ICON
-  // ==========================================================
-
-  const getIconForType = (
-    type
-  ) => {
-    switch (type) {
-      case 'booking':
-        return 'calendar';
-
-      case 'sos':
-        return 'alert-circle';
-
-      case 'promo':
-        return 'pricetag';
-
-      default:
-        return 'notifications';
-    }
-  };
-
-  // ==========================================================
-  // GET COLOR
-  // ==========================================================
-
-  const getColorForType = (
-    type
-  ) => {
-    switch (type) {
-      case 'booking':
-        return '#2196F3';
-
-      case 'sos':
-        return '#E53935';
-
-      case 'promo':
-        return '#FF6F00';
-
-      default:
-        return colors.primary;
-    }
-  };
-
-  // ==========================================================
-  // GET TYPE LABEL
-  // ==========================================================
-
-  const getTypeLabel = (
-    type
-  ) => {
-    switch (type) {
-      case 'booking':
-        return 'Réservation';
-
-      case 'sos':
-        return 'SOS';
-
-      case 'promo':
-        return 'Promotion';
-
-      default:
-        return 'Notification';
-    }
-  };
-
-  // ==========================================================
-  // FORMAT DATE
-  // ==========================================================
-
-  const formatNotificationDate =
-    (date) => {
-      try {
-        return new Date(
-          date
-        ).toLocaleDateString(
-          'fr-FR',
-          {
-            day: '2-digit',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-          }
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(
+          toastTimerRef.current
         );
-      } catch {
-        return '';
       }
     };
+  }, []);
 
-  // ==========================================================
-  // MARK AS READ
-  // ==========================================================
 
-  const handleNotificationPress =
-    (item) => {
-      if (!item.read) {
-        setNotifications(
-          (previous) =>
-            previous.map(
-              (notificationItem) =>
-                notificationItem.id ===
-                item.id
-                  ? {
-                      ...notificationItem,
-                      read: true,
-                    }
-                  : notificationItem
+  /* ==========================================================
+     FILTERS
+  ========================================================== */
+
+  const filters = [
+    {
+      id: 'all',
+      label: 'Toutes',
+      icon: 'notifications-outline',
+    },
+    {
+      id: 'booking',
+      label: 'Réservations',
+      icon: 'calendar-outline',
+    },
+    {
+      id: 'offer',
+      label: 'Négociations',
+      icon: 'pricetag-outline',
+    },
+    {
+      id: 'payment',
+      label: 'Paiements',
+      icon: 'card-outline',
+    },
+    {
+      id: 'system',
+      label: 'Système',
+      icon: 'information-circle-outline',
+    },
+  ];
+
+
+  /* ==========================================================
+     LOAD NOTIFICATIONS
+  ========================================================== */
+
+  const loadNotifications =
+    useCallback(async () => {
+
+      setIsLoading(true);
+
+      try {
+
+        const result =
+          await notificationService
+            .getNotifications();
+
+        if (!result?.success) {
+
+          console.warn(
+            '⚠️ [CLIENT Notifications] Impossible de charger:',
+            result?.error
+          );
+
+          setNotifications([]);
+
+          return;
+        }
+
+        const data =
+          result?.data;
+
+        let list = [];
+
+        if (Array.isArray(data)) {
+          list = data;
+        } else if (
+          Array.isArray(
+            data?.notifications
+          )
+        ) {
+          list =
+            data.notifications;
+        } else if (
+          Array.isArray(
+            data?.items
+          )
+        ) {
+          list =
+            data.items;
+        } else if (
+          Array.isArray(
+            data?.results
+          )
+        ) {
+          list =
+            data.results;
+        }
+
+
+        /* ------------------------------------------------------
+           NORMALISATION
+        ------------------------------------------------------ */
+
+        const normalized =
+          list.map(
+            (item, index) => ({
+              ...item,
+
+              id:
+                getNotificationId(
+                  item
+                ) ??
+                `notification-${index}`,
+
+              is_read:
+                isNotificationRead(
+                  item
+                ),
+
+              created_at:
+                item?.created_at ||
+                item?.createdAt ||
+                item?.date ||
+                item?.timestamp ||
+                item?.sent_at ||
+                item?.sentAt ||
+                null,
+            })
+          );
+
+
+        /* ------------------------------------------------------
+           PLUS RÉCENTE EN PREMIER
+        ------------------------------------------------------ */
+
+        normalized.sort(
+          (a, b) =>
+            getNotificationTimestamp(
+              b
+            ) -
+            getNotificationTimestamp(
+              a
             )
         );
 
-        showToast({
-          type: 'success',
-          title: 'Notification lue',
-          message:
-            'La notification a été marquée comme lue.',
-        });
 
-        return;
+        setNotifications(
+          normalized
+        );
+
+      } catch (error) {
+
+        console.error(
+          '❌ [CLIENT Notifications] Error loading:',
+          error
+        );
+
+        setNotifications([]);
+
+      } finally {
+
+        setIsLoading(false);
+
       }
 
-      showToast({
-        type: 'info',
-        title: 'Notification',
-        message:
-          'Cette notification est déjà lue.',
-      });
-    };
+    }, []);
 
-  // ==========================================================
-  // MARK ALL AS READ
-  // ==========================================================
 
-  const handleMarkAllAsRead =
-    () => {
-      if (unreadCount === 0) {
-        showToast({
-          type: 'info',
-          title: 'Tout est à jour',
-          message:
-            'Aucune notification non lue.',
-        });
+  /* ==========================================================
+     INITIAL LOAD
+  ========================================================== */
 
-        return;
+  useEffect(() => {
+
+    loadNotifications();
+
+    Animated.timing(
+      fadeAnim,
+      {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
       }
+    ).start();
 
-      setNotifications(
-        (previous) =>
-          previous.map(
-            (item) => ({
-              ...item,
-              read: true,
-            })
-          )
-      );
+  }, [
+    loadNotifications,
+    fadeAnim,
+  ]);
 
-      showToast({
-        type: 'success',
-        title: 'Notifications lues',
-        message: `${unreadCount} notification${
-          unreadCount > 1
-            ? 's ont'
-            : ' a'
-        } été marquée${
-          unreadCount > 1
-            ? 's'
-            : ''
-        } comme lue${
-          unreadCount > 1
-            ? 's'
-            : ''
-        }.`,
-      });
-    };
 
-  // ==========================================================
-  // PUSH TOGGLE
-  // ==========================================================
+  /* ==========================================================
+     FOCUS
+  ========================================================== */
 
-  const handlePushToggle =
-    async (value) => {
-      setPushEnabled(value);
+  useFocusEffect(
+    useCallback(() => {
+
+      loadNotifications();
+
+      refreshUnreadCount?.();
+
+      return undefined;
+
+    }, [
+      loadNotifications,
+      refreshUnreadCount,
+    ])
+  );
+
+
+  /* ==========================================================
+     UPDATE TIME EVERY SECOND
+  ========================================================== */
+
+  const [, setCurrentTime] =
+    useState(Date.now());
+
+  useFocusEffect(
+    useCallback(() => {
+
+      const interval =
+        setInterval(() => {
+          setCurrentTime(
+            Date.now()
+          );
+        }, 1000);
+
+      return () => {
+        clearInterval(interval);
+      };
+
+    }, [])
+  );
+
+
+  /* ==========================================================
+     REFRESH
+  ========================================================== */
+
+  const onRefresh =
+    useCallback(async () => {
+
+      setRefreshing(true);
 
       try {
-        if (!value) {
-          if (
-            typeof cancelAllNotifications ===
-            'function'
-          ) {
-            await cancelAllNotifications();
+
+        await loadNotifications();
+
+        await refreshUnreadCount?.();
+
+      } finally {
+
+        setRefreshing(false);
+
+      }
+
+    }, [
+      loadNotifications,
+      refreshUnreadCount,
+    ]);
+
+
+  /* ==========================================================
+     UPDATE READ LOCALLY
+  ========================================================== */
+
+  const updateNotificationAsRead =
+    useCallback(
+      (notificationId) => {
+
+        setNotifications(
+          (previous) =>
+            previous.map(
+              (item) => {
+
+                const itemId =
+                  getNotificationId(
+                    item
+                  );
+
+                if (
+                  String(itemId) ===
+                  String(notificationId)
+                ) {
+
+                  return {
+                    ...item,
+
+                    is_read: true,
+
+                    read: true,
+                  };
+
+                }
+
+                return item;
+
+              }
+            )
+        );
+
+      },
+      []
+    );
+
+
+  /* ==========================================================
+     NAVIGATION
+  ========================================================== */
+
+  const navigateFromNotification =
+    useCallback(
+      (notification) => {
+
+        const action =
+          resolveNotificationAction(
+            notification
+          );
+
+        const bookingId =
+          getBookingIdFromNotification(
+            notification
+          );
+
+        const offerId =
+          getOfferIdFromNotification(
+            notification
+          );
+
+
+        /* ------------------------------------------------------
+           NÉGOCIATION
+        ------------------------------------------------------ */
+
+        if (
+          action ===
+          'negotiation'
+        ) {
+
+          if (!bookingId) {
+
+            showToast({
+              type: 'warning',
+              title: 'Notification',
+              message:
+                'Cette notification ne contient pas de réservation.',
+            });
+
+            return;
           }
 
+
+          /*
+           * CLIENT :
+           *
+           * On garde les routes du
+           * ClientNavigator.
+           *
+           * Negotiation doit être enregistré
+           * dans le stack client.
+           */
+
+          navigation.navigate(
+            'Negotiation',
+            {
+              bookingId,
+              offerId,
+              notification,
+            }
+          );
+
+          return;
+        }
+
+
+        /* ------------------------------------------------------
+           RÉSERVATION
+        ------------------------------------------------------ */
+
+        if (
+          action ===
+          'booking'
+        ) {
+
+          if (!bookingId) {
+
+            showToast({
+              type: 'warning',
+              title: 'Notification',
+              message:
+                'Identifiant de réservation introuvable.',
+            });
+
+            return;
+          }
+
+          navigation.navigate(
+            'BookingDetail',
+            {
+              bookingId,
+            }
+          );
+
+          return;
+        }
+
+      },
+      [
+        navigation,
+        showToast,
+      ]
+    );
+
+
+  /* ==========================================================
+     PRESS NOTIFICATION
+  ========================================================== */
+
+  const handleNotificationPress =
+    useCallback(
+      async (notification) => {
+
+        const notificationId =
+          getNotificationId(
+            notification
+          );
+
+
+        if (!notificationId) {
+
+          navigateFromNotification(
+            notification
+          );
+
+          return;
+        }
+
+
+        setReadingId(
+          notificationId
+        );
+
+
+        try {
+
+          const alreadyRead =
+            isNotificationRead(
+              notification
+            );
+
+
+          /* ----------------------------------------------------
+             MARK AS READ
+          ---------------------------------------------------- */
+
+          if (!alreadyRead) {
+
+            try {
+
+              await markAsRead(
+                notificationId
+              );
+
+            } catch (error) {
+
+              console.warn(
+                '⚠️ Impossible de marquer comme lue:',
+                error
+              );
+
+            }
+
+
+            /*
+             * IMPORTANT :
+             * On garde title + body.
+             */
+
+            updateNotificationAsRead(
+              notificationId
+            );
+
+
+            refreshUnreadCount?.();
+
+
+            /*
+             * Toast discret.
+             */
+
+            showToast({
+              type: 'success',
+              title: 'Notification lue',
+              message:
+                'La notification a été marquée comme lue.',
+              duration: 1800,
+            });
+          }
+
+
+          /* ----------------------------------------------------
+             NAVIGATION DIRECTE
+          ---------------------------------------------------- */
+
+          navigateFromNotification(
+            notification
+          );
+
+        } finally {
+
+          setReadingId(null);
+
+        }
+
+      },
+      [
+        markAsRead,
+        navigateFromNotification,
+        refreshUnreadCount,
+        showToast,
+        updateNotificationAsRead,
+      ]
+    );
+
+
+  /* ==========================================================
+     OPEN DELETE MODAL
+  ========================================================== */
+
+  const handleDeleteNotification =
+    useCallback(
+      (notification) => {
+
+        setNotificationToDelete(
+          notification
+        );
+
+        setDeleteModalVisible(
+          true
+        );
+
+      },
+      []
+    );
+
+
+  /* ==========================================================
+     CLOSE DELETE MODAL
+  ========================================================== */
+
+  const closeDeleteModal =
+    useCallback(() => {
+
+      if (deletingId) {
+        return;
+      }
+
+      setDeleteModalVisible(
+        false
+      );
+
+      setNotificationToDelete(
+        null
+      );
+
+    }, [deletingId]);
+
+
+  /* ==========================================================
+     DELETE NOTIFICATION
+  ========================================================== */
+
+  const performDeleteNotification =
+    useCallback(
+      async () => {
+
+        const notification =
+          notificationToDelete;
+
+        if (!notification) {
+          return;
+        }
+
+        const notificationId =
+          getNotificationId(
+            notification
+          );
+
+        if (!notificationId) {
+
+          setDeleteModalVisible(
+            false
+          );
+
+          setNotificationToDelete(
+            null
+          );
+
           showToast({
-            type: 'warning',
-            title:
-              'Notifications désactivées',
+            type: 'error',
+            title: 'Erreur',
             message:
-              'Les notifications locales ont été désactivées.',
+              'Identifiant de notification introuvable.',
           });
 
           return;
         }
 
-        // ----------------------------------------------------
-        // Si la fonction existe, on envoie une notification
-        // locale de test.
-        // ----------------------------------------------------
 
-        if (
-          typeof sendLocalNotification ===
-          'function'
-        ) {
-          await sendLocalNotification({
-            title:
-              'Notifications activées',
-            body:
-              'Les notifications sont maintenant actives.',
+        setDeletingId(
+          notificationId
+        );
+
+
+        try {
+
+          let result = null;
+
+
+          /* ----------------------------------------------------
+             BACKEND DELETE
+          ---------------------------------------------------- */
+
+          if (
+            typeof notificationService
+              .deleteNotification ===
+            'function'
+          ) {
+
+            result =
+              await notificationService
+                .deleteNotification(
+                  notificationId
+                );
+
+          } else if (
+            typeof notificationService
+              .removeNotification ===
+            'function'
+          ) {
+
+            result =
+              await notificationService
+                .removeNotification(
+                  notificationId
+                );
+
+          } else if (
+            typeof notificationService
+              .delete ===
+            'function'
+          ) {
+
+            result =
+              await notificationService.delete(
+                notificationId
+              );
+
+          } else if (
+            typeof notificationService
+              .remove ===
+            'function'
+          ) {
+
+            result =
+              await notificationService.remove(
+                notificationId
+              );
+
+          } else {
+
+            /*
+             * Aucun endpoint delete disponible
+             * dans notificationService.
+             *
+             * On ne prétend PAS que le backend
+             * a supprimé la notification.
+             */
+
+            console.warn(
+              '⚠️ notificationService ne possède aucune méthode delete.'
+            );
+
+            result = {
+              success: true,
+              localOnly: true,
+            };
+
+          }
+
+
+          /* ----------------------------------------------------
+             VÉRIFICATION
+          ---------------------------------------------------- */
+
+          const success =
+            result?.success === true ||
+            (
+              result?.status >= 200 &&
+              result?.status < 300
+            ) ||
+            result?.localOnly === true;
+
+
+          if (!success) {
+
+            throw new Error(
+              result?.error ||
+              'Suppression impossible'
+            );
+
+          }
+
+
+          /* ----------------------------------------------------
+             REMOVE FROM UI
+          ---------------------------------------------------- */
+
+          setNotifications(
+            (previous) =>
+              previous.filter(
+                (item) =>
+                  String(
+                    getNotificationId(
+                      item
+                    )
+                  ) !==
+                  String(
+                    notificationId
+                  )
+              )
+          );
+
+
+          /* ----------------------------------------------------
+             CLOSE MODAL
+          ---------------------------------------------------- */
+
+          setDeleteModalVisible(
+            false
+          );
+
+          setNotificationToDelete(
+            null
+          );
+
+
+          /* ----------------------------------------------------
+             BADGE
+          ---------------------------------------------------- */
+
+          await refreshUnreadCount?.();
+
+
+          /* ----------------------------------------------------
+             TOAST CENTRÉ
+          ---------------------------------------------------- */
+
+          showToast({
+            type: 'success',
+            title: 'Notification supprimée',
+            message:
+              'La notification a été supprimée avec succès.',
           });
+
+        } catch (error) {
+
+          console.error(
+            '❌ [CLIENT Notifications] Suppression impossible:',
+            error
+          );
+
+
+          setDeleteModalVisible(
+            false
+          );
+
+          setNotificationToDelete(
+            null
+          );
+
+
+          showToast({
+            type: 'error',
+            title: 'Suppression impossible',
+            message:
+              'Impossible de supprimer cette notification.',
+          });
+
+        } finally {
+
+          setDeletingId(null);
+
         }
 
-        showToast({
-          type: 'success',
-          title:
-            'Notifications activées',
-          message:
-            'Vous recevrez les alertes importantes.',
-        });
-      } catch (error) {
-        console.error(
-          'Push notification error:',
-          error
+      },
+      [
+        notificationToDelete,
+        refreshUnreadCount,
+        showToast,
+      ]
+    );
+
+
+  /* ==========================================================
+     MARK ALL AS READ
+  ========================================================== */
+
+  const handleMarkAllRead =
+    useCallback(
+      async () => {
+
+        if (
+          !notifications.length
+        ) {
+          return;
+        }
+
+
+        try {
+
+          await markAllAsRead();
+
+
+          /*
+           * On garde tout le contenu.
+           */
+
+          setNotifications(
+            (previous) =>
+              previous.map(
+                (item) => ({
+                  ...item,
+                  is_read: true,
+                  read: true,
+                })
+              )
+          );
+
+
+          await refreshUnreadCount?.();
+
+
+          showToast({
+            type: 'success',
+            title: 'Notifications lues',
+            message:
+              'Toutes les notifications ont été marquées comme lues.',
+          });
+
+        } catch (error) {
+
+          console.error(
+            '❌ Mark all read:',
+            error
+          );
+
+
+          showToast({
+            type: 'error',
+            title: 'Erreur',
+            message:
+              'Impossible de marquer toutes les notifications comme lues.',
+          });
+
+        }
+
+      },
+      [
+        markAllAsRead,
+        notifications.length,
+        refreshUnreadCount,
+        showToast,
+      ]
+    );
+
+
+  /* ==========================================================
+     ICON
+  ========================================================== */
+
+  const getIcon =
+    useCallback(
+      (type) => {
+
+        const category =
+          resolveCategory(
+            type
+          );
+
+        const map = {
+
+          booking:
+            'calendar-outline',
+
+          offer:
+            'pricetag-outline',
+
+          payment:
+            'card-outline',
+
+          system:
+            'information-circle-outline',
+
+          sos:
+            'alert-circle-outline',
+
+        };
+
+        return (
+          map[category] ||
+          'notifications-outline'
         );
 
-        setPushEnabled(
-          !value
+      },
+      []
+    );
+
+
+  /* ==========================================================
+     COLOR
+  ========================================================== */
+
+  const getColor =
+    useCallback(
+      (type) => {
+
+        const category =
+          resolveCategory(
+            type
+          );
+
+        const map = {
+
+          booking:
+            '#4CAF50',
+
+          offer:
+            '#FF9800',
+
+          payment:
+            '#2196F3',
+
+          system:
+            '#757575',
+
+          sos:
+            '#D32F2F',
+
+        };
+
+        return (
+          map[category] ||
+          '#757575'
         );
 
-        showToast({
-          type: 'error',
-          title:
-            'Action impossible',
-          message:
-            "Impossible de modifier les notifications.",
-        });
-      }
-    };
+      },
+      []
+    );
 
-  // ==========================================================
-  // RENDER NOTIFICATION
-  // ==========================================================
 
-  const renderNotification =
-    ({ item }) => {
-      const typeColor =
-        getColorForType(
-          item.type
-        );
+  /* ==========================================================
+     FILTER + SORT
+  ========================================================== */
 
-      return (
-        <TouchableOpacity
-          activeOpacity={0.82}
-          onPress={() =>
-            handleNotificationPress(
-              item
-            )
+  const filteredNotifications =
+    useMemo(() => {
+
+      const result =
+        notifications.filter(
+          (item) => {
+
+            if (
+              selectedFilter ===
+              'all'
+            ) {
+              return true;
+            }
+
+            return (
+              resolveCategory(
+                item?.type
+              ) ===
+              selectedFilter
+            );
+
           }
+        );
+
+
+      result.sort(
+        (a, b) =>
+          getNotificationTimestamp(
+            b
+          ) -
+          getNotificationTimestamp(
+            a
+          )
+      );
+
+
+      return result;
+
+    }, [
+      notifications,
+      selectedFilter,
+    ]);
+
+
+  /* ==========================================================
+     RENDER TOAST
+  ========================================================== */
+
+  const renderToast = () => {
+
+    if (!toast.visible) {
+      return null;
+    }
+
+
+    const isError =
+      toast.type === 'error';
+
+    const isWarning =
+      toast.type === 'warning';
+
+
+    const iconName =
+      isError
+        ? 'close-circle'
+        : isWarning
+          ? 'warning'
+          : 'checkmark-circle';
+
+
+    const iconColor =
+      isError
+        ? '#D32F2F'
+        : isWarning
+          ? '#F57C00'
+          : colors.primary;
+
+
+    const iconBackground =
+      isError
+        ? 'rgba(211,47,47,0.12)'
+        : isWarning
+          ? 'rgba(245,124,0,0.12)'
+          : `${colors.primary}15`;
+
+
+    const translateY =
+      toastAnimation.interpolate({
+        inputRange: [0, 1],
+        outputRange: [-20, 0],
+      });
+
+
+    const scale =
+      toastAnimation.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.96, 1],
+      });
+
+
+    return (
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.toastWrapper,
+          {
+            transform: [
+              {
+                translateY,
+              },
+              {
+                scale,
+              },
+            ],
+            opacity:
+              toastAnimation,
+          },
+        ]}
+      >
+        <View
           style={[
-            styles.notificationCard,
+            styles.toast,
             {
               backgroundColor:
                 themeColors.surface,
 
               borderColor:
-                item.read
-                  ? themeColors.border ||
-                    '#E5E7EB'
-                  : `${typeColor}55`,
+                isDark
+                  ? 'rgba(255,255,255,0.08)'
+                  : '#E9E9E9',
 
-              borderLeftColor:
-                typeColor,
+              shadowColor:
+                '#000',
             },
-
-            !item.read &&
-              styles.notificationCardUnread,
           ]}
         >
-          {/* ICON */}
 
           <View
             style={[
-              styles.notificationIcon,
+              styles.toastIcon,
               {
                 backgroundColor:
-                  `${typeColor}15`,
+                  iconBackground,
               },
             ]}
           >
             <Ionicons
-              name={getIconForType(
-                item.type
-              )}
+              name={iconName}
               size={23}
-              color={typeColor}
+              color={iconColor}
             />
           </View>
 
-          {/* CONTENT */}
 
           <View
             style={
-              styles.notificationContent
+              styles.toastContent
             }
           >
-            {/* TOP ROW */}
-
-            <View
-              style={
-                styles.notificationTopRow
-              }
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.toastTitle,
+                {
+                  color:
+                    themeColors.text,
+                },
+              ]}
             >
-              <View
-                style={
-                  styles.notificationTitleRow
-                }
-              >
-                <Text
-                  style={[
-                    styles.notificationTitle,
-                    {
-                      color:
-                        themeColors.text,
-                    },
-                  ]}
-                  numberOfLines={2}
-                >
-                  {item.title}
-                </Text>
-
-                {!item.read && (
-                  <View
-                    style={[
-                      styles.unreadDot,
-                      {
-                        backgroundColor:
-                          typeColor,
-                      },
-                    ]}
-                  />
-                )}
-              </View>
-            </View>
-
-            {/* TYPE */}
-
-            <View
-              style={
-                styles.notificationMetaRow
-              }
-            >
-              <View
-                style={[
-                  styles.typeBadge,
-                  {
-                    backgroundColor:
-                      `${typeColor}12`,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.typeBadgeText,
-                    {
-                      color:
-                        typeColor,
-                    },
-                  ]}
-                >
-                  {getTypeLabel(
-                    item.type
-                  )}
-                </Text>
-              </View>
-
-              <Text
-                style={[
-                  styles.notificationDate,
-                  {
-                    color:
-                      themeColors.textSecondary,
-                  },
-                ]}
-              >
-                {formatNotificationDate(
-                  item.date
-                )}
-              </Text>
-            </View>
-
-            {/* BODY */}
+              {toast.title}
+            </Text>
 
             <Text
+              numberOfLines={2}
               style={[
-                styles.notificationBody,
+                styles.toastMessage,
                 {
                   color:
                     themeColors.textSecondary,
                 },
               ]}
             >
-              {item.body}
+              {toast.message}
             </Text>
           </View>
 
-          {/* CHEVRON */}
+        </View>
+      </Animated.View>
+    );
+  };
 
+
+  /* ==========================================================
+     RENDER DELETE MODAL
+  ========================================================== */
+
+  const renderDeleteModal =
+    () => {
+
+      const title =
+        safeText(
+          notificationToDelete?.title,
+          'cette notification'
+        );
+
+
+      return (
+        <Modal
+          visible={
+            deleteModalVisible
+          }
+          transparent
+          animationType="fade"
+          statusBarTranslucent
+          onRequestClose={
+            closeDeleteModal
+          }
+        >
           <View
             style={
-              styles.notificationChevron
+              styles.modalOverlay
             }
           >
-            <Ionicons
-              name="chevron-forward"
-              size={18}
-              color={
-                themeColors.textSecondary
+
+            <Pressable
+              style={
+                StyleSheet.absoluteFill
+              }
+              onPress={
+                closeDeleteModal
               }
             />
+
+
+            <Animatable.View
+              animation="zoomIn"
+              duration={220}
+              style={[
+                styles.confirmModal,
+                {
+                  backgroundColor:
+                    themeColors.surface,
+
+                  borderColor:
+                    isDark
+                      ? 'rgba(255,255,255,0.08)'
+                      : '#E8E8E8',
+                },
+              ]}
+            >
+
+              {/* ------------------------------------------------
+                  ICON
+              ------------------------------------------------ */}
+
+              <View
+                style={[
+                  styles.confirmIcon,
+                  {
+                    backgroundColor:
+                      isDark
+                        ? 'rgba(211,47,47,0.15)'
+                        : '#FFF1F1',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="trash-outline"
+                  size={30}
+                  color="#D32F2F"
+                />
+              </View>
+
+
+              {/* ------------------------------------------------
+                  TITLE
+              ------------------------------------------------ */}
+
+              <Text
+                style={[
+                  styles.confirmTitle,
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+              >
+                Supprimer la notification ?
+              </Text>
+
+
+              {/* ------------------------------------------------
+                  MESSAGE
+              ------------------------------------------------ */}
+
+              <Text
+                style={[
+                  styles.confirmMessage,
+                  {
+                    color:
+                      themeColors.textSecondary,
+                  },
+                ]}
+              >
+                Voulez-vous vraiment supprimer
+                {' '}
+                <Text
+                  style={[
+                    styles.confirmStrong,
+                    {
+                      color:
+                        themeColors.text,
+                    },
+                  ]}
+                >
+                  « {title} »
+                </Text>
+                {' '}?
+              </Text>
+
+
+              <Text
+                style={[
+                  styles.confirmWarning,
+                  {
+                    color:
+                      themeColors.textSecondary,
+                  },
+                ]}
+              >
+                Cette action retirera la notification
+                de votre liste.
+              </Text>
+
+
+              {/* ------------------------------------------------
+                  BUTTONS
+              ------------------------------------------------ */}
+
+              <View
+                style={
+                  styles.confirmActions
+                }
+              >
+
+                <TouchableOpacity
+                  style={[
+                    styles.cancelButton,
+                    {
+                      backgroundColor:
+                        isDark
+                          ? 'rgba(255,255,255,0.06)'
+                          : '#F5F5F5',
+
+                      borderColor:
+                        isDark
+                          ? 'rgba(255,255,255,0.08)'
+                          : '#E2E2E2',
+                    },
+                  ]}
+                  onPress={
+                    closeDeleteModal
+                  }
+                  disabled={
+                    !!deletingId
+                  }
+                  activeOpacity={0.8}
+                >
+                  <Text
+                    style={[
+                      styles.cancelButtonText,
+                      {
+                        color:
+                          themeColors.text,
+                      },
+                    ]}
+                  >
+                    Annuler
+                  </Text>
+                </TouchableOpacity>
+
+
+                <TouchableOpacity
+                  style={
+                    styles.deleteConfirmButton
+                  }
+                  onPress={
+                    performDeleteNotification
+                  }
+                  disabled={
+                    !!deletingId
+                  }
+                  activeOpacity={0.8}
+                >
+
+                  {deletingId ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="#FFFFFF"
+                    />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="trash-outline"
+                        size={17}
+                        color="#FFFFFF"
+                      />
+
+                      <Text
+                        style={
+                          styles.deleteConfirmText
+                        }
+                      >
+                        Supprimer
+                      </Text>
+                    </>
+                  )}
+
+                </TouchableOpacity>
+
+              </View>
+
+            </Animatable.View>
           </View>
-        </TouchableOpacity>
+        </Modal>
       );
     };
 
-  // ==========================================================
-  // EMPTY STATE
-  // ==========================================================
 
-  const renderEmpty =
-    () => (
+  /* ==========================================================
+     RENDER NOTIFICATION
+  ========================================================== */
+
+  const renderNotification =
+    useCallback(
+      ({
+        item,
+        index,
+      }) => {
+
+        const notificationId =
+          getNotificationId(
+            item
+          );
+
+        const read =
+          isNotificationRead(
+            item
+          );
+
+        const icon =
+          getIcon(
+            item?.type
+          );
+
+        const color =
+          getColor(
+            item?.type
+          );
+
+        const action =
+          resolveNotificationAction(
+            item
+          );
+
+        const time =
+          formatTimeAgo(
+            item?.created_at
+          );
+
+        const isDeleting =
+          String(
+            deletingId
+          ) ===
+          String(
+            notificationId
+          );
+
+        const isReading =
+          String(
+            readingId
+          ) ===
+          String(
+            notificationId
+          );
+
+
+        return (
+          <Animatable.View
+            animation="fadeInUp"
+            duration={350}
+            delay={
+              Math.min(
+                index * 40,
+                300
+              )
+            }
+            style={
+              styles.animationWrapper
+            }
+          >
+
+            <View
+              style={[
+                styles.notificationCard,
+                {
+                  backgroundColor:
+                    themeColors.surface,
+
+                  borderColor:
+                    isDark
+                      ? 'rgba(255,255,255,0.06)'
+                      : '#ECECEC',
+                },
+
+                !read && {
+                  borderLeftColor:
+                    colors.primary,
+
+                  borderLeftWidth: 4,
+                },
+              ]}
+            >
+
+              {/* =================================================
+                  ICON
+              ================================================= */}
+
+              <TouchableOpacity
+                style={
+                  styles.iconTouchable
+                }
+                activeOpacity={0.8}
+                onPress={() =>
+                  handleNotificationPress(
+                    item
+                  )
+                }
+                disabled={
+                  isReading ||
+                  isDeleting
+                }
+              >
+
+                <View
+                  style={[
+                    styles.notificationIcon,
+                    {
+                      backgroundColor:
+                        `${color}18`,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={icon}
+                    size={23}
+                    color={color}
+                  />
+                </View>
+
+              </TouchableOpacity>
+
+
+              {/* =================================================
+                  CONTENT
+              ================================================= */}
+
+              <TouchableOpacity
+                style={
+                  styles.notificationContent
+                }
+                activeOpacity={0.75}
+                onPress={() =>
+                  handleNotificationPress(
+                    item
+                  )
+                }
+                disabled={
+                  isReading ||
+                  isDeleting
+                }
+              >
+
+                <View
+                  style={
+                    styles.notificationHeader
+                  }
+                >
+
+                  <View
+                    style={
+                      styles.titleContainer
+                    }
+                  >
+
+                    <Text
+                      numberOfLines={2}
+                      style={[
+                        styles.notificationTitle,
+                        {
+                          color:
+                            themeColors.text,
+                        },
+
+                        !read &&
+                          styles.unreadTitle,
+                      ]}
+                    >
+                      {safeText(
+                        item?.title,
+                        'Notification'
+                      )}
+                    </Text>
+
+
+                    {!read && (
+                      <View
+                        style={[
+                          styles.newBadge,
+                          {
+                            backgroundColor:
+                              `${colors.primary}18`,
+                          },
+                        ]}
+                      >
+
+                        <View
+                          style={[
+                            styles.newBadgeDot,
+                            {
+                              backgroundColor:
+                                colors.primary,
+                            },
+                          ]}
+                        />
+
+                        <Text
+                          style={[
+                            styles.newBadgeText,
+                            {
+                              color:
+                                colors.primary,
+                            },
+                          ]}
+                        >
+                          NON LUE
+                        </Text>
+
+                      </View>
+                    )}
+
+                  </View>
+
+
+                  <Text
+                    style={[
+                      styles.notificationTime,
+                      {
+                        color:
+                          themeColors.textSecondary,
+                      },
+                    ]}
+                  >
+                    {time}
+                  </Text>
+
+                </View>
+
+
+                {/* BODY */}
+
+                <Text
+                  style={[
+                    styles.notificationBody,
+                    {
+                      color:
+                        themeColors.textSecondary,
+                    },
+                  ]}
+                >
+                  {safeText(
+                    item?.body ||
+                    item?.message ||
+                    item?.description,
+                    ''
+                  )}
+                </Text>
+
+
+                {/* =================================================
+                    NEGOTIATION
+                ================================================= */}
+
+                {action ===
+                  'negotiation' && (
+                  <View
+                    style={[
+                      styles.actionHint,
+                      {
+                        backgroundColor:
+                          `${color}10`,
+                      },
+                    ]}
+                  >
+
+                    <Ionicons
+                      name="swap-horizontal-outline"
+                      size={15}
+                      color={color}
+                    />
+
+                    <Text
+                      style={[
+                        styles.actionHintText,
+                        {
+                          color,
+                        },
+                      ]}
+                    >
+                      Ouvrir la négociation
+                    </Text>
+
+                    <Ionicons
+                      name="chevron-forward"
+                      size={15}
+                      color={color}
+                    />
+
+                  </View>
+                )}
+
+
+                {/* =================================================
+                    BOOKING
+                ================================================= */}
+
+                {action ===
+                  'booking' && (
+                  <View
+                    style={[
+                      styles.actionHint,
+                      {
+                        backgroundColor:
+                          `${color}10`,
+                      },
+                    ]}
+                  >
+
+                    <Ionicons
+                      name="calendar-outline"
+                      size={15}
+                      color={color}
+                    />
+
+                    <Text
+                      style={[
+                        styles.actionHintText,
+                        {
+                          color,
+                        },
+                      ]}
+                    >
+                      Voir la réservation
+                    </Text>
+
+                    <Ionicons
+                      name="chevron-forward"
+                      size={15}
+                      color={color}
+                    />
+
+                  </View>
+                )}
+
+              </TouchableOpacity>
+
+
+              {/* =================================================
+                  DELETE
+              ================================================= */}
+
+              <TouchableOpacity
+                style={[
+                  styles.deleteButton,
+                  {
+                    backgroundColor:
+                      isDark
+                        ? 'rgba(211,47,47,0.12)'
+                        : '#FFF1F1',
+                  },
+                ]}
+                onPress={() =>
+                  handleDeleteNotification(
+                    item
+                  )
+                }
+                activeOpacity={0.75}
+                disabled={
+                  isDeleting ||
+                  isReading
+                }
+              >
+
+                {isDeleting ? (
+                  <ActivityIndicator
+                    size="small"
+                    color="#D32F2F"
+                  />
+                ) : (
+                  <Ionicons
+                    name="trash-outline"
+                    size={18}
+                    color="#D32F2F"
+                  />
+                )}
+
+              </TouchableOpacity>
+
+
+              {/* =================================================
+                  READING
+              ================================================= */}
+
+              {isReading && (
+                <View
+                  style={
+                    styles.readingOverlay
+                  }
+                >
+                  <ActivityIndicator
+                    size="small"
+                    color={
+                      colors.primary
+                    }
+                  />
+                </View>
+              )}
+
+            </View>
+
+          </Animatable.View>
+        );
+
+      },
+      [
+        colors.primary,
+        deletingId,
+        getColor,
+        getIcon,
+        handleDeleteNotification,
+        handleNotificationPress,
+        isDark,
+        readingId,
+        themeColors.surface,
+        themeColors.text,
+        themeColors.textSecondary,
+      ]
+    );
+
+
+  /* ==========================================================
+     EMPTY STATE
+  ========================================================== */
+
+  const renderEmptyState =
+    () => {
+
+      const filterLabel =
+        filters.find(
+          (item) =>
+            item.id ===
+            selectedFilter
+        )?.label ||
+        'notifications';
+
+
+      return (
+        <View
+          style={
+            styles.emptyState
+          }
+        >
+
+          <View
+            style={[
+              styles.emptyIconContainer,
+              {
+                backgroundColor:
+                  `${colors.primary}12`,
+              },
+            ]}
+          >
+            <Ionicons
+              name={
+                selectedFilter ===
+                'all'
+                  ? 'notifications-off-outline'
+                  : 'filter-outline'
+              }
+              size={52}
+              color={
+                colors.primary
+              }
+            />
+          </View>
+
+
+          <Text
+            style={[
+              styles.emptyStateTitle,
+              {
+                color:
+                  themeColors.text,
+              },
+            ]}
+          >
+            Aucune notification
+          </Text>
+
+
+          <Text
+            style={[
+              styles.emptyStateText,
+              {
+                color:
+                  themeColors.textSecondary,
+              },
+            ]}
+          >
+            {selectedFilter ===
+            'all'
+              ? 'Vous serez informé des nouvelles activités ici.'
+              : `Aucune notification dans « ${filterLabel} ».`}
+          </Text>
+
+        </View>
+      );
+    };
+
+
+  /* ==========================================================
+     LOADING
+  ========================================================== */
+
+  if (isLoading) {
+
+    return (
       <View
         style={[
-          styles.emptyContainer,
+          styles.container,
           {
             backgroundColor:
-              themeColors.surface,
+              themeColors.background,
           },
         ]}
       >
+
+        <Header
+          title="Notifications"
+          showBack
+        />
+
+
         <View
-          style={[
-            styles.emptyIconContainer,
-            {
-              backgroundColor:
-                `${colors.primary}12`,
-            },
-          ]}
+          style={
+            styles.loadingContainer
+          }
         >
-          <Ionicons
-            name="notifications-off-outline"
-            size={42}
-            color={colors.primary}
+
+          <View
+            style={[
+              styles.loadingIconContainer,
+              {
+                backgroundColor:
+                  `${colors.primary}12`,
+              },
+            ]}
+          >
+            <Ionicons
+              name="notifications-outline"
+              size={38}
+              color={
+                colors.primary
+              }
+            />
+          </View>
+
+
+          <ActivityIndicator
+            size="large"
+            color={
+              colors.primary
+            }
+            style={
+              styles.loader
+            }
           />
+
+
+          <Text
+            style={[
+              styles.loadingText,
+              {
+                color:
+                  themeColors.textSecondary,
+              },
+            ]}
+          >
+            Chargement des notifications...
+          </Text>
+
         </View>
 
-        <Text
-          style={[
-            styles.emptyTitle,
-            {
-              color:
-                themeColors.text,
-            },
-          ]}
-        >
-          Aucune notification
-        </Text>
-
-        <Text
-          style={[
-            styles.emptyText,
-            {
-              color:
-                themeColors.textSecondary,
-            },
-          ]}
-        >
-          Vous n'avez aucune notification
-          dans cette catégorie pour le
-          moment.
-        </Text>
       </View>
     );
+  }
 
-  // ==========================================================
-  // RENDER
-  // ==========================================================
+
+  /* ==========================================================
+     MAIN
+  ========================================================== */
 
   return (
-    <SafeAreaView
+    <View
       style={[
         styles.container,
         {
@@ -994,56 +2531,96 @@ const NotificationScreen = ({
         },
       ]}
     >
-      <StatusBar
-        barStyle={
-          isDark
-            ? 'light-content'
-            : 'dark-content'
-        }
-        backgroundColor={
-          themeColors.background
-        }
-      />
 
-      {/* =====================================================
-          TOAST
-      ====================================================== */}
-
-      <Toast
-        visible={toast.visible}
-        type={toast.type}
-        title={toast.title}
-        message={toast.message}
-        onHide={hideToast}
-      />
-
-      {/* =====================================================
+      {/* ======================================================
           HEADER
       ====================================================== */}
 
       <Header
         title="Notifications"
         showBack
+
+        rightComponent={
+          unreadCount > 0 ? (
+            <TouchableOpacity
+              onPress={
+                handleMarkAllRead
+              }
+              style={[
+                styles.markAllButton,
+                {
+                  backgroundColor:
+                    `${colors.primary}12`,
+
+                  borderColor:
+                    `${colors.primary}25`,
+                },
+              ]}
+              activeOpacity={0.75}
+            >
+
+              <Ionicons
+                name="checkmark-done-outline"
+                size={17}
+                color={
+                  colors.primary
+                }
+              />
+
+              <Text
+                style={[
+                  styles.markAllText,
+                  {
+                    color:
+                      colors.primary,
+                  },
+                ]}
+              >
+                Tout lire
+              </Text>
+
+            </TouchableOpacity>
+          ) : null
+        }
       />
 
-      {/* =====================================================
-          PAGE HEADER
+
+      {/* ======================================================
+          TOAST
+          Juste sous le Header
+      ====================================================== */}
+
+      {renderToast()}
+
+
+      {/* ======================================================
+          SUMMARY
       ====================================================== */}
 
       <View
         style={[
-          styles.pageHeader,
+          styles.summaryContainer,
           {
+            backgroundColor:
+              themeColors.surface,
+
             borderBottomColor:
-              themeColors.border ||
-              '#E5E7EB',
+              isDark
+                ? 'rgba(255,255,255,0.06)'
+                : '#ECECEC',
           },
         ]}
       >
-        <View style={styles.pageHeaderLeft}>
+
+        <View
+          style={
+            styles.summaryLeft
+          }
+        >
+
           <View
             style={[
-              styles.pageHeaderIcon,
+              styles.summaryIcon,
               {
                 backgroundColor:
                   `${colors.primary}12`,
@@ -1052,128 +2629,127 @@ const NotificationScreen = ({
           >
             <Ionicons
               name="notifications"
-              size={25}
-              color={colors.primary}
+              size={19}
+              color={
+                colors.primary
+              }
             />
-
-            {unreadCount > 0 && (
-              <View
-                style={[
-                  styles.headerBadge,
-                  {
-                    backgroundColor:
-                      '#E53935',
-                  },
-                ]}
-              >
-                <Text
-                  style={
-                    styles.headerBadgeText
-                  }
-                >
-                  {unreadCount > 9
-                    ? '9+'
-                    : unreadCount}
-                </Text>
-              </View>
-            )}
           </View>
 
+
           <View>
+
             <Text
               style={[
-                styles.pageTitle,
+                styles.summaryTitle,
                 {
                   color:
                     themeColors.text,
                 },
               ]}
             >
-              Centre de notifications
+              Vos notifications
             </Text>
+
 
             <Text
               style={[
-                styles.pageSubtitle,
+                styles.summarySubtitle,
                 {
                   color:
                     themeColors.textSecondary,
                 },
               ]}
             >
-              Restez informé de vos activités
+              {notifications.length}{' '}
+              notification
+              {notifications.length !==
+              1
+                ? 's'
+                : ''}
             </Text>
+
           </View>
+
         </View>
 
+
         {unreadCount > 0 && (
-          <TouchableOpacity
-            activeOpacity={0.75}
-            onPress={
-              handleMarkAllAsRead
-            }
+          <View
             style={[
-              styles.markAllButton,
+              styles.unreadCountBadge,
               {
                 backgroundColor:
-                  `${colors.primary}10`,
+                  colors.primary,
               },
             ]}
           >
-            <Ionicons
-              name="checkmark-done"
-              size={18}
-              color={colors.primary}
-            />
 
             <Text
-              style={[
-                styles.markAllText,
-                {
-                  color:
-                    colors.primary,
-                },
-              ]}
+              style={
+                styles.unreadCountText
+              }
             >
-              Tout lire
+              {unreadCount}
             </Text>
-          </TouchableOpacity>
+
+            <Text
+              style={
+                styles.unreadCountLabel
+              }
+            >
+              non lue
+              {unreadCount > 1
+                ? 's'
+                : ''}
+            </Text>
+
+          </View>
         )}
+
       </View>
 
-      {/* =====================================================
+
+      {/* ======================================================
           FILTERS
       ====================================================== */}
 
       <View
-        style={styles.filtersWrapper}
+        style={[
+          styles.filtersContainer,
+          {
+            backgroundColor:
+              themeColors.background,
+          },
+        ]}
       >
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={
             false
           }
           contentContainerStyle={
-            styles.filtersContainer
+            styles.filtersContent
           }
         >
+
           {filters.map(
             (filter) => {
+
               const active =
-                activeFilter ===
+                selectedFilter ===
                 filter.id;
+
 
               return (
                 <TouchableOpacity
-                  key={filter.id}
-                  activeOpacity={0.8}
-                  onPress={() =>
-                    handleFilterPress(
-                      filter.id
-                    )
+                  key={
+                    filter.id
                   }
                   style={[
                     styles.filterButton,
+
                     {
                       backgroundColor:
                         active
@@ -1183,19 +2759,28 @@ const NotificationScreen = ({
                       borderColor:
                         active
                           ? colors.primary
-                          : themeColors.border ||
-                            '#E5E7EB',
+                          : isDark
+                            ? 'rgba(255,255,255,0.08)'
+                            : '#E4E4E4',
                     },
                   ]}
+                  onPress={() =>
+                    setSelectedFilter(
+                      filter.id
+                    )
+                  }
+                  activeOpacity={0.75}
                 >
+
                   <Ionicons
-                    name={filter.icon}
-                    size={17}
+                    name={
+                      filter.icon
+                    }
+                    size={16}
                     color={
                       active
-                        ? '#fff'
-                        : themeColors
-                            .textSecondary
+                        ? '#FFFFFF'
+                        : themeColors.textSecondary
                     }
                   />
 
@@ -1203,278 +2788,272 @@ const NotificationScreen = ({
                     style={[
                       styles.filterText,
                       {
-                        color: active
-                          ? '#fff'
-                          : themeColors.text,
+                        color:
+                          active
+                            ? '#FFFFFF'
+                            : themeColors.text,
                       },
                     ]}
                   >
                     {filter.label}
                   </Text>
 
-                  {filter.id ===
-                    'all' &&
-                    unreadCount >
-                      0 && (
-                      <View
-                        style={[
-                          styles.filterBadge,
-                          {
-                            backgroundColor:
-                              active
-                                ? 'rgba(255,255,255,0.22)'
-                                : `${colors.primary}12`,
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.filterBadgeText,
-                            {
-                              color:
-                                active
-                                  ? '#fff'
-                                  : colors.primary,
-                            },
-                          ]}
-                        >
-                          {unreadCount}
-                        </Text>
-                      </View>
-                    )}
                 </TouchableOpacity>
               );
+
             }
           )}
+
         </ScrollView>
+
       </View>
 
-      {/* =====================================================
-          PUSH NOTIFICATIONS
+
+      {/* ======================================================
+          LIST
       ====================================================== */}
 
-      <View
+      <Animated.View
         style={[
-          styles.pushCard,
+          styles.listContainer,
           {
-            backgroundColor:
-              themeColors.surface,
-            borderColor:
-              themeColors.border ||
-              '#E5E7EB',
+            opacity:
+              fadeAnim,
           },
         ]}
       >
-        <View
-          style={styles.pushLeft}
-        >
-          <View
-            style={[
-              styles.pushIconContainer,
-              {
-                backgroundColor:
-                  pushEnabled
-                    ? `${colors.primary}12`
-                    : `${themeColors.textSecondary}12`,
-              },
-            ]}
+
+        {filteredNotifications.length >
+        0 ? (
+
+          <FlatList
+            data={
+              filteredNotifications
+            }
+
+            renderItem={
+              renderNotification
+            }
+
+            keyExtractor={(
+              item,
+              index
+            ) =>
+              String(
+                getNotificationId(
+                  item
+                ) ??
+                `notification-${index}`
+              )
+            }
+
+            contentContainerStyle={
+              styles.listContent
+            }
+
+            showsVerticalScrollIndicator={
+              false
+            }
+
+            refreshControl={
+              <RefreshControl
+                refreshing={
+                  refreshing
+                }
+                onRefresh={
+                  onRefresh
+                }
+                colors={[
+                  colors.primary,
+                ]}
+                tintColor={
+                  colors.primary
+                }
+              />
+            }
+
+            ListHeaderComponent={
+              <View
+                style={
+                  styles.listHeader
+                }
+              >
+
+                <View
+                  style={
+                    styles.listHeaderLine
+                  }
+                />
+
+                <Text
+                  style={[
+                    styles.listHeaderText,
+                    {
+                      color:
+                        themeColors.textSecondary,
+                    },
+                  ]}
+                >
+                  Plus récentes
+                </Text>
+
+                <View
+                  style={
+                    styles.listHeaderLine
+                  }
+                />
+
+              </View>
+            }
+
+            ListFooterComponent={
+              <View
+                style={
+                  styles.listFooter
+                }
+              >
+
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={18}
+                  color={
+                    themeColors.textSecondary
+                  }
+                />
+
+                <Text
+                  style={[
+                    styles.listFooterText,
+                    {
+                      color:
+                        themeColors.textSecondary,
+                    },
+                  ]}
+                >
+                  Fin des notifications
+                </Text>
+
+              </View>
+            }
+          />
+
+        ) : (
+
+          <ScrollView
+            contentContainerStyle={
+              styles.emptyScrollContent
+            }
+
+            refreshControl={
+              <RefreshControl
+                refreshing={
+                  refreshing
+                }
+                onRefresh={
+                  onRefresh
+                }
+                colors={[
+                  colors.primary,
+                ]}
+                tintColor={
+                  colors.primary
+                }
+              />
+            }
+
+            showsVerticalScrollIndicator={
+              false
+            }
           >
-            <Ionicons
-              name={
-                pushEnabled
-                  ? 'notifications'
-                  : 'notifications-off-outline'
-              }
-              size={22}
-              color={
-                pushEnabled
-                  ? colors.primary
-                  : themeColors.textSecondary
-              }
-            />
-          </View>
+            {renderEmptyState()}
+          </ScrollView>
 
-          <View
-            style={styles.pushTextContainer}
-          >
-            <Text
-              style={[
-                styles.pushTitle,
-                {
-                  color:
-                    themeColors.text,
-                },
-              ]}
-            >
-              Notifications push
-            </Text>
+        )}
 
-            <Text
-              style={[
-                styles.pushSubtitle,
-                {
-                  color:
-                    themeColors.textSecondary,
-                },
-              ]}
-            >
-              {pushEnabled
-                ? 'Les alertes sont activées'
-                : 'Les alertes sont désactivées'}
-            </Text>
-          </View>
-        </View>
+      </Animated.View>
 
-        <Switch
-          value={pushEnabled}
-          onValueChange={
-            handlePushToggle
-          }
-          trackColor={{
-            false: isDark
-              ? '#4B5563'
-              : '#D1D5DB',
 
-            true: colors.primary,
-          }}
-          thumbColor="#FFFFFF"
-          ios_backgroundColor={
-            isDark
-              ? '#4B5563'
-              : '#D1D5DB'
-          }
-        />
-      </View>
-
-      {/* =====================================================
-          NOTIFICATION LIST
+      {/* ======================================================
+          DELETE CONFIRMATION MODAL
       ====================================================== */}
 
-      <FlatList
-        data={filteredNotifications}
-        renderItem={
-          renderNotification
-        }
-        keyExtractor={(item) =>
-          item.id.toString()
-        }
-        contentContainerStyle={[
-          styles.listContent,
+      {renderDeleteModal()}
 
-          filteredNotifications.length ===
-            0 &&
-            styles.listContentEmpty,
-        ]}
-        showsVerticalScrollIndicator={
-          false
-        }
-        keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={
-          filteredNotifications.length >
-          0 ? (
-            <View
-              style={
-                styles.listHeader
-              }
-            >
-              <Text
-                style={[
-                  styles.listHeaderTitle,
-                  {
-                    color:
-                      themeColors.text,
-                  },
-                ]}
-              >
-                {activeFilter ===
-                'all'
-                  ? 'Toutes les notifications'
-                  : filters.find(
-                      (item) =>
-                        item.id ===
-                        activeFilter
-                    )?.label}
-              </Text>
-
-              <Text
-                style={[
-                  styles.listHeaderCount,
-                  {
-                    color:
-                      themeColors.textSecondary,
-                  },
-                ]}
-              >
-                {filteredNotifications.length}{' '}
-                notification
-                {filteredNotifications.length >
-                1
-                  ? 's'
-                  : ''}
-              </Text>
-            </View>
-          ) : null
-        }
-        ListEmptyComponent={
-          renderEmpty
-        }
-      />
-    </SafeAreaView>
+    </View>
   );
 };
 
-// ============================================================
-// STYLES
-// ============================================================
+
+/* ============================================================
+   STYLES
+============================================================ */
 
 const styles = StyleSheet.create({
-  // ==========================================================
-  // CONTAINER
-  // ==========================================================
 
   container: {
     flex: 1,
   },
 
-  // ==========================================================
-  // TOAST
-  // ==========================================================
+
+  /* ==========================================================
+     MARK ALL
+  ========================================================== */
+
+  markAllButton: {
+    minHeight: 34,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 5,
+  },
+
+  markAllText: {
+    fontSize:
+      typography.fontSize.xs,
+
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+
+  /* ==========================================================
+     TOAST
+  ========================================================== */
 
   toastWrapper: {
     position: 'absolute',
-    top:
-      Platform.OS === 'ios'
-        ? 58
-        : 18,
 
-    left: 0,
-    right: 0,
+    top:
+      Platform.OS === 'web'
+        ? 68
+        : 72,
+
+    left: 18,
+    right: 18,
+
+    zIndex: 9999,
 
     alignItems: 'center',
 
-    zIndex: 9999,
-    elevation: 9999,
-
-    ...(IS_WEB
-      ? {
-          pointerEvents:
-            'box-none',
-        }
-      : {}),
+    pointerEvents: 'none',
   },
 
   toast: {
     width:
-      IS_WEB
-        ? Math.min(
-            460,
-            SCREEN_WIDTH - 32
-          )
-        : SCREEN_WIDTH - 32,
+      Platform.OS === 'web'
+        ? 430
+        : '94%',
 
     minHeight: 66,
 
-    borderRadius: 17,
+    borderRadius: 16,
+
+    borderWidth: 1,
 
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -1482,25 +3061,85 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
 
-    shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 6,
+      height: 7,
     },
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
 
-    elevation: 12,
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
 
-    borderWidth: 1,
-    borderColor:
-      'rgba(0,0,0,0.04)',
+    elevation: 9,
   },
 
-  toastIconContainer: {
+  toastIcon: {
     width: 42,
     height: 42,
-    borderRadius: 14,
+
+    borderRadius: 13,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginRight: 11,
+  },
+
+  toastContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  toastTitle: {
+    fontSize: 14,
+
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  toastMessage: {
+    marginTop: 2,
+
+    fontSize: 12,
+
+    lineHeight: 17,
+
+    fontFamily:
+      typography.fontFamily.regular,
+  },
+
+
+  /* ==========================================================
+     SUMMARY
+  ========================================================== */
+
+  summaryContainer: {
+    minHeight: 68,
+
+    paddingHorizontal:
+      spacing.md,
+
+    paddingVertical: 10,
+
+    borderBottomWidth: 1,
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    justifyContent:
+      'space-between',
+  },
+
+  summaryLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  summaryIcon: {
+    width: 38,
+    height: 38,
+
+    borderRadius: 12,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -1508,438 +3147,438 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
 
-  toastContent: {
-    flex: 1,
-    paddingRight: 6,
-  },
-
-  toastTitle: {
-    fontSize: 14,
-    fontFamily:
-      typography.fontFamily.semiBold,
-    marginBottom: 2,
-  },
-
-  toastMessage: {
-    fontSize: 12.5,
-    lineHeight: 17,
-    fontFamily:
-      typography.fontFamily.regular,
-  },
-
-  toastClose: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // ==========================================================
-  // PAGE HEADER
-  // ==========================================================
-
-  pageHeader: {
-    paddingHorizontal:
-      spacing.md,
-    paddingVertical: 13,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent:
-      'space-between',
-
-    borderBottomWidth: 1,
-  },
-
-  pageHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-
-  pageHeaderIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 11,
-
-    position: 'relative',
-  },
-
-  headerBadge: {
-    position: 'absolute',
-
-    top: -5,
-    right: -5,
-
-    minWidth: 19,
-    height: 19,
-
-    paddingHorizontal: 4,
-
-    borderRadius: 10,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-
-  headerBadgeText: {
-    color: '#fff',
-    fontSize: 9,
-    fontWeight: '800',
-  },
-
-  pageTitle: {
+  summaryTitle: {
     fontSize:
       typography.fontSize.md,
+
     fontFamily:
       typography.fontFamily.semiBold,
   },
 
-  pageSubtitle: {
+  summarySubtitle: {
+    marginTop: 2,
+
     fontSize:
       typography.fontSize.xs,
+
     fontFamily:
       typography.fontFamily.regular,
-    marginTop: 2,
   },
 
-  markAllButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  unreadCountBadge: {
+    minWidth: 74,
 
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: 6,
 
-    borderRadius: 10,
+    borderRadius: 12,
 
-    gap: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
-  markAllText: {
-    fontSize: 12,
+  unreadCountText: {
+    color: '#FFFFFF',
+
+    fontSize: 16,
+
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.bold,
   },
 
-  // ==========================================================
-  // FILTERS
-  // ==========================================================
+  unreadCountLabel: {
+    color: '#FFFFFF',
 
-  filtersWrapper: {
-    width: '100%',
+    fontSize: 9,
+
+    marginTop: 1,
+
+    fontFamily:
+      typography.fontFamily.medium,
   },
+
+
+  /* ==========================================================
+     FILTERS
+  ========================================================== */
 
   filtersContainer: {
+    paddingVertical: 10,
+  },
+
+  filtersContent: {
     paddingHorizontal:
       spacing.md,
-
-    paddingTop: 12,
-    paddingBottom: 8,
-
-    gap: 8,
   },
 
   filterButton: {
-    minHeight: 40,
-
-    flexDirection: 'row',
-    alignItems: 'center',
+    height: 38,
 
     paddingHorizontal: 13,
 
-    borderRadius: 13,
+    borderRadius: 20,
+
+    marginRight: 8,
 
     borderWidth: 1,
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    justifyContent:
+      'center',
 
     gap: 6,
   },
 
   filterText: {
-    fontSize: 12.5,
+    fontSize:
+      typography.fontSize.sm,
+
     fontFamily:
       typography.fontFamily.medium,
   },
 
-  filterBadge: {
-    minWidth: 20,
-    height: 20,
 
-    paddingHorizontal: 5,
+  /* ==========================================================
+     LIST
+  ========================================================== */
 
-    borderRadius: 10,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  filterBadgeText: {
-    fontSize: 10,
-    fontFamily:
-      typography.fontFamily.bold,
-  },
-
-  // ==========================================================
-  // PUSH CARD
-  // ==========================================================
-
-  pushCard: {
-    marginHorizontal:
-      spacing.md,
-
-    marginTop: 4,
-    marginBottom: 8,
-
-    minHeight: 68,
-
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-
-    borderRadius: 17,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent:
-      'space-between',
-
-    borderWidth: 1,
-  },
-
-  pushLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  listContainer: {
     flex: 1,
   },
-
-  pushIconContainer: {
-    width: 43,
-    height: 43,
-
-    borderRadius: 14,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 11,
-  },
-
-  pushTextContainer: {
-    flex: 1,
-  },
-
-  pushTitle: {
-    fontSize: 13.5,
-    fontFamily:
-      typography.fontFamily.semiBold,
-  },
-
-  pushSubtitle: {
-    fontSize: 11.5,
-    fontFamily:
-      typography.fontFamily.regular,
-    marginTop: 2,
-  },
-
-  // ==========================================================
-  // LIST
-  // ==========================================================
 
   listContent: {
     paddingHorizontal:
       spacing.md,
 
     paddingTop: 4,
-    paddingBottom: 110,
+
+    paddingBottom: 30,
   },
 
-  listContentEmpty: {
-    flexGrow: 1,
+  animationWrapper: {
+    marginBottom: 9,
   },
 
   listHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent:
-      'space-between',
 
-    marginTop: 7,
-    marginBottom: 9,
+    alignItems: 'center',
+
+    paddingVertical: 8,
+
+    gap: 8,
   },
 
-  listHeaderTitle: {
-    fontSize: 14,
+  listHeaderLine: {
+    height: 1,
+
+    flex: 1,
+
+    backgroundColor:
+      '#E2E2E2',
+  },
+
+  listHeaderText: {
+    fontSize: 10,
+
+    textTransform:
+      'uppercase',
+
+    letterSpacing: 0.7,
+
     fontFamily:
       typography.fontFamily.semiBold,
   },
 
-  listHeaderCount: {
-    fontSize: 11,
+  listFooter: {
+    flexDirection: 'row',
+
+    justifyContent:
+      'center',
+
+    alignItems: 'center',
+
+    gap: 6,
+
+    paddingVertical: 20,
+  },
+
+  listFooterText: {
+    fontSize:
+      typography.fontSize.xs,
+
     fontFamily:
       typography.fontFamily.regular,
   },
 
-  // ==========================================================
-  // NOTIFICATION CARD
-  // ==========================================================
+
+  /* ==========================================================
+     NOTIFICATION CARD
+  ========================================================== */
 
   notificationCard: {
-    flexDirection: 'row',
+    minHeight: 92,
 
-    padding: 13,
-
-    minHeight: 96,
-
-    borderRadius: 17,
-
-    marginBottom: 9,
+    borderRadius: 16,
 
     borderWidth: 1,
-    borderLeftWidth: 4,
+
+    padding: 11,
+
+    flexDirection: 'row',
+
+    alignItems: 'flex-start',
 
     shadowColor: '#000',
+
     shadowOffset: {
       width: 0,
       height: 2,
     },
+
     shadowOpacity: 0.04,
-    shadowRadius: 5,
+
+    shadowRadius: 6,
 
     elevation: 1,
   },
 
-  notificationCardUnread: {
-    shadowOpacity: 0.07,
-    elevation: 2,
+  iconTouchable: {
+    marginRight: 10,
   },
 
   notificationIcon: {
-    width: 45,
-    height: 45,
+    width: 44,
+    height: 44,
 
     borderRadius: 14,
 
     alignItems: 'center',
     justifyContent: 'center',
-
-    marginRight: 11,
   },
 
   notificationContent: {
     flex: 1,
+
     minWidth: 0,
+
+    paddingRight: 5,
   },
 
-  notificationTopRow: {
+  notificationHeader: {
     flexDirection: 'row',
+
     alignItems: 'flex-start',
+
+    justifyContent:
+      'space-between',
   },
 
-  notificationTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-
+  titleContainer: {
     flex: 1,
+
+    minWidth: 0,
+
+    paddingRight: 6,
   },
 
   notificationTitle: {
-    flex: 1,
+    fontSize:
+      typography.fontSize.md,
 
-    fontSize: 13.5,
+    lineHeight: 20,
 
-    lineHeight: 19,
+    fontFamily:
+      typography.fontFamily.medium,
+  },
 
+  unreadTitle: {
     fontFamily:
       typography.fontFamily.semiBold,
   },
 
-  unreadDot: {
-    width: 8,
-    height: 8,
+  notificationTime: {
+    fontSize: 11,
 
-    borderRadius: 4,
-
-    marginLeft: 7,
-  },
-
-  notificationMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    marginTop: 5,
-    marginBottom: 4,
-  },
-
-  typeBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-
-    borderRadius: 7,
-
-    marginRight: 7,
-  },
-
-  typeBadgeText: {
-    fontSize: 9.5,
+    lineHeight: 18,
 
     fontFamily:
-      typography.fontFamily.semiBold,
-  },
+      typography.fontFamily.medium,
 
-  notificationDate: {
-    fontSize: 9.5,
+    textAlign: 'right',
 
-    fontFamily:
-      typography.fontFamily.regular,
+    minWidth: 44,
   },
 
   notificationBody: {
-    fontSize: 11.5,
+    fontSize:
+      typography.fontSize.sm,
 
-    lineHeight: 17,
+    lineHeight: 20,
+
+    marginTop: 3,
 
     fontFamily:
       typography.fontFamily.regular,
   },
 
-  notificationChevron: {
-    width: 22,
+
+  /* ==========================================================
+     NEW BADGE
+  ========================================================== */
+
+  newBadge: {
+    alignSelf: 'flex-start',
+
+    marginTop: 5,
+
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+
+    borderRadius: 6,
+
+    flexDirection: 'row',
 
     alignItems: 'center',
-    justifyContent: 'center',
+
+    gap: 4,
+  },
+
+  newBadgeDot: {
+    width: 5,
+    height: 5,
+
+    borderRadius: 3,
+  },
+
+  newBadgeText: {
+    fontSize: 8,
+
+    letterSpacing: 0.4,
+
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+
+  /* ==========================================================
+     ACTION HINT
+  ========================================================== */
+
+  actionHint: {
+    alignSelf: 'flex-start',
+
+    marginTop: 8,
+
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+
+    borderRadius: 8,
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    gap: 5,
+  },
+
+  actionHintText: {
+    fontSize: 10,
+
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+
+  /* ==========================================================
+     DELETE BUTTON
+  ========================================================== */
+
+  deleteButton: {
+    width: 36,
+    height: 36,
+
+    borderRadius: 10,
 
     marginLeft: 5,
-  },
 
-  // ==========================================================
-  // EMPTY
-  // ==========================================================
-
-  emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-
-    paddingHorizontal: 30,
-    paddingVertical: 45,
-
-    borderRadius: 20,
-
-    marginTop: 12,
   },
 
-  emptyIconContainer: {
-    width: 82,
-    height: 82,
 
-    borderRadius: 28,
+  /* ==========================================================
+     READING
+  ========================================================== */
+
+  readingOverlay: {
+    position: 'absolute',
+
+    right: 48,
+
+    top: 14,
+  },
+
+
+  /* ==========================================================
+     DELETE MODAL
+  ========================================================== */
+
+  modalOverlay: {
+    flex: 1,
+
+    backgroundColor:
+      'rgba(0,0,0,0.58)',
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+
+    paddingHorizontal: 20,
+  },
+
+  confirmModal: {
+    width:
+      Platform.OS === 'web'
+        ? 430
+        : '100%',
+
+    maxWidth: 430,
+
+    borderRadius: 24,
+
+    borderWidth: 1,
+
+    paddingHorizontal: 22,
+
+    paddingTop: 25,
+
+    paddingBottom: 20,
+
+    alignItems: 'center',
+
+    shadowColor: '#000',
+
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+
+    shadowOpacity: 0.2,
+
+    shadowRadius: 25,
+
+    elevation: 15,
+  },
+
+  confirmIcon: {
+    width: 68,
+    height: 68,
+
+    borderRadius: 22,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -1947,27 +3586,220 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
 
-  emptyTitle: {
-    fontSize: 16,
+  confirmTitle: {
+    fontSize: 19,
 
+    textAlign: 'center',
+
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  confirmMessage: {
+    fontSize: 14,
+
+    lineHeight: 21,
+
+    textAlign: 'center',
+
+    marginTop: 10,
+
+    paddingHorizontal: 8,
+
+    fontFamily:
+      typography.fontFamily.regular,
+  },
+
+  confirmStrong: {
     fontFamily:
       typography.fontFamily.semiBold,
   },
 
-  emptyText: {
+  confirmWarning: {
     fontSize: 12,
 
     lineHeight: 18,
 
     textAlign: 'center',
 
+    marginTop: 5,
+
+    paddingHorizontal: 12,
+
     fontFamily:
       typography.fontFamily.regular,
+  },
+
+  confirmActions: {
+    width: '100%',
+
+    flexDirection: 'row',
+
+    gap: 10,
+
+    marginTop: 22,
+  },
+
+  cancelButton: {
+    flex: 1,
+
+    minHeight: 46,
+
+    borderRadius: 13,
+
+    borderWidth: 1,
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+  },
+
+  cancelButtonText: {
+    fontSize: 13,
+
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  deleteConfirmButton: {
+    flex: 1,
+
+    minHeight: 46,
+
+    borderRadius: 13,
+
+    backgroundColor:
+      '#D32F2F',
+
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+
+    gap: 7,
+
+    shadowColor: '#D32F2F',
+
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+
+    shadowOpacity: 0.18,
+
+    shadowRadius: 7,
+
+    elevation: 4,
+  },
+
+  deleteConfirmText: {
+    color: '#FFFFFF',
+
+    fontSize: 13,
+
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+
+  /* ==========================================================
+     LOADING
+  ========================================================== */
+
+  loadingContainer: {
+    flex: 1,
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+
+    padding: spacing.xl,
+  },
+
+  loadingIconContainer: {
+    width: 76,
+    height: 76,
+
+    borderRadius: 24,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  loader: {
+    marginTop: 20,
+  },
+
+  loadingText: {
+    marginTop: 12,
+
+    fontSize:
+      typography.fontSize.sm,
+
+    fontFamily:
+      typography.fontFamily.regular,
+  },
+
+
+  /* ==========================================================
+     EMPTY
+  ========================================================== */
+
+  emptyScrollContent: {
+    flexGrow: 1,
+  },
+
+  emptyState: {
+    flex: 1,
+
+    minHeight: 420,
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+
+    paddingHorizontal:
+      spacing.xl,
+  },
+
+  emptyIconContainer: {
+    width: 92,
+    height: 92,
+
+    borderRadius: 30,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  emptyStateTitle: {
+    fontSize:
+      typography.fontSize.lg,
+
+    fontFamily:
+      typography.fontFamily.bold,
+
+    marginTop: 18,
+  },
+
+  emptyStateText: {
+    fontSize:
+      typography.fontSize.sm,
+
+    lineHeight: 21,
+
+    textAlign: 'center',
 
     marginTop: 7,
 
-    maxWidth: 290,
+    maxWidth: 300,
+
+    fontFamily:
+      typography.fontFamily.regular,
   },
+
 });
+
 
 export default NotificationScreen;

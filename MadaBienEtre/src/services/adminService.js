@@ -1204,6 +1204,38 @@ async getTherapistCertificateInfo(therapistId) {
     throw error;
   }
 },
+
+// ============================================================
+// ✅ NOUVEAU : [ADMIN] METTRE À JOUR LES SPÉCIALITÉS D'UN THÉRAPEUTE
+// ============================================================
+/**
+ * Remplace complètement les spécialités (types de massage) d'un
+ * thérapeute donné. Réservé à l'admin — fonctionne pour n'importe
+ * quel thérapeute (contrairement à therapistService.updateMySpecialties
+ * qui ne modifie que le thérapeute connecté).
+ * Si le thérapeute est déjà approuvé, le certificat officiel est
+ * automatiquement régénéré côté serveur pour refléter le changement.
+ * @param {number} therapistId
+ * @param {number[]} massageTypeIds
+ */
+async updateTherapistSpecialties(therapistId, massageTypeIds = []) {
+  try {
+    const response = await api.put(`/therapists/${therapistId}/specialties`, {
+      massage_type_ids: massageTypeIds,
+    });
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('❌ Error updateTherapistSpecialties:', error);
+    return {
+      success: false,
+      error:
+        error?.response?.data?.detail ||
+        error?.response?.data?.message ||
+        error?.message ||
+        'Erreur lors de la mise à jour des spécialités.',
+    };
+  }
+},
 // ============================================================
 // 18. GESTION DES TYPES DE MASSAGE - ADMIN
 // ============================================================
@@ -1492,8 +1524,7 @@ getCertificateDownloadUrl(therapistId) {
   getChatWebSocketURL(bookingId) {
     const wsUrl = api.defaults.baseURL.replace(/^http/, 'ws');
     return `${wsUrl}/ws/chat/${bookingId}`;
-  }
-
+  },
 
 };
 

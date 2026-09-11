@@ -108,6 +108,9 @@ class TherapistSpecialtyResponse(BaseModel):
     therapist_id: int
     massage_type_id: int
     massage_type_name: Optional[str] = None
-    
+
+class TherapistSpecialtiesUpdate(BaseModel):
+    massage_type_ids: List[int] = Field(..., description="Liste des IDs des types de massage sélectionnés")
+
     class Config:
         from_attributes = True

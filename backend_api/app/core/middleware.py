@@ -121,43 +121,56 @@ class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
             )
 
 def setup_middlewares(app):
-    """Configurer tous les middlewares pour l'application"""
-    
-    # CORS
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
-        allow_methods=settings.CORS_ALLOW_METHODS,
-        allow_headers=settings.CORS_ALLOW_HEADERS,
-    )
-    
+    """
+    Configurer tous les middlewares pour l'application.
+
+    ⚠️ ORDRE CRITIQUE — CORS DOIT ÊTRE AJOUTÉ EN DERNIER :
+    Starlette empile les middlewares avec `add_middleware()` en les
+    insérant en TÊTE de pile (insert(0, ...)). Le DERNIER middleware
+    ajouté devient donc le PLUS EXTÉRIEUR (le premier à traiter la
+    requête entrante, le dernier à traiter la réponse sortante).
+
+    Le CORSMiddleware doit être le plus extérieur de tous, sinon les
+    réponses générées par d'autres middlewares AVANT d'atteindre le
+    CORS (ex: 429 du RateLimitMiddleware, 500 de
+    l'ExceptionHandlerMiddleware) ne passent jamais par le CORS et
+    n'ont donc pas l'en-tête "Access-Control-Allow-Origin". Résultat
+    concret : le navigateur web bloque la requête (erreur CORS dans
+    la console), alors qu'une app native (Android/iOS) — qui ne fait
+    ni preflight OPTIONS ni vérification CORS — fonctionne sans
+    problème. C'est exactement ce qui empêchait l'upload CIN et
+    certificat_pro de fonctionner depuis le web.
+
+    On ajoute donc CORS en tout dernier ici, pour qu'il enveloppe
+    absolument tout le reste.
+    """
+
     # Compression GZip
     app.add_middleware(GZipMiddleware, minimum_size=1000)
-    
+
     # Limitation de taux
     app.add_middleware(
         RateLimitMiddleware,
         max_requests=settings.RATE_LIMIT_REQUESTS,
         window=settings.RATE_LIMIT_PERIOD
     )
-    
+
     # Logging
     app.add_middleware(LoggingMiddleware)
-    
+
     # En-têtes de sécurité
     app.add_middleware(SecurityHeadersMiddleware)
-    
+
     # ID de requête
     app.add_middleware(RequestIDMiddleware)
-    
+
     # Gestion d'exceptions
     app.add_middleware(ExceptionHandlerMiddleware)
-    
+
     # Logging du corps des requêtes (développement)
     if settings.DEBUG:
         app.add_middleware(BodyLoggingMiddleware)
-    
+
     # Trusted Host (production)
     if settings.ENVIRONMENT == "production":
         app.add_middleware(
@@ -165,6 +178,17 @@ def setup_middlewares(app):
             allowed_hosts=["*"]
         )
         app.add_middleware(HTTPSRedirectMiddleware)
-    
-    logger.info("Middlewares configurés avec succès")
+
+    # ✅ CORS — ajouté EN DERNIER pour devenir le middleware le plus
+    # extérieur et garantir que TOUTE réponse (y compris les erreurs
+    # générées par les middlewares ci-dessus) reçoit les en-têtes CORS.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+        allow_methods=settings.CORS_ALLOW_METHODS,
+        allow_headers=settings.CORS_ALLOW_HEADERS,
+    )
+
+    logger.info("Middlewares configurés avec succès (CORS en position extérieure)")
     return app

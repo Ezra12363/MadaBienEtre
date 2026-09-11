@@ -1,6 +1,4 @@
-// src/screens/auth/WelcomeScreen.js
-
-import React, { useEffect, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 
 import {
   View,
@@ -8,1919 +6,2158 @@ import {
   Image,
   StyleSheet,
   StatusBar,
-  TouchableOpacity,
-  Animated,
-  SafeAreaView,
-  Platform,
   ScrollView,
-  useWindowDimensions,
   Pressable,
+  Linking,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Animatable from 'react-native-animatable';
 import { Ionicons } from '@expo/vector-icons';
 
-import { typography } from '../../theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+/* =========================================================
+   CONFIGURATION
+========================================================= */
 
-// ============================================================
-// WELCOME SCREEN
-// ============================================================
+const ANDROID_APK_URL =
+  'https://10.78.77.30:8000/downloads/mada-bien-etre.apk';
 
-const WelcomeScreen = ({ navigation }) => {
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+const GOOGLE_PLAY_URL = '';
+const APP_STORE_URL = '';
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+/* =========================================================
+   COLORS
+========================================================= */
 
-  // ==========================================================
-  // RESPONSIVE
-  // ==========================================================
+const COLORS = {
+  primary: '#2E7D32',
+  primaryDark: '#164B2A',
+  primaryMid: '#1F6B38',
+  primaryLight: '#EAF5EC',
 
-  const isWeb = Platform.OS === 'web';
+  background: '#F7FAF7',
+  white: '#FFFFFF',
 
-  const isDesktop = isWeb && width >= 1000;
+  text: '#17201A',
+  textSoft: '#66736A',
+  border: '#E1E9E2',
+  muted: '#8A948C',
 
-  const isTablet =
-    width >= 768 && width < 1000;
+  orange: '#F59E0B',
+  blue: '#2563EB',
+};
 
-  const isMobile =
-    !isWeb || width < 768;
+/* =========================================================
+   DATA
+========================================================= */
 
-  const isSmallScreen =
-    height < 700;
+const advantages = [
+  {
+    icon: 'shield-checkmark-outline',
+    title: 'Praticiens vérifiés',
+    text: 'Trouvez des praticiens et prestataires présentés avec des informations claires.',
+  },
+  {
+    icon: 'home-outline',
+    title: 'Massage à domicile',
+    text: 'Profitez de prestations de bien-être directement dans votre environnement.',
+  },
+  {
+    icon: 'location-outline',
+    title: 'Proximité',
+    text: 'Recherchez plus facilement les services disponibles autour de vous.',
+  },
+  {
+    icon: 'cash-outline',
+    title: 'Prix flexible',
+    text: 'Consultez les informations de prestation et échangez directement avec le praticien.',
+  },
+  {
+    icon: 'chatbubble-ellipses-outline',
+    title: 'Communication directe',
+    text: 'Facilitez les échanges avant et après la réservation.',
+  },
+  {
+    icon: 'alert-circle-outline',
+    title: 'Assistance SOS',
+    text: 'Accédez rapidement aux informations utiles en cas de besoin.',
+  },
+];
 
-  const isVerySmallScreen =
-    height < 600;
+const services = [
+  {
+    icon: 'body-outline',
+    title: 'Massage à domicile',
+    text: 'Réservez facilement une prestation de massage adaptée à vos besoins.',
+  },
+  {
+    icon: 'calendar-outline',
+    title: 'Réservation simple',
+    text: 'Une interface pensée pour rendre votre recherche et votre réservation plus simples.',
+  },
+  {
+    icon: 'people-outline',
+    title: 'Praticiens',
+    text: 'Découvrez les profils et les services proposés par les praticiens.',
+  },
+  {
+    icon: 'map-outline',
+    title: 'Géolocalisation',
+    text: 'Repérez les services disponibles selon votre localisation.',
+  },
+];
 
-  // ==========================================================
-  // ANIMATION
-  // ==========================================================
+const steps = [
+  {
+    number: '01',
+    title: 'Choisissez',
+    text: 'Sélectionnez le type de service de bien-être dont vous avez besoin.',
+  },
+  {
+    number: '02',
+    title: 'Trouvez',
+    text: 'Découvrez les praticiens et prestations disponibles.',
+  },
+  {
+    number: '03',
+    title: 'Réservez',
+    text: 'Choisissez une prestation et contactez le praticien.',
+  },
+  {
+    number: '04',
+    title: 'Profitez',
+    text: 'Bénéficiez de votre moment de bien-être en toute simplicité.',
+  },
+];
 
-  useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 850,
-      useNativeDriver: true,
-    }).start();
-  }, [fadeAnim]);
+/* =========================================================
+   COMPONENT
+========================================================= */
 
-  // ==========================================================
-  // NAVIGATION
-  // ==========================================================
+export default function WelcomeScreen({ navigation }) {
+  const { width } = useWindowDimensions();
+
+  const scrollRef = useRef(null);
+
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  /*
+    IMPORTANT :
+    On utilise 850px comme limite mobile.
+    Ainsi un écran Android de 720px ne sera plus considéré
+    comme tablette.
+  */
+
+  const isMobile = width < 850;
+  const isTablet = width >= 850 && width < 1100;
+  const isDesktop = width >= 1100;
+
+  /* =======================================================
+     NAVIGATION
+  ======================================================= */
 
   const handleLogin = () => {
-    navigation.navigate('Login');
+    setMenuOpen(false);
+
+    if (navigation?.navigate) {
+      navigation.navigate('Login');
+    }
   };
 
   const handleRegister = () => {
-    navigation.navigate('Register');
+    setMenuOpen(false);
+
+    if (navigation?.navigate) {
+      navigation.navigate('Register');
+    }
   };
 
-  // ==========================================================
-  // MOBILE FEATURES
-  // Design inspiré de l'image fournie
-  // 3 lignes compactes
-  // ==========================================================
+  const scrollToTop = () => {
+    scrollRef.current?.scrollTo({
+      y: 0,
+      animated: true,
+    });
+  };
 
-  const mobileFeatures = [
-    {
-      icon: 'body-outline',
-      title: 'Praticiens vérifiés',
-      description: 'Des professionnels contrôlés et qualifiés',
-    },
-    {
-      icon: 'home-outline',
-      title: 'À domicile',
-      description: 'Profitez de votre séance directement chez vous',
-    },
-    {
-      icon: 'shield-checkmark-outline',
-      title: 'Service sécurisé',
-      description: 'Une expérience pensée pour votre sécurité',
-    },
-  ];
+  const scrollToSection = (y) => {
+    setMenuOpen(false);
 
-  // ==========================================================
-  // WEB FEATURES
-  // 6 fonctionnalités
-  // 2 cartes par ligne
-  // ==========================================================
+    scrollRef.current?.scrollTo({
+      y,
+      animated: true,
+    });
+  };
 
-  const essentialFeatures = [
-    {
-      icon: 'calendar-outline',
-      title: 'Réservation simple',
-      description:
-        'Choisissez votre massage, la durée, la date et l’heure.',
-    },
-    {
-      icon: 'shield-checkmark-outline',
-      title: 'Praticiens vérifiés',
-      description:
-        'Accédez à des professionnels contrôlés et qualifiés.',
-    },
-    {
-      icon: 'cash-outline',
-      title: 'Prix négociable',
-      description:
-        'Proposez votre prix et recevez des offres adaptées.',
-    },
-    {
-      icon: 'location-outline',
-      title: 'Géolocalisation',
-      description:
-        'Trouvez un praticien proche et suivez son arrivée.',
-    },
-    {
-      icon: 'chatbubble-ellipses-outline',
-      title: 'Communication directe',
-      description:
-        'Échangez facilement avec votre praticien avant la séance.',
-    },
-    {
-      icon: 'alert-circle-outline',
-      title: 'Sécurité renforcée',
-      description:
-        'Profitez d’un environnement sécurisé avec assistance SOS.',
-    },
-  ];
+  const openExternalUrl = async (url) => {
+    if (!url) return;
 
-  // ==========================================================
-  // WEB FEATURE CARD
-  // ==========================================================
+    try {
+      const supported = await Linking.canOpenURL(url);
 
-  const renderEssentialCard = (feature, index) => {
-    return (
-      <Animatable.View
-        key={`${feature.title}-${index}`}
-        animation="fadeInUp"
-        duration={600}
-        delay={150 + index * 70}
-        style={styles.webFeatureCard}
+      if (supported) {
+        await Linking.openURL(url);
+      }
+    } catch (error) {
+      console.log('Erreur ouverture URL :', error);
+    }
+  };
+
+  /* =======================================================
+     HEADER
+======================================================= */
+
+  const renderHeader = () => (
+    <View style={styles.header}>
+      <View
+        style={[
+          styles.headerInner,
+
+          isMobile && styles.headerInnerMobile,
+          isTablet && styles.headerInnerTablet,
+        ]}
       >
-        <View style={styles.webFeatureTop}>
-          <View style={styles.webFeatureIcon}>
-            <Ionicons
-              name={feature.icon}
-              size={21}
-              color="#2E7D32"
+        {/* LOGO */}
+
+        <Pressable
+          onPress={scrollToTop}
+          style={[
+            styles.logoContainer,
+            isMobile && styles.logoContainerMobile,
+          ]}
+        >
+          <View
+            style={[
+              styles.logoBox,
+              isMobile && styles.logoBoxMobile,
+            ]}
+          >
+            <Image
+              source={require('../../../assets/logo.png')}
+              style={[
+                styles.logo,
+                isMobile && styles.logoMobile,
+              ]}
+              resizeMode="contain"
             />
           </View>
 
-          <View style={styles.webFeatureCheck}>
+          <View style={styles.logoTexts}>
+            <Text
+              style={[
+                styles.logoTitle,
+                isMobile && styles.logoTitleMobile,
+              ]}
+              numberOfLines={1}
+            >
+              Mada Bien-être
+            </Text>
+
+            <Text
+              style={[
+                styles.logoSubtitle,
+                isMobile && styles.logoSubtitleMobile,
+              ]}
+              numberOfLines={1}
+            >
+              Votre bien-être, notre priorité
+            </Text>
+          </View>
+        </Pressable>
+
+        {/* DESKTOP NAVIGATION */}
+
+        {!isMobile && (
+          <View style={styles.desktopNav}>
+            <Pressable
+              style={styles.navItem}
+              onPress={() => scrollToSection(0)}
+            >
+              <Text style={styles.navText}>
+                Accueil
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.navItem}
+              onPress={() => scrollToSection(650)}
+            >
+              <Text style={styles.navText}>
+                Services
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.navItem}
+              onPress={() => scrollToSection(1200)}
+            >
+              <Text style={styles.navText}>
+                Avantages
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={styles.navItem}
+              onPress={() => scrollToSection(1800)}
+            >
+              <Text style={styles.navText}>
+                Comment ça marche
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* DESKTOP AUTH */}
+
+        {!isMobile && (
+          <View style={styles.headerActions}>
+            <Pressable
+              onPress={handleLogin}
+              style={styles.loginButton}
+            >
+              <Text style={styles.loginButtonText}>
+                Connexion
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleRegister}
+              style={styles.registerButton}
+            >
+              <Text style={styles.registerButtonText}>
+                Créer un compte
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        {/* MOBILE MENU BUTTON */}
+
+        {isMobile && (
+          <Pressable
+            onPress={() => setMenuOpen(!menuOpen)}
+            style={styles.menuButton}
+          >
             <Ionicons
-              name="checkmark"
-              size={13}
-              color="#2E7D32"
+              name={menuOpen ? 'close' : 'menu'}
+              size={28}
+              color={COLORS.primaryDark}
             />
+          </Pressable>
+        )}
+      </View>
+
+      {/* MOBILE MENU */}
+
+      {isMobile && menuOpen && (
+        <View style={styles.mobileMenu}>
+          <Pressable
+            style={styles.mobileNavItem}
+            onPress={() => scrollToSection(0)}
+          >
+            <Ionicons
+              name="home-outline"
+              size={20}
+              color={COLORS.primary}
+            />
+
+            <Text style={styles.mobileNavText}>
+              Accueil
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.mobileNavItem}
+            onPress={() => scrollToSection(650)}
+          >
+            <Ionicons
+              name="sparkles-outline"
+              size={20}
+              color={COLORS.primary}
+            />
+
+            <Text style={styles.mobileNavText}>
+              Services
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.mobileNavItem}
+            onPress={() => scrollToSection(1200)}
+          >
+            <Ionicons
+              name="heart-outline"
+              size={20}
+              color={COLORS.primary}
+            />
+
+            <Text style={styles.mobileNavText}>
+              Avantages
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.mobileNavItem}
+            onPress={() => scrollToSection(1800)}
+          >
+            <Ionicons
+              name="help-circle-outline"
+              size={20}
+              color={COLORS.primary}
+            />
+
+            <Text style={styles.mobileNavText}>
+              Comment ça marche
+            </Text>
+          </Pressable>
+
+          <View style={styles.mobileDivider} />
+
+          <Pressable
+            onPress={handleLogin}
+            style={styles.mobileLogin}
+          >
+            <Text style={styles.mobileLoginText}>
+              Connexion
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={handleRegister}
+            style={styles.mobileRegister}
+          >
+            <Text style={styles.mobileRegisterText}>
+              Créer un compte
+            </Text>
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+
+  /* =======================================================
+     HERO
+======================================================= */
+
+  const renderHero = () => (
+    <LinearGradient
+      colors={[
+        '#EAF7ED',
+        '#F5FBF6',
+        '#FFFFFF',
+      ]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={[
+        styles.hero,
+
+        isMobile && styles.heroMobile,
+        isTablet && styles.heroTablet,
+      ]}
+    >
+      <View
+        style={[
+          styles.heroInner,
+
+          isMobile && styles.heroInnerMobile,
+          isTablet && styles.heroInnerTablet,
+        ]}
+      >
+        {/* HERO TEXT */}
+
+        <View
+          style={[
+            styles.heroContent,
+
+            isMobile && styles.heroContentMobile,
+            isDesktop && styles.heroContentDesktop,
+          ]}
+        >
+          <View style={styles.heroBadge}>
+            <View style={styles.heroBadgeDot} />
+
+            <Text
+              style={styles.heroBadgeText}
+              numberOfLines={1}
+            >
+              BIEN-ÊTRE • SANTÉ • SÉRÉNITÉ
+            </Text>
+          </View>
+
+          <Text
+            style={[
+              styles.heroTitle,
+
+              isMobile && styles.heroTitleMobile,
+              isTablet && styles.heroTitleTablet,
+            ]}
+          >
+            Prenez soin de vous,
+            {'\n'}
+            <Text style={styles.heroTitleGreen}>
+              simplement.
+            </Text>
+          </Text>
+
+          <Text
+            style={[
+              styles.heroDescription,
+              isMobile && styles.heroDescriptionMobile,
+            ]}
+          >
+            Mada Bien-être vous accompagne pour trouver
+            facilement des services de bien-être et de massage
+            adaptés à vos besoins, où que vous soyez.
+          </Text>
+
+          {/* BUTTONS */}
+
+          <View
+            style={[
+              styles.heroButtons,
+
+              isMobile && styles.heroButtonsMobile,
+            ]}
+          >
+            <Pressable
+              onPress={handleRegister}
+              style={[
+                styles.primaryHeroButton,
+
+                isMobile &&
+                  styles.primaryHeroButtonMobile,
+              ]}
+            >
+              <Text style={styles.primaryHeroButtonText}>
+                Commencer maintenant
+              </Text>
+
+              <Ionicons
+                name="arrow-forward"
+                size={19}
+                color={COLORS.white}
+              />
+            </Pressable>
+
+            <Pressable
+              onPress={() => scrollToSection(650)}
+              style={[
+                styles.secondaryHeroButton,
+
+                isMobile &&
+                  styles.secondaryHeroButtonMobile,
+              ]}
+            >
+              <Ionicons
+                name="play-circle-outline"
+                size={21}
+                color={COLORS.primary}
+              />
+
+              <Text
+                style={styles.secondaryHeroButtonText}
+              >
+                Découvrir nos services
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* TRUST */}
+
+          <View style={styles.heroTrust}>
+            <View style={styles.trustItem}>
+              <Ionicons
+                name="checkmark-circle"
+                size={18}
+                color={COLORS.primary}
+              />
+
+              <Text style={styles.trustText}>
+                Simple
+              </Text>
+            </View>
+
+            <View style={styles.trustItem}>
+              <Ionicons
+                name="checkmark-circle"
+                size={18}
+                color={COLORS.primary}
+              />
+
+              <Text style={styles.trustText}>
+                Pratique
+              </Text>
+            </View>
+
+            <View style={styles.trustItem}>
+              <Ionicons
+                name="checkmark-circle"
+                size={18}
+                color={COLORS.primary}
+              />
+
+              <Text style={styles.trustText}>
+                Accessible
+              </Text>
+            </View>
           </View>
         </View>
 
-        <Text style={styles.webFeatureTitle}>
-          {feature.title}
-        </Text>
+        {/* HERO VISUAL */}
 
-        <Text style={styles.webFeatureDescription}>
-          {feature.description}
-        </Text>
-      </Animatable.View>
-    );
-  };
+        <View
+          style={[
+            styles.heroVisual,
 
-  // ==========================================================
-  // MOBILE
-  // ==========================================================
-
-  const renderMobile = () => {
-    const logoSize = isTablet
-      ? 118
-      : isVerySmallScreen
-        ? 82
-        : 100;
-
-    const logoImageSize = isTablet
-      ? 76
-      : isVerySmallScreen
-        ? 54
-        : 66;
-
-    const horizontalPadding = isTablet
-      ? 28
-      : 18;
-
-    return (
-      <SafeAreaView style={styles.mobileSafeArea}>
-        <StatusBar
-          barStyle="light-content"
-          translucent
-          backgroundColor="transparent"
-        />
-
-        <LinearGradient
-          colors={[
-            '#164B2A',
-            '#1D6536',
-            '#24743A',
-            '#2E7D32',
+            isMobile && styles.heroVisualMobile,
+            isTablet && styles.heroVisualTablet,
           ]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.mobileGradient}
         >
-
-          {/* ==================================================
-              BACKGROUND DECORATION
-          ================================================== */}
-
           <View
-            pointerEvents="none"
             style={[
-              styles.circleTop,
-              {
-                width: isTablet ? 360 : 270,
-                height: isTablet ? 360 : 270,
-                borderRadius: isTablet ? 180 : 135,
-              },
+              styles.heroCircleLarge,
+
+              isMobile &&
+                styles.heroCircleLargeMobile,
             ]}
           />
 
-          <View
-            pointerEvents="none"
-            style={[
-              styles.circleMiddle,
-              {
-                width: isTablet ? 240 : 180,
-                height: isTablet ? 240 : 180,
-                borderRadius: isTablet ? 120 : 90,
-              },
-            ]}
-          />
+          {/* MAIN CARD */}
 
           <View
-            pointerEvents="none"
             style={[
-              styles.circleBottom,
-              {
-                width: isTablet ? 360 : 280,
-                height: isTablet ? 360 : 280,
-                borderRadius: isTablet ? 180 : 140,
-              },
+              styles.heroMainCard,
+
+              isMobile &&
+                styles.heroMainCardMobile,
             ]}
-          />
-
-          {/* ==================================================
-              CONTENT
-          ================================================== */}
-
-          <ScrollView
-            style={styles.mobileScroll}
-            contentContainerStyle={[
-              styles.mobileScrollContent,
-              {
-                paddingTop:
-                  Math.max(insets.top, 12) +
-                  (isSmallScreen ? 2 : 8),
-
-                paddingBottom:
-                  Math.max(insets.bottom, 12) +
-                  (isSmallScreen ? 16 : 24),
-
-                paddingHorizontal:
-                  horizontalPadding,
-              },
-            ]}
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-            keyboardShouldPersistTaps="handled"
           >
-
-            <View
+            <LinearGradient
+              colors={[
+                COLORS.primaryDark,
+                COLORS.primary,
+              ]}
               style={[
-                styles.mobileMainWrapper,
-                {
-                  maxWidth: isTablet ? 560 : 520,
-                },
+                styles.heroCardGradient,
+
+                isMobile &&
+                  styles.heroCardGradientMobile,
               ]}
             >
-
-              {/* ==================================================
-                  HERO
-              ================================================== */}
-
-              <Animated.View
-                style={[
-                  styles.mobileHero,
-                  {
-                    opacity: fadeAnim,
-                  },
-                ]}
-              >
-
-                {/* ==================================================
-                    LOGO
-                ================================================== */}
-
-                <Animatable.View
-                  animation="zoomIn"
-                  duration={800}
-                  delay={100}
-                >
-                  <View
-                    style={[
-                      styles.logoWrapper,
-                      {
-                        width: logoSize,
-                        height: logoSize,
-                        borderRadius: isTablet ? 36 : 30,
-                      },
-                    ]}
-                  >
-                    <View style={styles.logoInner}>
-                      <Image
-                        source={require(
-                          '../../../assets/logo.png'
-                        )}
-                        style={{
-                          width: logoImageSize,
-                          height: logoImageSize,
-                        }}
-                        resizeMode="contain"
-                      />
-                    </View>
-                  </View>
-                </Animatable.View>
-
-                {/* ==================================================
-                    BRAND
-                ================================================== */}
-
-                <Animatable.View
-                  animation="fadeInUp"
-                  duration={700}
-                  delay={300}
-                  style={styles.titleBlock}
-                >
-                  <Text
-                    style={[
-                      styles.title,
-                      {
-                        fontSize: isTablet
-                          ? 36
-                          : isVerySmallScreen
-                            ? 28
-                            : 32,
-                      },
-                    ]}
-                  >
-                    Mada Bien-être
+              <View style={styles.heroCardTop}>
+                <View style={styles.heroCardText}>
+                  <Text style={styles.heroCardSmall}>
+                    MADA BIEN-ÊTRE
                   </Text>
 
                   <Text
                     style={[
-                      styles.subtitle,
-                      {
-                        fontSize: isTablet ? 17 : 15,
-                      },
+                      styles.heroCardTitle,
+
+                      isMobile &&
+                        styles.heroCardTitleMobile,
                     ]}
                   >
-                    Massage à domicile,
-                    simple et premium
+                    Votre moment
                   </Text>
-                </Animatable.View>
 
-                {/* ==================================================
-                    INTRO
-                ================================================== */}
+                  <Text
+                    style={[
+                      styles.heroCardTitle,
 
-                <Animatable.View
-                  animation="fadeInUp"
-                  duration={700}
-                  delay={450}
-                  style={styles.introCard}
-                >
-                  <View style={styles.introIcon}>
-                    <Ionicons
-                      name="sparkles-outline"
-                      size={20}
-                      color="#FFFFFF"
-                    />
-                  </View>
-
-                  <View style={styles.introTextContainer}>
-                    <Text style={styles.introTitle}>
-                      Votre bien-être, notre priorité
-                    </Text>
-
-                    <Text style={styles.introText}>
-                      Trouvez facilement un professionnel
-                      qualifié et profitez d'un massage
-                      directement chez vous.
-                    </Text>
-                  </View>
-                </Animatable.View>
-
-                {/* ==================================================
-                    MOBILE FEATURES
-                    EXACTEMENT 3 LIGNES
-                ================================================== */}
-
-                <Animatable.View
-                  animation="fadeInUp"
-                  duration={700}
-                  delay={600}
-                  style={styles.mobileFeaturesContainer}
-                >
-
-                  {mobileFeatures.map(
-                    (feature, index) => (
-                      <View
-                        key={feature.title}
-                        style={[
-                          styles.mobileFeatureItem,
-                          index ===
-                            mobileFeatures.length - 1 &&
-                            styles.mobileFeatureItemLast,
-                        ]}
-                      >
-
-                        {/* ICON */}
-
-                        <View
-                          style={
-                            styles.mobileFeatureIcon
-                          }
-                        >
-                          <Ionicons
-                            name={feature.icon}
-                            size={21}
-                            color="#FFFFFF"
-                          />
-                        </View>
-
-                        {/* TEXT */}
-
-                        <View
-                          style={
-                            styles.mobileFeatureContent
-                          }
-                        >
-                          <Text
-                            style={
-                              styles.mobileFeatureTitle
-                            }
-                            numberOfLines={1}
-                          >
-                            {feature.title}
-                          </Text>
-
-                          <Text
-                            style={
-                              styles.mobileFeatureDescription
-                            }
-                            numberOfLines={1}
-                          >
-                            {feature.description}
-                          </Text>
-                        </View>
-
-                        {/* CHECK */}
-
-                        <View
-                          style={
-                            styles.mobileFeatureCheck
-                          }
-                        >
-                          <Ionicons
-                            name="checkmark"
-                            size={14}
-                            color="#2E7D32"
-                          />
-                        </View>
-
-                      </View>
-                    )
-                  )}
-
-                </Animatable.View>
-
-              </Animated.View>
-
-              {/* ==================================================
-                  ACTIONS
-              ================================================== */}
-
-              <Animatable.View
-                animation="fadeInUp"
-                duration={750}
-                delay={750}
-                style={[
-                  styles.mobileBottomContainer,
-                  {
-                    marginTop: isSmallScreen
-                      ? 22
-                      : 30,
-                  },
-                ]}
-              >
-
-                {/* ==================================================
-                    LOGIN
-                ================================================== */}
-
-                <Pressable
-                  onPress={handleLogin}
-                  accessibilityRole="button"
-                  accessibilityLabel="Se connecter"
-                  style={({
-                    pressed,
-                    hovered,
-                    focused,
-                  }) => [
-                    styles.primaryButton,
-                    hovered &&
-                      styles.primaryButtonHover,
-                    pressed &&
-                      styles.primaryButtonPressed,
-                    focused &&
-                      styles.buttonFocused,
-                  ]}
-                >
-                  <View
-                    style={
-                      styles.primaryButtonContent
-                    }
+                      isMobile &&
+                        styles.heroCardTitleMobile,
+                    ]}
                   >
-                    <Text
-                      style={
-                        styles.primaryButtonText
-                      }
-                    >
-                      Se connecter
-                    </Text>
+                    de sérénité
+                  </Text>
+                </View>
 
-                    <View
-                      style={styles.arrowCircle}
-                    >
-                      <Ionicons
-                        name="arrow-forward"
-                        size={19}
-                        color="#2E7D32"
-                      />
-                    </View>
-                  </View>
-                </Pressable>
+                <View
+                  style={[
+                    styles.heroCardIcon,
 
-                {/* ==================================================
-                    REGISTER
-                ================================================== */}
-
-                <Pressable
-                  onPress={handleRegister}
-                  accessibilityRole="button"
-                  accessibilityLabel="Créer un compte"
-                  style={({
-                    pressed,
-                    hovered,
-                    focused,
-                  }) => [
-                    styles.secondaryButton,
-                    hovered &&
-                      styles.secondaryButtonHover,
-                    pressed &&
-                      styles.secondaryButtonPressed,
-                    focused &&
-                      styles.buttonFocused,
+                    isMobile &&
+                      styles.heroCardIconMobile,
                   ]}
                 >
                   <Ionicons
-                    name="person-add-outline"
-                    size={19}
+                    name="leaf"
+                    size={30}
+                    color={COLORS.primaryDark}
+                  />
+                </View>
+              </View>
+
+              <View
+                style={[
+                  styles.heroCardStats,
+
+                  isMobile &&
+                    styles.heroCardStatsMobile,
+                ]}
+              >
+                <View style={styles.heroStat}>
+                  <Ionicons
+                    name="heart"
+                    size={20}
                     color="#FFFFFF"
                   />
 
-                  <Text
-                    style={
-                      styles.secondaryButtonText
-                    }
-                  >
-                    Créer un compte
-                  </Text>
-                </Pressable>
-
-                {/* ==================================================
-                    FOOTER
-                ================================================== */}
-
-                <View style={styles.footer}>
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={13}
-                    color="rgba(255,255,255,0.65)"
-                  />
-
-                  <Text style={styles.footerText}>
-                    Une expérience bien-être sécurisée
+                  <Text style={styles.heroStatText}>
+                    Bien-être
                   </Text>
                 </View>
 
-              </Animatable.View>
+                <View style={styles.heroStat}>
+                  <Ionicons
+                    name="home"
+                    size={20}
+                    color="#FFFFFF"
+                  />
 
+                  <Text style={styles.heroStatText}>
+                    À domicile
+                  </Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </View>
+
+          {/* FLOATING CARD 1 */}
+
+          <View
+            style={[
+              styles.floatingCard,
+              styles.floatingCardOne,
+
+              isMobile &&
+                styles.floatingCardOneMobile,
+            ]}
+          >
+            <View style={styles.floatingIcon}>
+              <Ionicons
+                name="sparkles"
+                size={19}
+                color={COLORS.primary}
+              />
             </View>
 
-          </ScrollView>
+            <View style={styles.floatingCardText}>
+              <Text style={styles.floatingTitle}>
+                Bien-être
+              </Text>
 
-        </LinearGradient>
-      </SafeAreaView>
-    );
-  };
+              <Text style={styles.floatingText}>
+                Au quotidien
+              </Text>
+            </View>
+          </View>
 
-  // ==========================================================
-  // WEB / DESKTOP
-  // 50% / 50%
-  // ==========================================================
+          {/* FLOATING CARD 2 */}
 
-  const renderDesktop = () => {
-    return (
-      <SafeAreaView style={styles.desktopSafeArea}>
+          <View
+            style={[
+              styles.floatingCard,
+              styles.floatingCardTwo,
 
-        <StatusBar
-          barStyle="light-content"
-          backgroundColor="#164B2A"
+              isMobile &&
+                styles.floatingCardTwoMobile,
+            ]}
+          >
+            <View style={styles.floatingIconBlue}>
+              <Ionicons
+                name="location"
+                size={19}
+                color={COLORS.blue}
+              />
+            </View>
+
+            <View style={styles.floatingCardText}>
+              <Text style={styles.floatingTitle}>
+                Proche de vous
+              </Text>
+
+              <Text style={styles.floatingText}>
+                Services disponibles
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+    </LinearGradient>
+  );
+
+  /* =======================================================
+     QUICK ACTIONS
+======================================================= */
+
+  const renderQuickActions = () => (
+    <View style={styles.quickSection}>
+      <View
+        style={[
+          styles.container,
+          isMobile && styles.containerMobile,
+        ]}
+      >
+        <View
+          style={[
+            styles.quickGrid,
+
+            isMobile && styles.quickGridMobile,
+          ]}
+        >
+          {/* CARD 1 */}
+
+          <Pressable
+            onPress={handleRegister}
+            style={[
+              styles.quickCard,
+
+              isMobile && styles.quickCardMobile,
+            ]}
+          >
+            <View style={styles.quickIcon}>
+              <Ionicons
+                name="search-outline"
+                size={25}
+                color={COLORS.primary}
+              />
+            </View>
+
+            <View style={styles.quickContent}>
+              <Text style={styles.quickTitle}>
+                Trouver un service
+              </Text>
+
+              <Text style={styles.quickText}>
+                Recherchez rapidement une prestation.
+              </Text>
+            </View>
+
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={COLORS.muted}
+            />
+          </Pressable>
+
+          {/* CARD 2 */}
+
+          <Pressable
+            onPress={handleRegister}
+            style={[
+              styles.quickCard,
+
+              isMobile && styles.quickCardMobile,
+            ]}
+          >
+            <View
+              style={[
+                styles.quickIcon,
+                styles.quickIconOrange,
+              ]}
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={25}
+                color={COLORS.orange}
+              />
+            </View>
+
+            <View style={styles.quickContent}>
+              <Text style={styles.quickTitle}>
+                Réserver une séance
+              </Text>
+
+              <Text style={styles.quickText}>
+                Organisez facilement votre moment de détente.
+              </Text>
+            </View>
+
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={COLORS.muted}
+            />
+          </Pressable>
+
+          {/* CARD 3 */}
+
+          <Pressable
+            onPress={() =>
+              openExternalUrl(ANDROID_APK_URL)
+            }
+            style={[
+              styles.quickCard,
+
+              isMobile && styles.quickCardMobile,
+            ]}
+          >
+            <View
+              style={[
+                styles.quickIcon,
+                styles.quickIconBlue,
+              ]}
+            >
+              <Ionicons
+                name="phone-portrait-outline"
+                size={25}
+                color={COLORS.blue}
+              />
+            </View>
+
+            <View style={styles.quickContent}>
+              <Text style={styles.quickTitle}>
+                Télécharger l'application
+              </Text>
+
+              <Text style={styles.quickText}>
+                Installez Mada Bien-être sur Android.
+              </Text>
+            </View>
+
+            <Ionicons
+              name="download-outline"
+              size={20}
+              color={COLORS.muted}
+            />
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+
+  /* =======================================================
+     SECTION TITLE
+========================================================= */
+
+  const SectionTitle = ({
+    eyebrow,
+    title,
+    description,
+  }) => (
+    <View
+      style={[
+        styles.sectionHeading,
+
+        isMobile &&
+          styles.sectionHeadingMobile,
+      ]}
+    >
+      <Text style={styles.sectionEyebrow}>
+        {eyebrow}
+      </Text>
+
+      <Text
+        style={[
+          styles.sectionTitle,
+
+          isMobile &&
+            styles.sectionTitleMobile,
+        ]}
+      >
+        {title}
+      </Text>
+
+      <Text
+        style={[
+          styles.sectionDescription,
+
+          isMobile &&
+            styles.sectionDescriptionMobile,
+        ]}
+      >
+        {description}
+      </Text>
+    </View>
+  );
+
+  /* =======================================================
+     SERVICES
+======================================================= */
+
+  const renderServices = () => (
+    <View style={styles.section}>
+      <View
+        style={[
+          styles.container,
+          isMobile && styles.containerMobile,
+        ]}
+      >
+        <SectionTitle
+          eyebrow="NOS SERVICES"
+          title="Tout pour votre bien-être"
+          description="Mada Bien-être rassemble des solutions simples pour vous aider à rechercher et organiser vos prestations de bien-être."
         />
 
-        <View style={styles.desktopContainer}>
+        <View
+          style={[
+            styles.serviceGrid,
 
-          {/* ==================================================
-              LEFT PANEL — 50%
-          ================================================== */}
+            isMobile && styles.serviceGridMobile,
+            isTablet && styles.serviceGridTablet,
+          ]}
+        >
+          {services.map((service, index) => (
+            <View
+              key={index}
+              style={[
+                styles.serviceCard,
 
-          <View style={styles.desktopLeftPanel}>
+                isMobile &&
+                  styles.serviceCardMobile,
 
-            <LinearGradient
-              colors={[
-                '#164B2A',
-                '#1F6B38',
-                '#2E7D32',
+                isTablet &&
+                  styles.serviceCardTablet,
               ]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.desktopLeftGradient}
             >
-
-              {/* DECORATION */}
-
-              <View
-                pointerEvents="none"
-                style={styles.desktopCircleOne}
-              />
-
-              <View
-                pointerEvents="none"
-                style={styles.desktopCircleTwo}
-              />
-
-              {/* ==================================================
-                  HEADER
-              ================================================== */}
-
-              <Animatable.View
-                animation="fadeInDown"
-                duration={700}
-                style={styles.desktopBrandHeader}
-              >
-
-                <View style={styles.desktopLogoBox}>
-                  <Image
-                    source={require(
-                      '../../../assets/logo.png'
-                    )}
-                    style={styles.desktopLogo}
-                    resizeMode="contain"
-                  />
-                </View>
-
-                <View>
-                  <Text
-                    style={
-                      styles.desktopBrandName
-                    }
-                  >
-                    Mada Bien-être
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.desktopBrandSmall
-                    }
-                  >
-                    Votre bien-être, simplement.
-                  </Text>
-                </View>
-
-              </Animatable.View>
-
-              {/* ==================================================
-                  LEFT HERO
-              ================================================== */}
-
-              <View style={styles.desktopLeftContent}>
-
-                <Animatable.View
-                  animation="fadeInUp"
-                  duration={750}
-                  delay={150}
-                >
-
-                  <View style={styles.webEyebrow}>
-
-                    <Ionicons
-                      name="sparkles-outline"
-                      size={14}
-                      color="#FFFFFF"
-                    />
-
-                    <Text
-                      style={
-                        styles.webEyebrowText
-                      }
-                    >
-                      BIEN-ÊTRE À DOMICILE
-                    </Text>
-
-                  </View>
-
-                  <Text
-                    style={
-                      styles.desktopBrandTitle
-                    }
-                  >
-                    Le massage à domicile,
-                    réinventé.
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.desktopBrandDescription
-                    }
-                  >
-                    Une plateforme simple et intelligente
-                    pour réserver un massage à domicile
-                    auprès de praticiens vérifiés.
-                  </Text>
-
-                </Animatable.View>
-
-                {/* ==================================================
-                    VALUE POINTS
-                ================================================== */}
-
-                <Animatable.View
-                  animation="fadeInUp"
-                  duration={700}
-                  delay={350}
-                  style={styles.desktopValueList}
-                >
-
-                  <View
-                    style={
-                      styles.desktopValueItem
-                    }
-                  >
-                    <View
-                      style={
-                        styles.desktopValueIcon
-                      }
-                    >
-                      <Ionicons
-                        name="flash-outline"
-                        size={20}
-                        color="#FFFFFF"
-                      />
-                    </View>
-
-                    <View
-                      style={
-                        styles.desktopValueContent
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.desktopValueTitle
-                        }
-                      >
-                        Réservation rapide
-                      </Text>
-
-                      <Text
-                        style={
-                          styles.desktopValueDescription
-                        }
-                      >
-                        Réservez votre séance en quelques
-                        étapes.
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View
-                    style={
-                      styles.desktopValueItem
-                    }
-                  >
-                    <View
-                      style={
-                        styles.desktopValueIcon
-                      }
-                    >
-                      <Ionicons
-                        name="location-outline"
-                        size={20}
-                        color="#FFFFFF"
-                      />
-                    </View>
-
-                    <View
-                      style={
-                        styles.desktopValueContent
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.desktopValueTitle
-                        }
-                      >
-                        Praticiens à proximité
-                      </Text>
-
-                      <Text
-                        style={
-                          styles.desktopValueDescription
-                        }
-                      >
-                        Trouvez facilement un professionnel
-                        disponible autour de vous.
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View
-                    style={
-                      styles.desktopValueItem
-                    }
-                  >
-                    <View
-                      style={
-                        styles.desktopValueIcon
-                      }
-                    >
-                      <Ionicons
-                        name="shield-checkmark-outline"
-                        size={20}
-                        color="#FFFFFF"
-                      />
-                    </View>
-
-                    <View
-                      style={
-                        styles.desktopValueContent
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.desktopValueTitle
-                        }
-                      >
-                        Sécurité renforcée
-                      </Text>
-
-                      <Text
-                        style={
-                          styles.desktopValueDescription
-                        }
-                      >
-                        Profils vérifiés et assistance SOS.
-                      </Text>
-                    </View>
-                  </View>
-
-                </Animatable.View>
-
+              <View style={styles.serviceIcon}>
+                <Ionicons
+                  name={service.icon}
+                  size={28}
+                  color={COLORS.primary}
+                />
               </View>
 
-              {/* ==================================================
-                  LEFT FOOTER
-              ================================================== */}
+              <Text style={styles.serviceTitle}>
+                {service.title}
+              </Text>
 
-              <View
-                style={
-                  styles.desktopLeftFooter
-                }
+              <Text style={styles.serviceText}>
+                {service.text}
+              </Text>
+
+              <Pressable
+                onPress={handleRegister}
+                style={styles.serviceLink}
               >
-
-                <Text
-                  style={
-                    styles.desktopCopyright
-                  }
-                >
-                  © 2026 Mada Bien-être
+                <Text style={styles.serviceLinkText}>
+                  En savoir plus
                 </Text>
 
-                <View
-                  style={
-                    styles.desktopFooterSecure
-                  }
-                >
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={13}
-                    color="rgba(255,255,255,0.7)"
-                  />
+                <Ionicons
+                  name="arrow-forward"
+                  size={16}
+                  color={COLORS.primary}
+                />
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
 
-                  <Text
-                    style={
-                      styles.desktopFooterSecureText
-                    }
-                  >
-                    Plateforme sécurisée
-                  </Text>
-                </View>
+  /* =======================================================
+     ADVANTAGES
+======================================================= */
 
+  const renderAdvantages = () => (
+    <View style={styles.advantagesSection}>
+      <View
+        style={[
+          styles.container,
+          isMobile && styles.containerMobile,
+        ]}
+      >
+        <SectionTitle
+          eyebrow="POURQUOI NOUS CHOISIR"
+          title="Une expérience pensée pour vous"
+          description="Nous voulons rendre l'accès aux services de bien-être plus simple, plus pratique et plus proche de vos besoins."
+        />
+
+        <View
+          style={[
+            styles.advantagesGrid,
+
+            isMobile &&
+              styles.advantagesGridMobile,
+
+            isTablet &&
+              styles.advantagesGridTablet,
+          ]}
+        >
+          {advantages.map((item, index) => (
+            <View
+              key={index}
+              style={[
+                styles.advantageCard,
+
+                isMobile &&
+                  styles.advantageCardMobile,
+
+                isTablet &&
+                  styles.advantageCardTablet,
+              ]}
+            >
+              <View style={styles.advantageIcon}>
+                <Ionicons
+                  name={item.icon}
+                  size={24}
+                  color={COLORS.primary}
+                />
               </View>
 
-            </LinearGradient>
+              <View style={styles.advantageContent}>
+                <Text
+                  style={styles.advantageTitle}
+                  numberOfLines={2}
+                >
+                  {item.title}
+                </Text>
 
-          </View>
+                <Text style={styles.advantageText}>
+                  {item.text}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
 
-          {/* ==================================================
-              RIGHT PANEL — 50%
-          ================================================== */}
+  /* =======================================================
+     PROCESS
+======================================================= */
 
-          <View style={styles.desktopRightPanel}>
+  const renderProcess = () => (
+    <View style={styles.section}>
+      <View
+        style={[
+          styles.container,
+          isMobile && styles.containerMobile,
+        ]}
+      >
+        <SectionTitle
+          eyebrow="COMMENT ÇA MARCHE"
+          title="Votre bien-être en quelques étapes"
+          description="Une démarche simple pour passer de la recherche à votre moment de détente."
+        />
 
-            <ScrollView
-              style={styles.desktopScroll}
-              contentContainerStyle={
-                styles.desktopScrollContent
-              }
-              showsVerticalScrollIndicator={false}
+        <View
+          style={[
+            styles.stepsGrid,
+
+            isMobile &&
+              styles.stepsGridMobile,
+
+            isTablet &&
+              styles.stepsGridTablet,
+          ]}
+        >
+          {steps.map((step, index) => (
+            <View
+              key={index}
+              style={[
+                styles.stepCard,
+
+                isMobile &&
+                  styles.stepCardMobile,
+
+                isTablet &&
+                  styles.stepCardTablet,
+              ]}
             >
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>
+                  {step.number}
+                </Text>
+              </View>
 
-              <Animated.View
-                style={[
-                  styles.desktopRightContent,
-                  {
-                    opacity: fadeAnim,
-                  },
-                ]}
-              >
+              <Text style={styles.stepTitle}>
+                {step.title}
+              </Text>
 
-                {/* ==================================================
-                    HEADER
-                ================================================== */}
+              <Text style={styles.stepText}>
+                {step.text}
+              </Text>
 
-                <Animatable.View
-                  animation="fadeInUp"
-                  duration={650}
-                  delay={100}
-                >
-
-                  <Text
-                    style={
-                      styles.webSectionLabel
-                    }
-                  >
-                    EXPÉRIENCE SIMPLE
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.desktopWelcomeTitle
-                    }
-                  >
-                    Les fonctionnalités essentielles
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.desktopWelcomeSubtitle
-                    }
-                  >
-                    Tout ce dont vous avez besoin,
-                    sans fonctionnalités inutiles.
-                  </Text>
-
-                </Animatable.View>
-
-                {/* ==================================================
-                    6 FEATURES
-                    2 COLONNES
-                ================================================== */}
-
-                <View
-                  style={
-                    styles.essentialSection
-                  }
-                >
-
-                  <View
-                    style={
-                      styles.featureGrid
-                    }
-                  >
-
-                    {essentialFeatures.map(
-                      (feature, index) =>
-                        renderEssentialCard(
-                          feature,
-                          index
-                        )
-                    )}
-
-                  </View>
-
-                </View>
-
-                {/* ==================================================
-                    ACTIONS
-                ================================================== */}
-
-                <Animatable.View
-                  animation="fadeInUp"
-                  duration={700}
-                  delay={600}
-                  style={styles.desktopActions}
-                >
-
-                  {/* LOGIN */}
-
-                  <Pressable
-                    onPress={handleLogin}
-                    accessibilityRole="button"
-                    accessibilityLabel="Se connecter"
-                    style={({
-                      pressed,
-                      hovered,
-                      focused,
-                    }) => [
-                      styles.desktopPrimaryButton,
-                      hovered &&
-                        styles.desktopPrimaryButtonHover,
-                      pressed &&
-                        styles.desktopPrimaryButtonPressed,
-                      focused &&
-                        styles.desktopButtonFocused,
-                    ]}
-                  >
-
-                    <Text
-                      style={
-                        styles.desktopPrimaryButtonText
-                      }
-                    >
-                      Se connecter
-                    </Text>
-
-                    <View
-                      style={
-                        styles.desktopArrowCircle
-                      }
-                    >
-                      <Ionicons
-                        name="arrow-forward"
-                        size={18}
-                        color="#FFFFFF"
-                      />
-                    </View>
-
-                  </Pressable>
-
-                  {/* REGISTER */}
-
-                  <Pressable
-                    onPress={handleRegister}
-                    accessibilityRole="button"
-                    accessibilityLabel="Créer un compte"
-                    style={({
-                      pressed,
-                      hovered,
-                      focused,
-                    }) => [
-                      styles.desktopSecondaryButton,
-                      hovered &&
-                        styles.desktopSecondaryButtonHover,
-                      pressed &&
-                        styles.desktopSecondaryButtonPressed,
-                      focused &&
-                        styles.desktopButtonFocused,
-                    ]}
-                  >
-
+              {index < steps.length - 1 &&
+                !isMobile && (
+                  <View style={styles.stepArrow}>
                     <Ionicons
-                      name="person-add-outline"
-                      size={18}
-                      color="#2E7D32"
+                      name="arrow-forward"
+                      size={19}
+                      color={COLORS.primary}
                     />
-
-                    <Text
-                      style={
-                        styles.desktopSecondaryButtonText
-                      }
-                    >
-                      Créer un compte
-                    </Text>
-
-                  </Pressable>
-
-                </Animatable.View>
-
-                {/* ==================================================
-                    DOWNLOAD APP
-                    WEB UNIQUEMENT
-                ================================================== */}
-
-                {isWeb && (
-                  <Animatable.View
-                    animation="fadeInUp"
-                    duration={650}
-                    delay={700}
-                    style={
-                      styles.downloadSection
-                    }
-                  >
-
-                    <View
-                      style={
-                        styles.downloadHeader
-                      }
-                    >
-
-                      <View
-                        style={
-                          styles.downloadIcon
-                        }
-                      >
-                        <Ionicons
-                          name="phone-portrait-outline"
-                          size={21}
-                          color="#2E7D32"
-                        />
-                      </View>
-
-                      <View
-                        style={
-                          styles.downloadHeaderContent
-                        }
-                      >
-
-                        <Text
-                          style={
-                            styles.downloadTitle
-                          }
-                        >
-                          Téléchargez l'application
-                        </Text>
-
-                        <Text
-                          style={
-                            styles.downloadSubtitle
-                          }
-                        >
-                          Retrouvez Mada Bien-être
-                          sur votre smartphone.
-                        </Text>
-
-                      </View>
-
-                    </View>
-
-                    {/* ==================================================
-                        MAIN DOWNLOAD BUTTON
-                    ================================================== */}
-
-                    <Pressable
-                      onPress={() => {}}
-                      accessibilityRole="button"
-                      accessibilityLabel="Télécharger l'application"
-                      style={({
-                        pressed,
-                        hovered,
-                      }) => [
-                        styles.downloadMainButton,
-                        hovered &&
-                          styles.downloadMainButtonHover,
-                        pressed &&
-                          styles.downloadMainButtonPressed,
-                      ]}
-                    >
-
-                      <View
-                        style={
-                          styles.downloadMainIcon
-                        }
-                      >
-                        <Ionicons
-                          name="download-outline"
-                          size={22}
-                          color="#FFFFFF"
-                        />
-                      </View>
-
-                      <View
-                        style={
-                          styles.downloadMainContent
-                        }
-                      >
-
-                        <Text
-                          style={
-                            styles.downloadMainTitle
-                          }
-                        >
-                          Télécharger l'application
-                        </Text>
-
-                        <Text
-                          style={
-                            styles.downloadMainSubtitle
-                          }
-                        >
-                          Android & iOS
-                        </Text>
-
-                      </View>
-
-                      <Ionicons
-                        name="arrow-forward"
-                        size={20}
-                        color="#FFFFFF"
-                      />
-
-                    </Pressable>
-
-                    {/* ==================================================
-                        STORE BUTTONS
-                    ================================================== */}
-
-                    <View
-                      style={
-                        styles.downloadButtons
-                      }
-                    >
-
-                      {/* ANDROID */}
-
-                      <Pressable
-                        style={({
-                          pressed,
-                          hovered,
-                        }) => [
-                          styles.downloadButton,
-                          hovered &&
-                            styles.downloadButtonHover,
-                          pressed &&
-                            styles.downloadButtonPressed,
-                        ]}
-                        onPress={() => {}}
-                      >
-
-                        <Ionicons
-                          name="logo-google-playstore"
-                          size={22}
-                          color="#2E7D32"
-                        />
-
-                        <View
-                          style={
-                            styles.downloadButtonTextContainer
-                          }
-                        >
-
-                          <Text
-                            style={
-                              styles.downloadSmallText
-                            }
-                          >
-                            DISPONIBLE SUR
-                          </Text>
-
-                          <Text
-                            style={
-                              styles.downloadMainText
-                            }
-                          >
-                            Google Play
-                          </Text>
-
-                        </View>
-
-                      </Pressable>
-
-                      {/* IOS */}
-
-                      <Pressable
-                        style={({
-                          pressed,
-                          hovered,
-                        }) => [
-                          styles.downloadButton,
-                          hovered &&
-                            styles.downloadButtonHover,
-                          pressed &&
-                            styles.downloadButtonPressed,
-                        ]}
-                        onPress={() => {}}
-                      >
-
-                        <Ionicons
-                          name="logo-apple"
-                          size={23}
-                          color="#2E7D32"
-                        />
-
-                        <View
-                          style={
-                            styles.downloadButtonTextContainer
-                          }
-                        >
-
-                          <Text
-                            style={
-                              styles.downloadSmallText
-                            }
-                          >
-                            TÉLÉCHARGER SUR
-                          </Text>
-
-                          <Text
-                            style={
-                              styles.downloadMainText
-                            }
-                          >
-                            App Store
-                          </Text>
-
-                        </View>
-
-                      </Pressable>
-
-                    </View>
-
-                  </Animatable.View>
+                  </View>
                 )}
+            </View>
+          ))}
+        </View>
+      </View>
+    </View>
+  );
 
-                {/* ==================================================
-                    FOOTER
-                ================================================== */}
+  /* =======================================================
+     DOWNLOAD
+======================================================= */
 
-                <View
-                  style={
-                    styles.desktopFooter
-                  }
-                >
+  const renderDownload = () => (
+    <View style={styles.downloadSection}>
+      <View
+        style={[
+          styles.container,
+          isMobile && styles.containerMobile,
+        ]}
+      >
+        <LinearGradient
+          colors={[
+            COLORS.primaryDark,
+            COLORS.primary,
+            '#3C9147',
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[
+            styles.downloadCard,
 
-                  <Text
-                    style={
-                      styles.desktopFooterTechnology
-                    }
-                  >
-                    Bien-être • Confiance • Proximité
-                  </Text>
+            isMobile &&
+              styles.downloadCardMobile,
+          ]}
+        >
+          <View
+            style={[
+              styles.downloadContent,
 
-                  <Text
-                    style={
-                      styles.desktopFooterCopyright
-                    }
-                  >
-                    © 2026 Mada Bien-être
-                  </Text>
+              isMobile &&
+                styles.downloadContentMobile,
+            ]}
+          >
+            <View style={styles.downloadBadge}>
+              <Ionicons
+                name="phone-portrait-outline"
+                size={18}
+                color="#FFFFFF"
+              />
 
-                </View>
+              <Text style={styles.downloadBadgeText}>
+                APPLICATION MOBILE
+              </Text>
+            </View>
 
-              </Animated.View>
+            <Text
+              style={[
+                styles.downloadTitle,
 
-            </ScrollView>
+                isMobile &&
+                  styles.downloadTitleMobile,
+              ]}
+            >
+              Emportez votre bien-être partout
+            </Text>
 
+            <Text style={styles.downloadText}>
+              Téléchargez l'application Mada Bien-être
+              pour accéder facilement aux services depuis
+              votre téléphone Android.
+            </Text>
+
+            <Pressable
+              onPress={() =>
+                openExternalUrl(ANDROID_APK_URL)
+              }
+              style={styles.downloadButton}
+            >
+              <Ionicons
+                name="logo-android"
+                size={23}
+                color={COLORS.primaryDark}
+              />
+
+              <View>
+                <Text style={styles.downloadButtonSmall}>
+                  TÉLÉCHARGER SUR
+                </Text>
+
+                <Text style={styles.downloadButtonText}>
+                  Android APK
+                </Text>
+              </View>
+
+              <Ionicons
+                name="download-outline"
+                size={22}
+                color={COLORS.primaryDark}
+              />
+            </Pressable>
           </View>
 
+          {/* PHONE */}
+
+          <View
+            style={[
+              styles.downloadVisual,
+
+              isMobile &&
+                styles.downloadVisualMobile,
+            ]}
+          >
+            <View style={styles.phone}>
+              <View style={styles.phoneNotch} />
+
+              <View style={styles.phoneScreen}>
+                <Ionicons
+                  name="leaf"
+                  size={45}
+                  color={COLORS.primary}
+                />
+
+                <Text style={styles.phoneTitle}>
+                  Mada Bien-être
+                </Text>
+
+                <View style={styles.phoneLine} />
+
+                <View style={styles.phoneSmallCard}>
+                  <Ionicons
+                    name="heart"
+                    size={19}
+                    color={COLORS.primary}
+                  />
+
+                  <Text style={styles.phoneSmallText}>
+                    Votre bien-être
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </LinearGradient>
+      </View>
+    </View>
+  );
+
+  /* =======================================================
+     CTA
+======================================================= */
+
+  const renderCTA = () => (
+    <View style={styles.ctaSection}>
+      <View
+        style={[
+          styles.container,
+          isMobile && styles.containerMobile,
+        ]}
+      >
+        <View style={styles.ctaCard}>
+          <View style={styles.ctaIcon}>
+            <Ionicons
+              name="heart-outline"
+              size={31}
+              color={COLORS.primary}
+            />
+          </View>
+
+          <Text
+            style={[
+              styles.ctaTitle,
+
+              isMobile &&
+                styles.ctaTitleMobile,
+            ]}
+          >
+            Prêt à prendre soin de vous ?
+          </Text>
+
+          <Text style={styles.ctaText}>
+            Rejoignez Mada Bien-être et découvrez une
+            nouvelle façon de prendre soin de votre corps
+            et de votre esprit.
+          </Text>
+
+          <Pressable
+            onPress={handleRegister}
+            style={styles.ctaButton}
+          >
+            <Text style={styles.ctaButtonText}>
+              Créer mon compte
+            </Text>
+
+            <Ionicons
+              name="arrow-forward"
+              size={19}
+              color={COLORS.white}
+            />
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+
+  /* =======================================================
+     FOOTER
+======================================================= */
+
+  const renderFooter = () => (
+    <View style={styles.footer}>
+      <View
+        style={[
+          styles.container,
+          styles.footerInner,
+
+          isMobile &&
+            styles.footerInnerMobile,
+        ]}
+      >
+        {/* BRAND */}
+
+        <View style={styles.footerBrand}>
+          <View style={styles.footerLogoRow}>
+            <View style={styles.footerLogoBox}>
+              <Image
+                source={require('../../../assets/logo.png')}
+                style={styles.footerLogo}
+                resizeMode="contain"
+              />
+            </View>
+
+            <Text style={styles.footerBrandName}>
+              Mada Bien-être
+            </Text>
+          </View>
+
+          <Text style={styles.footerDescription}>
+            Votre plateforme dédiée au bien-être,
+            aux massages et aux services de détente
+            à Madagascar.
+          </Text>
         </View>
 
-      </SafeAreaView>
-    );
-  };
+        {/* NAVIGATION */}
 
-  // ==========================================================
-  // RETURN
-  // ==========================================================
+        <View style={styles.footerColumn}>
+          <Text style={styles.footerColumnTitle}>
+            Navigation
+          </Text>
 
-  return isDesktop
-    ? renderDesktop()
-    : renderMobile();
-};
+          <Pressable
+            onPress={() => scrollToSection(0)}
+          >
+            <Text style={styles.footerLink}>
+              Accueil
+            </Text>
+          </Pressable>
 
+          <Pressable
+            onPress={() => scrollToSection(650)}
+          >
+            <Text style={styles.footerLink}>
+              Services
+            </Text>
+          </Pressable>
 
-// ============================================================
-// STYLES
-// ============================================================
+          <Pressable
+            onPress={() => scrollToSection(1200)}
+          >
+            <Text style={styles.footerLink}>
+              Avantages
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* APPLICATION */}
+
+        <View style={styles.footerColumn}>
+          <Text style={styles.footerColumnTitle}>
+            Application
+          </Text>
+
+          <Pressable
+            onPress={() =>
+              openExternalUrl(ANDROID_APK_URL)
+            }
+          >
+            <Text style={styles.footerLink}>
+              Télécharger Android
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={handleLogin}>
+            <Text style={styles.footerLink}>
+              Connexion
+            </Text>
+          </Pressable>
+
+          <Pressable onPress={handleRegister}>
+            <Text style={styles.footerLink}>
+              Inscription
+            </Text>
+          </Pressable>
+        </View>
+
+        {/* CONTACT */}
+
+        <View style={styles.footerColumn}>
+          <Text style={styles.footerColumnTitle}>
+            Contact
+          </Text>
+
+          <View style={styles.footerContact}>
+            <Ionicons
+              name="mail-outline"
+              size={17}
+              color="#A7B8AA"
+            />
+
+            <Text style={styles.footerContactText}>
+              Contactez-nous
+            </Text>
+          </View>
+
+          <View style={styles.footerContact}>
+            <Ionicons
+              name="location-outline"
+              size={17}
+              color="#A7B8AA"
+            />
+
+            <Text style={styles.footerContactText}>
+              Madagascar
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      {/* COPYRIGHT */}
+
+      <View style={styles.footerBottom}>
+        <View style={styles.container}>
+          <Text style={styles.copyright}>
+            © {new Date().getFullYear()} Mada Bien-être.
+            Tous droits réservés.
+          </Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  /* =======================================================
+     RENDER
+======================================================= */
+
+  return (
+    <SafeAreaView
+      style={styles.safeArea}
+      edges={['top']}
+    >
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor={COLORS.white}
+        translucent={false}
+      />
+
+      <View style={styles.screen}>
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {renderHeader()}
+
+          {renderHero()}
+
+          {renderQuickActions()}
+
+          {renderServices()}
+
+          {renderAdvantages()}
+
+          {renderProcess()}
+
+          {renderDownload()}
+
+          {renderCTA()}
+
+          {renderFooter()}
+        </ScrollView>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+/* =========================================================
+   STYLES
+========================================================= */
 
 const styles = StyleSheet.create({
+  /* =======================================================
+     BASE
+  ======================================================= */
 
-  // ==========================================================
-  // MOBILE
-  // ==========================================================
-
-  mobileSafeArea: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#164B2A',
+    backgroundColor: COLORS.white,
   },
 
-  mobileGradient: {
+  screen: {
     flex: 1,
-    width: '100%',
-    minHeight: '100%',
+    backgroundColor: COLORS.background,
   },
 
-  mobileScroll: {
-    flex: 1,
-  },
-
-  mobileScrollContent: {
-    flexGrow: 1,
-    alignItems: 'center',
-  },
-
-  mobileMainWrapper: {
-    width: '100%',
+  scrollContent: {
     flexGrow: 1,
   },
 
-  // ==========================================================
-  // MOBILE BACKGROUND
-  // ==========================================================
-
-  circleTop: {
-    position: 'absolute',
-    top: -135,
-    right: -115,
-    backgroundColor:
-      'rgba(255,255,255,0.055)',
-  },
-
-  circleMiddle: {
-    position: 'absolute',
-    top: '38%',
-    left: -120,
-    backgroundColor:
-      'rgba(255,255,255,0.025)',
-  },
-
-  circleBottom: {
-    position: 'absolute',
-    bottom: -180,
-    right: -120,
-    backgroundColor:
-      'rgba(255,255,255,0.045)',
-  },
-
-  // ==========================================================
-  // MOBILE HERO
-  // ==========================================================
-
-  mobileHero: {
+  container: {
     width: '100%',
-    alignItems: 'center',
-    paddingTop: 6,
+    maxWidth: 1200,
+    alignSelf: 'center',
+    paddingHorizontal: 28,
   },
 
-  logoWrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor:
-      'rgba(255,255,255,0.13)',
-
-    borderWidth: 1,
-    borderColor:
-      'rgba(255,255,255,0.20)',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 8,
+  containerMobile: {
+    paddingHorizontal: 18,
   },
 
-  logoInner: {
-    width: '76%',
-    height: '76%',
+  /* =======================================================
+     HEADER
+  ======================================================= */
 
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor:
-      'rgba(255,255,255,0.95)',
-
-    borderRadius: 24,
-  },
-
-  titleBlock: {
-    alignItems: 'center',
-    marginTop: 18,
-  },
-
-  title: {
-    color: '#FFFFFF',
-    textAlign: 'center',
-    fontFamily:
-      typography.fontFamily.bold,
-    letterSpacing: 0.2,
-  },
-
-  subtitle: {
-    color:
-      'rgba(255,255,255,0.86)',
-    textAlign: 'center',
-    fontFamily:
-      typography.fontFamily.regular,
-    marginTop: 5,
-    lineHeight: 22,
-  },
-
-  // ==========================================================
-  // MOBILE INTRO
-  // ==========================================================
-
-  introCard: {
+  header: {
     width: '100%',
+    backgroundColor: COLORS.white,
+
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+
+    zIndex: 100,
+    elevation: 5,
+  },
+
+  headerInner: {
+    width: '100%',
+    maxWidth: 1280,
+    alignSelf: 'center',
+
+    minHeight: 76,
+
+    paddingHorizontal: 28,
+    paddingVertical: 8,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  headerInnerMobile: {
+    minHeight: 68,
+
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+  },
+
+  headerInnerTablet: {
+    paddingHorizontal: 22,
+  },
+
+  logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
 
-    marginTop: 23,
-
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-
-    borderRadius: 18,
-
-    backgroundColor:
-      'rgba(255,255,255,0.095)',
-
-    borderWidth: 1,
-    borderColor:
-      'rgba(255,255,255,0.12)',
+    flexShrink: 1,
   },
 
-  introIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor:
-      'rgba(255,255,255,0.14)',
-
+  logoContainerMobile: {
+    flex: 1,
     marginRight: 12,
   },
 
-  introTextContainer: {
-    flex: 1,
+  logoBox: {
+    width: 50,
+    height: 50,
+
+    borderRadius: 14,
+
+    backgroundColor: COLORS.primaryLight,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginRight: 11,
   },
 
-  introTitle: {
-    color: '#FFFFFF',
+  logoBoxMobile: {
+    width: 46,
+    height: 46,
+
+    borderRadius: 13,
+
+    marginRight: 9,
+  },
+
+  logo: {
+    width: 38,
+    height: 38,
+  },
+
+  logoMobile: {
+    width: 35,
+    height: 35,
+  },
+
+  logoTexts: {
+    flexShrink: 1,
+  },
+
+  logoTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: COLORS.primaryDark,
+  },
+
+  logoTitleMobile: {
+    fontSize: 16,
+  },
+
+  logoSubtitle: {
+    marginTop: 2,
+
+    fontSize: 10,
+
+    color: COLORS.textSoft,
+  },
+
+  logoSubtitleMobile: {
+    fontSize: 9,
+  },
+
+  desktopNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 25,
+
+    marginLeft: 20,
+    marginRight: 15,
+  },
+
+  navItem: {
+    paddingVertical: 10,
+  },
+
+  navText: {
     fontSize: 14,
-    fontFamily:
-      typography.fontFamily.bold,
-    marginBottom: 3,
+    fontWeight: '600',
+
+    color: COLORS.textSoft,
   },
 
-  introText: {
-    color:
-      'rgba(255,255,255,0.73)',
-    fontSize: 12,
-    lineHeight: 17,
-    fontFamily:
-      typography.fontFamily.regular,
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 10,
   },
 
-  // ==========================================================
-  // MOBILE FEATURES
-  // STYLE COMME L'IMAGE
-  // ==========================================================
+  loginButton: {
+    paddingHorizontal: 17,
+    paddingVertical: 11,
 
-  mobileFeaturesContainer: {
-    width: '100%',
-    marginTop: 15,
-
-    borderRadius: 16,
-    overflow: 'hidden',
-
-    backgroundColor:
-      'rgba(18,91,39,0.52)',
-
-    borderWidth: 1,
-    borderColor:
-      'rgba(255,255,255,0.08)',
+    borderRadius: 10,
   },
 
-  mobileFeatureItem: {
-    width: '100%',
-    minHeight: 57,
+  loginButtonText: {
+    color: COLORS.primaryDark,
+
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  registerButton: {
+    backgroundColor: COLORS.primary,
+
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+
+    borderRadius: 10,
+  },
+
+  registerButtonText: {
+    color: COLORS.white,
+
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  /* =======================================================
+     MOBILE MENU
+  ======================================================= */
+
+  menuButton: {
+    width: 45,
+    height: 45,
+
+    borderRadius: 12,
+
+    backgroundColor: COLORS.primaryLight,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  mobileMenu: {
+    paddingHorizontal: 18,
+    paddingBottom: 18,
+    paddingTop: 4,
+
+    backgroundColor: COLORS.white,
+
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+  },
+
+  mobileNavItem: {
+    minHeight: 48,
 
     flexDirection: 'row',
     alignItems: 'center',
 
-    paddingHorizontal: 10,
-
-    borderBottomWidth: 1,
-    borderBottomColor:
-      'rgba(255,255,255,0.08)',
+    gap: 12,
   },
 
-  mobileFeatureItemLast: {
-    borderBottomWidth: 0,
+  mobileNavText: {
+    fontSize: 15,
+    fontWeight: '700',
+
+    color: COLORS.text,
   },
 
-  // Petit carré blanc comme sur l'image
+  mobileDivider: {
+    height: 1,
 
-  mobileFeatureIcon: {
-    width: 39,
-    height: 39,
+    backgroundColor: COLORS.border,
 
-    borderRadius: 11,
+    marginVertical: 9,
+  },
+
+  mobileLogin: {
+    minHeight: 45,
+
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+
+    borderRadius: 10,
 
     alignItems: 'center',
     justifyContent: 'center',
 
-    backgroundColor:
-      'rgba(255,255,255,0.88)',
-
-    marginRight: 10,
+    marginBottom: 8,
   },
 
-  mobileFeatureContent: {
+  mobileLoginText: {
+    fontSize: 14,
+    fontWeight: '700',
+
+    color: COLORS.primary,
+  },
+
+  mobileRegister: {
+    minHeight: 45,
+
+    borderRadius: 10,
+
+    backgroundColor: COLORS.primary,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  mobileRegisterText: {
+    fontSize: 14,
+    fontWeight: '700',
+
+    color: COLORS.white,
+  },
+
+  /* =======================================================
+     HERO
+  ======================================================= */
+
+  hero: {
+    minHeight: 590,
+
+    justifyContent: 'center',
+  },
+
+  heroMobile: {
+    minHeight: 760,
+  },
+
+  heroTablet: {
+    minHeight: 650,
+  },
+
+  heroInner: {
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
+
+    paddingHorizontal: 28,
+    paddingVertical: 65,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  heroInnerMobile: {
+    paddingHorizontal: 18,
+    paddingVertical: 45,
+
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+
+  heroInnerTablet: {
+    paddingHorizontal: 25,
+    paddingVertical: 55,
+  },
+
+  heroContent: {
     flex: 1,
-    minWidth: 0,
+
+    zIndex: 2,
   },
 
-  mobileFeatureTitle: {
-    color: '#FFFFFF',
-    fontSize: 12.5,
-    lineHeight: 16,
-
-    fontFamily:
-      typography.fontFamily.semiBold,
+  heroContentMobile: {
+    width: '100%',
   },
 
-  mobileFeatureDescription: {
-    color:
-      'rgba(255,255,255,0.62)',
-
-    fontSize: 9.5,
-    lineHeight: 13,
-
-    fontFamily:
-      typography.fontFamily.regular,
-
-    marginTop: 1,
+  heroContentDesktop: {
+    paddingRight: 35,
   },
 
-  // Cercle check à droite
+  heroBadge: {
+    alignSelf: 'flex-start',
 
-  mobileFeatureCheck: {
-    width: 18,
-    height: 18,
+    maxWidth: '100%',
 
-    borderRadius: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
 
+    backgroundColor: COLORS.white,
+
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+
+    borderRadius: 100,
+
+    marginBottom: 20,
+
+    elevation: 2,
+
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 5px 20px rgba(0,0,0,0.06)',
+      },
+    }),
+  },
+
+  heroBadgeDot: {
+    width: 8,
+    height: 8,
+
+    borderRadius: 4,
+
+    backgroundColor: COLORS.primary,
+
+    marginRight: 8,
+  },
+
+  heroBadgeText: {
+    fontSize: 9,
+    fontWeight: '800',
+
+    color: COLORS.primaryDark,
+
+    letterSpacing: 0.7,
+  },
+
+  heroTitle: {
+    fontSize: 53,
+    lineHeight: 61,
+
+    fontWeight: '900',
+
+    color: COLORS.text,
+
+    letterSpacing: -1.5,
+  },
+
+  heroTitleMobile: {
+    fontSize: 38,
+    lineHeight: 46,
+
+    letterSpacing: -0.8,
+  },
+
+  heroTitleTablet: {
+    fontSize: 45,
+    lineHeight: 54,
+  },
+
+  heroTitleGreen: {
+    color: COLORS.primary,
+  },
+
+  heroDescription: {
+    maxWidth: 590,
+
+    marginTop: 20,
+
+    fontSize: 17,
+    lineHeight: 28,
+
+    color: COLORS.textSoft,
+  },
+
+  heroDescriptionMobile: {
+    fontSize: 15,
+    lineHeight: 24,
+
+    marginTop: 18,
+  },
+
+  /* =======================================================
+     HERO BUTTONS
+  ======================================================= */
+
+  heroButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    flexWrap: 'wrap',
+
+    gap: 12,
+
+    marginTop: 28,
+  },
+
+  heroButtonsMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+
+    width: '100%',
+
+    gap: 10,
+  },
+
+  primaryHeroButton: {
+    minHeight: 52,
+
+    paddingHorizontal: 20,
+
+    borderRadius: 12,
+
+    backgroundColor: COLORS.primary,
+
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
 
-    backgroundColor:
-      'rgba(255,255,255,0.88)',
-
-    marginLeft: 7,
+    gap: 10,
   },
 
-  // ==========================================================
-  // MOBILE ACTIONS
-  // ==========================================================
-
-  mobileBottomContainer: {
+  primaryHeroButtonMobile: {
     width: '100%',
   },
 
-  primaryButton: {
-    width: '100%',
-    minHeight: 55,
+  primaryHeroButtonText: {
+    color: COLORS.white,
 
-    borderRadius: 16,
+    fontSize: 14,
+    fontWeight: '800',
+  },
 
-    backgroundColor: '#FFFFFF',
-
-    justifyContent: 'center',
+  secondaryHeroButton: {
+    minHeight: 52,
 
     paddingHorizontal: 18,
 
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
+    borderRadius: 12,
 
-    elevation: 6,
+    backgroundColor: COLORS.white,
+
+    borderWidth: 1,
+    borderColor: COLORS.border,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    gap: 8,
   },
 
-  primaryButtonContent: {
+  secondaryHeroButtonMobile: {
+    width: '100%',
+  },
+
+  secondaryHeroButtonText: {
+    color: COLORS.primaryDark,
+
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  /* =======================================================
+     TRUST
+  ======================================================= */
+
+  heroTrust: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+
+    gap: 18,
+
+    marginTop: 23,
+  },
+
+  trustItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 6,
+  },
+
+  trustText: {
+    color: COLORS.textSoft,
+
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  /* =======================================================
+     HERO VISUAL
+  ======================================================= */
+
+  heroVisual: {
+    flex: 0.9,
+
+    minHeight: 470,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    position: 'relative',
+  },
+
+  heroVisualMobile: {
     width: '100%',
 
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    minHeight: 360,
+
+    marginTop: 25,
   },
 
-  primaryButtonText: {
-    color: '#2E7D32',
-    fontSize: 15.5,
-
-    fontFamily:
-      typography.fontFamily.bold,
+  heroVisualTablet: {
+    minHeight: 400,
   },
 
-  arrowCircle: {
-    position: 'absolute',
-    right: 0,
-
-    width: 37,
-    height: 37,
-
-    borderRadius: 19,
-
-    backgroundColor:
-      'rgba(46,125,50,0.10)',
-
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  primaryButtonHover: {
-    transform: [
-      {
-        translateY: -2,
-      },
-    ],
-    shadowOpacity: 0.25,
-    elevation: 9,
-  },
-
-  primaryButtonPressed: {
-    transform: [
-      {
-        scale: 0.985,
-      },
-    ],
-  },
-
-  secondaryButton: {
-    width: '100%',
-    minHeight: 53,
-
-    marginTop: 11,
-
-    borderRadius: 16,
-
-    borderWidth: 1.3,
-    borderColor:
-      'rgba(255,255,255,0.43)',
-
-    backgroundColor:
-      'rgba(255,255,255,0.055)',
-
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    gap: 9,
-  },
-
-  secondaryButtonHover: {
-    backgroundColor:
-      'rgba(255,255,255,0.12)',
-
-    borderColor:
-      'rgba(255,255,255,0.72)',
-  },
-
-  secondaryButtonPressed: {
-    backgroundColor:
-      'rgba(255,255,255,0.16)',
-
-    transform: [
-      {
-        scale: 0.985,
-      },
-    ],
-  },
-
-  secondaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-
-    fontFamily:
-      typography.fontFamily.semiBold,
-  },
-
-  buttonFocused: {
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginTop: 15,
-
-    gap: 5,
-  },
-
-  footerText: {
-    color:
-      'rgba(255,255,255,0.60)',
-
-    fontSize: 11,
-
-    fontFamily:
-      typography.fontFamily.regular,
-
-    textAlign: 'center',
-  },
-
-  // ==========================================================
-  // DESKTOP
-  // ==========================================================
-
-  desktopSafeArea: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-
-  desktopContainer: {
-    flex: 1,
-
-    flexDirection: 'row',
-
-    width: '100%',
-    height: '100%',
-
-    backgroundColor: '#FFFFFF',
-  },
-
-  // ==========================================================
-  // LEFT — 50%
-  // ==========================================================
-
-  desktopLeftPanel: {
-    width: '50%',
-    height: '100%',
-  },
-
-  desktopLeftGradient: {
-    flex: 1,
-
-    paddingHorizontal: 55,
-    paddingVertical: 40,
-
-    justifyContent: 'space-between',
-
-    overflow: 'hidden',
-  },
-
-  desktopCircleOne: {
-    position: 'absolute',
-
-    width: 420,
-    height: 420,
-
-    borderRadius: 210,
-
-    right: -210,
-    top: -130,
-
-    backgroundColor:
-      'rgba(255,255,255,0.045)',
-  },
-
-  desktopCircleTwo: {
+  heroCircleLarge: {
     position: 'absolute',
 
     width: 350,
@@ -1928,70 +2165,791 @@ const styles = StyleSheet.create({
 
     borderRadius: 175,
 
-    left: -230,
-    bottom: -180,
+    backgroundColor: '#DDF0E1',
 
-    backgroundColor:
-      'rgba(255,255,255,0.04)',
+    opacity: 0.9,
   },
 
-  desktopBrandHeader: {
+  heroCircleLargeMobile: {
+    width: 290,
+    height: 290,
+
+    borderRadius: 145,
+  },
+
+  heroMainCard: {
+    width: 310,
+
+    borderRadius: 26,
+
+    overflow: 'hidden',
+
+    transform: [
+      {
+        rotate: '-4deg',
+      },
+    ],
+
+    elevation: 10,
+
+    ...Platform.select({
+      web: {
+        boxShadow:
+          '0px 25px 50px rgba(22,75,42,0.18)',
+      },
+    }),
+  },
+
+  heroMainCardMobile: {
+    width: 265,
+
+    borderRadius: 22,
+  },
+
+  heroCardGradient: {
+    minHeight: 300,
+
+    padding: 26,
+
+    justifyContent: 'space-between',
+  },
+
+  heroCardGradientMobile: {
+    minHeight: 245,
+
+    padding: 20,
+  },
+
+  heroCardTop: {
     flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
+
+    alignItems: 'flex-start',
   },
 
-  desktopLogoBox: {
+  heroCardText: {
+    flex: 1,
+
+    paddingRight: 8,
+  },
+
+  heroCardSmall: {
+    fontSize: 9,
+    fontWeight: '800',
+
+    color: '#BFE0C6',
+
+    letterSpacing: 1,
+
+    marginBottom: 11,
+  },
+
+  heroCardTitle: {
+    color: COLORS.white,
+
+    fontSize: 28,
+    lineHeight: 32,
+
+    fontWeight: '900',
+  },
+
+  heroCardTitleMobile: {
+    fontSize: 22,
+    lineHeight: 27,
+  },
+
+  heroCardIcon: {
     width: 58,
     height: 58,
 
-    borderRadius: 17,
+    borderRadius: 18,
 
-    backgroundColor:
-      'rgba(255,255,255,0.15)',
+    backgroundColor: COLORS.white,
 
     alignItems: 'center',
     justifyContent: 'center',
-
-    marginRight: 14,
-
-    borderWidth: 1,
-    borderColor:
-      'rgba(255,255,255,0.16)',
   },
 
-  desktopLogo: {
-    width: 43,
-    height: 43,
+  heroCardIconMobile: {
+    width: 47,
+    height: 47,
+
+    borderRadius: 14,
   },
 
-  desktopBrandName: {
-    color: '#FFFFFF',
-    fontSize: 22,
+  heroCardStats: {
+    flexDirection: 'row',
 
-    fontFamily:
-      typography.fontFamily.bold,
+    gap: 10,
   },
 
-  desktopBrandSmall: {
-    color:
-      'rgba(255,255,255,0.65)',
+  heroCardStatsMobile: {
+    gap: 6,
+  },
+
+  heroStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    backgroundColor: 'rgba(255,255,255,0.13)',
+
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+
+    borderRadius: 12,
+
+    gap: 6,
+  },
+
+  heroStatText: {
+    color: COLORS.white,
+
+    fontSize: 10,
+    fontWeight: '700',
+  },
+
+  /* =======================================================
+     FLOATING CARDS
+  ======================================================= */
+
+  floatingCard: {
+    position: 'absolute',
+
+    maxWidth: 190,
+
+    backgroundColor: COLORS.white,
+
+    borderRadius: 15,
+
+    padding: 11,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 8,
+
+    elevation: 7,
+
+    ...Platform.select({
+      web: {
+        boxShadow:
+          '0px 12px 30px rgba(0,0,0,0.10)',
+      },
+    }),
+  },
+
+  floatingCardOne: {
+    left: 0,
+    top: 85,
+  },
+
+  floatingCardOneMobile: {
+    left: 0,
+    top: 38,
+
+    maxWidth: 150,
+
+    padding: 9,
+  },
+
+  floatingCardTwo: {
+    right: 0,
+    bottom: 65,
+  },
+
+  floatingCardTwoMobile: {
+    right: 0,
+    bottom: 35,
+
+    maxWidth: 170,
+
+    padding: 9,
+  },
+
+  floatingCardText: {
+    flexShrink: 1,
+  },
+
+  floatingIcon: {
+    width: 38,
+    height: 38,
+
+    borderRadius: 11,
+
+    backgroundColor: COLORS.primaryLight,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  floatingIconBlue: {
+    width: 38,
+    height: 38,
+
+    borderRadius: 11,
+
+    backgroundColor: '#EAF1FF',
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  floatingTitle: {
+    color: COLORS.text,
 
     fontSize: 11,
+    fontWeight: '800',
+  },
 
-    fontFamily:
-      typography.fontFamily.regular,
+  floatingText: {
+    color: COLORS.muted,
+
+    fontSize: 9,
 
     marginTop: 2,
   },
 
-  desktopLeftContent: {
-    width: '100%',
-    maxWidth: 570,
+  /* =======================================================
+     QUICK ACTIONS
+  ======================================================= */
 
-    alignSelf: 'center',
+  quickSection: {
+    backgroundColor: COLORS.white,
+
+    paddingVertical: 22,
+
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
 
-  webEyebrow: {
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+
+    gap: 12,
+  },
+
+  quickGridMobile: {
+    flexDirection: 'column',
+
+    gap: 10,
+  },
+
+  quickCard: {
+    flex: 1,
+
+    minWidth: 280,
+    minHeight: 84,
+
+    paddingHorizontal: 15,
+
+    borderWidth: 1,
+    borderColor: COLORS.border,
+
+    borderRadius: 15,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    backgroundColor: COLORS.white,
+
+    gap: 12,
+  },
+
+  quickCardMobile: {
+    width: '100%',
+
+    minWidth: 0,
+
+    minHeight: 76,
+
+    paddingHorizontal: 13,
+  },
+
+  quickIcon: {
+    width: 48,
+    height: 48,
+
+    borderRadius: 13,
+
+    backgroundColor: COLORS.primaryLight,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  quickIconOrange: {
+    backgroundColor: '#FFF6E5',
+  },
+
+  quickIconBlue: {
+    backgroundColor: '#EAF1FF',
+  },
+
+  quickContent: {
+    flex: 1,
+
+    minWidth: 0,
+  },
+
+  quickTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+
+    color: COLORS.text,
+  },
+
+  quickText: {
+    fontSize: 11,
+    lineHeight: 16,
+
+    color: COLORS.textSoft,
+
+    marginTop: 3,
+  },
+
+  /* =======================================================
+     SECTIONS
+  ======================================================= */
+
+  section: {
+    paddingVertical: 75,
+
+    backgroundColor: COLORS.white,
+  },
+
+  advantagesSection: {
+    paddingVertical: 75,
+
+    backgroundColor: COLORS.background,
+  },
+
+  sectionHeading: {
+    alignItems: 'center',
+
+    maxWidth: 720,
+
+    alignSelf: 'center',
+
+    marginBottom: 42,
+  },
+
+  sectionHeadingMobile: {
+    marginBottom: 30,
+  },
+
+  sectionEyebrow: {
+    fontSize: 11,
+    fontWeight: '900',
+
+    color: COLORS.primary,
+
+    letterSpacing: 1.5,
+
+    marginBottom: 9,
+  },
+
+  sectionTitle: {
+    textAlign: 'center',
+
+    fontSize: 35,
+    lineHeight: 43,
+
+    fontWeight: '900',
+
+    color: COLORS.text,
+
+    letterSpacing: -0.5,
+  },
+
+  sectionTitleMobile: {
+    fontSize: 27,
+    lineHeight: 34,
+
+    paddingHorizontal: 5,
+  },
+
+  sectionDescription: {
+    textAlign: 'center',
+
+    marginTop: 12,
+
+    color: COLORS.textSoft,
+
+    fontSize: 15,
+    lineHeight: 24,
+  },
+
+  sectionDescriptionMobile: {
+    fontSize: 14,
+    lineHeight: 22,
+
+    paddingHorizontal: 2,
+  },
+
+  /* =======================================================
+     SERVICES
+  ======================================================= */
+
+  serviceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+
+    gap: 17,
+  },
+
+  serviceGridMobile: {
+    flexDirection: 'column',
+
+    gap: 12,
+  },
+
+  serviceGridTablet: {
+    gap: 14,
+  },
+
+  serviceCard: {
+    flex: 1,
+
+    minWidth: 250,
+
+    padding: 25,
+
+    borderWidth: 1,
+    borderColor: COLORS.border,
+
+    borderRadius: 18,
+
+    backgroundColor: COLORS.white,
+
+    elevation: 2,
+
+    ...Platform.select({
+      web: {
+        boxShadow:
+          '0px 8px 25px rgba(0,0,0,0.04)',
+      },
+    }),
+  },
+
+  serviceCardMobile: {
+    width: '100%',
+
+    minWidth: 0,
+
+    padding: 20,
+  },
+
+  serviceCardTablet: {
+    flexBasis: '47%',
+
+    minWidth: 0,
+  },
+
+  serviceIcon: {
+    width: 56,
+    height: 56,
+
+    borderRadius: 15,
+
+    backgroundColor: COLORS.primaryLight,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginBottom: 17,
+  },
+
+  serviceTitle: {
+    color: COLORS.text,
+
+    fontSize: 18,
+    fontWeight: '800',
+
+    marginBottom: 8,
+  },
+
+  serviceText: {
+    color: COLORS.textSoft,
+
+    fontSize: 13,
+    lineHeight: 21,
+  },
+
+  serviceLink: {
+    marginTop: 17,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    gap: 7,
+  },
+
+  serviceLinkText: {
+    color: COLORS.primary,
+
+    fontSize: 12,
+    fontWeight: '800',
+  },
+
+  /* =======================================================
+     ADVANTAGES
+  ======================================================= */
+
+  advantagesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+
+    gap: 15,
+  },
+
+  advantagesGridMobile: {
+    flexDirection: 'column',
+
+    gap: 12,
+  },
+
+  advantagesGridTablet: {
+    gap: 14,
+  },
+
+  advantageCard: {
+    width: '32.1%',
+
+    minHeight: 135,
+
+    backgroundColor: COLORS.white,
+
+    borderRadius: 16,
+
+    padding: 18,
+
+    borderWidth: 1,
+    borderColor: COLORS.border,
+
+    flexDirection: 'row',
+
+    gap: 12,
+  },
+
+  /*
+    IMPORTANT :
+    MOBILE = 100% WIDTH
+    C'est cette partie qui corrige le problème
+    visible dans ta première capture.
+  */
+
+  advantageCardMobile: {
+    width: '100%',
+
+    minWidth: 0,
+
+    minHeight: 105,
+
+    padding: 16,
+
+    flexDirection: 'row',
+
+    alignItems: 'flex-start',
+  },
+
+  advantageCardTablet: {
+    width: '48.2%',
+
+    minHeight: 125,
+  },
+
+  advantageIcon: {
+    width: 46,
+    height: 46,
+
+    flexShrink: 0,
+
+    borderRadius: 12,
+
+    backgroundColor: COLORS.primaryLight,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  advantageContent: {
+    flex: 1,
+
+    minWidth: 0,
+  },
+
+  advantageTitle: {
+    color: COLORS.text,
+
+    fontSize: 14,
+    lineHeight: 19,
+
+    fontWeight: '800',
+
+    marginBottom: 5,
+  },
+
+  advantageText: {
+    color: COLORS.textSoft,
+
+    fontSize: 11,
+    lineHeight: 17,
+  },
+
+  /* =======================================================
+     STEPS
+  ======================================================= */
+
+  stepsGrid: {
+    flexDirection: 'row',
+
+    gap: 15,
+  },
+
+  stepsGridMobile: {
+    flexDirection: 'column',
+
+    gap: 12,
+  },
+
+  stepsGridTablet: {
+    flexWrap: 'wrap',
+
+    gap: 14,
+  },
+
+  stepCard: {
+    flex: 1,
+
+    padding: 23,
+
+    borderRadius: 17,
+
+    borderWidth: 1,
+    borderColor: COLORS.border,
+
+    backgroundColor: COLORS.background,
+
+    position: 'relative',
+  },
+
+  stepCardMobile: {
+    width: '100%',
+
+    minHeight: 145,
+  },
+
+  stepCardTablet: {
+    flexBasis: '47%',
+
+    minWidth: 0,
+  },
+
+  stepNumber: {
+    width: 49,
+    height: 49,
+
+    borderRadius: 14,
+
+    backgroundColor: COLORS.primary,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginBottom: 17,
+  },
+
+  stepNumberText: {
+    color: COLORS.white,
+
+    fontSize: 14,
+    fontWeight: '900',
+  },
+
+  stepTitle: {
+    color: COLORS.text,
+
+    fontSize: 18,
+    fontWeight: '900',
+
+    marginBottom: 7,
+  },
+
+  stepText: {
+    color: COLORS.textSoft,
+
+    fontSize: 12,
+    lineHeight: 19,
+  },
+
+  stepArrow: {
+    position: 'absolute',
+
+    right: -14,
+    top: 37,
+
+    width: 28,
+    height: 28,
+
+    borderRadius: 14,
+
+    backgroundColor: COLORS.white,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    borderWidth: 1,
+    borderColor: COLORS.border,
+
+    zIndex: 3,
+  },
+
+  /* =======================================================
+     DOWNLOAD
+  ======================================================= */
+
+  downloadSection: {
+    paddingVertical: 28,
+
+    backgroundColor: COLORS.background,
+  },
+
+  downloadCard: {
+    minHeight: 350,
+
+    borderRadius: 28,
+
+    paddingHorizontal: 45,
+    paddingVertical: 40,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    overflow: 'hidden',
+  },
+
+  downloadCardMobile: {
+    minHeight: 0,
+
+    flexDirection: 'column',
+    alignItems: 'stretch',
+
+    paddingHorizontal: 22,
+    paddingVertical: 30,
+  },
+
+  downloadContent: {
+    flex: 1,
+
+    paddingRight: 25,
+  },
+
+  downloadContentMobile: {
+    paddingRight: 0,
+  },
+
+  downloadBadge: {
     alignSelf: 'flex-start',
 
     flexDirection: 'row',
@@ -2002,711 +2960,407 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 7,
 
-    borderRadius: 20,
+    borderRadius: 100,
 
-    backgroundColor:
-      'rgba(255,255,255,0.11)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
 
-    borderWidth: 1,
-    borderColor:
-      'rgba(255,255,255,0.14)',
-
-    marginBottom: 20,
+    marginBottom: 16,
   },
 
-  webEyebrowText: {
-    color:
-      'rgba(255,255,255,0.88)',
+  downloadBadgeText: {
+    color: '#DCEFE0',
 
-    fontSize: 9.5,
-
-    fontFamily:
-      typography.fontFamily.bold,
+    fontSize: 9,
+    fontWeight: '900',
 
     letterSpacing: 1,
   },
 
-  desktopBrandTitle: {
-    color: '#FFFFFF',
+  downloadTitle: {
+    color: COLORS.white,
 
-    fontSize: 42,
-    lineHeight: 51,
+    fontSize: 32,
+    lineHeight: 40,
 
-    fontFamily:
-      typography.fontFamily.bold,
+    fontWeight: '900',
 
-    marginBottom: 19,
+    maxWidth: 570,
   },
 
-  desktopBrandDescription: {
-    color:
-      'rgba(255,255,255,0.88)',
-
-    fontSize: 14.5,
-    lineHeight: 24,
-
-    fontFamily:
-      typography.fontFamily.regular,
-
-    maxWidth: 520,
+  downloadTitleMobile: {
+    fontSize: 27,
+    lineHeight: 34,
   },
 
-  desktopValueList: {
-    marginTop: 38,
-    gap: 16,
+  downloadText: {
+    color: '#D6E9DA',
+
+    fontSize: 14,
+    lineHeight: 23,
+
+    marginTop: 12,
+
+    maxWidth: 570,
   },
 
-  desktopValueItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+  downloadButton: {
+    alignSelf: 'flex-start',
 
-  desktopValueIcon: {
-    width: 44,
-    height: 44,
+    marginTop: 23,
 
-    borderRadius: 14,
+    minHeight: 58,
 
-    backgroundColor:
-      'rgba(255,255,255,0.13)',
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 13,
-  },
-
-  desktopValueContent: {
-    flex: 1,
-  },
-
-  desktopValueTitle: {
-    color: '#FFFFFF',
-
-    fontSize: 13.5,
-
-    fontFamily:
-      typography.fontFamily.bold,
-  },
-
-  desktopValueDescription: {
-    color:
-      'rgba(255,255,255,0.68)',
-
-    fontSize: 11.5,
-    lineHeight: 17,
-
-    fontFamily:
-      typography.fontFamily.regular,
-
-    marginTop: 2,
-  },
-
-  desktopLeftFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-
-    paddingTop: 17,
-
-    borderTopWidth: 1,
-    borderTopColor:
-      'rgba(255,255,255,0.16)',
-  },
-
-  desktopCopyright: {
-    color:
-      'rgba(255,255,255,0.62)',
-
-    fontSize: 10.5,
-
-    fontFamily:
-      typography.fontFamily.regular,
-  },
-
-  desktopFooterSecure: {
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    gap: 5,
-  },
-
-  desktopFooterSecureText: {
-    color:
-      'rgba(255,255,255,0.62)',
-
-    fontSize: 10.5,
-
-    fontFamily:
-      typography.fontFamily.regular,
-  },
-
-  // ==========================================================
-  // RIGHT — 50%
-  // ==========================================================
-
-  desktopRightPanel: {
-    width: '50%',
-    height: '100%',
-
-    backgroundColor: '#F8FAF8',
-
-    minWidth: 0,
-  },
-
-  desktopScroll: {
-    flex: 1,
-  },
-
-  desktopScrollContent: {
-    flexGrow: 1,
-
-    paddingHorizontal: 45,
-    paddingVertical: 38,
-  },
-
-  desktopRightContent: {
-    width: '100%',
-    maxWidth: 680,
-
-    alignSelf: 'center',
-  },
-
-  webSectionLabel: {
-    color: '#2E7D32',
-
-    fontSize: 10,
-
-    fontFamily:
-      typography.fontFamily.bold,
-
-    letterSpacing: 1.3,
-
-    marginBottom: 9,
-  },
-
-  desktopWelcomeTitle: {
-    color: '#17201A',
-
-    fontSize: 29,
-    lineHeight: 37,
-
-    fontFamily:
-      typography.fontFamily.bold,
-  },
-
-  desktopWelcomeSubtitle: {
-    color: '#66736A',
-
-    fontSize: 13.5,
-    lineHeight: 21,
-
-    fontFamily:
-      typography.fontFamily.regular,
-
-    marginTop: 9,
-
-    maxWidth: 600,
-  },
-
-  // ==========================================================
-  // WEB FEATURES
-  // 2 CARDS / ROW
-  // ==========================================================
-
-  essentialSection: {
-    width: '100%',
-    marginTop: 28,
-  },
-
-  featureGrid: {
-    width: '100%',
-
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-
-    gap: 12,
-  },
-
-  webFeatureCard: {
-    width: 'calc(50% - 6px)',
-
-    minHeight: 145,
-
-    padding: 16,
-
-    borderRadius: 19,
-
-    backgroundColor: '#FFFFFF',
-
-    borderWidth: 1,
-    borderColor: '#E2EAE3',
-
-    shadowColor: '#174B27',
-
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-
-    shadowOpacity: 0.055,
-    shadowRadius: 12,
-
-    elevation: 3,
-  },
-
-  webFeatureTop: {
-    width: '100%',
-
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-
-    marginBottom: 13,
-  },
-
-  webFeatureIcon: {
-    width: 42,
-    height: 42,
+    paddingHorizontal: 15,
 
     borderRadius: 13,
 
-    backgroundColor: '#EAF5EC',
+    backgroundColor: COLORS.white,
 
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  webFeatureCheck: {
-    width: 23,
-    height: 23,
-
-    borderRadius: 12,
-
-    backgroundColor: '#EDF7EF',
-
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  webFeatureTitle: {
-    color: '#26342A',
-
-    fontSize: 13.5,
-    lineHeight: 18,
-
-    fontFamily:
-      typography.fontFamily.bold,
-  },
-
-  webFeatureDescription: {
-    color: '#77827A',
-
-    fontSize: 10.8,
-    lineHeight: 16.5,
-
-    fontFamily:
-      typography.fontFamily.regular,
-
-    marginTop: 5,
-  },
-
-  // ==========================================================
-  // WEB ACTIONS
-  // ==========================================================
-
-  desktopActions: {
-    width: '100%',
-
-    marginTop: 25,
 
     gap: 10,
   },
 
-  desktopPrimaryButton: {
-    width: '100%',
-    minHeight: 56,
+  downloadButtonSmall: {
+    color: COLORS.textSoft,
 
-    borderRadius: 15,
+    fontSize: 8,
+    fontWeight: '800',
 
-    backgroundColor: '#31953A',
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    position: 'relative',
-
-    shadowColor: '#2E7D32',
-
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-
-    elevation: 5,
+    letterSpacing: 0.7,
   },
 
-  desktopPrimaryButtonText: {
-    color: '#FFFFFF',
+  downloadButtonText: {
+    color: COLORS.primaryDark,
 
     fontSize: 15,
+    fontWeight: '900',
 
-    fontFamily:
-      typography.fontFamily.bold,
+    marginTop: 2,
   },
 
-  desktopArrowCircle: {
-    position: 'absolute',
-    right: 14,
-
-    width: 36,
-    height: 36,
-
-    borderRadius: 18,
-
-    backgroundColor:
-      'rgba(255,255,255,0.16)',
+  downloadVisual: {
+    width: 330,
 
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  desktopPrimaryButtonHover: {
-    backgroundColor: '#2C8735',
-
-    transform: [
-      {
-        translateY: -1,
-      },
-    ],
-
-    shadowOpacity: 0.25,
-  },
-
-  desktopPrimaryButtonPressed: {
-    transform: [
-      {
-        scale: 0.985,
-      },
-    ],
-  },
-
-  desktopSecondaryButton: {
+  downloadVisualMobile: {
     width: '100%',
-    minHeight: 54,
 
-    borderRadius: 15,
+    marginTop: 28,
+  },
 
-    borderWidth: 1,
-    borderColor: '#D9E3DA',
+  phone: {
+    width: 170,
+    height: 300,
 
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#102F1B',
+
+    borderRadius: 28,
+
+    padding: 7,
+
+    transform: [
+      {
+        rotate: '5deg',
+      },
+    ],
+
+    elevation: 9,
+
+    ...Platform.select({
+      web: {
+        boxShadow:
+          '0px 20px 40px rgba(0,0,0,0.25)',
+      },
+    }),
+  },
+
+  phoneNotch: {
+    position: 'absolute',
+
+    top: 8,
+    left: 55,
+
+    width: 60,
+    height: 15,
+
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+
+    backgroundColor: '#07170C',
+
+    zIndex: 2,
+  },
+
+  phoneScreen: {
+    flex: 1,
+
+    borderRadius: 22,
+
+    backgroundColor: '#F5FAF6',
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    paddingHorizontal: 15,
+  },
+
+  phoneTitle: {
+    color: COLORS.primaryDark,
+
+    fontSize: 13,
+    fontWeight: '900',
+
+    marginTop: 11,
+
+    textAlign: 'center',
+  },
+
+  phoneLine: {
+    width: 70,
+    height: 4,
+
+    borderRadius: 2,
+
+    backgroundColor: COLORS.primary,
+
+    marginTop: 9,
+    marginBottom: 18,
+  },
+
+  phoneSmallCard: {
+    width: '100%',
+
+    padding: 11,
+
+    borderRadius: 12,
+
+    backgroundColor: COLORS.white,
 
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
 
     gap: 8,
   },
 
-  desktopSecondaryButtonHover: {
-    backgroundColor: '#F2F8F3',
-    borderColor: '#B6CCB9',
+  phoneSmallText: {
+    fontSize: 10,
+
+    fontWeight: '700',
+
+    color: COLORS.text,
   },
 
-  desktopSecondaryButtonPressed: {
-    backgroundColor: '#EAF2EB',
+  /* =======================================================
+     CTA
+  ======================================================= */
 
-    transform: [
-      {
-        scale: 0.985,
-      },
-    ],
+  ctaSection: {
+    paddingVertical: 70,
+
+    backgroundColor: COLORS.white,
   },
 
-  desktopSecondaryButtonText: {
-    color: '#2E7D32',
-
-    fontSize: 14.5,
-
-    fontFamily:
-      typography.fontFamily.semiBold,
-  },
-
-  desktopButtonFocused: {
-    borderWidth: 2,
-    borderColor: '#2E7D32',
-  },
-
-  // ==========================================================
-  // DOWNLOAD WEB ONLY
-  // ==========================================================
-
-  downloadSection: {
-    width: '100%',
-
-    marginTop: 20,
-
-    padding: 16,
-
-    borderRadius: 17,
-
-    backgroundColor: '#FFFFFF',
-
-    borderWidth: 1,
-    borderColor: '#E0E8E1',
-  },
-
-  downloadHeader: {
-    flexDirection: 'row',
+  ctaCard: {
     alignItems: 'center',
+
+    maxWidth: 800,
+
+    alignSelf: 'center',
+
+    paddingHorizontal: 20,
   },
 
-  downloadIcon: {
-    width: 42,
-    height: 42,
+  ctaIcon: {
+    width: 68,
+    height: 68,
+
+    borderRadius: 22,
+
+    backgroundColor: COLORS.primaryLight,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginBottom: 18,
+  },
+
+  ctaTitle: {
+    textAlign: 'center',
+
+    color: COLORS.text,
+
+    fontSize: 34,
+    lineHeight: 42,
+
+    fontWeight: '900',
+  },
+
+  ctaTitleMobile: {
+    fontSize: 27,
+    lineHeight: 34,
+  },
+
+  ctaText: {
+    textAlign: 'center',
+
+    color: COLORS.textSoft,
+
+    fontSize: 15,
+    lineHeight: 24,
+
+    maxWidth: 620,
+
+    marginTop: 12,
+  },
+
+  ctaButton: {
+    minHeight: 53,
+
+    paddingHorizontal: 23,
 
     borderRadius: 12,
 
-    backgroundColor: '#EAF4EB',
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 12,
-  },
-
-  downloadHeaderContent: {
-    flex: 1,
-  },
-
-  downloadTitle: {
-    color: '#243229',
-
-    fontSize: 13.5,
-
-    fontFamily:
-      typography.fontFamily.bold,
-  },
-
-  downloadSubtitle: {
-    color: '#7A847D',
-
-    fontSize: 11,
-    lineHeight: 16,
-
-    fontFamily:
-      typography.fontFamily.regular,
-
-    marginTop: 2,
-  },
-
-  // ==========================================================
-  // MAIN DOWNLOAD BUTTON
-  // ==========================================================
-
-  downloadMainButton: {
-    width: '100%',
-
-    minHeight: 58,
-
-    marginTop: 14,
-
-    borderRadius: 14,
-
-    backgroundColor: '#2E7D32',
+    backgroundColor: COLORS.primary,
 
     flexDirection: 'row',
     alignItems: 'center',
-
-    paddingHorizontal: 12,
-
-    shadowColor: '#2E7D32',
-
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-
-    elevation: 4,
-  },
-
-  downloadMainButtonHover: {
-    backgroundColor: '#276C2B',
-
-    transform: [
-      {
-        translateY: -1,
-      },
-    ],
-  },
-
-  downloadMainButtonPressed: {
-    transform: [
-      {
-        scale: 0.985,
-      },
-    ],
-  },
-
-  downloadMainIcon: {
-    width: 38,
-    height: 38,
-
-    borderRadius: 11,
-
-    backgroundColor:
-      'rgba(255,255,255,0.14)',
-
-    alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  downloadMainContent: {
-    flex: 1,
-
-    marginLeft: 10,
-  },
-
-  downloadMainTitle: {
-    color: '#FFFFFF',
-
-    fontSize: 13.5,
-
-    fontFamily:
-      typography.fontFamily.bold,
-  },
-
-  downloadMainSubtitle: {
-    color:
-      'rgba(255,255,255,0.72)',
-
-    fontSize: 10.5,
-
-    fontFamily:
-      typography.fontFamily.regular,
-
-    marginTop: 2,
-  },
-
-  // ==========================================================
-  // STORE BUTTONS
-  // ==========================================================
-
-  downloadButtons: {
-    flexDirection: 'row',
 
     gap: 9,
 
-    marginTop: 10,
+    marginTop: 24,
   },
 
-  downloadButton: {
-    flex: 1,
+  ctaButtonText: {
+    color: COLORS.white,
 
-    minHeight: 50,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+
+  /* =======================================================
+     FOOTER
+  ======================================================= */
+
+  footer: {
+    backgroundColor: '#102218',
+  },
+
+  footerInner: {
+    paddingTop: 50,
+    paddingBottom: 45,
+
+    flexDirection: 'row',
+
+    gap: 40,
+  },
+
+  footerInnerMobile: {
+    flexDirection: 'column',
+
+    gap: 28,
+  },
+
+  footerBrand: {
+    flex: 1.5,
+  },
+
+  footerLogoRow: {
+    flexDirection: 'row',
+
+    alignItems: 'center',
+  },
+
+  footerLogoBox: {
+    width: 43,
+    height: 43,
 
     borderRadius: 12,
 
-    borderWidth: 1,
-    borderColor: '#DDE6DF',
+    backgroundColor: COLORS.white,
 
-    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
 
+    marginRight: 10,
+  },
+
+  footerLogo: {
+    width: 32,
+    height: 32,
+  },
+
+  footerBrandName: {
+    color: COLORS.white,
+
+    fontSize: 17,
+    fontWeight: '900',
+  },
+
+  footerDescription: {
+    maxWidth: 330,
+
+    color: '#A7B8AA',
+
+    fontSize: 12,
+    lineHeight: 20,
+
+    marginTop: 14,
+  },
+
+  footerColumn: {
+    flex: 1,
+  },
+
+  footerColumnTitle: {
+    color: COLORS.white,
+
+    fontSize: 13,
+    fontWeight: '900',
+
+    marginBottom: 14,
+  },
+
+  footerLink: {
+    color: '#A7B8AA',
+
+    fontSize: 12,
+
+    marginBottom: 11,
+  },
+
+  footerContact: {
     flexDirection: 'row',
     alignItems: 'center',
 
-    paddingHorizontal: 11,
+    gap: 8,
+
+    marginBottom: 12,
   },
 
-  downloadButtonHover: {
-    backgroundColor: '#F3F8F4',
-    borderColor: '#BFD1C1',
+  footerContactText: {
+    color: '#A7B8AA',
+
+    fontSize: 12,
   },
 
-  downloadButtonPressed: {
-    backgroundColor: '#EAF2EB',
-
-    transform: [
-      {
-        scale: 0.985,
-      },
-    ],
-  },
-
-  downloadButtonTextContainer: {
-    marginLeft: 8,
-  },
-
-  downloadSmallText: {
-    color: '#8A938D',
-
-    fontSize: 7,
-
-    fontFamily:
-      typography.fontFamily.medium,
-
-    letterSpacing: 0.4,
-  },
-
-  downloadMainText: {
-    color: '#243229',
-
-    fontSize: 12.5,
-
-    fontFamily:
-      typography.fontFamily.bold,
-
-    marginTop: 1,
-  },
-
-  // ==========================================================
-  // WEB FOOTER
-  // ==========================================================
-
-  desktopFooter: {
-    width: '100%',
-
-    marginTop: 20,
-
-    paddingTop: 14,
-
+  footerBottom: {
     borderTopWidth: 1,
-    borderTopColor: '#E5EAE6',
+    borderTopColor: 'rgba(255,255,255,0.08)',
 
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingVertical: 18,
   },
 
-  desktopFooterTechnology: {
-    color: '#8B948E',
+  copyright: {
+    color: '#77877B',
 
-    fontSize: 9.5,
+    fontSize: 11,
 
-    fontFamily:
-      typography.fontFamily.regular,
-  },
-
-  desktopFooterCopyright: {
-    color: '#9AA19C',
-
-    fontSize: 9.5,
-
-    fontFamily:
-      typography.fontFamily.regular,
+    textAlign: 'center',
   },
 });
-
-
-// ============================================================
-// EXPORT
-// ============================================================
-
-export default WelcomeScreen;

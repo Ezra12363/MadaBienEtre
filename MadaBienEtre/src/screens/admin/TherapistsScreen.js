@@ -34,6 +34,7 @@ import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header'; 
 import adminService from '../../services/adminService'; 
 import AdminUserAddressModal from '../../components/admin/AdminUserAddressModal'; 
+import AdminSpecialtiesManager from '../../components/admin/AdminSpecialtiesManager'; 
 import useResponsive from '../../hooks/useResponsive'; 
 import { API_URL } from '../../config/env'; 
 import { exportToExcel } from '../../utils/exportExcel'; 
@@ -4038,6 +4039,19 @@ const TherapistsScreen = ({ navigation }) => {
                       </View> 
                     )} 
                   </View> 
+ 
+                  {/* ✅ NOUVEAU : SPÉCIALITÉS affichées sur le certificat, modifiables par l'admin */} 
+                  <SectionTitle 
+                    title="Spécialités (certificat officiel)" 
+                    themeColors={themeColors} 
+                  /> 
+ 
+                  <AdminSpecialtiesManager 
+                    therapistId={selectedTherapist.id} 
+                    therapistName={selectedTherapist.fullname} 
+                    variant="card" 
+                    onUpdated={() => loadCertificateInfo(selectedTherapist.id)} 
+                  /> 
  
                   {/* BIO */} 
                   {selectedTherapist.bio && ( 

@@ -49,3 +49,18 @@ venv/
 __pycache__/
 node_modules/
 .expo/
+
+# Fichiers APK
+*.apk
+
+# Dossier de téléchargement
+downloads/
+MadaBienEtre/downloads/*.apk
+# APK
+downloads/*.apk
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

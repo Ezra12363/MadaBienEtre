@@ -116,6 +116,20 @@ async def approve_therapist(
     db.commit()
     db.refresh(therapist)
 
+    # ✅ NOUVEAU : récupérer toutes les spécialités (types de massage)
+    # déclarées par le thérapeute, pour qu'elles apparaissent sur le
+    # certificat officiel généré ci-dessous (ligne "SPÉCIALITÉ").
+    from ..models.therapist import TherapistSpecialty
+
+    specialty_rows = (
+        db.query(MassageType.name)
+        .join(TherapistSpecialty, TherapistSpecialty.massage_type_id == MassageType.id)
+        .filter(TherapistSpecialty.therapist_id == therapist_id)
+        .all()
+    )
+    specialty_names = [name for (name,) in specialty_rows]
+    specialty_str = ", ".join(specialty_names) if specialty_names else None
+
     certificate = None
     try:
         certificate = generate_certificate_for_therapist(
@@ -123,6 +137,7 @@ async def approve_therapist(
             admin_id=current_user.id,
             admin_fullname=current_user.fullname,
             db=db,
+            specialty=specialty_str,  # ✅ NOUVEAU
         )
         logger.info(
             "✅ Certificat généré pour therapist_id=%s, certificate_number=%s",

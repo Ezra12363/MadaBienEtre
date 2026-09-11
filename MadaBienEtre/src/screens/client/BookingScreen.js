@@ -19,7 +19,6 @@ import {
   KeyboardAvoidingView,
   SafeAreaView,
   StatusBar,
-  Modal,
   Dimensions,
   Keyboard,
   Animated,
@@ -35,7 +34,11 @@ import Header from '../../components/common/Header';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import MapViewWrapper from '../../components/map/MapViewWrapper';
-import { getAddressFromCoords } from '../../services/geocoding';
+import {
+  getAddressFromCoords,
+  getAddressSuggestions,
+  getPlaceDetails,
+} from '../../services/geocoding';
 import { DEFAULT_REGION } from '../../config/googleMaps';
 
 import * as Location from 'expo-location';
@@ -43,6 +46,10 @@ import * as Location from 'expo-location';
 import massageTypeService from '../../services/massageTypeService';
 import { getMassageTypeIconMCI } from '../../constants/massageTypeIcons';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+// ✅ FIXÉ : la création de réservation utilisait un faux setTimeout()
+// qui ne contactait jamais le backend. On branche maintenant sur le
+// vrai contexte de réservation (POST /bookings côté API).
+import { useBooking } from '../../context/BookingContext';
 
 const { width } = Dimensions.get('window');
 
@@ -320,6 +327,9 @@ const BookingScreen = ({
     user,
   } = useAuth();
 
+  // ✅ NOUVEAU : createBooking envoie réellement la demande à l'API
+  const { createBooking } = useBooking();
+
   // ============================================================
   // FORM STATES
   // ============================================================
@@ -349,6 +359,11 @@ const BookingScreen = ({
 
   const [preferredGender, setPreferredGender] =
     useState('any');
+
+  // ✅ NOUVEAU : instructions spéciales (champ optionnel supporté par
+  // le backend — schemas/booking.py::BookingCreate.special_instructions)
+  const [specialInstructions, setSpecialInstructions] =
+    useState('');
 
   const [isLoading, setIsLoading] =
     useState(false);
@@ -519,6 +534,36 @@ const BookingScreen = ({
 
   const [isLoadingAddress, setIsLoadingAddress] =
     useState(false);
+
+  // ============================================================
+  // MAP SEARCH BAR (Lot / adresse / ville — dynamique)
+  // ============================================================
+
+  const [mapSearchQuery, setMapSearchQuery] =
+    useState('');
+
+  const [mapSearchSuggestions, setMapSearchSuggestions] =
+    useState([]);
+
+  const [showMapSearchSuggestions, setShowMapSearchSuggestions] =
+    useState(false);
+
+  const [mapSearchLoading, setMapSearchLoading] =
+    useState(false);
+
+  const [mapSearchResolving, setMapSearchResolving] =
+    useState(false);
+
+  const mapSearchTimerRef = useRef(null);
+  const mapSearchRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (mapSearchTimerRef.current) {
+        clearTimeout(mapSearchTimerRef.current);
+      }
+    };
+  }, []);
 
   // ============================================================
   // TOAST
@@ -832,9 +877,13 @@ const BookingScreen = ({
           showToast(
             'error',
             'Géolocalisation indisponible',
-            "Votre navigateur ne prend pas en charge la géolocalisation."
+            "Votre navigateur ne prend pas en charge la géolocalisation. Choisissez votre position sur la carte."
           );
 
+          // On ouvre quand même la carte (région par défaut) pour que
+          // l'utilisateur puisse choisir sa position manuellement.
+          setMapRegion(DEFAULT_REGION);
+          setShowMapModal(true);
           setIsSearchingLocation(false);
 
           return;
@@ -861,12 +910,22 @@ const BookingScreen = ({
               error
             );
 
+            const isPermissionDenied =
+              error?.code === 1;
+
             showToast(
               'error',
               'Position inaccessible',
-              "Autorisez la géolocalisation dans votre navigateur puis réessayez."
+              isPermissionDenied
+                ? "Autorisez la géolocalisation dans votre navigateur puis réessayez, ou choisissez votre position sur la carte."
+                : "Impossible de récupérer votre position. Choisissez-la sur la carte."
             );
 
+            // ✅ FIXÉ : on n'abandonne plus l'utilisateur sur le seul
+            // toast d'erreur — on ouvre la carte (région par défaut)
+            // pour qu'il puisse sélectionner sa position manuellement.
+            setMapRegion(DEFAULT_REGION);
+            setShowMapModal(true);
             setIsSearchingLocation(false);
           },
           {
@@ -886,8 +945,13 @@ const BookingScreen = ({
         showToast(
           'error',
           'Permission refusée',
-          "Veuillez autoriser l'accès à votre localisation."
+          "Veuillez autoriser l'accès à votre localisation dans les réglages de l'appareil, ou choisissez votre position sur la carte."
         );
+
+        // ✅ On ouvre quand même la carte (région par défaut) pour que
+        // l'utilisateur puisse sélectionner sa position manuellement.
+        setMapRegion(DEFAULT_REGION);
+        setShowMapModal(true);
 
         return;
       }
@@ -917,8 +981,13 @@ const BookingScreen = ({
       showToast(
         'error',
         'Erreur de localisation',
-        "Impossible d'obtenir votre position."
+        "Impossible d'obtenir votre position. Choisissez-la sur la carte."
       );
+
+      // ✅ FIXÉ : même en cas d'échec, on ouvre la carte pour laisser
+      // l'utilisateur choisir sa position manuellement.
+      setMapRegion(DEFAULT_REGION);
+      setShowMapModal(true);
     } finally {
       setIsSearchingLocation(false);
     }
@@ -1002,6 +1071,47 @@ const BookingScreen = ({
   // SUBMIT
   // ============================================================
 
+  // ✅ FIXÉ (BUG MAJEUR) : cette fonction se contentait d'un
+  // `setTimeout()` et affichait un faux message de succès — AUCUNE
+  // requête n'était jamais envoyée au backend. La réservation
+  // n'existait donc jamais réellement en base, et aucun thérapeute
+  // n'était notifié.
+  //
+  // Elle appelle maintenant `createBooking()` du BookingContext, qui
+  // envoie un vrai POST /bookings (voir app/api/bookings.py côté
+  // backend), avec toutes les validations nécessaires avant l'envoi :
+  // type de massage, adresse, POSITION (latitude/longitude — sans
+  // elles le backend ne peut notifier aucun thérapeute à proximité),
+  // prix minimum, et date/heure dans le futur.
+  const handleViewRequests = () => {
+    navigation.navigate('History');
+  };
+
+  // ✅ NOUVEAU : réinitialise entièrement le formulaire de création de
+  // demande. Appelée automatiquement une fois la demande envoyée et
+  // enregistrée avec succès, pour que l'écran soit "propre" si le
+  // client revient créer une nouvelle demande.
+  const resetForm = () => {
+    setSelectedType(null);
+    setSelectedDuration(60);
+    setSelectedDate(new Date());
+    setSelectedTime(() => {
+      const d = new Date();
+      d.setHours(9, 0, 0, 0);
+      return d;
+    });
+    setAddress('');
+    setPriceProposed('');
+    setPreferredGender('any');
+    setSpecialInstructions('');
+    setSelectedLocation({
+      latitude: null,
+      longitude: null,
+      address: '',
+    });
+    setMapRegion(DEFAULT_REGION);
+  };
+
   const handleSubmit = async () => {
     if (!selectedType) {
       showToast(
@@ -1023,14 +1133,62 @@ const BookingScreen = ({
       return;
     }
 
+    // ✅ FIXÉ : sans coordonnées GPS valides, le backend ne peut pas
+    // calculer les thérapeutes à proximité (ST_DWithin) — la demande
+    // partirait "dans le vide". On bloque donc l'envoi tant que la
+    // position n'a pas été choisie sur la carte / via le GPS.
+    const latitude = Number(selectedLocation.latitude);
+    const longitude = Number(selectedLocation.longitude);
+
+    if (
+      selectedLocation.latitude == null ||
+      selectedLocation.longitude == null ||
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude)
+    ) {
+      showToast(
+        'warning',
+        'Position requise',
+        'Veuillez sélectionner votre position sur la carte (bouton "Utiliser ma position actuelle" ou appui sur la carte).'
+      );
+
+      return;
+    }
+
+    const priceValue = parseInt(priceProposed, 10);
+
     if (
       !priceProposed ||
-      parseInt(priceProposed, 10) < 20000
+      Number.isNaN(priceValue) ||
+      priceValue < 20000
     ) {
       showToast(
         'warning',
         'Prix invalide',
         'Le prix proposé doit être au minimum de 20 000 Ar.'
+      );
+
+      return;
+    }
+
+    // ✅ Combine la date et l'heure choisies en un seul datetime, et
+    // vérifie qu'il est bien dans le futur (exigé par le backend :
+    // "Scheduled date must be in the future").
+    const scheduledDateTime = new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth(),
+      selectedDate.getDate(),
+      selectedTime.getHours(),
+      selectedTime.getMinutes(),
+      0,
+      0
+    );
+
+    if (scheduledDateTime.getTime() <= Date.now()) {
+      showToast(
+        'warning',
+        'Date invalide',
+        "La date et l'heure du massage doivent être dans le futur."
       );
 
       return;
@@ -1046,10 +1204,42 @@ const BookingScreen = ({
     );
 
     try {
-      await new Promise(
-        (resolve) =>
-          setTimeout(resolve, 1200)
-      );
+      // ✅ FIXÉ (BUG DU 422 "massage_type_id: Field required") :
+      // `selectedType` contient déjà directement l'ID du massage
+      // (voir `setSelectedType(type.id)` dans le onPress de la
+      // carte, et `getBasePrice()` qui compare `item.id ===
+      // selectedType`). Ce n'est PAS un objet massage complet — donc
+      // `selectedType.id` valait `undefined`, ce qui envoyait
+      // `massage_type_id: undefined` au backend (silencieusement
+      // supprimé par axios/JSON.stringify), d'où le 422 "Field
+      // required". On envoie maintenant directement l'ID.
+      //
+      // Payload conforme à schemas/booking.py::BookingCreate
+      const payload = {
+        massage_type_id: selectedType,
+        duration_minutes: selectedDuration,
+        preferred_gender: preferredGender || 'any',
+        address: address.trim(),
+        latitude,
+        longitude,
+        scheduled_date: scheduledDateTime.toISOString(),
+        client_price_proposed: priceValue,
+        special_instructions:
+          specialInstructions.trim() || null,
+      };
+
+      const result = await createBooking(payload);
+
+      if (!result?.success) {
+        showToast(
+          'error',
+          'Erreur',
+          result?.error ||
+            'Impossible de créer la réservation. Veuillez réessayer.'
+        );
+
+        return;
+      }
 
       showToast(
         'success',
@@ -1057,6 +1247,12 @@ const BookingScreen = ({
         'Votre demande a été envoyée aux thérapeutes à proximité.',
         4000
       );
+
+      // ✅ NOUVEAU : une fois la demande bien enregistrée côté backend,
+      // on vide automatiquement tout le formulaire (type, durée, date,
+      // heure, adresse, position, prix, instructions...) pour que la
+      // prochaine demande reparte sur un écran neuf.
+      resetForm();
 
       setTimeout(() => {
         navigation.navigate(
@@ -1072,10 +1268,144 @@ const BookingScreen = ({
       showToast(
         'error',
         'Erreur',
-        'Une erreur est survenue lors de l’envoi de votre demande.'
+        error?.message ||
+          'Une erreur est survenue lors de l’envoi de votre demande.'
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showMapModal) {
+      handleClearMapSearch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMapModal]);
+
+  // ============================================================
+  // MAP SEARCH BAR — recherche dynamique (Lot / adresse / ville)
+  // ============================================================
+
+  const fetchMapSearchSuggestions = async (text) => {
+    const requestId = ++mapSearchRequestIdRef.current;
+    setMapSearchLoading(true);
+
+    try {
+      const results = await getAddressSuggestions(text);
+
+      // Ignore une réponse arrivée en retard (l'utilisateur a retapé
+      // entre-temps) — évite qu'une vieille recherche écrase une plus
+      // récente.
+      if (requestId !== mapSearchRequestIdRef.current) return;
+
+      setMapSearchSuggestions(results);
+      setShowMapSearchSuggestions(results.length > 0);
+    } catch (error) {
+      console.warn(
+        '⚠️ Erreur suggestions recherche carte:',
+        error.message
+      );
+    } finally {
+      if (requestId === mapSearchRequestIdRef.current) {
+        setMapSearchLoading(false);
+      }
+    }
+  };
+
+  const handleMapSearchChange = (text) => {
+    setMapSearchQuery(text);
+
+    if (mapSearchTimerRef.current) {
+      clearTimeout(mapSearchTimerRef.current);
+    }
+
+    const trimmed = text.trim();
+
+    if (trimmed.length < 2) {
+      setMapSearchSuggestions([]);
+      setShowMapSearchSuggestions(false);
+      setMapSearchLoading(false);
+      return;
+    }
+
+    // Debounce : évite un appel réseau à chaque frappe, cherche
+    // dynamiquement le Lot, la rue, la ville, sans devoir valider.
+    mapSearchTimerRef.current = setTimeout(() => {
+      fetchMapSearchSuggestions(trimmed);
+    }, 350);
+  };
+
+  const handleClearMapSearch = () => {
+    if (mapSearchTimerRef.current) {
+      clearTimeout(mapSearchTimerRef.current);
+    }
+
+    setMapSearchQuery('');
+    setMapSearchSuggestions([]);
+    setShowMapSearchSuggestions(false);
+    setMapSearchLoading(false);
+  };
+
+  const handleSelectMapSearchSuggestion = async (item) => {
+    setShowMapSearchSuggestions(false);
+    setMapSearchQuery(item.description || item.main_text || '');
+    Keyboard.dismiss?.();
+
+    setMapSearchResolving(true);
+
+    try {
+      let latitude = item.latitude;
+      let longitude = item.longitude;
+
+      // Les suggestions Google Places n'ont pas encore de coordonnées
+      // — il faut d'abord résoudre les détails du lieu via son
+      // place_id. Les suggestions OpenStreetMap (utiles pour les
+      // "Lot") ont déjà latitude/longitude directement.
+      if (
+        (latitude == null || longitude == null) &&
+        item.source === 'google' &&
+        item.place_id
+      ) {
+        const details = await getPlaceDetails(item.place_id);
+        if (details) {
+          latitude = details.latitude;
+          longitude = details.longitude;
+        }
+      }
+
+      if (latitude == null || longitude == null) {
+        showToast(
+          'warning',
+          'Position introuvable',
+          'Impossible de localiser précisément ce résultat. Touchez la carte pour ajuster.'
+        );
+        return;
+      }
+
+      // Recentre la carte + place le marqueur, exactement comme un
+      // appui direct sur la carte.
+      await updateLocation(latitude, longitude);
+
+      mapRef.current?.animateToRegion?.({
+        latitude,
+        longitude,
+        latitudeDelta: 0.008,
+        longitudeDelta: 0.008,
+      });
+    } catch (error) {
+      console.warn(
+        '⚠️ Erreur sélection résultat carte:',
+        error.message
+      );
+
+      showToast(
+        'error',
+        'Recherche impossible',
+        'Impossible de localiser précisément ce résultat.'
+      );
+    } finally {
+      setMapSearchResolving(false);
     }
   };
 
@@ -1086,15 +1416,15 @@ const BookingScreen = ({
   const renderMapModal = () => {
     if (!showMapModal) return null;
 
+    // ✅ FIXÉ (BUG LEHIBE) : le composant <Modal> de React Native ne
+    // s'affiche pas de façon fiable sur le web (react-native-web) —
+    // ce n'est pas un vrai "portal" attaché à document.body, donc
+    // même avec visible={true} le contenu restait invisible. On le
+    // remplace par un overlay plein écran "position: fixed" (web) /
+    // "position: absolute" (natif) avec un zIndex très élevé, qui
+    // fonctionne de façon identique sur Web, Android et iOS.
     return (
-      <Modal
-        visible={showMapModal}
-        transparent={false}
-        animationType="slide"
-        onRequestClose={() =>
-          setShowMapModal(false)
-        }
-      >
+      <View style={styles.mapModalOverlay}>
         <View
           style={[
             styles.fullMapModal,
@@ -1181,6 +1511,197 @@ const BookingScreen = ({
                 color={themeColors.text}
               />
             </TouchableOpacity>
+          </View>
+
+          {/* ================================================== */}
+          {/* MAP SEARCH BAR — Lot / adresse / ville (dynamique) */}
+          {/* ================================================== */}
+
+          <View style={styles.mapSearchBarWrapper}>
+            <View
+              style={[
+                styles.mapSearchBar,
+                {
+                  backgroundColor:
+                    themeColors.surface,
+                  borderColor:
+                    themeColors.border ||
+                    '#E5E7EB',
+                },
+              ]}
+            >
+              <Ionicons
+                name="search"
+                size={18}
+                color={
+                  themeColors.textSecondary
+                }
+              />
+
+              <TextInput
+                style={[
+                  styles.mapSearchInput,
+                  {
+                    color: themeColors.text,
+                  },
+                ]}
+                placeholder="Rechercher un Lot, une adresse, une ville..."
+                placeholderTextColor={
+                  themeColors.textSecondary
+                }
+                value={mapSearchQuery}
+                onChangeText={
+                  handleMapSearchChange
+                }
+                onFocus={() => {
+                  if (
+                    mapSearchSuggestions.length >
+                    0
+                  ) {
+                    setShowMapSearchSuggestions(
+                      true
+                    );
+                  }
+                }}
+                returnKeyType="search"
+                autoCorrect={false}
+                autoCapitalize="sentences"
+              />
+
+              {mapSearchLoading ||
+              mapSearchResolving ? (
+                <ActivityIndicator
+                  size="small"
+                  color={colors.primary}
+                />
+              ) : (
+                !!mapSearchQuery && (
+                  <TouchableOpacity
+                    onPress={
+                      handleClearMapSearch
+                    }
+                    hitSlop={{
+                      top: 8,
+                      bottom: 8,
+                      left: 8,
+                      right: 8,
+                    }}
+                  >
+                    <Ionicons
+                      name="close-circle"
+                      size={18}
+                      color={
+                        themeColors.textSecondary
+                      }
+                    />
+                  </TouchableOpacity>
+                )
+              )}
+            </View>
+
+            {showMapSearchSuggestions &&
+              mapSearchSuggestions.length >
+                0 && (
+                <View
+                  style={[
+                    styles.mapSearchDropdown,
+                    {
+                      backgroundColor:
+                        themeColors.surface,
+                      borderColor:
+                        themeColors.border ||
+                        '#E5E7EB',
+                    },
+                  ]}
+                >
+                  <ScrollView
+                    style={
+                      styles.mapSearchDropdownScroll
+                    }
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {mapSearchSuggestions.map(
+                      (item, index) => (
+                        <TouchableOpacity
+                          key={
+                            item.id ||
+                            item.place_id ||
+                            `${item.description}-${index}`
+                          }
+                          style={[
+                            styles.mapSearchSuggestionItem,
+                            {
+                              borderBottomColor:
+                                themeColors.border ||
+                                '#EEF1F5',
+                            },
+                          ]}
+                          activeOpacity={0.7}
+                          onPress={() =>
+                            handleSelectMapSearchSuggestion(
+                              item
+                            )
+                          }
+                        >
+                          <Ionicons
+                            name={
+                              item.lot ||
+                              /\blot\b/i.test(
+                                item.main_text ||
+                                  item.description ||
+                                  ''
+                              )
+                                ? 'business-outline'
+                                : 'location-outline'
+                            }
+                            size={16}
+                            color={
+                              colors.primary
+                            }
+                          />
+
+                          <View
+                            style={
+                              styles.mapSearchSuggestionTextWrapper
+                            }
+                          >
+                            <Text
+                              numberOfLines={1}
+                              style={[
+                                styles.mapSearchSuggestionMain,
+                                {
+                                  color:
+                                    themeColors.text,
+                                },
+                              ]}
+                            >
+                              {item.main_text ||
+                                item.description}
+                            </Text>
+
+                            {!!item.secondary_text && (
+                              <Text
+                                numberOfLines={1}
+                                style={[
+                                  styles.mapSearchSuggestionSecondary,
+                                  {
+                                    color:
+                                      themeColors.textSecondary,
+                                  },
+                                ]}
+                              >
+                                {
+                                  item.secondary_text
+                                }
+                              </Text>
+                            )}
+                          </View>
+                        </TouchableOpacity>
+                      )
+                    )}
+                  </ScrollView>
+                </View>
+              )}
           </View>
 
           <View
@@ -1390,7 +1911,7 @@ const BookingScreen = ({
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
+      </View>
     );
   };
 
@@ -1670,6 +2191,21 @@ const BookingScreen = ({
       <Header
         title="Nouvelle réservation"
         showBack
+        rightComponent={
+          // ✅ Icône "liste" dans le header, à droite : accès direct
+          // à toutes les réservations du client (même écran que le
+          // bouton "Voir mes demandes" plus bas — deux chemins vers
+          // la même liste, pratique quand le formulaire est long).
+          <TouchableOpacity
+            onPress={handleViewRequests}
+            style={styles.headerListButton}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Voir toutes mes réservations"
+          >
+            <Ionicons name="list-outline" size={22} color={colors.primary} />
+          </TouchableOpacity>
+        }
       />
 
       {/* ====================================================== */}
@@ -2446,41 +2982,130 @@ const BookingScreen = ({
           </View>
 
           {/* ================================================= */}
+          {/* ✅ NOUVEAU : INSTRUCTIONS SPÉCIALES (optionnel) */}
+          {/* ================================================= */}
+
+          <View style={styles.section}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                {
+                  color:
+                    themeColors.text,
+                },
+              ]}
+            >
+              Instructions spéciales (optionnel)
+            </Text>
+
+            <View
+              style={[
+                styles.addressContainer,
+                {
+                  minHeight: 90,
+                  alignItems: 'flex-start',
+                  paddingVertical: spacing.sm,
+                  backgroundColor:
+                    themeColors.surface,
+                  borderColor:
+                    themeColors.border ||
+                    '#E0E0E0',
+                },
+              ]}
+            >
+              <Ionicons
+                name="document-text-outline"
+                size={21}
+                color={colors.primary}
+                style={{ marginTop: 2 }}
+              />
+
+              <TextInput
+                style={[
+                  styles.addressInput,
+                  {
+                    minHeight: 80,
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+                placeholder="Ex : allergies, étage, code du portail, animal domestique..."
+                placeholderTextColor={
+                  themeColors.textSecondary
+                }
+                value={specialInstructions}
+                onChangeText={
+                  setSpecialInstructions
+                }
+                multiline
+                numberOfLines={3}
+                maxLength={500}
+                textAlignVertical="top"
+              />
+            </View>
+          </View>
+
+          {/* ================================================= */}
           {/* SUBMIT */}
           {/* ================================================= */}
 
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={[
-              styles.submitButton,
-              isLoading &&
-                styles.submitButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator
-                color="#fff"
-              />
-            ) : (
-              <>
-                <Ionicons
-                  name="send"
-                  size={20}
-                  color="#fff"
-                />
+          {/* ✅ Conteneur aligné avec exactement la même marge que les
+              autres champs du formulaire (styles.section utilise
+              paddingHorizontal: spacing.md) — les deux boutons
+              commencent et finissent donc pile sous les champs
+              au-dessus, sans déborder plus large qu'eux. */}
+          <View style={styles.actionsSection}>
+            <View style={styles.bookingActionsRow}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[
+                  styles.submitButton,
+                  styles.submitButtonHalf,
+                  isLoading && styles.submitButtonDisabled,
+                ]}
+                onPress={handleSubmit}
+                disabled={isLoading}
+                accessibilityRole="button"
+                accessibilityLabel="Soumettre ma demande"
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="send" size={20} color="#fff" />
+                    <Text style={styles.submitButtonText}>
+                      Soumettre ma demande
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
 
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[
+                  styles.viewRequestsButton,
+                  {
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border || '#E0E0E0',
+                  },
+                ]}
+                onPress={handleViewRequests}
+                disabled={isLoading}
+                accessibilityRole="button"
+                accessibilityLabel="Voir mes demandes"
+              >
+                <Ionicons name="list-outline" size={20} color={colors.primary} />
                 <Text
-                  style={
-                    styles.submitButtonText
-                  }
+                  style={[
+                    styles.viewRequestsButtonText,
+                    { color: themeColors.text },
+                  ]}
                 >
-                  Soumettre ma demande
+                  Voir mes demandes
                 </Text>
-              </>
-            )}
-          </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -2496,6 +3121,17 @@ const BookingScreen = ({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+  },
+
+  // ✅ Bouton rond de l'icône "liste" dans le header.
+  headerListButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary + '15',
+    ...(IS_WEB ? { cursor: 'pointer' } : {}),
   },
 
   keyboardView: {
@@ -2952,6 +3588,65 @@ const styles = StyleSheet.create({
   // SUBMIT
   // ==========================================================
 
+  // ✅ Même inset horizontal que "section" (paddingHorizontal:
+  // spacing.md) : les boutons ne débordent plus jamais plus large que
+  // les champs du formulaire au-dessus, quelle que soit la taille de
+  // l'écran.
+  actionsSection: {
+    paddingHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+
+  bookingActionsRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: spacing.sm,
+  },
+
+  submitButtonHalf: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    marginTop: 0,
+  },
+
+  viewRequestsButton: {
+    flex: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    // ✅ Même gabarit que "submitButton" (hauteur, arrondi, espacement
+    // icône/texte) pour que les deux boutons soient parfaitement
+    // identiques visuellement, seule la couleur change.
+    minHeight: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    // ✅ Ombre légère assortie à celle du bouton "Soumettre" (mais plus
+    // discrète, cohérente avec une carte "secondaire") pour que les
+    // deux boutons aient le même poids visuel — aucun des deux ne
+    // "domine" l'autre.
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  viewRequestsButtonText: {
+    // ✅ Même taille de police que "submitButtonText" (fontSize.md)
+    fontSize: typography.fontSize.md,
+    fontFamily: typography.fontFamily.semiBold,
+    textAlign: 'center',
+    flexShrink: 1,
+  },
+
   submitButton: {
     minHeight: 56,
     backgroundColor: colors.primary,
@@ -2960,17 +3655,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 10,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-    marginBottom: spacing.xl,
+    // ✅ Ombre adoucie (avant : opacity 0.25 / radius 8 / elevation 5)
+    // pour ne plus paraître disproportionnée par rapport au bouton
+    // "Voir mes demandes" juste à côté.
     shadowColor: colors.primary,
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 3,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 3,
   },
 
   submitButtonDisabled: {
@@ -2988,6 +3683,32 @@ const styles = StyleSheet.create({
   // ==========================================================
   // MAP MODAL
   // ==========================================================
+
+  // ✅ FIXÉ : overlay plein écran qui remplace <Modal>. "position:
+  // fixed" sur le web (ignore le scroll de la page parente et
+  // s'affiche vraiment au-dessus de tout), "absolute" sur natif.
+  mapModalOverlay: {
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
+      },
+      default: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      },
+    }),
+    zIndex: 9999,
+    elevation: 9999,
+  },
 
   fullMapModal: {
     flex: 1,
@@ -3036,6 +3757,85 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  /* ============================================================
+     MAP SEARCH BAR (Lot / adresse / ville)
+  ============================================================ */
+
+  mapSearchBarWrapper: {
+    position: 'relative',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    zIndex: 20,
+    elevation: 20,
+  },
+
+  mapSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    minHeight: 46,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+
+  mapSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    padding: 0,
+    minHeight: 44,
+  },
+
+  mapSearchDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: spacing.md,
+    right: spacing.md,
+    marginTop: -4,
+    borderWidth: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 8,
+    zIndex: 30,
+  },
+
+  mapSearchDropdownScroll: {
+    maxHeight: 260,
+  },
+
+  mapSearchSuggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+  },
+
+  mapSearchSuggestionTextWrapper: {
+    flex: 1,
+  },
+
+  mapSearchSuggestionMain: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  mapSearchSuggestionSecondary: {
+    fontSize: 11,
+    marginTop: 1,
   },
 
   mapMainContainer: {

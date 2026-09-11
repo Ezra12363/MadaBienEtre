@@ -263,7 +263,10 @@ def _draw_certificate_pdf(
         ("TÉLÉPHONE", therapist.phone or "N/A"),
         ("NUMÉRO CIN", therapist.cin_number or "Non renseigné"),
         ("ADRESSE", (therapist.address or "N/A")[:70]),
-        ("SPÉCIALITÉ", specialty or "Massage à domicile"),
+        # ✅ Peut contenir plusieurs spécialités séparées par des virgules
+        # (ex: "Massage Suédois, Deep Tissue, Shiatsu") — tronquée pour
+        # rester sur une seule ligne dans la mise en page du certificat.
+        ("SPÉCIALITÉ(S)", (specialty or "Massage à domicile")[:75] + ("…" if specialty and len(specialty) > 75 else "")),
     ]
 
     label_x = content_left

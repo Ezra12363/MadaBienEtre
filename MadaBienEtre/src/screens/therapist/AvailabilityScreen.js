@@ -20,10 +20,11 @@
  * - Web
  *
  * IMPORTANT :
- * - Android/iOS utilisent @react-native-community/datetimepicker
- * - Web utilise les inputs HTML date/time
- * - Les dates sont formatées en heure locale
- *   afin d'éviter les problèmes de timezone liés à toISOString()
+ * - Suppression des dates bloquées avec Modal custom
+ *   afin de garantir le fonctionnement Web + Android + iOS.
+ * - Notifications avec Toast custom.
+ * - Aucun Alert.alert pour les actions principales.
+ * - Les dates sont formatées en heure locale.
  * ============================================================
  */
 
@@ -42,7 +43,6 @@ import {
   TouchableOpacity,
   Switch,
   ActivityIndicator,
-  Alert,
   Animated,
   Modal,
   TextInput,
@@ -78,12 +78,6 @@ const DAY_NAMES = [
 // HELPERS DATE
 // ============================================================
 
-/**
- * Retourne une date locale sans heure.
- *
- * Exemple :
- * 2026-08-16
- */
 const startOfLocalDay = (date = new Date()) => {
   const d = new Date(date);
 
@@ -92,13 +86,6 @@ const startOfLocalDay = (date = new Date()) => {
   return d;
 };
 
-/**
- * Format local YYYY-MM-DD.
- *
- * IMPORTANT :
- * Ne pas utiliser toISOString()
- * car cela peut décaler la date selon le timezone.
- */
 const formatLocalDate = (date) => {
   if (!date) return '';
 
@@ -111,9 +98,6 @@ const formatLocalDate = (date) => {
   return `${year}-${month}-${day}`;
 };
 
-/**
- * Parse YYYY-MM-DD en Date locale.
- */
 const parseLocalDate = (dateString) => {
   if (!dateString) {
     return new Date();
@@ -127,7 +111,7 @@ const parseLocalDate = (dateString) => {
 
   const [year, month, day] = parts;
 
-  const date = new Date(
+  return new Date(
     year,
     month - 1,
     day,
@@ -136,13 +120,8 @@ const parseLocalDate = (dateString) => {
     0,
     0
   );
-
-  return date;
 };
 
-/**
- * Convertit HH:MM en Date locale.
- */
 const parseTimeToDate = (timeStr) => {
   const [h, m] = (timeStr || '09:00')
     .split(':')
@@ -160,9 +139,6 @@ const parseTimeToDate = (timeStr) => {
   return d;
 };
 
-/**
- * Convertit Date en HH:MM.
- */
 const formatDateToTime = (date) => {
   if (!date) return '09:00';
 
@@ -172,9 +148,6 @@ const formatDateToTime = (date) => {
   return `${h}:${m}`;
 };
 
-/**
- * Convertit HH:MM en minutes.
- */
 const timeToMinutes = (time) => {
   if (!time) return 0;
 
@@ -188,9 +161,6 @@ const timeToMinutes = (time) => {
   );
 };
 
-/**
- * Compare deux dates uniquement sur la partie jour.
- */
 const compareDatesOnly = (a, b) => {
   const dateA = startOfLocalDay(a);
   const dateB = startOfLocalDay(b);
@@ -202,9 +172,6 @@ const compareDatesOnly = (a, b) => {
 // WEB DATE INPUT
 // ============================================================
 
-/**
- * Input date HTML utilisé uniquement sur Web.
- */
 const WebDateInput = ({
   value,
   min,
@@ -244,9 +211,10 @@ const WebDateInput = ({
   );
 };
 
-/**
- * Input time HTML utilisé uniquement sur Web.
- */
+// ============================================================
+// WEB TIME INPUT
+// ============================================================
+
 const WebTimeInput = ({
   value,
   min,
@@ -287,6 +255,282 @@ const WebTimeInput = ({
 };
 
 // ============================================================
+// TOAST COMPONENT
+// ============================================================
+
+const Toast = ({
+  visible,
+  type = 'success',
+  title,
+  message,
+  onHide,
+}) => {
+  if (!visible) return null;
+
+  const isSuccess = type === 'success';
+  const isError = type === 'error';
+  const isWarning = type === 'warning';
+
+  let iconName = 'checkmark-circle';
+  let iconColor = '#16A34A';
+
+  if (isError) {
+    iconName = 'close-circle';
+    iconColor = '#DC2626';
+  } else if (isWarning) {
+    iconName = 'warning';
+    iconColor = '#D97706';
+  }
+
+  return (
+    <Animatable.View
+      animation="fadeInDown"
+      duration={250}
+      style={[
+        styles.toastContainer,
+        {
+          borderLeftColor: iconColor,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.toastIcon,
+          {
+            backgroundColor:
+              iconColor + '15',
+          },
+        ]}
+      >
+        <Ionicons
+          name={iconName}
+          size={22}
+          color={iconColor}
+        />
+      </View>
+
+      <View style={styles.toastTextWrap}>
+        <Text style={styles.toastTitle}>
+          {title}
+        </Text>
+
+        {!!message && (
+          <Text style={styles.toastMessage}>
+            {message}
+          </Text>
+        )}
+      </View>
+
+      <TouchableOpacity
+        onPress={onHide}
+        hitSlop={{
+          top: 10,
+          bottom: 10,
+          left: 10,
+          right: 10,
+        }}
+      >
+        <Ionicons
+          name="close"
+          size={19}
+          color="#777"
+        />
+      </TouchableOpacity>
+    </Animatable.View>
+  );
+};
+
+// ============================================================
+// CONFIRM DELETE MODAL
+// ============================================================
+
+const ConfirmDeleteModal = ({
+  visible,
+  item,
+  loading,
+  onCancel,
+  onConfirm,
+  themeColors,
+}) => {
+  if (!item) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+    >
+      <View style={styles.confirmOverlay}>
+        <View
+          style={[
+            styles.confirmModal,
+            {
+              backgroundColor:
+                themeColors.surface || '#fff',
+            },
+          ]}
+        >
+          {/* ICON */}
+
+          <View style={styles.confirmIcon}>
+            <Ionicons
+              name="trash-outline"
+              size={28}
+              color="#DC2626"
+            />
+          </View>
+
+          {/* TITLE */}
+
+          <Text
+            style={[
+              styles.confirmTitle,
+              {
+                color: themeColors.text,
+              },
+            ]}
+          >
+            Supprimer la date bloquée ?
+          </Text>
+
+          {/* DESCRIPTION */}
+
+          <Text
+            style={[
+              styles.confirmMessage,
+              {
+                color:
+                  themeColors.textSecondary,
+              },
+            ]}
+          >
+            Voulez-vous vraiment supprimer cette
+            période d'indisponibilité ?
+          </Text>
+
+          {/* DATE */}
+
+          <View
+            style={[
+              styles.confirmDateBox,
+              {
+                backgroundColor:
+                  themeColors.background ||
+                  '#F8FAFC',
+                borderColor:
+                  themeColors.border ||
+                  '#E5E7EB',
+              },
+            ]}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={20}
+              color={colors.primary}
+            />
+
+            <View style={styles.confirmDateText}>
+              <Text
+                style={[
+                  styles.confirmDate,
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+              >
+                {item.start ||
+                  item.start_date ||
+                  ''}
+                {' → '}
+                {item.end ||
+                  item.end_date ||
+                  ''}
+              </Text>
+
+              {!!item.reason && (
+                <Text
+                  style={[
+                    styles.confirmReason,
+                    {
+                      color:
+                        themeColors.textSecondary,
+                    },
+                  ]}
+                >
+                  {item.reason}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          {/* ACTIONS */}
+
+          <View style={styles.confirmActions}>
+            <TouchableOpacity
+              style={[
+                styles.confirmButton,
+                styles.confirmCancelButton,
+                {
+                  borderColor:
+                    themeColors.border ||
+                    '#D1D5DB',
+                },
+              ]}
+              onPress={onCancel}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.confirmCancelText,
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+              >
+                Annuler
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.confirmButton,
+                styles.confirmDeleteButton,
+              ]}
+              onPress={onConfirm}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator
+                  size="small"
+                  color="#fff"
+                />
+              ) : (
+                <>
+                  <Ionicons
+                    name="trash-outline"
+                    size={18}
+                    color="#fff"
+                  />
+
+                  <Text style={styles.confirmDeleteText}>
+                    Supprimer
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// ============================================================
 // COMPONENT
 // ============================================================
 
@@ -301,11 +545,17 @@ const AvailabilityScreen = ({ navigation }) => {
   // MAIN STATES
   // ==========================================================
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] =
+    useState(true);
 
-  const [isOnline, setIsOnline] = useState(false);
-  const [isAvailable, setIsAvailable] = useState(false);
+  const [saving, setSaving] =
+    useState(false);
+
+  const [isOnline, setIsOnline] =
+    useState(false);
+
+  const [isAvailable, setIsAvailable] =
+    useState(false);
 
   const [
     weeklySchedule,
@@ -314,7 +564,74 @@ const AvailabilityScreen = ({ navigation }) => {
     availabilityService.getDefaultWeeklySchedule()
   );
 
-  const [blockedDates, setBlockedDates] = useState([]);
+  const [blockedDates, setBlockedDates] =
+    useState([]);
+
+  // ==========================================================
+  // TOAST
+  // ==========================================================
+
+  const [toast, setToast] = useState({
+    visible: false,
+    type: 'success',
+    title: '',
+    message: '',
+  });
+
+  const toastTimer = useRef(null);
+
+  const showToast = useCallback(
+    (
+      type,
+      title,
+      message = ''
+    ) => {
+      if (toastTimer.current) {
+        clearTimeout(
+          toastTimer.current
+        );
+      }
+
+      setToast({
+        visible: true,
+        type,
+        title,
+        message,
+      });
+
+      toastTimer.current =
+        setTimeout(() => {
+          setToast((previous) => ({
+            ...previous,
+            visible: false,
+          }));
+        }, 3200);
+    },
+    []
+  );
+
+  const hideToast = useCallback(() => {
+    if (toastTimer.current) {
+      clearTimeout(
+        toastTimer.current
+      );
+    }
+
+    setToast((previous) => ({
+      ...previous,
+      visible: false,
+    }));
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimer.current) {
+        clearTimeout(
+          toastTimer.current
+        );
+      }
+    };
+  }, []);
 
   // ==========================================================
   // BLOCK DATE MODAL
@@ -325,12 +642,13 @@ const AvailabilityScreen = ({ navigation }) => {
     setShowBlockModal,
   ] = useState(false);
 
-  const [blockForm, setBlockForm] = useState({
-    start_date: startOfLocalDay(),
-    end_date: startOfLocalDay(),
-    reason: '',
-    is_all_day: true,
-  });
+  const [blockForm, setBlockForm] =
+    useState({
+      start_date: startOfLocalDay(),
+      end_date: startOfLocalDay(),
+      reason: '',
+      is_all_day: true,
+    });
 
   const [
     showStartPicker,
@@ -348,6 +666,20 @@ const AvailabilityScreen = ({ navigation }) => {
   ] = useState(false);
 
   // ==========================================================
+  // DELETE CONFIRMATION
+  // ==========================================================
+
+  const [
+    deleteTarget,
+    setDeleteTarget,
+  ] = useState(null);
+
+  const [
+    deleteSaving,
+    setDeleteSaving,
+  ] = useState(false);
+
+  // ==========================================================
   // EDIT HOURS MODAL
   // ==========================================================
 
@@ -362,12 +694,16 @@ const AvailabilityScreen = ({ navigation }) => {
   const [
     editStartTime,
     setEditStartTime,
-  ] = useState(parseTimeToDate('09:00'));
+  ] = useState(
+    parseTimeToDate('09:00')
+  );
 
   const [
     editEndTime,
     setEditEndTime,
-  ] = useState(parseTimeToDate('18:00'));
+  ] = useState(
+    parseTimeToDate('18:00')
+  );
 
   const [
     showEditStartPicker,
@@ -388,8 +724,8 @@ const AvailabilityScreen = ({ navigation }) => {
   // LOAD AVAILABILITY
   // ==========================================================
 
-  const loadAvailability = useCallback(
-    async () => {
+  const loadAvailability =
+    useCallback(async () => {
       try {
         setLoading(true);
 
@@ -415,9 +751,9 @@ const AvailabilityScreen = ({ navigation }) => {
             data.is_available ?? false
           );
 
-          // ------------------------------
+          // --------------------------------
           // WEEKLY
-          // ------------------------------
+          // --------------------------------
 
           if (
             Array.isArray(data.weekly) &&
@@ -443,12 +779,14 @@ const AvailabilityScreen = ({ navigation }) => {
                   : def;
               });
 
-            setWeeklySchedule(merged);
+            setWeeklySchedule(
+              merged
+            );
           }
 
-          // ------------------------------
+          // --------------------------------
           // BLOCKED DATES
-          // ------------------------------
+          // --------------------------------
 
           if (
             Array.isArray(data.blocked)
@@ -462,6 +800,13 @@ const AvailabilityScreen = ({ navigation }) => {
             '⚠️ Disponibilités non chargées:',
             result.error
           );
+
+          showToast(
+            'error',
+            'Erreur',
+            result.error ||
+              'Impossible de charger les disponibilités.'
+          );
         }
       } catch (error) {
         console.error(
@@ -469,16 +814,15 @@ const AvailabilityScreen = ({ navigation }) => {
           error
         );
 
-        Alert.alert(
+        showToast(
+          'error',
           'Erreur',
           'Impossible de charger les disponibilités.'
         );
       } finally {
         setLoading(false);
       }
-    },
-    []
-  );
+    }, [showToast]);
 
   // ==========================================================
   // INITIALIZATION
@@ -487,14 +831,11 @@ const AvailabilityScreen = ({ navigation }) => {
   useEffect(() => {
     loadAvailability();
 
-    Animated.timing(
-      fadeAnim,
-      {
-        toValue: 1,
-        duration: 700,
-        useNativeDriver: true,
-      }
-    ).start();
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 700,
+      useNativeDriver: true,
+    }).start();
   }, [
     loadAvailability,
     fadeAnim,
@@ -507,8 +848,9 @@ const AvailabilityScreen = ({ navigation }) => {
   const handleToggleOnline =
     async () => {
       const previous = isOnline;
+      const next = !previous;
 
-      setIsOnline(!previous);
+      setIsOnline(next);
 
       try {
         const result =
@@ -517,26 +859,39 @@ const AvailabilityScreen = ({ navigation }) => {
         if (!result.success) {
           setIsOnline(previous);
 
-          Alert.alert(
+          showToast(
+            'error',
             'Erreur',
             result.error ||
-              'Impossible de modifier le statut'
+              'Impossible de modifier le statut.'
           );
 
           return;
         }
 
-        setIsOnline(
+        const serverValue =
           result.data?.is_online ??
-            !previous
+          next;
+
+        setIsOnline(serverValue);
+
+        showToast(
+          'success',
+          serverValue
+            ? 'Vous êtes en ligne'
+            : 'Vous êtes hors ligne',
+          serverValue
+            ? 'Vous recevez maintenant les demandes.'
+            : 'Vous ne recevrez plus de nouvelles demandes.'
         );
       } catch (error) {
         setIsOnline(previous);
 
-        Alert.alert(
+        showToast(
+          'error',
           'Erreur',
           error.message ||
-            'Erreur réseau'
+            'Erreur réseau.'
         );
       }
     };
@@ -550,7 +905,9 @@ const AvailabilityScreen = ({ navigation }) => {
       const previous =
         isAvailable;
 
-      setIsAvailable(!previous);
+      const next = !previous;
+
+      setIsAvailable(next);
 
       try {
         const result =
@@ -559,26 +916,39 @@ const AvailabilityScreen = ({ navigation }) => {
         if (!result.success) {
           setIsAvailable(previous);
 
-          Alert.alert(
+          showToast(
+            'error',
             'Erreur',
             result.error ||
-              'Impossible de modifier la disponibilité'
+              'Impossible de modifier la disponibilité.'
           );
 
           return;
         }
 
-        setIsAvailable(
+        const serverValue =
           result.data?.is_available ??
-            !previous
+          next;
+
+        setIsAvailable(
+          serverValue
+        );
+
+        showToast(
+          'success',
+          'Disponibilité mise à jour',
+          serverValue
+            ? 'Vous êtes maintenant disponible.'
+            : 'Vous êtes maintenant indisponible.'
         );
       } catch (error) {
         setIsAvailable(previous);
 
-        Alert.alert(
+        showToast(
+          'error',
           'Erreur',
           error.message ||
-            'Erreur réseau'
+            'Erreur réseau.'
         );
       }
     };
@@ -618,21 +988,41 @@ const AvailabilityScreen = ({ navigation }) => {
             previous
           );
 
-          Alert.alert(
+          showToast(
+            'error',
             'Erreur',
             result.error ||
-              'Impossible de mettre à jour le planning'
+              'Impossible de mettre à jour le planning.'
           );
+
+          return;
         }
+
+        const updatedDay =
+          updated.find(
+            (day) =>
+              day.day === dayIndex
+          );
+
+        showToast(
+          'success',
+          'Planning mis à jour',
+          `${DAY_NAMES[dayIndex]} : ${
+            updatedDay?.is_available
+              ? 'disponible'
+              : 'fermé'
+          }.`
+        );
       } catch (error) {
         setWeeklySchedule(
           previous
         );
 
-        Alert.alert(
+        showToast(
+          'error',
           'Erreur',
           error.message ||
-            'Erreur réseau'
+            'Erreur réseau.'
         );
       } finally {
         setSaving(false);
@@ -663,9 +1053,7 @@ const AvailabilityScreen = ({ navigation }) => {
         false
       );
 
-      setShowEditEndPicker(
-        false
-      );
+      setShowEditEndPicker(false);
 
       setShowEditDayModal(true);
     };
@@ -712,10 +1100,6 @@ const AvailabilityScreen = ({ navigation }) => {
           editEndTime
         );
 
-      // ----------------------------------
-      // VALIDATION
-      // ----------------------------------
-
       const startMinutes =
         timeToMinutes(start);
 
@@ -726,7 +1110,8 @@ const AvailabilityScreen = ({ navigation }) => {
         endMinutes <=
         startMinutes
       ) {
-        Alert.alert(
+        showToast(
+          'warning',
           'Heure invalide',
           "L'heure de fin doit être après l'heure de début."
         );
@@ -736,6 +1121,9 @@ const AvailabilityScreen = ({ navigation }) => {
 
       const previous =
         weeklySchedule;
+
+      const editedDayName =
+        DAY_NAMES[editingDay.day];
 
       const updated =
         weeklySchedule.map(
@@ -764,9 +1152,7 @@ const AvailabilityScreen = ({ navigation }) => {
           );
 
         if (result.success) {
-          setShowEditDayModal(
-            false
-          );
+          setShowEditDayModal(false);
 
           setEditingDay(null);
 
@@ -778,19 +1164,21 @@ const AvailabilityScreen = ({ navigation }) => {
             false
           );
 
-          Alert.alert(
-            '✅ Succès',
-            `Horaires de ${DAY_NAMES[editingDay.day]} mis à jour.`
+          showToast(
+            'success',
+            'Horaires enregistrés',
+            `Horaires de ${editedDayName} : ${start} → ${end}.`
           );
         } else {
           setWeeklySchedule(
             previous
           );
 
-          Alert.alert(
+          showToast(
+            'error',
             'Erreur',
             result.error ||
-              'Impossible de mettre à jour les horaires'
+              'Impossible de mettre à jour les horaires.'
           );
         }
       } catch (error) {
@@ -803,10 +1191,11 @@ const AvailabilityScreen = ({ navigation }) => {
           error
         );
 
-        Alert.alert(
+        showToast(
+          'error',
           'Erreur',
           error.message ||
-            'Erreur réseau'
+            'Erreur réseau.'
         );
       } finally {
         setEditDaySaving(false);
@@ -817,23 +1206,22 @@ const AvailabilityScreen = ({ navigation }) => {
   // OPEN BLOCK DATE MODAL
   // ==========================================================
 
-  const openBlockModal =
-    () => {
-      const today =
-        startOfLocalDay();
+  const openBlockModal = () => {
+    const today =
+      startOfLocalDay();
 
-      setBlockForm({
-        start_date: today,
-        end_date: today,
-        reason: '',
-        is_all_day: true,
-      });
+    setBlockForm({
+      start_date: today,
+      end_date: today,
+      reason: '',
+      is_all_day: true,
+    });
 
-      setShowStartPicker(false);
-      setShowEndPicker(false);
+    setShowStartPicker(false);
+    setShowEndPicker(false);
 
-      setShowBlockModal(true);
-    };
+    setShowBlockModal(true);
+  };
 
   // ==========================================================
   // CHANGE START DATE
@@ -940,12 +1328,12 @@ const AvailabilityScreen = ({ navigation }) => {
           blockForm.end_date
         );
 
+      const today =
+        startOfLocalDay();
+
       // ----------------------------------
       // VALIDATION DATE
       // ----------------------------------
-
-      const today =
-        startOfLocalDay();
 
       if (
         compareDatesOnly(
@@ -953,7 +1341,8 @@ const AvailabilityScreen = ({ navigation }) => {
           today
         ) < 0
       ) {
-        Alert.alert(
+        showToast(
+          'warning',
           'Date invalide',
           'La date de début ne peut pas être dans le passé.'
         );
@@ -967,7 +1356,8 @@ const AvailabilityScreen = ({ navigation }) => {
           start
         ) < 0
       ) {
-        Alert.alert(
+        showToast(
+          'warning',
           'Date invalide',
           'La date de fin doit être égale ou postérieure à la date de début.'
         );
@@ -1014,22 +1404,10 @@ const AvailabilityScreen = ({ navigation }) => {
 
         if (result.success) {
           // --------------------------------
-          // Ajouter seulement si API
-          // retourne réellement la donnée
+          // IMPORTANT :
+          // On recharge depuis l'API afin
+          // d'avoir la vraie donnée serveur.
           // --------------------------------
-
-          if (result.data) {
-            setBlockedDates(
-              (previous) => [
-                ...previous,
-                result.data,
-              ]
-            );
-          } else {
-            // Si backend ne retourne pas
-            // l'objet, on recharge.
-            await loadAvailability();
-          }
 
           setShowBlockModal(false);
 
@@ -1042,15 +1420,28 @@ const AvailabilityScreen = ({ navigation }) => {
             is_all_day: true,
           });
 
-          Alert.alert(
-            '✅ Succès',
-            'La date bloquée a été ajoutée avec succès.'
+          if (result.data) {
+            setBlockedDates(
+              (previous) => [
+                ...previous,
+                result.data,
+              ]
+            );
+          } else {
+            await loadAvailability();
+          }
+
+          showToast(
+            'success',
+            'Date bloquée ajoutée',
+            `${startStr} → ${endStr}`
           );
         } else {
-          Alert.alert(
+          showToast(
+            'error',
             'Erreur',
             result.error ||
-              "Impossible d'ajouter la date bloquée"
+              "Impossible d'ajouter la date bloquée."
           );
         }
       } catch (error) {
@@ -1059,10 +1450,11 @@ const AvailabilityScreen = ({ navigation }) => {
           error
         );
 
-        Alert.alert(
+        showToast(
+          'error',
           'Erreur',
           error.message ||
-            "Impossible d'ajouter la date bloquée"
+            "Impossible d'ajouter la date bloquée."
         );
       } finally {
         setBlockSaving(false);
@@ -1070,99 +1462,179 @@ const AvailabilityScreen = ({ navigation }) => {
     };
 
   // ==========================================================
-  // DELETE BLOCKED DATE
+  // OPEN DELETE CONFIRMATION
   // ==========================================================
 
   const handleDeleteBlockedDate =
     (blockedItem) => {
-      Alert.alert(
-        'Supprimer la date bloquée',
-        `Voulez-vous supprimer la période ${blockedItem.start} → ${blockedItem.end} ?`,
-        [
-          {
-            text: 'Annuler',
-            style: 'cancel',
-          },
-          {
-            text: 'Supprimer',
-            style: 'destructive',
+      if (!blockedItem) {
+        return;
+      }
 
-            onPress: async () => {
-              try {
-                const result =
-                  await availabilityService.deleteBlockedDate(
-                    blockedItem.id
-                  );
+      /*
+       * IMPORTANT :
+       *
+       * On ne fait PLUS Alert.alert().
+       *
+       * Le Modal custom fonctionne correctement
+       * sur Android, iOS ET Web.
+       */
 
-                if (
-                  result.success
-                ) {
-                  setBlockedDates(
-                    (previous) =>
-                      previous.filter(
-                        (item) =>
-                          item.id !==
-                          blockedItem.id
-                      )
-                  );
+      setDeleteTarget(blockedItem);
+    };
 
-                  Alert.alert(
-                    '✅ Succès',
-                    'Date bloquée supprimée.'
-                  );
-                } else {
-                  Alert.alert(
-                    'Erreur',
-                    result.error ||
-                      'Impossible de supprimer'
-                  );
-                }
-              } catch (error) {
-                Alert.alert(
-                  'Erreur',
-                  error.message ||
-                    'Erreur réseau'
-                );
-              }
-            },
-          },
-        ]
-      );
+  // ==========================================================
+  // CANCEL DELETE
+  // ==========================================================
+
+  const cancelDeleteBlockedDate =
+    () => {
+      if (deleteSaving) {
+        return;
+      }
+
+      setDeleteTarget(null);
+    };
+
+  // ==========================================================
+  // CONFIRM DELETE
+  // ==========================================================
+
+  const confirmDeleteBlockedDate =
+    async () => {
+      if (!deleteTarget) {
+        return;
+      }
+
+      const item = deleteTarget;
+
+      /*
+       * Vérification ID.
+       *
+       * Le backend doit recevoir l'id réel
+       * de la date bloquée.
+       */
+
+      if (
+        item.id === undefined ||
+        item.id === null
+      ) {
+        showToast(
+          'error',
+          'Suppression impossible',
+          "L'identifiant de la date bloquée est introuvable."
+        );
+
+        setDeleteTarget(null);
+
+        return;
+      }
+
+      setDeleteSaving(true);
+
+      try {
+        console.log(
+          '🗑️ Suppression date bloquée:',
+          item.id
+        );
+
+        const result =
+          await availabilityService.deleteBlockedDate(
+            item.id
+          );
+
+        console.log(
+          '📥 Delete blocked date response:',
+          result
+        );
+
+        if (result.success) {
+          /*
+           * Suppression optimiste côté interface.
+           *
+           * Ainsi la ligne disparaît immédiatement
+           * sur Web comme sur Android.
+           */
+
+          setBlockedDates(
+            (previous) =>
+              previous.filter(
+                (blocked) =>
+                  blocked.id !== item.id
+              )
+          );
+
+          setDeleteTarget(null);
+
+          showToast(
+            'success',
+            'Date supprimée',
+            'La date bloquée a été supprimée avec succès.'
+          );
+
+          /*
+           * Recharge après suppression.
+           *
+           * Cela garantit que l'interface reste
+           * synchronisée avec le backend.
+           */
+          await loadAvailability();
+        } else {
+          showToast(
+            'error',
+            'Suppression impossible',
+            result.error ||
+              'Impossible de supprimer la date bloquée.'
+          );
+        }
+      } catch (error) {
+        console.error(
+          '❌ deleteBlockedDate:',
+          error
+        );
+
+        showToast(
+          'error',
+          'Erreur de suppression',
+          error.message ||
+            'Erreur réseau lors de la suppression.'
+        );
+      } finally {
+        setDeleteSaving(false);
+      }
     };
 
   // ==========================================================
   // CLOSE BLOCK MODAL
   // ==========================================================
 
-  const closeBlockModal =
-    () => {
-      if (blockSaving) {
-        return;
-      }
+  const closeBlockModal = () => {
+    if (blockSaving) {
+      return;
+    }
 
-      setShowStartPicker(false);
-      setShowEndPicker(false);
+    setShowStartPicker(false);
+    setShowEndPicker(false);
 
-      setShowBlockModal(false);
-    };
+    setShowBlockModal(false);
+  };
 
   // ==========================================================
   // CLOSE EDIT MODAL
   // ==========================================================
 
-  const closeEditModal =
-    () => {
-      if (editDaySaving) {
-        return;
-      }
+  const closeEditModal = () => {
+    if (editDaySaving) {
+      return;
+    }
 
-      setShowEditStartPicker(false);
-      setShowEditEndPicker(false);
+    setShowEditStartPicker(false);
+    setShowEditEndPicker(false);
 
-      setShowEditDayModal(false);
+    setShowEditDayModal(false);
 
-      setEditingDay(null);
-    };
+    setEditingDay(null);
+  };
 
   // ==========================================================
   // LOADING
@@ -1213,6 +1685,27 @@ const AvailabilityScreen = ({ navigation }) => {
         },
       ]}
     >
+      {/* ====================================================
+          TOAST
+      ==================================================== */}
+
+      <View
+        pointerEvents="box-none"
+        style={styles.toastWrapper}
+      >
+        <Toast
+          visible={toast.visible}
+          type={toast.type}
+          title={toast.title}
+          message={toast.message}
+          onHide={hideToast}
+        />
+      </View>
+
+      {/* ====================================================
+          HEADER
+      ==================================================== */}
+
       <Header
         title="Disponibilité"
         showBack
@@ -1616,9 +2109,12 @@ const AvailabilityScreen = ({ navigation }) => {
               </View>
             ) : (
               blockedDates.map(
-                (item) => (
+                (item, index) => (
                   <View
-                    key={item.id}
+                    key={
+                      item.id ??
+                      `blocked-${index}`
+                    }
                     style={[
                       styles.blockedRow,
                       {
@@ -1694,18 +2190,26 @@ const AvailabilityScreen = ({ navigation }) => {
                       )}
                     </View>
 
+                    {/* ========================================
+                        DELETE BUTTON
+                        ======================================== */}
+
                     <TouchableOpacity
                       onPress={() =>
                         handleDeleteBlockedDate(
                           item
                         )
                       }
+                      activeOpacity={0.7}
                       hitSlop={{
-                        top: 8,
-                        bottom: 8,
-                        left: 8,
-                        right: 8,
+                        top: 10,
+                        bottom: 10,
+                        left: 10,
+                        right: 10,
                       }}
+                      style={
+                        styles.deleteButton
+                      }
                     >
                       <Ionicons
                         name="trash-outline"
@@ -2749,6 +3253,28 @@ const AvailabilityScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
+
+      {/* ======================================================
+          MODAL : CONFIRMATION SUPPRESSION
+          IMPORTANT POUR WEB
+      ====================================================== */}
+
+      <ConfirmDeleteModal
+        visible={
+          !!deleteTarget
+        }
+        item={deleteTarget}
+        loading={deleteSaving}
+        onCancel={
+          cancelDeleteBlockedDate
+        }
+        onConfirm={
+          confirmDeleteBlockedDate
+        }
+        themeColors={
+          themeColors
+        }
+      />
     </View>
   );
 };
@@ -2776,6 +3302,82 @@ const styles =
       fontFamily:
         typography.fontFamily.regular,
     },
+
+    // ========================================================
+    // TOAST
+    // ========================================================
+
+    toastWrapper: {
+      position: 'absolute',
+      top: Platform.OS === 'web' ? 20 : 45,
+      left: 12,
+      right: 12,
+      zIndex: 99999,
+      elevation: 99999,
+      alignItems: 'center',
+      pointerEvents: 'box-none',
+    },
+
+    toastContainer: {
+      width: '100%',
+      maxWidth: 520,
+      minHeight: 66,
+
+      flexDirection: 'row',
+      alignItems: 'center',
+
+      backgroundColor: '#FFFFFF',
+
+      borderRadius: 15,
+
+      borderLeftWidth: 4,
+
+      paddingHorizontal: 13,
+      paddingVertical: 10,
+
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 5,
+      },
+      shadowOpacity: 0.14,
+      shadowRadius: 12,
+
+      elevation: 8,
+    },
+
+    toastIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      marginRight: 10,
+    },
+
+    toastTextWrap: {
+      flex: 1,
+      paddingRight: 8,
+    },
+
+    toastTitle: {
+      color: '#111827',
+      fontSize: 14,
+      fontWeight: '700',
+    },
+
+    toastMessage: {
+      color: '#6B7280',
+      fontSize: 12,
+      marginTop: 3,
+      lineHeight: 17,
+    },
+
+    // ========================================================
+    // SCROLL
+    // ========================================================
 
     scrollContent: {
       paddingHorizontal:
@@ -2962,6 +3564,17 @@ const styles =
       fontFamily:
         typography.fontFamily.medium,
       marginTop: 3,
+    },
+
+    deleteButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      backgroundColor: '#E5393510',
     },
 
     // ========================================================
@@ -3230,6 +3843,139 @@ const styles =
       fontFamily:
         typography.fontFamily.semiBold,
       color: '#fff',
+    },
+
+    // ========================================================
+    // CONFIRM DELETE MODAL
+    // ========================================================
+
+    confirmOverlay: {
+      flex: 1,
+
+      backgroundColor:
+        'rgba(0,0,0,0.52)',
+
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      paddingHorizontal: 20,
+    },
+
+    confirmModal: {
+      width: '100%',
+      maxWidth: 470,
+
+      borderRadius: 22,
+
+      padding: 22,
+
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 8,
+      },
+      shadowOpacity: 0.18,
+      shadowRadius: 18,
+
+      elevation: 10,
+    },
+
+    confirmIcon: {
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+
+      alignSelf: 'center',
+
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      backgroundColor:
+        '#DC262615',
+
+      marginBottom: 14,
+    },
+
+    confirmTitle: {
+      fontSize: 19,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+
+    confirmMessage: {
+      fontSize: 13,
+      lineHeight: 19,
+      textAlign: 'center',
+
+      marginTop: 8,
+    },
+
+    confirmDateBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+
+      borderWidth: 1,
+      borderRadius: 13,
+
+      padding: 13,
+
+      marginTop: 18,
+    },
+
+    confirmDateText: {
+      flex: 1,
+      marginLeft: 10,
+    },
+
+    confirmDate: {
+      fontSize: 13,
+      fontWeight: '700',
+    },
+
+    confirmReason: {
+      fontSize: 12,
+      marginTop: 4,
+    },
+
+    confirmActions: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 20,
+    },
+
+    confirmButton: {
+      flex: 1,
+
+      minHeight: 46,
+
+      borderRadius: 12,
+
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      flexDirection: 'row',
+      gap: 7,
+    },
+
+    confirmCancelButton: {
+      borderWidth: 1,
+      backgroundColor:
+        'transparent',
+    },
+
+    confirmCancelText: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+
+    confirmDeleteButton: {
+      backgroundColor: '#DC2626',
+    },
+
+    confirmDeleteText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '700',
     },
   });
 

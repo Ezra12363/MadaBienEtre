@@ -55,6 +55,7 @@ import TrackingScreen from '../screens/client/TrackingScreen';
 import SOSScreen from '../screens/client/SOSScreen';
 import HistoryScreen from '../screens/client/HistoryScreen';
 import NegotiationScreen from '../screens/client/NegotiationScreen';
+import OffersScreen from '../screens/client/OffersScreen';
 
 // ============================================================
 // NAVIGATORS
@@ -147,9 +148,29 @@ const HomeStack = () => {
         component={HistoryScreen}
       />
 
+      {/* ==========================================================
+          HISTORIQUE DES DEMANDES
+          Route cible du bouton "Voir le demande" depuis BookingScreen.
+          ========================================================== */}
+      <Stack.Screen
+        name="Réservations"
+        component={HistoryScreen}
+      />
+
       <Stack.Screen
         name="Negotiation"
         component={NegotiationScreen}
+      />
+
+      {/* ==========================================================
+          ✅ FIXÉ : route manquante — BookingDetailScreen appelle
+          navigation.navigate('Offers', { bookingId }) mais cet écran
+          n'était jamais enregistré, donc la négociation ne
+          s'ouvrait jamais côté client.
+          ========================================================== */}
+      <Stack.Screen
+        name="Offers"
+        component={OffersScreen}
       />
 
       <Stack.Screen
@@ -235,6 +256,12 @@ const BookingStack = () => {
       <Stack.Screen
         name="Negotiation"
         component={NegotiationScreen}
+      />
+
+      {/* ✅ FIXÉ : même route manquante que dans HomeStack */}
+      <Stack.Screen
+        name="Offers"
+        component={OffersScreen}
       />
     </Stack.Navigator>
   );

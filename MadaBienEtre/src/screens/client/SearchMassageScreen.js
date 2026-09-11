@@ -33,9 +33,10 @@ import { useTheme } from "../../context/ThemeContext";
 import { colors, typography } from "../../theme";
 import Header from "../../components/common/Header";
 import massageTypeService from "../../services/massageTypeService";
+import therapistService from "../../services/therapistService";
 import MapViewWrapper from "../../components/map/MapViewWrapper";
 import useLocationTracking from "../../hooks/useLocationTracking";
-import { searchLocation, formatFullAddress } from "../../services/geocoding";
+import { searchLocation, formatFullAddress, getAddressSuggestions, getPlaceDetails } from "../../services/geocoding";
 import {
   computeAutoDistances,
   calculateRoute,
@@ -217,27 +218,39 @@ const Toast = ({ visible, message, type, onHide }) => {
   const stylesType = getTypeStyles();
 
   return (
-    <Animated.View
-      style={[
-        styles.toastContainer,
-        {
-          opacity,
-          transform: [{ translateY }],
-          backgroundColor: stylesType.bg,
-          borderColor: stylesType.border,
-        },
-      ]}
-    >
-      <View style={styles.toastContent}>
-        <Ionicons name={stylesType.icon} size={20} color={stylesType.iconColor} />
-        <Text style={[styles.toastMessage, { color: stylesType.textColor }]}>
-          {message}
-        </Text>
-      </View>
-      <TouchableOpacity onPress={hideToast} style={styles.toastClose}>
-        <Ionicons name="close" size={16} color={stylesType.textColor} />
-      </TouchableOpacity>
-    </Animated.View>
+    // ✅ CORRECTIF : "left: 50%" + "transform: translateX(-50)" ne
+    // centre PAS correctement en React Native — translateX attend
+    // des pixels, pas un pourcentage ("-50" ne déplace que de 50px,
+    // pas de la moitié de la largeur réelle du toast). Résultat :
+    // le toast était toujours décalé, surtout sur mobile ou quand le
+    // message change de longueur. On centre désormais avec un
+    // conteneur plein-largeur + alignItems:"center", qui fonctionne
+    // pareil sur web, iOS et Android quelle que soit la largeur du
+    // toast. "pointerEvents='box-none'" laisse passer les touches en
+    // dehors du toast vers l'écran en dessous.
+    <View style={styles.toastWrapper} pointerEvents="box-none">
+      <Animated.View
+        style={[
+          styles.toastContainer,
+          {
+            opacity,
+            transform: [{ translateY }],
+            backgroundColor: stylesType.bg,
+            borderColor: stylesType.border,
+          },
+        ]}
+      >
+        <View style={styles.toastContent}>
+          <Ionicons name={stylesType.icon} size={20} color={stylesType.iconColor} />
+          <Text style={[styles.toastMessage, { color: stylesType.textColor }]}>
+            {message}
+          </Text>
+        </View>
+        <TouchableOpacity onPress={hideToast} style={styles.toastClose}>
+          <Ionicons name="close" size={16} color={stylesType.textColor} />
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
   );
 };
 
@@ -307,6 +320,9 @@ const SearchMassageScreen = ({ navigation, route }) => {
   const [filteredTherapists, setFilteredTherapists] = useState([]);
   const [isGeocoding, setIsGeocoding] = useState(false);
   const [addressResult, setAddressResult] = useState(null);
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const searchDebounceRef = useRef(null);
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [isRouting, setIsRouting] = useState(false);
@@ -486,18 +502,126 @@ const SearchMassageScreen = ({ navigation, route }) => {
   }, [mapType]);
 
   /* ==========================================================
+     LOAD THERAPISTS — DONNÉES RÉELLES DEPUIS L API / BASE
+     (déclaré AVANT le useEffect "INITIAL LOAD" ci-dessous, qui le
+     référence dans son tableau de dépendances — sinon on obtient
+     "Cannot access 'loadTherapists' before initialization")
+  ========================================================== */
+
+  const loadTherapists = useCallback(async () => {
+    let cancelled = false;
+    try {
+      setIsLoading(true);
+      const response = await therapistService.getTherapists();
+      if (cancelled) return;
+      if (!response?.success) throw new Error(response?.error || "Impossible de charger les thérapeutes");
+
+      const payload = response.data;
+      const rows = Array.isArray(payload) ? payload :
+        Array.isArray(payload?.therapists) ? payload.therapists :
+        Array.isArray(payload?.items) ? payload.items :
+        Array.isArray(payload?.data) ? payload.data : [];
+
+      const first = (...values) => values.find(v => v !== undefined && v !== null && String(v).trim() !== "");
+      const num = (v, fallback=0) => { const n=Number(v); return Number.isFinite(n) ? n : fallback; };
+      const bool = (v, fallback=false) => {
+        if (typeof v === "boolean") return v; if (typeof v === "number") return v===1;
+        if (typeof v === "string") { const x=v.toLowerCase().trim(); if (["true","1","yes","oui","online","available","disponible"].includes(x)) return true; if (["false","0","no","non","offline","unavailable","indisponible"].includes(x)) return false; } return fallback;
+      };
+      const specialties = (raw) => {
+        const value=first(raw?.specialties,raw?.speciality,raw?.specialities,raw?.skills,raw?.services,[]);
+        // ✅ CORRECTIF : l'API renvoie désormais chaque spécialité comme
+        // {id, name, category} (catégorie réelle du type de massage,
+        // ex: "relaxant") — on garde nom ET catégorie au lieu de ne
+        // garder qu'un texte, pour pouvoir afficher/filtrer par vraie
+        // catégorie sur la carte.
+        if (Array.isArray(value)) {
+          return value.map(x => {
+            if (typeof x === "string") return { name: x, category: null };
+            const name = first(x?.name,x?.title,x?.label);
+            const category = first(x?.category,x?.massage_category) || null;
+            return name ? { name: String(name), category: category ? String(category).toLowerCase() : null } : null;
+          }).filter(Boolean);
+        }
+        return typeof value === "string"
+          ? value.split(/[,;|]/).map(x=>x.trim()).filter(Boolean).map(name => ({ name, category: null }))
+          : [];
+      };
+      const categoriesOf = (raw, specialtyList) => {
+        // ✅ AJOUTÉ : l'API renvoie aussi "categories" (liste distincte
+        // des catégories couvertes par ce thérapeute) — on l'utilise en
+        // priorité, sinon on la reconstruit depuis les spécialités.
+        const fromApi = first(raw?.categories);
+        if (Array.isArray(fromApi)) return fromApi.map(c => String(c).toLowerCase());
+        return Array.from(new Set(specialtyList.map(s => s.category).filter(Boolean)));
+      };
+      const coordinate = (raw) => {
+        const l=first(raw?.coordinate,raw?.coordinates,raw?.location,raw?.position) || {};
+        const lat=num(first(raw?.latitude,raw?.lat,raw?.current_latitude,raw?.location_latitude,l?.latitude,l?.lat),NaN);
+        const lon=num(first(raw?.longitude,raw?.lng,raw?.lon,raw?.current_longitude,raw?.location_longitude,l?.longitude,l?.lng,l?.lon),NaN);
+        return Number.isFinite(lat)&&Number.isFinite(lon) ? {latitude:lat,longitude:lon} : null;
+      };
+
+      const normalized = rows.map((raw,index) => {
+        const user=raw?.user || raw?.profile || raw?.account || {};
+        const firstName=first(raw?.first_name,raw?.firstname,user?.first_name,user?.firstname);
+        const lastName=first(raw?.last_name,raw?.lastname,user?.last_name,user?.lastname);
+        // ✅ CORRECTIF : l'API renvoie "fullname" (un seul mot, sans
+        // underscore) — ce champ n'était jamais testé, donc toutes les
+        // cartes retombaient sur "Thérapeute" par défaut.
+        const name=first(raw?.name,raw?.fullname,raw?.full_name,raw?.fullName,raw?.display_name,raw?.displayName,user?.name,user?.fullname,user?.full_name,[firstName,lastName].filter(Boolean).join(" "),"Thérapeute");
+        const specialtyList = specialties(raw);
+        const categoryList = categoriesOf(raw, specialtyList);
+        return {
+          id:first(raw?.id,raw?.therapist_id,raw?.user_id,user?.id,`therapist-${index}`),
+          name:String(name),
+          rating:Math.max(0,Math.min(5,num(first(raw?.rating,raw?.average_rating,raw?.avg_rating,raw?.note),0))),
+          reviews:Math.max(0,Math.round(num(first(raw?.reviews,raw?.review_count,raw?.reviews_count,raw?.total_reviews,raw?.number_of_reviews),0))),
+          experience:Math.max(0,Math.round(num(first(raw?.experience,raw?.experience_years,raw?.years_experience,raw?.anciennete),0))),
+          // ✅ CORRECTIF : l'API renvoie "distance_km" (et "distance_meters"),
+          // jamais "distance" tout court — la distance réelle n'était donc
+          // jamais lue et retombait systématiquement sur 999. Cette valeur
+          // n'est qu'un point de départ : elle est recalculée en direct
+          // via le GPS (Haversine, voir computeAutoDistances) dès que la
+          // position de l'utilisateur est disponible.
+          distance:num(first(raw?.distance,raw?.distance_km,raw?.distanceKm,raw?.distance_meters!=null?raw.distance_meters/1000:undefined),999),
+          price:Math.max(0,num(first(raw?.price,raw?.starting_price,raw?.base_price,raw?.hourly_rate,raw?.session_price,raw?.recommended_price,raw?.min_price,raw?.tarif),0)),
+          image:first(raw?.image,raw?.image_url,raw?.photo,raw?.photo_url,raw?.avatar,raw?.avatar_url,raw?.profile_image,raw?.profile_image_url,user?.image,user?.image_url,user?.photo,user?.photo_url,user?.avatar,user?.avatar_url,null),
+          // ✅ "category" reste dispo pour compat (1ère catégorie), mais
+          // le filtrage réel utilise désormais "categories" (toutes les
+          // catégories couvertes par ce thérapeute — voir plus bas).
+          category: categoryList[0] || "",
+          categories: categoryList,
+          specialties: specialtyList,
+          // ✅ CORRECTIF : l'API calcule maintenant "available_now" côté
+          // serveur à partir des DEUX colonnes réelles de la base
+          // (is_online ET is_available) — un thérapeute non connecté ne
+          // doit jamais apparaître "disponible", même si is_available
+          // est resté à true en base après sa dernière session.
+          available:bool(first(raw?.available_now,raw?.available,(raw?.is_online!=null&&raw?.is_available!=null)?(bool(raw.is_online)&&bool(raw.is_available)):undefined,raw?.is_available,raw?.online,raw?.is_online,raw?.isOnline,raw?.status === "online" ? true : undefined,raw?.status === "available" ? true : undefined),false),
+          coordinate:coordinate(raw),
+          address:String(first(raw?.address,raw?.full_address,raw?.formatted_address,raw?.location_name,raw?.quartier,raw?.neighborhood,user?.address,"Adresse non renseignée")),
+          raw,
+        };
+      });
+
+      setTherapists(normalized); setFilteredTherapists(normalized);
+      showToast(normalized.length ? `${normalized.length} professionnel${normalized.length>1?"s":""} disponible${normalized.length>1?"s":""}` : "Aucun thérapeute disponible pour le moment", normalized.length ? "success" : "info");
+    } catch (error) {
+      console.error("❌ Erreur chargement thérapeutes:",error);
+      if (!cancelled) { setTherapists([]); setFilteredTherapists([]); showToast(error?.message || "Impossible de charger les thérapeutes","error"); }
+    } finally { if (!cancelled) setIsLoading(false); }
+    return () => { cancelled=true; };
+  }, [showToast]);
+
+  /* ==========================================================
      INITIAL LOAD
   ========================================================== */
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 450,
-      useNativeDriver: true,
-    }).start();
-
+    Animated.timing(fadeAnim, { toValue: 1, duration: 450, useNativeDriver: true }).start();
     loadTherapists();
-  }, []);
+  }, [loadTherapists]);
 
   /* ==========================================================
      UPDATE DISTANCES
@@ -536,40 +660,37 @@ const SearchMassageScreen = ({ navigation, route }) => {
       result = result.filter((therapist) => {
         const nameMatch = therapist.name?.toLowerCase().includes(query);
         const specialtyMatch = therapist.specialties?.some((specialty) =>
-          specialty.toLowerCase().includes(query),
+          specialty.name?.toLowerCase().includes(query),
         );
         return nameMatch || specialtyMatch;
       });
     }
 
-    /* ✅ MASSAGE TYPE - FILTRE PAR CATEGORY */
+    /* ✅ MASSAGE TYPE - FILTRE PAR CATEGORY (réel, via la vraie
+       catégorie de chaque type de massage renvoyée par l'API — plus
+       de correspondance approximative sur le texte du nom du soin) */
     if (selectedCategory && ALLOWED_CATEGORIES.includes(selectedCategory.toLowerCase())) {
-      result = result.filter((therapist) => {
-        if (therapist.category) {
-          return therapist.category.toLowerCase() === selectedCategory.toLowerCase();
-        }
-        return therapist.specialties?.some(
-          (specialty) =>
-            specialty.toLowerCase() === selectedCategory.toLowerCase() ||
-            specialty.toLowerCase().includes(selectedCategory.toLowerCase()),
-        );
-      });
+      const wanted = selectedCategory.toLowerCase();
+      result = result.filter((therapist) =>
+        therapist.categories?.includes(wanted) ||
+        therapist.specialties?.some((specialty) => specialty.category === wanted),
+      );
     }
     
     /* ✅ MASSAGE TYPE - FILTRE PAR TYPE */
     if (selectedType && !selectedCategory) {
       const type = massageTypes.find((item) => item.id === selectedType);
       if (type && ALLOWED_CATEGORIES.includes(type.category.toLowerCase())) {
-        result = result.filter((therapist) => {
-          if (therapist.category) {
-            return therapist.category.toLowerCase() === type.category.toLowerCase();
-          }
-          return therapist.specialties?.some(
+        const wantedCategory = type.category.toLowerCase();
+        const wantedName = type.name?.toLowerCase();
+        result = result.filter((therapist) =>
+          therapist.categories?.includes(wantedCategory) ||
+          therapist.specialties?.some(
             (specialty) =>
-              specialty.toLowerCase() === type.name.toLowerCase() ||
-              specialty.toLowerCase() === type.category.toLowerCase(),
-          );
-        });
+              specialty.name?.toLowerCase() === wantedName ||
+              specialty.category === wantedCategory,
+          ),
+        );
       }
     }
 
@@ -602,116 +723,57 @@ const SearchMassageScreen = ({ navigation, route }) => {
   ]);
 
   /* ==========================================================
-     LOAD THERAPISTS
-  ========================================================== */
-
-  const loadTherapists = () => {
-    setIsLoading(true);
-
-    setTimeout(() => {
-      const mockTherapists = [
-        {
-          id: 1,
-          name: "Sarah B.",
-          rating: 4.8,
-          reviews: 32,
-          experience: 5,
-          distance: 1.2,
-          price: 45000,
-          image: null,
-          category: "relaxant",
-          specialties: ["Massage Relaxant", "Deep Tissue"],
-          available: true,
-          coordinate: { latitude: -18.8702, longitude: 47.5109 },
-          address: "Analakely, Antananarivo",
-        },
-        {
-          id: 2,
-          name: "Jean R.",
-          rating: 4.9,
-          reviews: 45,
-          experience: 8,
-          distance: 2.5,
-          price: 50000,
-          image: null,
-          category: "therapeutique",
-          specialties: ["Massage Thérapeutique", "Shiatsu"],
-          available: true,
-          coordinate: { latitude: -18.8902, longitude: 47.5009 },
-          address: "Isotry, Antananarivo",
-        },
-        {
-          id: 3,
-          name: "Marie L.",
-          rating: 4.7,
-          reviews: 28,
-          experience: 3,
-          distance: 0.8,
-          price: 38000,
-          image: null,
-          category: "reflexologie",
-          specialties: ["Réflexologie", "Massage Relaxant"],
-          available: false,
-          coordinate: { latitude: -18.8752, longitude: 47.5159 },
-          address: "Ambohijatovo, Antananarivo",
-        },
-        {
-          id: 4,
-          name: "David M.",
-          rating: 4.6,
-          reviews: 19,
-          experience: 4,
-          distance: 3.1,
-          price: 42000,
-          image: null,
-          category: "sportif",
-          specialties: ["Massage Sportif", "Deep Tissue"],
-          available: true,
-          coordinate: { latitude: -18.8952, longitude: 47.4959 },
-          address: "Ampefiloha, Antananarivo",
-        },
-        {
-          id: 5,
-          name: "Sophie R.",
-          rating: 4.9,
-          reviews: 56,
-          experience: 7,
-          distance: 1.8,
-          price: 55000,
-          image: null,
-          category: "personnalise",
-          specialties: ["Massage Personnalisé", "Pierres Chaudes"],
-          available: true,
-          coordinate: { latitude: -18.8652, longitude: 47.5209 },
-          address: "Antaninarenina, Antananarivo",
-        },
-        {
-          id: 6,
-          name: "Hanta R.",
-          rating: 4.9,
-          reviews: 21,
-          experience: 6,
-          distance: 2.1,
-          price: 35000,
-          image: null,
-          category: "prenatal",
-          specialties: ["Massage Prénatal", "Massage Relaxant"],
-          available: true,
-          coordinate: { latitude: -18.8802, longitude: 47.5259 },
-          address: "Faravohitra, Antananarivo",
-        },
-      ];
-
-      setTherapists(mockTherapists);
-      setFilteredTherapists(mockTherapists);
-      setIsLoading(false);
-      showToast(`${mockTherapists.length} professionnels disponibles`, "success");
-    }, 650);
-  };
-
-  /* ==========================================================
      ADDRESS SEARCH
   ========================================================== */
+
+  const applyAddressResult = (result) => {
+    if (!result || !Number.isFinite(Number(result.latitude)) || !Number.isFinite(Number(result.longitude))) return;
+    const normalized = { ...result, latitude: Number(result.latitude), longitude: Number(result.longitude) };
+    setAddressResult(normalized);
+    const withDistances = computeAutoDistances(
+      { latitude: normalized.latitude, longitude: normalized.longitude },
+      therapists,
+    );
+    const nearby = withDistances.filter((therapist) => therapist.distance <= 10);
+    setFilteredTherapists(nearby.length > 0 ? nearby : withDistances);
+    setShowMap(true);
+    setMapKey((value) => value + 1);
+    setTimeout(() => mapRef.current?.animateToRegion?.({
+      latitude: normalized.latitude, longitude: normalized.longitude, latitudeDelta: 0.02, longitudeDelta: 0.02,
+    }), 350);
+  };
+
+  const handleSuggestionSelect = async (suggestion) => {
+    setAddressSuggestions([]);
+    setIsGeocoding(true);
+    try {
+      let result = null;
+      if (suggestion.source === "google" && suggestion.id) result = await getPlaceDetails(suggestion.id);
+      if (!result && Number.isFinite(Number(suggestion.latitude)) && Number.isFinite(Number(suggestion.longitude))) result = suggestion;
+      if (!result) result = await searchLocation(suggestion.description || suggestion.main_text || searchQuery);
+      if (!result) { showToast("Lieu introuvable", "error"); return; }
+      setSearchQuery(result.display_name || suggestion.description || suggestion.main_text || "");
+      applyAddressResult(result);
+      showToast(result.isApproximate ? "Zone approximative sélectionnée" : "Lieu sélectionné", result.isApproximate ? "warning" : "success");
+    } catch (error) {
+      console.error("Suggestion selection error:", error);
+      showToast("Impossible de sélectionner ce lieu", "error");
+    } finally { setIsGeocoding(false); }
+  };
+
+  const handleSearchTextChange = (text) => {
+    setSearchQuery(text);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (text.trim().length < 3) { setAddressSuggestions([]); return; }
+    searchDebounceRef.current = setTimeout(async () => {
+      setIsLoadingSuggestions(true);
+      try { setAddressSuggestions(await getAddressSuggestions(text.trim())); }
+      catch (error) { console.warn("Suggestions error:", error?.message); setAddressSuggestions([]); }
+      finally { setIsLoadingSuggestions(false); }
+    }, 350);
+  };
+
+  useEffect(() => () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); }, []);
 
   const handleAddressSearch = async () => {
     const query = searchQuery.trim();
@@ -732,27 +794,11 @@ const SearchMassageScreen = ({ navigation, route }) => {
         return;
       }
 
-      setAddressResult(result);
-
+      applyAddressResult(result);
       const withDistances = computeAutoDistances(
-        { latitude: result.latitude, longitude: result.longitude },
-        therapists,
+        { latitude: Number(result.latitude), longitude: Number(result.longitude) }, therapists
       );
-
       const nearby = withDistances.filter((therapist) => therapist.distance <= 10);
-      setFilteredTherapists(nearby.length > 0 ? nearby : withDistances);
-
-      setShowMap(true);
-      setMapKey((value) => value + 1);
-
-      setTimeout(() => {
-        mapRef.current?.animateToRegion({
-          latitude: result.latitude,
-          longitude: result.longitude,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        });
-      }, 350);
 
       if (nearby.length > 0) {
         showToast(`${nearby.length} thérapeute(s) trouvé(s) dans un rayon de 10 km`, "success");
@@ -782,7 +828,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
     const result = therapists.filter((therapist) => {
       const nameMatch = therapist.name?.toLowerCase().includes(query);
       const specialtyMatch = therapist.specialties?.some((specialty) =>
-        specialty.toLowerCase().includes(query),
+        specialty.name?.toLowerCase().includes(query),
       );
       return nameMatch || specialtyMatch;
     });
@@ -837,6 +883,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
 
   const clearSearch = () => {
     setSearchQuery("");
+    setAddressSuggestions([]);
     setAddressResult(null);
     setSelectedMarker(null);
     setSelectedRoute(null);
@@ -855,11 +902,11 @@ const SearchMassageScreen = ({ navigation, route }) => {
     const markers = filteredTherapists.map((therapist, index) => ({
       id: therapist.id,
       coordinate: therapist.coordinate || {
-        latitude: DEFAULT_REGION.latitude + index * 0.01,
-        longitude: DEFAULT_REGION.longitude + index * 0.01,
+        latitude: DEFAULT_REGION.latitude,
+        longitude: DEFAULT_REGION.longitude,
       },
       title: therapist.name,
-      description: `${therapist.specialties?.join(", ") || ""} • ${formatPrice(therapist.price || 0)}`,
+      description: `${therapist.specialties?.map((s) => s.name).join(", ") || ""} • ${formatPrice(therapist.price || 0)}`,
       pinColor: therapist.available ? MARKER_COLORS.available : MARKER_COLORS.unavailable,
       distance: therapist.distance,
       price: therapist.price,
@@ -1298,8 +1345,11 @@ const SearchMassageScreen = ({ navigation, route }) => {
               </View>
             </View>
 
+            {/* ✅ CORRECTIF : affiche TOUTES les spécialités du
+                thérapeute (plus de limite à 2) — la ligne passe à la
+                ligne (flexWrap) pour ne jamais être coupée. */}
             <View style={styles.specialtiesRow}>
-              {item.specialties?.slice(0, 2).map((specialty, specialtyIndex) => (
+              {item.specialties?.map((specialty, specialtyIndex) => (
                 <View
                   key={`${item.id}-${specialtyIndex}`}
                   style={[
@@ -1309,6 +1359,17 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     },
                   ]}
                 >
+                  {/* ✅ AJOUTÉ : icône + libellé de la vraie catégorie
+                      de massage (relaxant, thérapeutique, sportif, ...)
+                      renvoyée par l'API pour cette spécialité. */}
+                  {specialty.category && (
+                    <MaterialCommunityIcons
+                      name={getMassageCategoryIcon(specialty.category)}
+                      size={10}
+                      color={PRIMARY}
+                      style={{ marginRight: 4 }}
+                    />
+                  )}
                   <Text
                     numberOfLines={1}
                     style={[
@@ -1318,11 +1379,33 @@ const SearchMassageScreen = ({ navigation, route }) => {
                       },
                     ]}
                   >
-                    {specialty}
+                    {specialty.name}
+                    {specialty.category ? ` · ${getMassageCategoryLabel(specialty.category)}` : ""}
                   </Text>
                 </View>
               ))}
             </View>
+
+            {/* ✅ AJOUTÉ : bandeau récapitulatif de TOUTES les
+                catégories couvertes par ce thérapeute */}
+            {item.categories?.length > 0 && (
+              <View style={styles.categoriesRow}>
+                {item.categories.map((cat) => (
+                  <View
+                    key={`${item.id}-cat-${cat}`}
+                    style={[
+                      styles.categoryPill,
+                      { backgroundColor: `${PRIMARY}0F`, borderColor: `${PRIMARY}30` },
+                    ]}
+                  >
+                    <MaterialCommunityIcons name={getMassageCategoryIcon(cat)} size={10} color={PRIMARY} />
+                    <Text style={[styles.categoryPillText, { color: PRIMARY }]}>
+                      {getMassageCategoryLabel(cat)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
 
             <View style={styles.cardMeta}>
               <View style={styles.metaItem}>
@@ -1516,7 +1599,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   placeholder={"Quartier, adresse ou thérapeute..."}
                   placeholderTextColor={themeColors.textSecondary}
                   value={searchQuery}
-                  onChangeText={setSearchQuery}
+                  onChangeText={handleSearchTextChange}
                   onSubmitEditing={handleSearch}
                   returnKeyType="search"
                   autoCorrect={false}
@@ -1540,6 +1623,24 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   )}
                 </TouchableOpacity>
               </View>
+
+              {searchQuery.trim().length >= 3 && (addressSuggestions.length > 0 || isLoadingSuggestions) && (
+                <View style={[styles.suggestionsBox, { backgroundColor: themeColors.surface, borderColor: themeColors.border || "#E7EBF1" }]}>
+                  {isLoadingSuggestions && addressSuggestions.length === 0 ? (
+                    <View style={styles.suggestionLoading}><ActivityIndicator size="small" color={PRIMARY} /><Text style={[styles.suggestionLoadingText, { color: themeColors.textSecondary }]}>Recherche des lieux…</Text></View>
+                  ) : (
+                    addressSuggestions.map((item) => (
+                      <TouchableOpacity key={`${item.source}-${item.id}`} style={styles.suggestionItem} onPress={() => handleSuggestionSelect(item)}>
+                        <Ionicons name="location-outline" size={18} color={PRIMARY} />
+                        <View style={styles.suggestionTextWrap}>
+                          <Text numberOfLines={1} style={[styles.suggestionMain, { color: themeColors.text }]}>{item.main_text || item.description}</Text>
+                          {!!item.secondary_text && <Text numberOfLines={2} style={[styles.suggestionSecondary, { color: themeColors.textSecondary }]}>{item.secondary_text}</Text>}
+                        </View>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </View>
+              )}
 
               <View style={styles.locationStatus}>
                 <View
@@ -2351,12 +2452,15 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scrollContent: { paddingBottom: 100 },
 
-  toastContainer: {
+  toastWrapper: {
     position: "absolute",
     top: Platform.OS === "ios" ? 70 : 50,
-    left: "50%",
-    transform: [{ translateX: -50 }],
+    left: 0,
+    right: 0,
     zIndex: 9999,
+    alignItems: "center",
+  },
+  toastContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -2393,6 +2497,13 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontSize: 12, paddingHorizontal: 3, fontFamily: typography.fontFamily.regular },
   clearButton: { padding: 5 },
   searchAction: { width: 38, height: 38, borderRadius: 12, backgroundColor: PRIMARY, alignItems: "center", justifyContent: "center" },
+  suggestionsBox: { marginTop: 8, borderWidth: 1, borderRadius: 14, overflow: "hidden", maxHeight: 250 },
+  suggestionItem: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#E7EBF1" },
+  suggestionTextWrap: { flex: 1, marginLeft: 9 },
+  suggestionMain: { fontSize: 12, fontFamily: typography.fontFamily.medium },
+  suggestionSecondary: { fontSize: 9, marginTop: 2, fontFamily: typography.fontFamily.regular },
+  suggestionLoading: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  suggestionLoadingText: { fontSize: 10, fontFamily: typography.fontFamily.regular },
   locationStatus: { flexDirection: "row", alignItems: "center", marginTop: 10 },
   locationDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
   locationStatusText: { flex: 1, color: "rgba(255,255,255,0.68)", fontSize: 8.5, fontFamily: typography.fontFamily.regular },
@@ -2452,9 +2563,12 @@ const styles = StyleSheet.create({
   experienceText: { fontSize: 8, marginTop: 3, fontFamily: typography.fontFamily.regular },
   distanceContainer: { flexDirection: "row", alignItems: "center", paddingHorizontal: 7, paddingVertical: 5, borderRadius: 8, backgroundColor: `${PRIMARY}0C`, marginLeft: 6 },
   distanceText: { fontSize: 8, marginLeft: 3, fontFamily: typography.fontFamily.semiBold },
-  specialtiesRow: { flexDirection: "row", marginTop: 12, gap: 5 },
-  specialtyChip: { maxWidth: "48%", paddingHorizontal: 7, paddingVertical: 5, borderRadius: 7 },
+  specialtiesRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 12, gap: 5 },
+  specialtyChip: { maxWidth: "100%", paddingHorizontal: 7, paddingVertical: 5, borderRadius: 7, flexDirection: "row", alignItems: "center" },
   specialtyText: { fontSize: 7.5, fontFamily: typography.fontFamily.medium },
+  categoriesRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 7, gap: 5 },
+  categoryPill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 20, borderWidth: 1, gap: 4 },
+  categoryPillText: { fontSize: 7, fontFamily: typography.fontFamily.semiBold },
   cardMeta: { flexDirection: "row", alignItems: "center", marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#EEF1F5" },
   metaItem: { flexDirection: "row", alignItems: "center" },
   metaText: { fontSize: 8, marginLeft: 4, fontFamily: typography.fontFamily.regular },

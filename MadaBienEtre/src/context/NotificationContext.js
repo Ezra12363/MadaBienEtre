@@ -1,5 +1,5 @@
 // src/context/NotificationContext.js
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import notificationService from '../services/notificationService';
 
@@ -12,9 +12,27 @@ export const NotificationProvider = ({ children }) => {
   const [permissionStatus, setPermissionStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Notifications déjà vues par le polling.
+  const knownNotificationIds = useRef(new Set());
+  const firstNotificationPoll = useRef(true);
+  const pollInProgress = useRef(false);
+
   useEffect(() => {
     setupNotifications();
-    loadUnreadCount();
+    pollNotifications();
+
+    // IMPORTANT : unread-count seul ne fait qu'actualiser le badge.
+    // Pour faire apparaître réellement la notification, on doit aussi
+    // récupérer GET /notifications.
+    const pollingInterval = setInterval(() => {
+      pollNotifications();
+    }, 5000);
+
+    return () => clearInterval(pollingInterval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
 
     // ✅ FIXÉ : "listener" mandeha AMIN'NY MOBILE ihany (efa marina
     // teo aloha), fa nampio "try/catch" mba tsy hisy crash raha misy
@@ -74,6 +92,90 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
+  const extractNotifications = (result) => {
+    if (!result?.success) return [];
+    if (Array.isArray(result.notifications)) return result.notifications;
+
+    const raw = result.data;
+    if (Array.isArray(raw)) return raw;
+
+    const list =
+      raw?.notifications ||
+      raw?.items ||
+      raw?.results ||
+      raw?.data ||
+      [];
+
+    return Array.isArray(list) ? list : [];
+  };
+
+  const getNotificationId = (n) =>
+    n?.id ??
+    n?.notification_id ??
+    n?.notificationId ??
+    `${n?.created_at || n?.createdAt || ''}-${n?.title || ''}-${n?.body || n?.message || ''}`;
+
+  const pollNotifications = async () => {
+    if (pollInProgress.current) return;
+    pollInProgress.current = true;
+
+    try {
+      const AsyncStorage =
+        require('@react-native-async-storage/async-storage').default;
+      const token = await AsyncStorage.getItem('@mada_token');
+
+      if (!token) {
+        setUnreadCount(0);
+        return;
+      }
+
+      const result = await notificationService.getNotifications();
+      const list = extractNotifications(result);
+
+      if (!result?.success) return;
+
+      // Tri : plus récentes en premier.
+      const sorted = [...list].sort((a, b) => {
+        const da = new Date(a?.created_at || a?.createdAt || 0).getTime();
+        const db = new Date(b?.created_at || b?.createdAt || 0).getTime();
+        return db - da;
+      });
+
+      // Le premier polling initialise le cache sans afficher de faux
+      // "nouveau" message pour toutes les anciennes notifications.
+      if (firstNotificationPoll.current) {
+        sorted.forEach(n => knownNotificationIds.current.add(getNotificationId(n)));
+        firstNotificationPoll.current = false;
+      } else {
+        for (const n of sorted) {
+          const id = getNotificationId(n);
+          if (!knownNotificationIds.current.has(id)) {
+            knownNotificationIds.current.add(id);
+
+            // Notification native / Web uniquement si elle est encore
+            // non lue. La liste reste disponible dans NotificationScreen.
+            if (!n?.is_read) {
+              await notificationService.presentBackendNotification(n);
+            }
+          }
+        }
+      }
+
+      // Nettoyage du cache pour éviter qu'il grossisse indéfiniment.
+      if (knownNotificationIds.current.size > 300) {
+        const keep = sorted.slice(0, 200).map(getNotificationId);
+        knownNotificationIds.current = new Set(keep);
+      }
+
+      const unread = sorted.filter(n => !n?.is_read).length;
+      setUnreadCount(unread);
+    } catch (error) {
+      console.warn('⚠️ [Notifications] polling:', error?.message || error);
+    } finally {
+      pollInProgress.current = false;
+    }
+  };
+
   // ✅ FIXÉ (BUG LEHIBE) : ny "unread-count" polling dia mety
   // MIANTSO ny backend ALOHAN'NY hisian'ny token (ex: rehefa
   // vao misokatra ny app, mbola tsy nanao login ny mpampiasa) — io
@@ -100,7 +202,18 @@ export const NotificationProvider = ({ children }) => {
 
       const result = await notificationService.getUnreadCount();
       if (result?.success) {
-        setUnreadCount(result.data?.count || 0);
+        // Le backend renvoie normalement unread_count. On garde aussi
+        // un fallback count pour les anciennes versions.
+        // ✅ FIXÉ : le backend (notifications.py) renvoie
+        // {"unread_count": N}, jamais {"count": N}. Avec l'ancien
+        // code, le badge de notifications restait bloqué à 0 en
+        // permanence, quel que soit le nombre réel de notifications
+        // non lues (négociations comprises).
+        const count =
+          result.data?.unread_count ??
+          result.data?.count ??
+          0;
+        setUnreadCount(count);
       } else {
         setUnreadCount(0);
       }
@@ -129,6 +242,11 @@ export const NotificationProvider = ({ children }) => {
     return notificationService.sendBookingNotification(title, body, bookingId, data);
   };
 
+  // ✅ AJOUT : notification liée à une négociation (offre / contre-offre)
+  const sendOfferNotification = (title, body, bookingId, data = {}) => {
+    return notificationService.sendOfferNotification(title, body, bookingId, data);
+  };
+
   const markAsRead = async (notificationId) => {
     const result = await notificationService.markAsRead(notificationId);
     if (result?.success) {
@@ -155,9 +273,14 @@ export const NotificationProvider = ({ children }) => {
     scheduleNotification,
     sendSOSNotification,
     sendBookingNotification,
+    sendOfferNotification,
     markAsRead,
     markAllAsRead,
     loadUnreadCount,
+    // ✅ alias explicite pour rafraîchir manuellement le badge
+    // (ex: après avoir envoyé une contre-offre)
+    refreshUnreadCount: loadUnreadCount,
+    presentBackendNotification: notificationService.presentBackendNotification.bind(notificationService),
   };
 
   return (

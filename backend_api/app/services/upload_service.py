@@ -5,6 +5,7 @@ from fastapi import UploadFile, HTTPException, status
 from typing import Optional, Dict, Any
 import uuid
 import os
+import re
 from ..core.config import settings
 
 # ✅ Configuration Cloudinary — ampiasaina raha vonona tanteraka izy
@@ -24,21 +25,49 @@ if CLOUDINARY_CONFIGURED:
 else:
     print("ℹ️ Cloudinary non configuré (clés manquantes) — stockage local uniquement.")
 
-# ✅ Taille minimale acceptable (10 KB) — raha latsaka noho izany dia
+# ✅ Taille minimale acceptable (1 KB) — raha latsaka noho izany dia
 # azo antoka fa "vide/corrompu" ilay fichier (io no tena antony
 # nahatonga ny sary "manjavona" amin'ny web: fichier 0 octet nefa
 # nisy URL/anarana efa voarakitra tao amin'ny DB)
 MIN_VALID_FILE_SIZE = 1024  # 1 KB — image miaraka amin'ny compression matetika mihoatra izany
 
 
-def save_locally_from_bytes(content: bytes, folder: str, filename: str) -> str:
+def save_locally_from_bytes(
+    content: bytes,
+    folder: str,
+    filename: str,
+    base_url: Optional[str] = None,
+) -> str:
     """
-    Sauvegarder un fichier à partir d'un contenu bytes.
-    ✅ Retourne l'URL complète avec BASE_URL.
+    Sauvegarder un fichier à partir d'un contenu bytes et retourner
+    son URL COMPLÈTE (ex: "http://10.78.77.30:8000/uploads/profiles/
+    3a9925f0-....jpeg"), enregistrée telle quelle en base de données.
+
+    ✅ FIXÉ (BUG "photo de profil cassée après changement d'IP") :
+    -----------------------------------------------------------------
+    🐛 AVANT : l'URL était construite avec `settings.BASE_URL`, une
+    valeur FIXE lue une seule fois depuis le fichier .env au
+    démarrage du serveur. Si l'IP locale de la machine de
+    développement changeait (autre réseau Wi-Fi, autre PC...) sans
+    modifier le .env, toutes les nouvelles URLs enregistrées
+    pointaient vers un hôte mort.
+
+    ✅ APRÈS : la fonction accepte un paramètre `base_url` optionnel,
+    calculé dynamiquement à partir de la requête HTTP RÉELLE reçue
+    par FastAPI (`str(request.base_url)`, voir app/api/users.py).
+    Cet hôte correspond TOUJOURS à l'adresse que le téléphone/client
+    vient d'utiliser pour joindre le serveur à l'instant précis de
+    l'upload — donc forcément la bonne IP actuelle, sans dépendre
+    du .env.
+
+    Si `base_url` n'est pas fourni (appel depuis un contexte sans
+    requête HTTP, ex: script/tâche de fond), on retombe sur
+    `settings.BASE_URL` comme avant, pour ne rien casser ailleurs.
+    -----------------------------------------------------------------
+
     ✅ Sauvegarde dans uploads/{folder}/
-    ✅ FIXÉ : vérifie que le fichier écrit sur disque a bien une
-    taille non nulle après écriture (détection d'un enregistrement
-    corrompu/vide).
+    ✅ Vérifie que le fichier écrit sur disque a bien une taille non
+       nulle après écriture (détection d'un enregistrement corrompu/vide).
     """
     try:
         upload_dir = f"uploads/{folder}"
@@ -67,8 +96,12 @@ def save_locally_from_bytes(content: bytes, folder: str, filename: str) -> str:
                 f"ne contenait aucune donnée binaire (folder={folder})."
             )
 
-        base_url = settings.BASE_URL.rstrip('/')
-        file_url = f"{base_url}/{file_path.replace(os.sep, '/')}"
+        # ✅ Priorité au base_url dynamique (dérivé de la requête réelle),
+        # fallback sur settings.BASE_URL si absent.
+        resolved_base_url = (base_url or settings.BASE_URL).rstrip("/")
+        relative_path = f"uploads/{folder}/{unique_name}".replace(os.sep, "/")
+        file_url = f"{resolved_base_url}/{relative_path}"
+
         print(f"📸 Image sauvegardée localement ({written_size} octets): {file_url}")
         return file_url
 
@@ -83,27 +116,27 @@ def upload_image(
     file: UploadFile,
     folder: str = "general",
     public_id: Optional[str] = None,
-    transformation: Optional[Dict[str, Any]] = None
+    transformation: Optional[Dict[str, Any]] = None,
+    base_url: Optional[str] = None,
 ) -> str:
     """
     Uploader une image (Cloudinary si configuré, sinon stockage local
     dans uploads/{folder}/).
 
+    ✅ Nouveau paramètre `base_url` (optionnel) : hôte réel à utiliser
+    pour construire l'URL du fichier local (voir save_locally_from_bytes
+    pour l'explication complète du bug corrigé). Sans effet sur
+    Cloudinary, qui a toujours sa propre URL absolue externe.
+
     ✅ FIXÉ (BUG PRINCIPAL — "sary manjavona amin'ny web") :
     - Vérifie la taille RÉELLE du contenu reçu AVANT toute tentative
       d'upload (Cloudinary ou local). Si le contenu est vide ou trop
       petit pour être une vraie image (< MIN_VALID_FILE_SIZE), on lève
-      une HTTPException 400 claire IMMÉDIATEMENT — plutôt que
-      d'enregistrer silencieusement un fichier corrompu/vide et de
-      quand même renvoyer une URL "valide" au frontend (ce qui faisait
-      croire que l'upload avait réussi, alors que l'image était vide).
-    - Ne tente Cloudinary QUE s'il est réellement configuré (évite un
-      appel réseau inutile qui masquait les vraies erreurs).
+      une HTTPException 400 claire IMMÉDIATEMENT.
+    - Ne tente Cloudinary QUE s'il est réellement configuré.
     """
     contents = file.file.read()
 
-    # ✅ FIXÉ : validation stricte AVANT tout traitement — c'est ici
-    # que le bug "image vide sur le web" est intercepté clairement.
     if not contents or len(contents) < MIN_VALID_FILE_SIZE:
         received_size = len(contents) if contents else 0
         print(
@@ -121,8 +154,6 @@ def upload_image(
                 "Veuillez réessayer l'envoi de la photo."
             ),
         )
-
-    image_url = None
 
     # 1️⃣ Cloudinary — uniquement s'il est réellement configuré
     if CLOUDINARY_CONFIGURED:
@@ -151,29 +182,33 @@ def upload_image(
     # 2️⃣ Fallback (ou stockage principal si Cloudinary non configuré) : local
     print(f"🔄 Sauvegarde locale dans uploads/{folder}/ ({len(contents)} octets)")
     try:
-        return save_locally_from_bytes(contents, folder, file.filename)
+        return save_locally_from_bytes(contents, folder, file.filename, base_url=base_url)
     except Exception as e:
-        # ✅ FIXÉ : si même la sauvegarde locale échoue, on le signale
-        # clairement au lieu de renvoyer une chaîne vide silencieuse
-        # (l'ancien "return ''" faisait croire à une réussite côté DB)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Impossible d'enregistrer l'image sur le serveur : {str(e)}",
         )
 
 
-def upload_profile_image(file: UploadFile, user_id: int) -> str:
+def upload_profile_image(file: UploadFile, user_id: int, base_url: Optional[str] = None) -> str:
     """Uploader une photo de profil — stockée dans uploads/profiles/{user_id}/"""
-    return upload_image(file, f"profiles/{user_id}")
+    return upload_image(file, f"profiles/{user_id}", base_url=base_url)
 
 
-def upload_document(file: UploadFile, user_id: int, doc_type: str) -> str:
+def upload_document(file: UploadFile, user_id: int, doc_type: str, base_url: Optional[str] = None) -> str:
     """Uploader un document d'identité ou certificat"""
-    return upload_image(file, f"documents/{doc_type}/{user_id}")
+    return upload_image(file, f"documents/{doc_type}/{user_id}", base_url=base_url)
 
 
 def delete_image(url: str) -> bool:
-    """Supprimer une image de Cloudinary ou locale"""
+    """
+    Supprimer une image de Cloudinary ou locale.
+
+    ✅ Extrait la partie "/uploads/..." peu importe l'hôte qui la
+    précède (relative ou absolue, IP actuelle ou périmée), pour
+    rester robuste même si l'URL enregistrée date d'avant un
+    changement de réseau.
+    """
     try:
         if not url:
             return True
@@ -184,19 +219,15 @@ def delete_image(url: str) -> bool:
             result = cloudinary.uploader.destroy(public_id)
             return result.get("result") == "ok"
 
-        if settings.BASE_URL in url:
-            local_path = url.replace(settings.BASE_URL, "").lstrip("/")
+        match = re.search(r"/uploads/.*$", url)
+        if match:
+            local_path = match.group(0).lstrip("/")
             if os.path.exists(local_path):
                 os.remove(local_path)
                 print(f"🗑️ Fichier local supprimé: {local_path}")
                 return True
-
-        if url.startswith("/uploads/"):
-            local_path = url.lstrip("/")
-            if os.path.exists(local_path):
-                os.remove(local_path)
-                print(f"🗑️ Fichier local supprimé: {local_path}")
-                return True
+            print(f"ℹ️ Fichier déjà absent du disque: {local_path}")
+            return True
 
         return True
     except Exception as e:

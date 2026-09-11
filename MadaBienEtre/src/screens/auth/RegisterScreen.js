@@ -1,20 +1,7 @@
 // src/screens/auth/RegisterScreen.js
 // ============================================================
-// REGISTER SCREEN — RESPONSIVE WEB / MOBILE
-// ============================================================
-// ✅ Desktop Web >= 1100px : interface 2 colonnes
-// ✅ Web < 1100px          : interface Mobile / Android-like
-// ✅ Android / iOS         : interface Mobile
-// ✅ Header / zones vertes : #2E7D32
-// ✅ Texte header vert     : blanc
-// ✅ Responsive width / height
-// ✅ ScrollView stable
-// ✅ Keyboard handling Android
-// ✅ Toast responsive
-// ✅ Validation
-// ✅ Password strength
-// ✅ Role selection
-// ✅ Dark mode
+// MADA BIEN-ÊTRE — REGISTER SCREEN
+// Responsive Web + Android + iOS
 // ============================================================
 
 import React, {
@@ -50,29 +37,26 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, typography } from '../../theme';
+import { typography } from '../../theme';
 
 // ============================================================
-// PLATFORM
+// CONSTANTES
 // ============================================================
 
-const isWeb = Platform.OS === 'web';
-const isAndroid = Platform.OS === 'android';
-const isIOS = Platform.OS === 'ios';
-
-// ============================================================
-// THEME
-// ============================================================
-
-const THEME_GREEN = '#2E7D32';
-const THEME_GREEN_DARK = '#1B5E20';
+const GREEN = '#2E7D32';
+const GREEN_DARK = '#1B5E20';
+const GREEN_LIGHT = '#EAF5EC';
 const WHITE = '#FFFFFF';
 
-// Desktop réel uniquement à partir de 1100px.
+const LIGHT_BACKGROUND = '#F6F9F6';
+const DARK_BACKGROUND = '#121212';
+const DARK_FORM = '#1E1E2E';
+
 const DESKTOP_BREAKPOINT = 1100;
+const TABLET_BREAKPOINT = 700;
 
 // ============================================================
-// CUSTOM TOAST
+// TOAST
 // ============================================================
 
 const CustomToast = ({
@@ -136,7 +120,8 @@ const CustomToast = ({
     },
   };
 
-  const current = config[type] || config.info;
+  const current =
+    config[type] || config.info;
 
   useEffect(() => {
     if (visible) {
@@ -167,7 +152,6 @@ const CustomToast = ({
         Animated.timing(translateY, {
           toValue: -90,
           duration: 180,
-          easing: Easing.in(Easing.ease),
           useNativeDriver: true,
         }),
 
@@ -201,12 +185,8 @@ const CustomToast = ({
         {
           opacity,
           transform: [
-            {
-              translateY,
-            },
-            {
-              scale,
-            },
+            { translateY },
+            { scale },
           ],
         },
       ]}
@@ -215,14 +195,16 @@ const CustomToast = ({
         style={[
           styles.toast,
           {
-            backgroundColor: current.background,
-            borderColor: current.border,
+            backgroundColor:
+              current.background,
+            borderColor:
+              current.border,
           },
         ]}
       >
         <View
           style={[
-            styles.toastIconContainer,
+            styles.toastIcon,
             {
               backgroundColor:
                 current.iconBackground,
@@ -231,17 +213,20 @@ const CustomToast = ({
         >
           <Ionicons
             name={current.icon}
-            size={22}
+            size={21}
             color={current.iconColor}
           />
         </View>
 
-        <View style={styles.toastContent}>
+        <View
+          style={styles.toastContent}
+        >
           <Text
             style={[
               styles.toastTitle,
               {
-                color: current.textColor,
+                color:
+                  current.textColor,
               },
             ]}
           >
@@ -252,7 +237,8 @@ const CustomToast = ({
             style={[
               styles.toastMessage,
               {
-                color: current.textColor,
+                color:
+                  current.textColor,
               },
             ]}
             numberOfLines={4}
@@ -295,8 +281,11 @@ const PasswordStrength = ({
 
     let score = 0;
 
-    if (password.length >= 8) score++;
-    if (password.length >= 12) score++;
+    if (password.length >= 8)
+      score++;
+
+    if (password.length >= 12)
+      score++;
 
     if (
       /[a-z]/.test(password) &&
@@ -305,17 +294,18 @@ const PasswordStrength = ({
       score++;
     }
 
-    if (/\d/.test(password)) {
+    if (/\d/.test(password))
       score++;
-    }
 
-    if (/[^a-zA-Z0-9]/.test(password)) {
+    if (
+      /[^a-zA-Z0-9]/.test(password)
+    ) {
       score++;
     }
 
     const levels = [
       {
-        label: 'Faible',
+        label: 'Très faible',
         color: '#EF4444',
       },
       {
@@ -349,23 +339,30 @@ const PasswordStrength = ({
   if (!strength) return null;
 
   return (
-    <View style={styles.passwordStrength}>
+    <View
+      style={styles.passwordStrength}
+    >
       <View
         style={[
-          styles.passwordStrengthTrack,
+          styles.passwordTrack,
           {
-            backgroundColor: isDark
-              ? '#374151'
-              : '#E5E7EB',
+            backgroundColor:
+              isDark
+                ? '#374151'
+                : '#E5E7EB',
           },
         ]}
       >
         <View
           style={[
-            styles.passwordStrengthProgress,
+            styles.passwordProgress,
             {
-              width: `${(strength.score / 5) * 100}%`,
-              backgroundColor: strength.color,
+              width: `${
+                (strength.score / 5) *
+                100
+              }%`,
+              backgroundColor:
+                strength.color,
             },
           ]}
         />
@@ -375,7 +372,8 @@ const PasswordStrength = ({
         style={[
           styles.passwordStrengthText,
           {
-            color: strength.color,
+            color:
+              strength.color,
           },
         ]}
       >
@@ -411,28 +409,37 @@ const StepsIndicator = ({
   return (
     <View style={styles.steps}>
       {steps.map((step, index) => {
-        const completed = index < currentStep;
-        const active = index === currentStep;
+        const completed =
+          index < currentStep;
+
+        const active =
+          index === currentStep;
 
         return (
-          <React.Fragment key={step.title}>
-            <View style={styles.step}>
+          <React.Fragment
+            key={step.title}
+          >
+            <View
+              style={styles.stepItem}
+            >
               <View
                 style={[
                   styles.stepCircle,
                   {
                     backgroundColor:
-                      completed || active
-                        ? THEME_GREEN
+                      completed ||
+                      active
+                        ? GREEN
                         : isDark
-                        ? '#2D2D3D'
+                        ? '#303044'
                         : '#F3F4F6',
 
                     borderColor:
-                      completed || active
-                        ? THEME_GREEN
+                      completed ||
+                      active
+                        ? GREEN
                         : isDark
-                        ? '#374151'
+                        ? '#454557'
                         : '#E5E7EB',
                   },
                 ]}
@@ -440,13 +447,13 @@ const StepsIndicator = ({
                 {completed ? (
                   <Ionicons
                     name="checkmark"
-                    size={15}
+                    size={14}
                     color={WHITE}
                   />
                 ) : (
                   <Ionicons
                     name={step.icon}
-                    size={15}
+                    size={14}
                     color={
                       active
                         ? WHITE
@@ -461,8 +468,11 @@ const StepsIndicator = ({
                   styles.stepText,
                   {
                     color:
-                      active || completed
-                        ? THEME_GREEN
+                      active ||
+                      completed
+                        ? GREEN
+                        : isDark
+                        ? '#6B7280'
                         : '#9CA3AF',
                   },
                 ]}
@@ -471,14 +481,16 @@ const StepsIndicator = ({
               </Text>
             </View>
 
-            {index < steps.length - 1 && (
+            {index <
+              steps.length - 1 && (
               <View
                 style={[
                   styles.stepLine,
                   {
                     backgroundColor:
-                      index < currentStep
-                        ? THEME_GREEN
+                      index <
+                      currentStep
+                        ? GREEN
                         : isDark
                         ? '#374151'
                         : '#E5E7EB',
@@ -515,15 +527,13 @@ const Field = ({
   onSubmitEditing,
   inputRef,
 }) => {
-  const borderColor = error
-    ? '#EF4444'
-    : isDark
-    ? '#374151'
-    : '#E5E7EB';
-
   return (
-    <View style={styles.fieldGroup}>
-      <View style={styles.fieldLabelRow}>
+    <View
+      style={styles.fieldGroup}
+    >
+      <View
+        style={styles.fieldLabelRow}
+      >
         <Text
           style={[
             styles.fieldLabel,
@@ -537,33 +547,39 @@ const Field = ({
           {label}
         </Text>
 
-        {error && (
+        {error ? (
           <Ionicons
             name="alert-circle"
-            size={15}
+            size={14}
             color="#EF4444"
           />
-        )}
+        ) : null}
       </View>
 
       <View
         style={[
           styles.inputWrapper,
           {
-            backgroundColor: isDark
-              ? '#252535'
-              : '#F9FAFB',
-            borderColor,
+            backgroundColor:
+              isDark
+                ? '#252535'
+                : '#FFFFFF',
+
+            borderColor: error
+              ? '#EF4444'
+              : isDark
+              ? '#3A3A4B'
+              : '#E1E9E2',
           },
         ]}
       >
         <Ionicons
           name={icon}
-          size={20}
+          size={19}
           color={
             error
               ? '#EF4444'
-              : '#9CA3AF'
+              : GREEN
           }
         />
 
@@ -574,7 +590,7 @@ const Field = ({
             {
               color: isDark
                 ? WHITE
-                : '#111827',
+                : '#17201A',
             },
           ]}
           value={value}
@@ -587,24 +603,34 @@ const Field = ({
           }
           onFocus={onFocus}
           onBlur={onBlur}
-          secureTextEntry={secureTextEntry}
+          secureTextEntry={
+            secureTextEntry
+          }
           keyboardType={keyboardType}
-          autoCapitalize={autoCapitalize}
+          autoCapitalize={
+            autoCapitalize
+          }
           autoCorrect={false}
           spellCheck={false}
-          returnKeyType={returnKeyType}
-          onSubmitEditing={onSubmitEditing}
+          returnKeyType={
+            returnKeyType
+          }
+          onSubmitEditing={
+            onSubmitEditing
+          }
           blurOnSubmit={false}
           underlineColorAndroid="transparent"
           textAlignVertical="center"
-          selectionColor={THEME_GREEN}
-          cursorColor={THEME_GREEN}
+          selectionColor={GREEN}
+          cursorColor={GREEN}
         />
 
-        {onToggleSecure && (
+        {onToggleSecure ? (
           <TouchableOpacity
             onPress={onToggleSecure}
-            style={styles.eyeButton}
+            style={
+              styles.eyeButton
+            }
             hitSlop={{
               top: 10,
               bottom: 10,
@@ -618,26 +644,30 @@ const Field = ({
                   ? 'eye-outline'
                   : 'eye-off-outline'
               }
-              size={20}
+              size={19}
               color="#9CA3AF"
             />
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
 
-      {error && (
-        <View style={styles.errorRow}>
+      {error ? (
+        <View
+          style={styles.errorRow}
+        >
           <Ionicons
             name="information-circle-outline"
-            size={13}
+            size={12}
             color="#EF4444"
           />
 
-          <Text style={styles.errorText}>
+          <Text
+            style={styles.errorText}
+          >
             {error}
           </Text>
         </View>
-      )}
+      ) : null}
     </View>
   );
 };
@@ -653,144 +683,140 @@ const RoleCard = ({
   description,
   onPress,
   isDark,
-}) => {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.85}
+}) => (
+  <TouchableOpacity
+    onPress={onPress}
+    activeOpacity={0.85}
+    style={[
+      styles.roleCard,
+      {
+        backgroundColor: active
+          ? isDark
+            ? '#16331D'
+            : '#F0F8F1'
+          : isDark
+          ? '#252535'
+          : WHITE,
+
+        borderColor: active
+          ? GREEN
+          : isDark
+          ? '#3A3A4B'
+          : '#E1E9E2',
+      },
+    ]}
+  >
+    <View
       style={[
-        styles.roleCard,
+        styles.roleIcon,
         {
           backgroundColor: active
-            ? THEME_GREEN + '08'
+            ? isDark
+              ? '#204A29'
+              : '#E2F2E4'
             : isDark
-            ? '#252535'
-            : WHITE,
-
-          borderColor: active
-            ? THEME_GREEN
-            : isDark
-            ? '#374151'
-            : '#E5E7EB',
+            ? '#303044'
+            : '#F4F6F4',
         },
       ]}
     >
-      <View
+      <Ionicons
+        name={icon}
+        size={21}
+        color={
+          active
+            ? GREEN
+            : '#8A948C'
+        }
+      />
+    </View>
+
+    <View
+      style={styles.roleInfo}
+    >
+      <Text
         style={[
-          styles.roleIcon,
+          styles.roleTitle,
           {
-            backgroundColor: active
-              ? THEME_GREEN + '14'
-              : isDark
-              ? '#303044'
-              : '#F3F4F6',
+            color: isDark
+              ? WHITE
+              : '#17201A',
           },
         ]}
       >
-        <Ionicons
-          name={icon}
-          size={23}
-          color={
-            active
-              ? THEME_GREEN
-              : '#9CA3AF'
-          }
+        {title}
+      </Text>
+
+      <Text
+        style={[
+          styles.roleDescription,
+          {
+            color: isDark
+              ? '#9CA3AF'
+              : '#66736A',
+          },
+        ]}
+      >
+        {description}
+      </Text>
+    </View>
+
+    <View
+      style={[
+        styles.radio,
+        {
+          borderColor: active
+            ? GREEN
+            : '#D1D5DB',
+        },
+      ]}
+    >
+      {active ? (
+        <View
+          style={styles.radioInner}
         />
-      </View>
-
-      <View style={styles.roleInfo}>
-        <Text
-          style={[
-            styles.roleTitle,
-            {
-              color: isDark
-                ? WHITE
-                : '#111827',
-            },
-          ]}
-        >
-          {title}
-        </Text>
-
-        <Text
-          style={[
-            styles.roleDescription,
-            {
-              color: isDark
-                ? '#9CA3AF'
-                : '#6B7280',
-            },
-          ]}
-        >
-          {description}
-        </Text>
-      </View>
-
-      <View
-        style={[
-          styles.radio,
-          {
-            borderColor: active
-              ? THEME_GREEN
-              : '#D1D5DB',
-          },
-        ]}
-      >
-        {active && (
-          <View
-            style={[
-              styles.radioInner,
-              {
-                backgroundColor:
-                  THEME_GREEN,
-              },
-            ]}
-          />
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-};
+      ) : null}
+    </View>
+  </TouchableOpacity>
+);
 
 // ============================================================
-// MAIN SCREEN
+// MAIN
 // ============================================================
 
 const RegisterScreen = ({
   navigation,
 }) => {
-  const window = useWindowDimensions();
+  const window =
+    useWindowDimensions();
 
-  const screenWidth =
+  const width =
     window?.width ||
     Dimensions.get('window').width;
 
-  const screenHeight =
+  const height =
     window?.height ||
     Dimensions.get('window').height;
 
-  // ==========================================================
-  // RESPONSIVE MODE
-  // ==========================================================
-
   const isDesktop =
-    isWeb &&
-    screenWidth >= DESKTOP_BREAKPOINT;
+    Platform.OS === 'web' &&
+    width >= DESKTOP_BREAKPOINT;
+
+  const isTablet =
+    width >= TABLET_BREAKPOINT &&
+    width < DESKTOP_BREAKPOINT;
+
+  const isSmallPhone =
+    width <= 380;
 
   const isMobileLayout =
     !isDesktop;
 
-  const isVerySmall =
-    screenWidth <= 380;
+  const { register } =
+    useAuth();
 
-  const isTabletWeb =
-    isWeb &&
-    screenWidth >= 600 &&
-    screenWidth < DESKTOP_BREAKPOINT;
-
-  // ==========================================================
-  // FORM STATE
-  // ==========================================================
+  const { isDark } =
+    useTheme();
 
   const [formData, setFormData] =
     useState({
@@ -823,87 +849,87 @@ const RegisterScreen = ({
       message: '',
     });
 
-  const [keyboardVisible, setKeyboardVisible] =
-    useState(false);
+  const [
+    keyboardVisible,
+    setKeyboardVisible,
+  ] = useState(false);
 
   const [currentStep, setCurrentStep] =
     useState(0);
 
-  const { register } = useAuth();
-  const { isDark } = useTheme();
+  const fadeAnim =
+    useRef(
+      new Animated.Value(0)
+    ).current;
 
-  // ==========================================================
-  // ANIMATION
-  // ==========================================================
-
-  const fadeAnim = useRef(
-    new Animated.Value(0)
-  ).current;
-
-  const slideAnim = useRef(
-    new Animated.Value(25)
-  ).current;
+  const slideAnim =
+    useRef(
+      new Animated.Value(22)
+    ).current;
 
   const toastTimer =
     useRef(null);
 
-  // ==========================================================
-  // SCROLL REFS
-  // ==========================================================
-
-  const mobileScrollRef =
+  const scrollRef =
     useRef(null);
 
-  const desktopScrollRef =
+  const fullnameRef =
+    useRef(null);
+
+  const emailRef =
+    useRef(null);
+
+  const phoneRef =
+    useRef(null);
+
+  const passwordRef =
+    useRef(null);
+
+  const confirmPasswordRef =
     useRef(null);
 
   // ==========================================================
-  // INPUT REFS
-  // ==========================================================
-
-  const fullnameRef = useRef(null);
-  const emailRef = useRef(null);
-  const phoneRef = useRef(null);
-  const passwordRef = useRef(null);
-  const confirmPasswordRef = useRef(null);
-
-  // ==========================================================
-  // SCREEN ANIMATION
+  // ANIMATION
   // ==========================================================
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 550,
+        duration: 450,
         useNativeDriver: true,
       }),
 
       Animated.spring(slideAnim, {
         toValue: 0,
         friction: 8,
-        tension: 45,
+        tension: 55,
         useNativeDriver: true,
       }),
     ]).start();
 
     return () => {
       if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
+        clearTimeout(
+          toastTimer.current
+        );
       }
     };
-  }, []);
+  }, [
+    fadeAnim,
+    slideAnim,
+  ]);
 
   // ==========================================================
   // KEYBOARD
   // ==========================================================
 
   useEffect(() => {
-    if (!isAndroid && !isWeb) {
+    if (Platform.OS === 'web') {
       return undefined;
     }
 
-    const showSubscription =
+    const showSub =
       Keyboard.addListener(
         'keyboardDidShow',
         () => {
@@ -911,7 +937,7 @@ const RegisterScreen = ({
         }
       );
 
-    const hideSubscription =
+    const hideSub =
       Keyboard.addListener(
         'keyboardDidHide',
         () => {
@@ -920,8 +946,8 @@ const RegisterScreen = ({
       );
 
     return () => {
-      showSubscription.remove();
-      hideSubscription.remove();
+      showSub.remove();
+      hideSub.remove();
     };
   }, []);
 
@@ -932,7 +958,9 @@ const RegisterScreen = ({
   const showToast = useCallback(
     (type, message) => {
       if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
+        clearTimeout(
+          toastTimer.current
+        );
       }
 
       setToast({
@@ -955,7 +983,9 @@ const RegisterScreen = ({
   const dismissToast =
     useCallback(() => {
       if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
+        clearTimeout(
+          toastTimer.current
+        );
       }
 
       setToast(prev => ({
@@ -965,352 +995,383 @@ const RegisterScreen = ({
     }, []);
 
   // ==========================================================
-  // SCROLL TO INPUT
-  // ==========================================================
-
-  const scrollToInput = useCallback(
-    inputRef => {
-      if (
-        !inputRef?.current ||
-        !isMobileLayout
-      ) {
-        return;
-      }
-
-      const scrollView =
-        mobileScrollRef.current;
-
-      if (!scrollView) {
-        return;
-      }
-
-      InteractionManager.runAfterInteractions(
-        () => {
-          setTimeout(() => {
-            try {
-              const responder =
-                scrollView.getScrollResponder?.();
-
-              if (
-                responder &&
-                responder.scrollResponderScrollNativeHandleToKeyboard
-              ) {
-                responder.scrollResponderScrollNativeHandleToKeyboard(
-                  inputRef.current,
-                  isAndroid ? 100 : 80,
-                  true
-                );
-
-                return;
-              }
-
-              if (isWeb) {
-                try {
-                  inputRef.current?.measureInWindow?.(
-                    (x, y, width, height) => {
-                      const visibleHeight =
-                        screenHeight * 0.72;
-
-                      if (
-                        y + height >
-                        visibleHeight
-                      ) {
-                        scrollView.scrollTo({
-                          y: Math.max(
-                            0,
-                            y -
-                              visibleHeight +
-                              height +
-                              80
-                          ),
-                          animated: true,
-                        });
-                      }
-                    }
-                  );
-                } catch (e) {
-                  // Ignore fallback error.
-                }
-              }
-            } catch (error) {
-              console.log(
-                'Scroll input error:',
-                error
-              );
-            }
-          }, 120);
-        }
-      );
-    },
-    [
-      isMobileLayout,
-      screenHeight,
-    ]
-  );
-
-  // ==========================================================
-  // FIELD FOCUS
-  // ==========================================================
-
-  const handleFieldFocus =
-    useCallback(
-      inputRef => {
-        if (isMobileLayout) {
-          scrollToInput(inputRef);
-        }
-      },
-      [
-        isMobileLayout,
-        scrollToInput,
-      ]
-    );
-
-  // ==========================================================
-  // VALIDATE FIELD
-  // ==========================================================
-
-  const validateField = useCallback(
-    (
-      field,
-      value,
-      passwordValue = formData.password
-    ) => {
-      let message = '';
-
-      switch (field) {
-        case 'fullname':
-          if (!value.trim()) {
-            message =
-              'Le nom complet est requis.';
-          } else if (
-            value.trim().length < 2
-          ) {
-            message =
-              'Le nom doit contenir au moins 2 caractères.';
-          }
-          break;
-
-        case 'email': {
-          const emailRegex =
-            /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-          if (!value.trim()) {
-            message =
-              "L'adresse email est requise.";
-          } else if (
-            !emailRegex.test(
-              value.trim()
-            )
-          ) {
-            message =
-              'Veuillez saisir une adresse email valide.';
-          }
-
-          break;
-        }
-
-        case 'phone': {
-          const cleanPhone =
-            value.replace(/\s/g, '');
-
-          if (!cleanPhone) {
-            message =
-              'Le numéro de téléphone est requis.';
-          } else if (
-            !/^[0-9+()-]{8,15}$/.test(
-              cleanPhone
-            )
-          ) {
-            message =
-              'Veuillez saisir un numéro valide.';
-          }
-
-          break;
-        }
-
-        case 'password':
-          if (!value) {
-            message =
-              'Le mot de passe est requis.';
-          } else if (
-            value.length < 8
-          ) {
-            message =
-              'Le mot de passe doit contenir au moins 8 caractères.';
-          }
-          break;
-
-        case 'confirmPassword':
-          if (!value) {
-            message =
-              'Veuillez confirmer votre mot de passe.';
-          } else if (
-            value !== passwordValue
-          ) {
-            message =
-              'Les mots de passe ne correspondent pas.';
-          }
-          break;
-
-        default:
-          break;
-      }
-
-      setErrors(prev => {
-        const next = { ...prev };
-
-        if (message) {
-          next[field] = message;
-        } else {
-          delete next[field];
-        }
-
-        return next;
-      });
-
-      return !message;
-    },
-    [formData.password]
-  );
-
-  // ==========================================================
   // UPDATE FIELD
   // ==========================================================
 
-  const updateField = useCallback(
-    (field, value) => {
-      setFormData(prev => ({
-        ...prev,
-        [field]: value,
-      }));
+  const updateField =
+    useCallback(
+      (field, value) => {
+        setFormData(prev => ({
+          ...prev,
+          [field]: value,
+        }));
 
-      setErrors(prev => {
-        if (!prev[field]) {
-          return prev;
+        setErrors(prev => {
+          if (!prev[field]) {
+            return prev;
+          }
+
+          const next = {
+            ...prev,
+          };
+
+          delete next[field];
+
+          return next;
+        });
+      },
+      []
+    );
+
+  // ==========================================================
+  // VALIDATION
+  // ==========================================================
+
+  const getFieldError =
+    useCallback(
+      (
+        field,
+        value,
+        passwordValue = formData.password
+      ) => {
+        const clean =
+          String(value ?? '');
+
+        switch (field) {
+          case 'fullname':
+            if (!clean.trim()) {
+              return 'Le nom complet est requis.';
+            }
+
+            if (
+              clean.trim().length < 2
+            ) {
+              return 'Le nom doit contenir au moins 2 caractères.';
+            }
+
+            return '';
+
+          case 'email': {
+            const emailRegex =
+              /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (!clean.trim()) {
+              return "L'adresse email est requise.";
+            }
+
+            if (
+              !emailRegex.test(
+                clean.trim()
+              )
+            ) {
+              return 'Veuillez saisir une adresse email valide.';
+            }
+
+            return '';
+          }
+
+          case 'phone': {
+            const phone =
+              clean.replace(
+                /\s/g,
+                ''
+              );
+
+            if (!phone) {
+              return 'Le numéro de téléphone est requis.';
+            }
+
+            if (
+              !/^[0-9+()-]{8,15}$/.test(
+                phone
+              )
+            ) {
+              return 'Veuillez saisir un numéro de téléphone valide.';
+            }
+
+            return '';
+          }
+
+          case 'password':
+            if (!clean) {
+              return 'Le mot de passe est requis.';
+            }
+
+            if (clean.length < 8) {
+              return 'Le mot de passe doit contenir au moins 8 caractères.';
+            }
+
+            return '';
+
+          case 'confirmPassword':
+            if (!clean) {
+              return 'Veuillez confirmer votre mot de passe.';
+            }
+
+            if (
+              clean !== passwordValue
+            ) {
+              return 'Les mots de passe ne correspondent pas.';
+            }
+
+            return '';
+
+          default:
+            return '';
         }
+      },
+      [formData.password]
+    );
 
-        const next = { ...prev };
-        delete next[field];
+  const validateField =
+    useCallback(
+      (
+        field,
+        value,
+        passwordValue = formData.password
+      ) => {
+        const message =
+          getFieldError(
+            field,
+            value,
+            passwordValue
+          );
 
-        return next;
-      });
-    },
-    []
-  );
+        setErrors(prev => {
+          const next = {
+            ...prev,
+          };
 
-  // ==========================================================
-  // VALIDATE FORM
-  // ==========================================================
+          if (message) {
+            next[field] = message;
+          } else {
+            delete next[field];
+          }
+
+          return next;
+        });
+
+        return !message;
+      },
+      [
+        formData.password,
+        getFieldError,
+      ]
+    );
 
   const validateForm =
     useCallback(() => {
       const newErrors = {};
 
-      const fullname =
-        formData.fullname;
+      const fields = [
+        [
+          'fullname',
+          formData.fullname,
+        ],
+        [
+          'email',
+          formData.email,
+        ],
+        [
+          'phone',
+          formData.phone,
+        ],
+        [
+          'password',
+          formData.password,
+        ],
+        [
+          'confirmPassword',
+          formData.confirmPassword,
+        ],
+      ];
 
-      const email =
-        formData.email;
+      fields.forEach(
+        ([field, value]) => {
+          const error =
+            getFieldError(
+              field,
+              value,
+              formData.password
+            );
 
-      const phone =
-        formData.phone;
-
-      const password =
-        formData.password;
-
-      const confirmPassword =
-        formData.confirmPassword;
-
-      // FULLNAME
-      if (!fullname.trim()) {
-        newErrors.fullname =
-          'Le nom complet est requis.';
-      } else if (
-        fullname.trim().length < 2
-      ) {
-        newErrors.fullname =
-          'Le nom doit contenir au moins 2 caractères.';
-      }
-
-      // EMAIL
-      const emailRegex =
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-      if (!email.trim()) {
-        newErrors.email =
-          "L'adresse email est requise.";
-      } else if (
-        !emailRegex.test(
-          email.trim()
-        )
-      ) {
-        newErrors.email =
-          'Veuillez saisir une adresse email valide.';
-      }
-
-      // PHONE
-      const cleanPhone =
-        phone.replace(/\s/g, '');
-
-      if (!cleanPhone) {
-        newErrors.phone =
-          'Le numéro de téléphone est requis.';
-      } else if (
-        !/^[0-9+()-]{8,15}$/.test(
-          cleanPhone
-        )
-      ) {
-        newErrors.phone =
-          'Veuillez saisir un numéro valide.';
-      }
-
-      // PASSWORD
-      if (!password) {
-        newErrors.password =
-          'Le mot de passe est requis.';
-      } else if (
-        password.length < 8
-      ) {
-        newErrors.password =
-          'Le mot de passe doit contenir au moins 8 caractères.';
-      }
-
-      // CONFIRM PASSWORD
-      if (!confirmPassword) {
-        newErrors.confirmPassword =
-          'Veuillez confirmer votre mot de passe.';
-      } else if (
-        confirmPassword !== password
-      ) {
-        newErrors.confirmPassword =
-          'Les mots de passe ne correspondent pas.';
-      }
+          if (error) {
+            newErrors[field] =
+              error;
+          }
+        }
+      );
 
       setErrors(newErrors);
 
       return (
-        Object.keys(newErrors).length === 0
+        Object.keys(
+          newErrors
+        ).length === 0
       );
-    }, [formData]);
+    }, [
+      formData,
+      getFieldError,
+    ]);
 
   // ==========================================================
-  // SCROLL TO TOP
+  // SCROLL
   // ==========================================================
+
+  const scrollToInput =
+    useCallback(
+      inputRef => {
+        if (
+          !isMobileLayout ||
+          !inputRef?.current
+        ) {
+          return;
+        }
+
+        InteractionManager.runAfterInteractions(
+          () => {
+            setTimeout(() => {
+              try {
+                const scrollView =
+                  scrollRef.current;
+
+                if (!scrollView) {
+                  return;
+                }
+
+                const responder =
+                  scrollView.getScrollResponder?.();
+
+                if (
+                  responder &&
+                  responder.scrollResponderScrollNativeHandleToKeyboard
+                ) {
+                  responder.scrollResponderScrollNativeHandleToKeyboard(
+                    inputRef.current,
+                    Platform.OS ===
+                      'android'
+                      ? 180
+                      : 90,
+                    true
+                  );
+
+                  return;
+                }
+
+                if (
+                  Platform.OS ===
+                  'web'
+                ) {
+                  inputRef.current?.measureInWindow?.(
+                    (
+                      x,
+                      y,
+                      inputWidth,
+                      inputHeight
+                    ) => {
+                      const visibleHeight =
+                        Math.max(
+                          300,
+                          height - 100
+                        );
+
+                      if (
+                        y +
+                          inputHeight >
+                        visibleHeight
+                      ) {
+                        scrollView.scrollTo(
+                          {
+                            y: Math.max(
+                              0,
+                              y -
+                                visibleHeight +
+                                inputHeight +
+                                100
+                            ),
+                            animated:
+                              true,
+                          }
+                        );
+                      }
+                    }
+                  );
+                }
+              } catch (error) {
+                console.log(
+                  'Scroll input error:',
+                  error
+                );
+              }
+            }, 120);
+          }
+        );
+      },
+      [
+        height,
+        isMobileLayout,
+      ]
+    );
+
+  const focusField =
+    useCallback(
+      ref => {
+        ref?.current?.focus?.();
+        scrollToInput(ref);
+      },
+      [scrollToInput]
+    );
 
   const scrollToTop =
     useCallback(() => {
-      if (isMobileLayout) {
-        mobileScrollRef.current?.scrollTo({
-          y: 0,
-          animated: true,
-        });
-      } else {
-        desktopScrollRef.current?.scrollTo({
-          y: 0,
-          animated: true,
-        });
-      }
-    }, [isMobileLayout]);
+      scrollRef.current?.scrollTo({
+        y: 0,
+        animated: true,
+      });
+    }, []);
+
+  const scrollToFirstError =
+    useCallback(
+      errorObject => {
+        const first =
+          Object.keys(
+            errorObject
+          )[0];
+
+        const refs = {
+          fullname:
+            fullnameRef,
+          email:
+            emailRef,
+          phone:
+            phoneRef,
+          password:
+            passwordRef,
+          confirmPassword:
+            confirmPasswordRef,
+        };
+
+        const ref =
+          refs[first];
+
+        if (
+          ref?.current &&
+          isMobileLayout
+        ) {
+          setTimeout(() => {
+            scrollToInput(ref);
+            ref.current?.focus?.();
+          }, 180);
+        } else {
+          scrollToTop();
+        }
+      },
+      [
+        isMobileLayout,
+        scrollToInput,
+        scrollToTop,
+      ]
+    );
 
   // ==========================================================
   // REGISTER
@@ -1320,15 +1381,56 @@ const RegisterScreen = ({
     async () => {
       Keyboard.dismiss();
 
-      if (!validateForm()) {
+      const valid =
+        validateForm();
+
+      if (!valid) {
         showToast(
           'error',
           'Veuillez corriger les informations indiquées avant de continuer.'
         );
 
         setTimeout(() => {
-          scrollToTop();
-        }, 150);
+          const errorObject =
+            Object.fromEntries(
+              Object.entries(
+                formData
+              )
+                .filter(
+                  ([key]) =>
+                    [
+                      'fullname',
+                      'email',
+                      'phone',
+                      'password',
+                      'confirmPassword',
+                    ].includes(
+                      key
+                    )
+                )
+                .map(
+                  ([
+                    key,
+                    value,
+                  ]) => [
+                    key,
+                    getFieldError(
+                      key,
+                      value,
+                      formData.password
+                    ),
+                  ]
+                )
+                .filter(
+                  ([, error]) =>
+                    error
+                )
+            );
+
+          scrollToFirstError(
+            errorObject
+          );
+        }, 120);
 
         return;
       }
@@ -1358,7 +1460,7 @@ const RegisterScreen = ({
               formData.role,
           });
 
-        if (result.success) {
+        if (result?.success) {
           setCurrentStep(2);
 
           showToast(
@@ -1376,7 +1478,8 @@ const RegisterScreen = ({
                     .toLowerCase(),
 
                 fullname:
-                  formData.fullname.trim(),
+                  formData.fullname
+                    .trim(),
               }
             );
           }, 1300);
@@ -1385,7 +1488,7 @@ const RegisterScreen = ({
 
           showToast(
             'error',
-            result.error ||
+            result?.error ||
               "Impossible de créer votre compte. Veuillez réessayer."
           );
         }
@@ -1407,101 +1510,127 @@ const RegisterScreen = ({
     };
 
   // ==========================================================
-  // FORM
+  // FORMULAIRE
   // ==========================================================
 
   const renderForm = () => (
     <Animated.View
       style={[
         styles.formCard,
+
         isDesktop &&
           styles.formCardDesktop,
-        isTabletWeb &&
+
+        isTablet &&
           styles.formCardTablet,
-        isVerySmall &&
+
+        isSmallPhone &&
           styles.formCardSmall,
+
         {
-          backgroundColor: isDark
-            ? '#1E1E2E'
-            : WHITE,
+          // ==================================================
+          // IMPORTANT :
+          // Le formulaire prend maintenant le même fond
+          // que l'extérieur.
+          // ==================================================
+          backgroundColor:
+            isDark
+              ? DARK_BACKGROUND
+              : LIGHT_BACKGROUND,
 
           opacity: fadeAnim,
 
           transform: [
             {
-              translateY: slideAnim,
+              translateY:
+                slideAnim,
             },
           ],
         },
       ]}
     >
-      {/* ====================================================
-          HEADER
-      ==================================================== */}
+      {/* HEADER FORMULAIRE */}
 
-      <View style={styles.formHeader}>
+      <View
+        style={styles.formIntro}
+      >
         <View
           style={[
-            styles.formHeaderIcon,
+            styles.formIcon,
             {
-              backgroundColor: isDark
-                ? '#252535'
-                : '#F0F7F0',
+              backgroundColor:
+                isDark
+                  ? '#263C2A'
+                  : GREEN_LIGHT,
             },
           ]}
         >
           <Ionicons
             name="person-add-outline"
-            size={24}
-            color={THEME_GREEN}
+            size={23}
+            color={GREEN}
           />
         </View>
 
-        <Text
-          style={[
-            styles.formTitle,
-            isVerySmall &&
-              styles.formTitleSmall,
-            {
-              color: isDark
-                ? WHITE
-                : '#111827',
-            },
-          ]}
+        <View
+          style={
+            styles.formIntroText
+          }
         >
-          Créer votre compte
-        </Text>
+          <Text
+            style={[
+              styles.formTitle,
 
-        <Text
-          style={[
-            styles.formDescription,
-            {
-              color: isDark
-                ? '#9CA3AF'
-                : '#6B7280',
-            },
-          ]}
-        >
-          Quelques informations suffisent
-          pour commencer votre expérience
-          bien-être.
-        </Text>
+              isSmallPhone &&
+                styles.formTitleSmall,
+
+              {
+                color:
+                  isDark
+                    ? WHITE
+                    : '#17201A',
+              },
+            ]}
+          >
+            Créer votre compte
+          </Text>
+
+          <Text
+            style={[
+              styles.formDescription,
+              {
+                color:
+                  isDark
+                    ? '#9CA3AF'
+                    : '#66736A',
+              },
+            ]}
+          >
+            Inscrivez-vous en quelques secondes.
+          </Text>
+        </View>
       </View>
 
-      {/* STEPS */}
+      {/* ETAPES */}
 
       <StepsIndicator
-        currentStep={currentStep}
+        currentStep={
+          currentStep
+        }
         isDark={isDark}
       />
 
-      {/* FULL NAME */}
+      {/* NOM */}
 
       <Field
-        inputRef={fullnameRef}
+        inputRef={
+          fullnameRef
+        }
         label="Nom complet"
         icon="person-outline"
-        value={formData.fullname}
+        value={
+          formData.fullname
+        }
         onChangeText={text =>
           updateField(
             'fullname',
@@ -1509,9 +1638,11 @@ const RegisterScreen = ({
           )
         }
         placeholder="Ex. Jean Rakoto"
-        error={errors.fullname}
+        error={
+          errors.fullname
+        }
         onFocus={() =>
-          handleFieldFocus(
+          scrollToInput(
             fullnameRef
           )
         }
@@ -1524,17 +1655,23 @@ const RegisterScreen = ({
         isDark={isDark}
         returnKeyType="next"
         onSubmitEditing={() =>
-          emailRef.current?.focus()
+          focusField(
+            emailRef
+          )
         }
       />
 
       {/* EMAIL */}
 
       <Field
-        inputRef={emailRef}
+        inputRef={
+          emailRef
+        }
         label="Adresse email"
         icon="mail-outline"
-        value={formData.email}
+        value={
+          formData.email
+        }
         onChangeText={text =>
           updateField(
             'email',
@@ -1542,9 +1679,11 @@ const RegisterScreen = ({
           )
         }
         placeholder="exemple@email.com"
-        error={errors.email}
+        error={
+          errors.email
+        }
         onFocus={() =>
-          handleFieldFocus(
+          scrollToInput(
             emailRef
           )
         }
@@ -1559,17 +1698,23 @@ const RegisterScreen = ({
         autoCapitalize="none"
         returnKeyType="next"
         onSubmitEditing={() =>
-          phoneRef.current?.focus()
+          focusField(
+            phoneRef
+          )
         }
       />
 
-      {/* PHONE */}
+      {/* TELEPHONE */}
 
       <Field
-        inputRef={phoneRef}
+        inputRef={
+          phoneRef
+        }
         label="Numéro de téléphone"
         icon="call-outline"
-        value={formData.phone}
+        value={
+          formData.phone
+        }
         onChangeText={text =>
           updateField(
             'phone',
@@ -1577,9 +1722,11 @@ const RegisterScreen = ({
           )
         }
         placeholder="034 00 000 00"
-        error={errors.phone}
+        error={
+          errors.phone
+        }
         onFocus={() =>
-          handleFieldFocus(
+          scrollToInput(
             phoneRef
           )
         }
@@ -1593,17 +1740,23 @@ const RegisterScreen = ({
         keyboardType="phone-pad"
         returnKeyType="next"
         onSubmitEditing={() =>
-          passwordRef.current?.focus()
+          focusField(
+            passwordRef
+          )
         }
       />
 
       {/* PASSWORD */}
 
       <Field
-        inputRef={passwordRef}
+        inputRef={
+          passwordRef
+        }
         label="Mot de passe"
         icon="lock-closed-outline"
-        value={formData.password}
+        value={
+          formData.password
+        }
         onChangeText={text =>
           updateField(
             'password',
@@ -1611,9 +1764,11 @@ const RegisterScreen = ({
           )
         }
         placeholder="Minimum 8 caractères"
-        error={errors.password}
+        error={
+          errors.password
+        }
         onFocus={() =>
-          handleFieldFocus(
+          scrollToInput(
             passwordRef
           )
         }
@@ -1624,7 +1779,9 @@ const RegisterScreen = ({
           )
         }
         isDark={isDark}
-        secureTextEntry={!showPassword}
+        secureTextEntry={
+          !showPassword
+        }
         onToggleSecure={() =>
           setShowPassword(
             prev => !prev
@@ -1632,22 +1789,30 @@ const RegisterScreen = ({
         }
         returnKeyType="next"
         onSubmitEditing={() =>
-          confirmPasswordRef.current?.focus()
+          focusField(
+            confirmPasswordRef
+          )
         }
       />
 
       <PasswordStrength
-        password={formData.password}
+        password={
+          formData.password
+        }
         isDark={isDark}
       />
 
-      {/* CONFIRM PASSWORD */}
+      {/* CONFIRMATION */}
 
       <Field
-        inputRef={confirmPasswordRef}
+        inputRef={
+          confirmPasswordRef
+        }
         label="Confirmer le mot de passe"
         icon="shield-checkmark-outline"
-        value={formData.confirmPassword}
+        value={
+          formData.confirmPassword
+        }
         onChangeText={text =>
           updateField(
             'confirmPassword',
@@ -1655,9 +1820,11 @@ const RegisterScreen = ({
           )
         }
         placeholder="Saisissez à nouveau votre mot de passe"
-        error={errors.confirmPassword}
+        error={
+          errors.confirmPassword
+        }
         onFocus={() =>
-          handleFieldFocus(
+          scrollToInput(
             confirmPasswordRef
           )
         }
@@ -1683,17 +1850,24 @@ const RegisterScreen = ({
         }
       />
 
-      {/* ROLE */}
+      {/* TYPE COMPTE */}
 
-      <View style={styles.roleSection}>
-        <View style={styles.sectionHeader}>
+      <View
+        style={styles.roleSection}
+      >
+        <View
+          style={
+            styles.sectionHeader
+          }
+        >
           <Text
             style={[
               styles.sectionTitle,
               {
-                color: isDark
-                  ? '#E5E7EB'
-                  : '#1F2937',
+                color:
+                  isDark
+                    ? '#E5E7EB'
+                    : '#1F2937',
               },
             ]}
           >
@@ -1704,9 +1878,10 @@ const RegisterScreen = ({
             style={[
               styles.sectionHint,
               {
-                color: isDark
-                  ? '#6B7280'
-                  : '#9CA3AF',
+                color:
+                  isDark
+                    ? '#6B7280'
+                    : '#8A948C',
               },
             ]}
           >
@@ -1718,7 +1893,7 @@ const RegisterScreen = ({
           style={[
             styles.roleList,
             isDesktop &&
-              styles.roleListWeb,
+              styles.roleListDesktop,
           ]}
         >
           <RoleCard
@@ -1728,7 +1903,7 @@ const RegisterScreen = ({
             }
             icon="person-outline"
             title="Client"
-            description="Je souhaite réserver un massage"
+            description="Réserver un massage"
             onPress={() =>
               updateField(
                 'role',
@@ -1743,9 +1918,9 @@ const RegisterScreen = ({
               formData.role ===
               'THERAPIST'
             }
-            icon="medical-outline"
+            icon="medkit-outline"
             title="Thérapeute"
-            description="Je propose mes services de massage"
+            description="Proposer mes services"
             onPress={() =>
               updateField(
                 'role',
@@ -1757,7 +1932,7 @@ const RegisterScreen = ({
         </View>
       </View>
 
-      {/* CTA */}
+      {/* BOUTON CREATION */}
 
       <TouchableOpacity
         style={[
@@ -1765,12 +1940,18 @@ const RegisterScreen = ({
           isLoading &&
             styles.registerButtonDisabled,
         ]}
-        onPress={handleRegister}
-        disabled={isLoading}
+        onPress={
+          handleRegister
+        }
+        disabled={
+          isLoading
+        }
         activeOpacity={0.88}
       >
         <View
-          style={styles.registerGradient}
+          style={
+            styles.registerButtonInner
+          }
         >
           {isLoading ? (
             <>
@@ -1797,48 +1978,46 @@ const RegisterScreen = ({
                 Créer mon compte
               </Text>
 
-              <View
-                style={styles.buttonIcon}
-              >
-                <Ionicons
-                  name="arrow-forward"
-                  size={18}
-                  color={WHITE}
-                />
-              </View>
+              <Ionicons
+                name="arrow-forward"
+                size={18}
+                color={WHITE}
+              />
             </>
           )}
         </View>
       </TouchableOpacity>
 
-      {/* TERMS */}
+      {/* CONDITIONS */}
 
       <Text
         style={[
-          styles.termsText,
+          styles.terms,
           {
-            color: isDark
-              ? '#6B7280'
-              : '#9CA3AF',
+            color:
+              isDark
+                ? '#6B7280'
+                : '#8A948C',
           },
         ]}
       >
-        En créant votre compte, vous
-        acceptez nos conditions
-        d'utilisation et notre politique
-        de confidentialité.
+        En créant votre compte, vous acceptez nos conditions
+        d'utilisation et notre politique de confidentialité.
       </Text>
 
       {/* LOGIN */}
 
-      <View style={styles.loginContainer}>
+      <View
+        style={styles.loginRow}
+      >
         <Text
           style={[
             styles.loginText,
             {
-              color: isDark
-                ? '#9CA3AF'
-                : '#6B7280',
+              color:
+                isDark
+                  ? '#9CA3AF'
+                  : '#66736A',
             },
           ]}
         >
@@ -1852,17 +2031,21 @@ const RegisterScreen = ({
             )
           }
           style={
-            styles.loginButtonLink
+            styles.loginLinkButton
           }
         >
-          <Text style={styles.loginLink}>
+          <Text
+            style={
+              styles.loginLink
+            }
+          >
             Se connecter
           </Text>
 
           <Ionicons
             name="arrow-forward"
             size={14}
-            color={THEME_GREEN}
+            color={GREEN}
           />
         </TouchableOpacity>
       </View>
@@ -1870,125 +2053,241 @@ const RegisterScreen = ({
   );
 
   // ==========================================================
-  // MOBILE / TABLET WEB
+  // MOBILE
   // ==========================================================
 
-  const renderMobile = () => (
-    <KeyboardAvoidingView
-      behavior={
-        isIOS
-          ? 'padding'
-          : isAndroid
-          ? 'height'
-          : undefined
-      }
-      keyboardVerticalOffset={
-        isIOS ? 0 : 0
-      }
-      style={[
-        styles.keyboardView,
-        {
-          backgroundColor: isDark
-            ? '#121212'
-            : '#F8FAFC',
-        },
-      ]}
-    >
-      <TouchableWithoutFeedback
-        onPress={Keyboard.dismiss}
-        accessible={false}
+  const renderMobile =
+    () => (
+      <KeyboardAvoidingView
+        style={[
+          styles.mobileKeyboard,
+          {
+            backgroundColor:
+              isDark
+                ? DARK_BACKGROUND
+                : LIGHT_BACKGROUND,
+          },
+        ]}
+        behavior={
+          Platform.OS ===
+          'ios'
+            ? 'padding'
+            : Platform.OS ===
+              'android'
+            ? 'height'
+            : undefined
+        }
+        keyboardVerticalOffset={
+          Platform.OS ===
+          'ios'
+            ? 0
+            : Platform.OS ===
+              'android'
+            ? 24
+            : 0
+        }
       >
-        <ScrollView
-          ref={mobileScrollRef}
-          style={[
-            styles.mobileScrollView,
-            {
-              backgroundColor: isDark
-                ? '#121212'
-                : '#F8FAFC',
-            },
-          ]}
-          contentContainerStyle={[
-            styles.mobileScroll,
-            isTabletWeb &&
-              styles.mobileScrollTablet,
-            {
-              paddingBottom:
-                keyboardVisible
-                  ? 300
-                  : isVerySmall
-                  ? 35
-                  : 50,
-            },
-          ]}
-          showsVerticalScrollIndicator={
-            false
+        <TouchableWithoutFeedback
+          onPress={
+            Keyboard.dismiss
           }
-          keyboardShouldPersistTaps="always"
-          keyboardDismissMode={
-            isIOS
-              ? 'interactive'
-              : 'on-drag'
-          }
-          nestedScrollEnabled
-          removeClippedSubviews={false}
-          scrollEventThrottle={16}
-          bounces
+          accessible={false}
         >
-          {/* ==================================================
-              MOBILE HEADER
-          ================================================== */}
-
-          <View
+          <ScrollView
+            ref={scrollRef}
             style={[
-              styles.mobileHeader,
-              isVerySmall &&
-                styles.mobileHeaderSmall,
-              isTabletWeb &&
-                styles.mobileHeaderTablet,
+              styles.mobileScroll,
+              {
+                backgroundColor:
+                  isDark
+                    ? DARK_BACKGROUND
+                    : LIGHT_BACKGROUND,
+              },
             ]}
+            contentContainerStyle={[
+              styles.mobileContent,
+
+              isTablet &&
+                styles.mobileContentTablet,
+
+              {
+                paddingBottom:
+                  keyboardVisible
+                    ? Platform.OS ===
+                      'android'
+                      ? 500
+                      : 320
+                    : 70,
+              },
+            ]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={
+              Platform.OS ===
+              'ios'
+                ? 'interactive'
+                : 'on-drag'
+            }
+            showsVerticalScrollIndicator={
+              false
+            }
+            nestedScrollEnabled
+            removeClippedSubviews={
+              false
+            }
+            automaticallyAdjustContentInsets={
+              false
+            }
+            contentInsetAdjustmentBehavior="automatic"
+            scrollEventThrottle={16}
+            bounces
           >
-            <TouchableOpacity
-              onPress={() =>
-                navigation.goBack()
-              }
-              style={
-                styles.mobileBackButton
-              }
-              hitSlop={{
-                top: 10,
-                bottom: 10,
-                left: 10,
-                right: 10,
-              }}
-            >
-              <Ionicons
-                name="arrow-back"
-                size={23}
-                color={WHITE}
-              />
-            </TouchableOpacity>
+            {/* HEADER MOBILE */}
 
             <View
               style={
-                styles.mobileBrandRow
+                styles.mobileHeader
+              }
+            >
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.goBack()
+                }
+                style={
+                  styles.backButton
+                }
+                hitSlop={{
+                  top: 10,
+                  bottom: 10,
+                  left: 10,
+                  right: 10,
+                }}
+              >
+                <Ionicons
+                  name="arrow-back"
+                  size={21}
+                  color={WHITE}
+                />
+              </TouchableOpacity>
+
+              <View
+                style={
+                  styles.mobileBrand
+                }
+              >
+                <View
+                  style={
+                    styles.mobileLogo
+                  }
+                >
+                  <Ionicons
+                    name="leaf-outline"
+                    size={24}
+                    color={WHITE}
+                  />
+                </View>
+
+                <Text
+                  style={
+                    styles.mobileBrandName
+                  }
+                >
+                  Mada Bien-être
+                </Text>
+              </View>
+
+              <View
+                style={
+                  styles.mobileHeaderText
+                }
+              >
+                <Text
+                  style={
+                    styles.mobileHeaderTitle
+                  }
+                >
+                  Créer un compte
+                </Text>
+
+                <Text
+                  style={
+                    styles.mobileHeaderSubtitle
+                  }
+                >
+                  Votre bien-être commence ici.
+                </Text>
+              </View>
+
+              <View
+                style={
+                  styles.headerDecorationOne
+                }
+              />
+
+              <View
+                style={
+                  styles.headerDecorationTwo
+                }
+              />
+            </View>
+
+            {renderForm()}
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    );
+
+  // ==========================================================
+  // DESKTOP WEB
+  // ==========================================================
+
+  const renderDesktop =
+    () => (
+      <View
+        style={[
+          styles.desktopContainer,
+          {
+            // Même fond général à droite
+            backgroundColor:
+              isDark
+                ? DARK_BACKGROUND
+                : LIGHT_BACKGROUND,
+          },
+        ]}
+      >
+        {/* ==================================================
+            LEFT — BRAND
+        ================================================== */}
+
+        <View
+          style={
+            styles.desktopBrand
+          }
+        >
+          <View
+            style={
+              styles.desktopBrandInner
+            }
+          >
+            <View
+              style={
+                styles.desktopBrandTop
               }
             >
               <View
                 style={
-                  styles.mobileLogo
+                  styles.desktopLogo
                 }
               >
                 <Ionicons
                   name="leaf-outline"
-                  size={27}
+                  size={29}
                   color={WHITE}
                 />
               </View>
 
               <Text
                 style={
-                  styles.mobileBrandName
+                  styles.desktopBrandName
                 }
               >
                 Mada Bien-être
@@ -1997,284 +2296,262 @@ const RegisterScreen = ({
 
             <View
               style={
-                styles.mobileHeaderContent
+                styles.desktopCenter
               }
             >
-              <Text
-                style={[
-                  styles.mobileHeaderTitle,
-                  isVerySmall &&
-                    styles.mobileHeaderTitleSmall,
-                ]}
+              <View
+                style={
+                  styles.pill
+                }
               >
-                Créer un compte
+                <Ionicons
+                  name="heart-outline"
+                  size={14}
+                  color={WHITE}
+                />
+
+                <Text
+                  style={
+                    styles.pillText
+                  }
+                >
+                  ESPACE BIEN-ÊTRE
+                </Text>
+              </View>
+
+              <Text
+                style={
+                  styles.desktopTitle
+                }
+              >
+                Votre bien-être,{'\n'}
+                commence ici.
               </Text>
 
               <Text
                 style={
-                  styles.mobileHeaderSubtitle
+                  styles.desktopDescription
                 }
               >
-                Commencez votre expérience
-                Mada Bien-être
+                Créez votre compte et profitez
+                d'une expérience simple, proche
+                et personnalisée avec
+                Mada Bien-être.
               </Text>
-            </View>
-          </View>
 
-          {/* FORM */}
-
-          {renderForm()}
-        </ScrollView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
-  );
-
-  // ==========================================================
-  // DESKTOP WEB
-  // ==========================================================
-
-  const renderDesktop = () => (
-    <View
-      style={[
-        styles.desktopContainer,
-        {
-          backgroundColor: isDark
-            ? '#111111'
-            : WHITE,
-        },
-      ]}
-    >
-      {/* ====================================================
-          LEFT BRAND PANEL
-      ==================================================== */}
-
-      <View
-        style={styles.desktopBrand}
-      >
-        <View
-          style={
-            styles.desktopBrandGradient
-          }
-        >
-          <View
-            style={
-              styles.desktopBrandTop
-            }
-          >
-            <View
-              style={styles.brandLogo}
-            >
-              <Ionicons
-                name="leaf-outline"
-                size={30}
-                color={WHITE}
-              />
-            </View>
-
-            <Text
-              style={styles.brandName}
-            >
-              Mada Bien-être
-            </Text>
-          </View>
-
-          <View
-            style={
-              styles.desktopBrandMiddle
-            }
-          >
-            <Text
-              style={
-                styles.desktopBrandTitle
-              }
-            >
-              Votre bien-être,
-              {'\n'}
-              commence ici.
-            </Text>
-
-            <Text
-              style={
-                styles.desktopBrandDescription
-              }
-            >
-              Retrouvez votre espace personnel
-              et profitez d'une expérience de
-              massage à domicile simple,
-              sécurisée et personnalisée.
-            </Text>
-
-            <View
-              style={styles.featureList}
-            >
-              {[
-                {
-                  icon: 'location-outline',
-                  title:
-                    'Thérapeutes à proximité',
-                  description:
-                    'Trouvez facilement un professionnel près de vous.',
-                },
-                {
-                  icon: 'calendar-outline',
-                  title:
-                    'Réservation simplifiée',
-                  description:
-                    'Organisez vos séances directement depuis votre compte.',
-                },
-                {
-                  icon: 'shield-checkmark-outline',
-                  title:
-                    'Expérience sécurisée',
-                  description:
-                    'Vos données personnelles restent protégées.',
-                },
-              ].map(item => (
-                <View
-                  key={item.title}
-                  style={
-                    styles.featureItem
-                  }
-                >
-                  <View
-                    style={
-                      styles.featureIcon
-                    }
-                  >
-                    <Ionicons
-                      name={item.icon}
-                      size={20}
-                      color={WHITE}
-                    />
-                  </View>
-
-                  <View
-                    style={
-                      styles.featureContent
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.featureTitle
-                      }
-                    >
-                      {item.title}
-                    </Text>
-
-                    <Text
-                      style={
-                        styles.featureDescription
-                      }
-                    >
-                      {item.description}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          <View
-            style={
-              styles.desktopFooter
-            }
-          >
-            <Text
-              style={
-                styles.desktopCopyright
-              }
-            >
-              © 2026 Mada Bien-être
-            </Text>
-
-            <Text
-              style={
-                styles.desktopFooterRight
-              }
-            >
-              Bien-être • Confiance • Proximité
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* ====================================================
-          RIGHT FORM
-      ==================================================== */}
-
-      <View
-        style={[
-          styles.desktopRight,
-          {
-            backgroundColor: isDark
-              ? '#121212'
-              : WHITE,
-          },
-        ]}
-      >
-        <ScrollView
-          ref={desktopScrollRef}
-          style={
-            styles.desktopFormScroll
-          }
-          contentContainerStyle={
-            styles.desktopFormScrollContent
-          }
-          showsVerticalScrollIndicator={
-            false
-          }
-          keyboardShouldPersistTaps="always"
-          removeClippedSubviews={false}
-        >
-          <View
-            style={
-              styles.desktopFormWrapper
-            }
-          >
-            <TouchableOpacity
-              onPress={() =>
-                navigation.goBack()
-              }
-              style={
-                styles.desktopBack
-              }
-              hitSlop={{
-                top: 10,
-                bottom: 10,
-                left: 10,
-                right: 10,
-              }}
-            >
-              <Ionicons
-                name="arrow-back"
-                size={18}
-                color={
-                  isDark
-                    ? WHITE
-                    : '#64748B'
+              <View
+                style={
+                  styles.desktopFeatures
                 }
-              />
+              >
+                {[
+                  {
+                    icon:
+                      'location-outline',
+                    title:
+                      'Proximité',
+                    text:
+                      'Trouvez des thérapeutes à proximité.',
+                  },
+                  {
+                    icon:
+                      'calendar-outline',
+                    title:
+                      'Simplicité',
+                    text:
+                      'Réservez vos séances facilement.',
+                  },
+                  {
+                    icon:
+                      'shield-checkmark-outline',
+                    title:
+                      'Confiance',
+                    text:
+                      'Une expérience pensée pour vous.',
+                  },
+                ].map(
+                  item => (
+                    <View
+                      key={
+                        item.title
+                      }
+                      style={
+                        styles.desktopFeature
+                      }
+                    >
+                      <View
+                        style={
+                          styles.desktopFeatureIcon
+                        }
+                      >
+                        <Ionicons
+                          name={
+                            item.icon
+                          }
+                          size={
+                            19
+                          }
+                          color={
+                            WHITE
+                          }
+                        />
+                      </View>
+
+                      <View
+                        style={
+                          styles.desktopFeatureText
+                        }
+                      >
+                        <Text
+                          style={
+                            styles.desktopFeatureTitle
+                          }
+                        >
+                          {
+                            item.title
+                          }
+                        </Text>
+
+                        <Text
+                          style={
+                            styles.desktopFeatureDescription
+                          }
+                        >
+                          {
+                            item.text
+                          }
+                        </Text>
+                      </View>
+                    </View>
+                  )
+                )}
+              </View>
+            </View>
+
+            <View
+              style={
+                styles.desktopFooter
+              }
+            >
+              <Text
+                style={
+                  styles.desktopFooterText
+                }
+              >
+                © 2026 Mada Bien-être
+              </Text>
 
               <Text
+                style={
+                  styles.desktopFooterText
+                }
+              >
+                Bien-être • Confiance • Proximité
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* ==================================================
+            RIGHT — FORMULAIRE
+        ================================================== */}
+
+        <View
+          style={[
+            styles.desktopRight,
+            {
+              // IMPORTANT :
+              // Même couleur que le fond du formulaire.
+              backgroundColor:
+                isDark
+                  ? DARK_BACKGROUND
+                  : LIGHT_BACKGROUND,
+            },
+          ]}
+        >
+          <ScrollView
+            ref={scrollRef}
+            style={
+              styles.desktopScroll
+            }
+            contentContainerStyle={
+              styles.desktopScrollContent
+            }
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={
+              false
+            }
+            removeClippedSubviews={
+              false
+            }
+          >
+            <View
+              style={
+                styles.desktopFormWrapper
+              }
+            >
+              {/* =================================================
+                  BOUTON RETOUR AU-DESSUS DU FORMULAIRE
+              ================================================= */}
+
+              <TouchableOpacity
+                onPress={() =>
+                  navigation.goBack()
+                }
                 style={[
-                  styles.desktopBackText,
+                  styles.desktopBack,
                   {
-                    color: isDark
-                      ? WHITE
-                      : '#64748B',
+                    backgroundColor:
+                      isDark
+                        ? '#1E1E2E'
+                        : '#FFFFFF',
+                    borderColor:
+                      isDark
+                        ? '#303044'
+                        : '#E1E9E2',
                   },
                 ]}
+                activeOpacity={0.8}
+                hitSlop={{
+                  top: 8,
+                  bottom: 8,
+                  left: 8,
+                  right: 8,
+                }}
               >
-                Retour
-              </Text>
-            </TouchableOpacity>
+                <Ionicons
+                  name="arrow-back"
+                  size={17}
+                  color={
+                    isDark
+                      ? '#E5E7EB'
+                      : '#64748B'
+                  }
+                />
 
-            {renderForm()}
-          </View>
-        </ScrollView>
+                <Text
+                  style={[
+                    styles.desktopBackText,
+                    {
+                      color:
+                        isDark
+                          ? '#E5E7EB'
+                          : '#64748B',
+                    },
+                  ]}
+                >
+                  Retour
+                </Text>
+              </TouchableOpacity>
+
+              {/* FORMULAIRE SANS FOND BLANC SEPARE */}
+
+              {renderForm()}
+            </View>
+          </ScrollView>
+        </View>
       </View>
-    </View>
-  );
+    );
 
   // ==========================================================
   // RETURN
@@ -2285,23 +2562,30 @@ const RegisterScreen = ({
       style={[
         styles.safeArea,
         {
-          backgroundColor: isDark
-            ? '#121212'
-            : WHITE,
+          backgroundColor:
+            isDark
+              ? DARK_BACKGROUND
+              : LIGHT_BACKGROUND,
         },
       ]}
     >
       <StatusBar
         barStyle="light-content"
-        backgroundColor={THEME_GREEN}
+        backgroundColor={GREEN}
         translucent={false}
       />
 
       <CustomToast
-        visible={toast.visible}
+        visible={
+          toast.visible
+        }
         type={toast.type}
-        message={toast.message}
-        onDismiss={dismissToast}
+        message={
+          toast.message
+        }
+        onDismiss={
+          dismissToast
+        }
         isDark={isDark}
       />
 
@@ -2316,810 +2600,1007 @@ const RegisterScreen = ({
 // STYLES
 // ============================================================
 
-const styles = StyleSheet.create({
-  // ==========================================================
-  // GLOBAL
-  // ==========================================================
-
-  safeArea: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-
-  keyboardView: {
-    flex: 1,
-    minHeight: 0,
-    width: '100%',
-  },
-
-  // ==========================================================
-  // TOAST
-  // ==========================================================
-
-  toastContainer: {
-    position: 'absolute',
-    top: isWeb ? 18 : 12,
-    left: 0,
-    right: 0,
-    zIndex: 99999,
-    elevation: 99999,
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    pointerEvents: 'box-none',
-  },
-
-  toast: {
-    width: '100%',
-    maxWidth: 520,
-    minHeight: 68,
-    borderRadius: 17,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 7,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-
-    elevation: 10,
-  },
-
-  toastIconContainer: {
-    width: 43,
-    height: 43,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  toastContent: {
-    flex: 1,
-    marginLeft: 11,
-    marginRight: 7,
-    minWidth: 0,
-  },
-
-  toastTitle: {
-    fontSize: 13,
-    fontFamily:
-      typography.fontFamily.bold,
-    marginBottom: 2,
-  },
-
-  toastMessage: {
-    fontSize: 12,
-    lineHeight: 17,
-    fontFamily:
-      typography.fontFamily.regular,
-  },
-
-  toastClose: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  // ==========================================================
-  // MOBILE SCROLL
-  // ==========================================================
-
-  mobileScrollView: {
-    flex: 1,
-    width: '100%',
-  },
-
-  mobileScroll: {
-    flexGrow: 1,
-    minHeight: '100%',
-    width: '100%',
-  },
-
-  mobileScrollTablet: {
-    alignItems: 'center',
-  },
-
-  // ==========================================================
-  // MOBILE HEADER
-  // ==========================================================
-
-  mobileHeader: {
-    width: '100%',
-    minHeight: 235,
-    paddingHorizontal: 22,
-    paddingTop:
-      Platform.OS === 'ios'
-        ? 28
-        : 42,
-    paddingBottom: 34,
-
-    backgroundColor: THEME_GREEN,
-
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-  },
-
-  mobileHeaderTablet: {
-    paddingHorizontal: 40,
-    paddingTop: 35,
-  },
-
-  mobileHeaderSmall: {
-    minHeight: 215,
-    paddingHorizontal: 18,
-    paddingTop: 28,
-    paddingBottom: 28,
-  },
-
-  mobileBackButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor:
-      'rgba(255,255,255,0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  mobileBrandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 18,
-  },
-
-  mobileLogo: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor:
-      'rgba(255,255,255,0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 11,
-  },
-
-  mobileBrandName: {
-    color: WHITE,
-    fontSize: 19,
-    fontFamily:
-      typography.fontFamily.bold,
-  },
-
-  mobileHeaderContent: {
-    marginTop: 24,
-  },
-
-  mobileHeaderTitle: {
-    color: WHITE,
-    fontSize: 27,
-    lineHeight: 33,
-    fontFamily:
-      typography.fontFamily.bold,
-  },
-
-  mobileHeaderTitleSmall: {
-    fontSize: 24,
-    lineHeight: 30,
-  },
-
-  mobileHeaderSubtitle: {
-    color:
-      'rgba(255,255,255,0.88)',
-    fontSize: 14,
-    lineHeight: 20,
-    fontFamily:
-      typography.fontFamily.regular,
-    marginTop: 5,
-  },
-
-  // ==========================================================
-  // FORM
-  // ==========================================================
-
-  formCard: {
-    width: '100%',
-    paddingHorizontal: 22,
-    paddingTop: 27,
-    paddingBottom: 40,
-  },
-
-  formCardDesktop: {
-    paddingHorizontal: 0,
-    paddingTop: 15,
-    paddingBottom: 40,
-  },
-
-  formCardTablet: {
-    maxWidth: 760,
-    alignSelf: 'center',
-    paddingHorizontal: 32,
-  },
-
-  formCardSmall: {
-    paddingHorizontal: 17,
-    paddingTop: 23,
-    paddingBottom: 32,
-  },
-
-  formHeader: {
-    marginBottom: 20,
-  },
-
-  formHeaderIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 15,
-  },
-
-  formTitle: {
-    fontSize: 25,
-    lineHeight: 31,
-    fontFamily:
-      typography.fontFamily.bold,
-    marginBottom: 6,
-  },
-
-  formTitleSmall: {
-    fontSize: 23,
-    lineHeight: 29,
-  },
-
-  formDescription: {
-    fontSize: 14,
-    lineHeight: 21,
-    fontFamily:
-      typography.fontFamily.regular,
-    maxWidth: 560,
-  },
-
-  // ==========================================================
-  // STEPS
-  // ==========================================================
-
-  steps: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 22,
-  },
-
-  step: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexShrink: 0,
-  },
-
-  stepCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  stepText: {
-    fontSize: 11,
-    fontFamily:
-      typography.fontFamily.medium,
-    marginLeft: 6,
-  },
-
-  stepLine: {
-    flex: 1,
-    height: 1,
-    marginHorizontal: 8,
-    minWidth: 10,
-  },
-
-  // ==========================================================
-  // INPUT
-  // ==========================================================
-
-  fieldGroup: {
-    marginBottom: 15,
-    width: '100%',
-  },
-
-  fieldLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 7,
-  },
-
-  fieldLabel: {
-    fontSize: 13,
-    fontFamily:
-      typography.fontFamily.medium,
-  },
-
-  inputWrapper: {
-    width: '100%',
-    minHeight: 54,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-  },
-
-  input: {
-    flex: 1,
-    minWidth: 0,
-    fontSize: 15,
-    fontFamily:
-      typography.fontFamily.regular,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    minHeight: 52,
-
-    ...(Platform.OS === 'web'
-      ? {
-          outlineStyle: 'none',
-          outlineWidth: 0,
-        }
-      : {}),
-  },
-
-  eyeButton: {
-    padding: 5,
-    flexShrink: 0,
-  },
-
-  errorRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 5,
-  },
-
-  errorText: {
-    color: '#EF4444',
-    fontSize: 12,
-    lineHeight: 17,
-    fontFamily:
-      typography.fontFamily.regular,
-    marginLeft: 4,
-    flex: 1,
-  },
-
-  // ==========================================================
-  // PASSWORD
-  // ==========================================================
-
-  passwordStrength: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: -5,
-    marginBottom: 14,
-  },
-
-  passwordStrengthTrack: {
-    flex: 1,
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-
-  passwordStrengthProgress: {
-    height: '100%',
-    borderRadius: 2,
-  },
-
-  passwordStrengthText: {
-    width: 65,
-    textAlign: 'right',
-    fontSize: 11,
-    fontFamily:
-      typography.fontFamily.medium,
-    marginLeft: 8,
-  },
-
-  // ==========================================================
-  // ROLE
-  // ==========================================================
-
-  roleSection: {
-    marginTop: 2,
-    marginBottom: 20,
-    width: '100%',
-  },
-
-  sectionHeader: {
-    marginBottom: 10,
-  },
-
-  sectionTitle: {
-    fontSize: 13,
-    fontFamily:
-      typography.fontFamily.medium,
-  },
-
-  sectionHint: {
-    fontSize: 11,
-    marginTop: 2,
-    fontFamily:
-      typography.fontFamily.regular,
-  },
-
-  roleList: {
-    width: '100%',
-    gap: 10,
-  },
-
-  roleListWeb: {
-    flexDirection: 'row',
-  },
-
-  roleCard: {
-    flex: 1,
-    minHeight: 78,
-    borderRadius: 13,
-    borderWidth: 1,
-    padding: 11,
-    flexDirection: 'row',
-    alignItems: 'center',
-    minWidth: 0,
-  },
-
-  roleIcon: {
-    width: 43,
-    height: 43,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  roleInfo: {
-    flex: 1,
-    minWidth: 0,
-    marginLeft: 10,
-    marginRight: 7,
-  },
-
-  roleTitle: {
-    fontSize: 14,
-    fontFamily:
-      typography.fontFamily.bold,
-  },
-
-  roleDescription: {
-    fontSize: 11,
-    lineHeight: 16,
-    fontFamily:
-      typography.fontFamily.regular,
-    marginTop: 2,
-  },
-
-  radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-
-  // ==========================================================
-  // BUTTON
-  // ==========================================================
-
-  registerButton: {
-    width: '100%',
-    borderRadius: 13,
-    overflow: 'hidden',
-    marginTop: 2,
-
-    backgroundColor: THEME_GREEN,
-
-    shadowColor: THEME_GREEN,
-
-    shadowOffset: {
-      width: 0,
-      height: 5,
+const styles =
+  StyleSheet.create({
+    // ========================================================
+    // GLOBAL
+    // ========================================================
+
+    safeArea: {
+      flex: 1,
+      width: '100%',
+      height: '100%',
     },
 
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
+    // ========================================================
+    // TOAST
+    // ========================================================
 
-    elevation: 5,
-  },
+    toastContainer: {
+      position: 'absolute',
+      top:
+        Platform.OS ===
+        'web'
+          ? 18
+          : 12,
+      left: 0,
+      right: 0,
+      zIndex: 99999,
+      elevation: 99999,
+      alignItems:
+        'center',
+      paddingHorizontal: 14,
+    },
 
-  registerButtonDisabled: {
-    opacity: 0.75,
-  },
+    toast: {
+      width: '100%',
+      maxWidth: 500,
+      minHeight: 64,
+      borderRadius: 16,
+      borderWidth: 1,
+      paddingHorizontal: 11,
+      paddingVertical: 9,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 7,
+      },
+      shadowOpacity: 0.12,
+      shadowRadius: 18,
+      elevation: 10,
+    },
 
-  registerGradient: {
-    minHeight: 55,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    toastIcon: {
+      width: 41,
+      height: 41,
+      borderRadius: 13,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      flexShrink: 0,
+    },
 
-    backgroundColor: THEME_GREEN,
-  },
+    toastContent: {
+      flex: 1,
+      minWidth: 0,
+      marginLeft: 10,
+      marginRight: 6,
+    },
 
-  registerButtonText: {
-    color: WHITE,
-    fontSize: 15,
-    fontFamily:
-      typography.fontFamily.bold,
-    marginLeft: 8,
-  },
+    toastTitle: {
+      fontSize: 12.5,
+      fontFamily:
+        typography
+          .fontFamily
+          .bold,
+      marginBottom: 2,
+    },
 
-  buttonIcon: {
-    marginLeft: 9,
-  },
+    toastMessage: {
+      fontSize: 11.5,
+      lineHeight: 16,
+      fontFamily:
+        typography
+          .fontFamily
+          .regular,
+    },
 
-  // ==========================================================
-  // TERMS
-  // ==========================================================
+    toastClose: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+    },
 
-  termsText: {
-    textAlign: 'center',
-    fontSize: 10.5,
-    lineHeight: 16,
-    fontFamily:
-      typography.fontFamily.regular,
-    marginTop: 13,
-    paddingHorizontal: 8,
-  },
+    // ========================================================
+    // MOBILE
+    // ========================================================
 
-  // ==========================================================
-  // LOGIN
-  // ==========================================================
+    mobileKeyboard: {
+      flex: 1,
+      minHeight: 0,
+      width: '100%',
+    },
 
-  loginContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    marginTop: 18,
-  },
+    mobileScroll: {
+      flex: 1,
+      width: '100%',
+    },
 
-  loginText: {
-    fontSize: 13,
-    fontFamily:
-      typography.fontFamily.regular,
-  },
+    mobileContent: {
+      flexGrow: 1,
+      width: '100%',
+      minHeight: '100%',
+    },
 
-  loginButtonLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 5,
-    paddingVertical: 3,
-  },
+    mobileContentTablet: {
+      alignItems:
+        'center',
+    },
 
-  loginLink: {
-    color: THEME_GREEN,
-    fontSize: 13,
-    fontFamily:
-      typography.fontFamily.bold,
-    marginRight: 3,
-  },
+    mobileHeader: {
+      width: '100%',
+      minHeight: 205,
+      paddingHorizontal: 20,
+      paddingTop:
+        Platform.OS ===
+        'ios'
+          ? 20
+          : 22,
+      paddingBottom: 28,
+      backgroundColor:
+        GREEN,
+      borderBottomLeftRadius: 28,
+      borderBottomRightRadius: 28,
+      overflow: 'hidden',
+    },
 
-  // ==========================================================
-  // DESKTOP
-  // ==========================================================
+    backButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor:
+        'rgba(255,255,255,0.15)',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+    },
 
-  desktopContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    width: '100%',
-    height: '100%',
-    minHeight: 0,
-  },
+    mobileBrand: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      marginTop: 15,
+    },
 
-  desktopBrand: {
-    width: '50%',
-    minWidth: 0,
-    height: '100%',
-    backgroundColor: THEME_GREEN,
-  },
+    mobileLogo: {
+      width: 45,
+      height: 45,
+      borderRadius: 14,
+      backgroundColor:
+        'rgba(255,255,255,0.15)',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      marginRight: 10,
+    },
 
-  desktopBrandGradient: {
-    flex: 1,
-    paddingHorizontal: 58,
-    paddingVertical: 54,
-    justifyContent: 'space-between',
-    minHeight: 0,
-    backgroundColor: THEME_GREEN,
-  },
+    mobileBrandName: {
+      color: WHITE,
+      fontSize: 18,
+      fontFamily:
+        typography
+          .fontFamily
+          .bold,
+    },
 
-  desktopBrandTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    mobileHeaderText: {
+      marginTop: 19,
+    },
 
-  brandLogo: {
-    width: 59,
-    height: 59,
-    borderRadius: 17,
-    backgroundColor:
-      'rgba(255,255,255,0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
+    mobileHeaderTitle: {
+      color: WHITE,
+      fontSize: 26,
+      lineHeight: 32,
+      fontFamily:
+        typography
+          .fontFamily
+          .bold,
+    },
 
-  brandName: {
-    color: WHITE,
-    fontSize: 22,
-    fontFamily:
-      typography.fontFamily.bold,
-  },
+    mobileHeaderSubtitle: {
+      color:
+        'rgba(255,255,255,0.86)',
+      fontSize: 13.5,
+      lineHeight: 19,
+      marginTop: 3,
+      fontFamily:
+        typography
+          .fontFamily
+          .regular,
+    },
 
-  desktopBrandMiddle: {
-    width: '100%',
-    maxWidth: 620,
-    alignSelf: 'center',
-  },
+    headerDecorationOne: {
+      position:
+        'absolute',
+      width: 150,
+      height: 150,
+      borderRadius: 75,
+      right: -60,
+      top: -65,
+      backgroundColor:
+        'rgba(255,255,255,0.055)',
+    },
 
-  desktopBrandTitle: {
-    color: WHITE,
-    fontSize: 42,
-    lineHeight: 52,
-    fontFamily:
-      typography.fontFamily.bold,
-    marginBottom: 22,
-  },
+    headerDecorationTwo: {
+      position:
+        'absolute',
+      width: 95,
+      height: 95,
+      borderRadius: 48,
+      right: 20,
+      bottom: -55,
+      backgroundColor:
+        'rgba(255,255,255,0.045)',
+    },
 
-  desktopBrandDescription: {
-    color:
-      'rgba(255,255,255,0.90)',
-    fontSize: 15,
-    lineHeight: 24,
-    fontFamily:
-      typography.fontFamily.regular,
-    maxWidth: 570,
-  },
+    // ========================================================
+    // FORM
+    // ========================================================
 
-  // ==========================================================
-  // FEATURES
-  // ==========================================================
+    formCard: {
+      width: '100%',
 
-  featureList: {
-    marginTop: 45,
-    gap: 18,
-  },
+      // IMPORTANT :
+      // Tsy misy border/card fotsy intsony.
+      // Mitovy amin'ny fond extérieur.
+      paddingHorizontal: 20,
+      paddingTop: 23,
+      paddingBottom: 30,
+    },
 
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
+    formCardDesktop: {
+      paddingHorizontal: 0,
+      paddingTop: 0,
+      paddingBottom: 35,
+    },
 
-  featureIcon: {
-    width: 47,
-    height: 47,
-    borderRadius: 14,
-    backgroundColor:
-      'rgba(255,255,255,0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
+    formCardTablet: {
+      maxWidth: 720,
+      alignSelf:
+        'center',
+      paddingHorizontal: 32,
+    },
 
-  featureContent: {
-    flex: 1,
-    minWidth: 0,
-  },
+    formCardSmall: {
+      paddingHorizontal: 16,
+      paddingTop: 20,
+      paddingBottom: 26,
+    },
 
-  featureTitle: {
-    color: WHITE,
-    fontSize: 14,
-    fontFamily:
-      typography.fontFamily.bold,
-    marginBottom: 3,
-  },
+    formIntro: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      marginBottom: 17,
+    },
 
-  featureDescription: {
-    color:
-      'rgba(255,255,255,0.82)',
-    fontSize: 12,
-    lineHeight: 18,
-    fontFamily:
-      typography.fontFamily.regular,
-  },
+    formIcon: {
+      width: 47,
+      height: 47,
+      borderRadius: 14,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      marginRight: 12,
+      flexShrink: 0,
+    },
 
-  // ==========================================================
-  // DESKTOP FOOTER
-  // ==========================================================
+    formIntroText: {
+      flex: 1,
+      minWidth: 0,
+    },
 
-  desktopFooter: {
-    borderTopWidth: 1,
-    borderTopColor:
-      'rgba(255,255,255,0.22)',
-    paddingTop: 19,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
+    formTitle: {
+      fontSize: 23,
+      lineHeight: 29,
+      fontFamily:
+        typography
+          .fontFamily
+          .bold,
+      marginBottom: 2,
+    },
 
-  desktopCopyright: {
-    color:
-      'rgba(255,255,255,0.78)',
-    fontSize: 11,
-    fontFamily:
-      typography.fontFamily.regular,
-  },
+    formTitleSmall: {
+      fontSize: 21,
+      lineHeight: 27,
+    },
 
-  desktopFooterRight: {
-    color:
-      'rgba(255,255,255,0.78)',
-    fontSize: 11,
-    fontFamily:
-      typography.fontFamily.regular,
-  },
+    formDescription: {
+      fontSize: 12.5,
+      lineHeight: 18,
+      fontFamily:
+        typography
+          .fontFamily
+          .regular,
+    },
 
-  // ==========================================================
-  // DESKTOP RIGHT
-  // ==========================================================
+    // ========================================================
+    // STEPS
+    // ========================================================
 
-  desktopRight: {
-    width: '50%',
-    minWidth: 0,
-    height: '100%',
-    flex: 1,
-  },
+    steps: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      width: '100%',
+      marginBottom: 18,
+    },
 
-  desktopFormScroll: {
-    flex: 1,
-    width: '100%',
-  },
+    stepItem: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      flexShrink: 0,
+    },
 
-  desktopFormScrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 58,
-    paddingVertical: 45,
-  },
+    stepCircle: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      borderWidth: 1,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+    },
 
-  desktopFormWrapper: {
-    width: '100%',
-    maxWidth: 600,
-    alignSelf: 'center',
-  },
+    stepText: {
+      fontSize: 10.5,
+      marginLeft: 5,
+      fontFamily:
+        typography
+          .fontFamily
+          .medium,
+    },
 
-  desktopBack: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 7,
-    marginBottom: 5,
-  },
+    stepLine: {
+      flex: 1,
+      height: 1,
+      minWidth: 8,
+      marginHorizontal: 7,
+    },
 
-  desktopBackText: {
-    fontSize: 13,
-    fontFamily:
-      typography.fontFamily.medium,
-    marginLeft: 7,
-  },
-});
+    // ========================================================
+    // INPUT
+    // ========================================================
 
-// ============================================================
-// EXPORT
-// ============================================================
+    fieldGroup: {
+      width: '100%',
+      marginBottom: 12,
+    },
+
+    fieldLabelRow: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'space-between',
+      marginBottom: 6,
+    },
+
+    fieldLabel: {
+      fontSize: 12.5,
+      fontFamily:
+        typography
+          .fontFamily
+          .medium,
+    },
+
+    inputWrapper: {
+      width: '100%',
+      minHeight: 51,
+      borderRadius: 12,
+      borderWidth: 1,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      paddingHorizontal: 13,
+
+      // Petite ombre très légère
+      // pour séparer visuellement les champs
+      // sans créer une carte blanche.
+      ...(Platform.OS ===
+      'web'
+        ? {
+            boxShadow:
+              '0 1px 3px rgba(0,0,0,0.04)',
+          }
+        : {
+            shadowColor: '#000',
+            shadowOffset: {
+              width: 0,
+              height: 1,
+            },
+            shadowOpacity: 0.03,
+            shadowRadius: 2,
+            elevation: 1,
+          }),
+    },
+
+    input: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: 49,
+      fontSize: 14,
+      fontFamily:
+        typography
+          .fontFamily
+          .regular,
+      paddingHorizontal: 9,
+      paddingVertical: 8,
+
+      ...(Platform.OS ===
+      'web'
+        ? {
+            outlineStyle:
+              'none',
+            outlineWidth: 0,
+          }
+        : {}),
+    },
+
+    eyeButton: {
+      padding: 5,
+      flexShrink: 0,
+    },
+
+    errorRow: {
+      flexDirection:
+        'row',
+      alignItems:
+        'flex-start',
+      marginTop: 4,
+    },
+
+    errorText: {
+      flex: 1,
+      marginLeft: 4,
+      color: '#EF4444',
+      fontSize: 11,
+      lineHeight: 15,
+      fontFamily:
+        typography
+          .fontFamily
+          .regular,
+    },
+
+    // ========================================================
+    // PASSWORD
+    // ========================================================
+
+    passwordStrength: {
+      width: '100%',
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      marginTop: -3,
+      marginBottom: 12,
+    },
+
+    passwordTrack: {
+      flex: 1,
+      height: 4,
+      borderRadius: 2,
+      overflow: 'hidden',
+    },
+
+    passwordProgress: {
+      height: '100%',
+      borderRadius: 2,
+    },
+
+    passwordStrengthText: {
+      width: 68,
+      textAlign:
+        'right',
+      marginLeft: 7,
+      fontSize: 10.5,
+      fontFamily:
+        typography
+          .fontFamily
+          .medium,
+    },
+
+    // ========================================================
+    // ROLE
+    // ========================================================
+
+    roleSection: {
+      width: '100%',
+      marginTop: 3,
+      marginBottom: 16,
+    },
+
+    sectionHeader: {
+      marginBottom: 8,
+    },
+
+    sectionTitle: {
+      fontSize: 12.5,
+      fontFamily:
+        typography
+          .fontFamily
+          .medium,
+    },
+
+    sectionHint: {
+      fontSize: 10.5,
+      marginTop: 2,
+      fontFamily:
+        typography
+          .fontFamily
+          .regular,
+    },
+
+    roleList: {
+      width: '100%',
+      gap: 9,
+    },
+
+    roleListDesktop: {
+      flexDirection:
+        'row',
+    },
+
+    roleCard: {
+      flex: 1,
+      minHeight: 70,
+      borderRadius: 12,
+      borderWidth: 1,
+      padding: 10,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      minWidth: 0,
+    },
+
+    roleIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 11,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      flexShrink: 0,
+    },
+
+    roleInfo: {
+      flex: 1,
+      minWidth: 0,
+      marginLeft: 9,
+      marginRight: 6,
+    },
+
+    roleTitle: {
+      fontSize: 13.5,
+      fontFamily:
+        typography
+          .fontFamily
+          .bold,
+    },
+
+    roleDescription: {
+      fontSize: 10.5,
+      lineHeight: 15,
+      marginTop: 2,
+      fontFamily:
+        typography
+          .fontFamily
+          .regular,
+    },
+
+    radio: {
+      width: 19,
+      height: 19,
+      borderRadius: 10,
+      borderWidth: 2,
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      flexShrink: 0,
+    },
+
+    radioInner: {
+      width: 9,
+      height: 9,
+      borderRadius: 5,
+      backgroundColor:
+        GREEN,
+    },
+
+    // ========================================================
+    // BUTTON
+    // ========================================================
+
+    registerButton: {
+      width: '100%',
+      minHeight: 52,
+      borderRadius: 13,
+      overflow: 'hidden',
+      backgroundColor:
+        GREEN,
+      shadowColor:
+        GREEN,
+      shadowOffset: {
+        width: 0,
+        height: 5,
+      },
+      shadowOpacity: 0.20,
+      shadowRadius: 10,
+      elevation: 5,
+    },
+
+    registerButtonDisabled: {
+      opacity: 0.75,
+    },
+
+    registerButtonInner: {
+      minHeight: 52,
+      paddingHorizontal: 18,
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      gap: 8,
+      backgroundColor:
+        GREEN,
+    },
+
+    registerButtonText: {
+      color: WHITE,
+      fontSize: 14,
+      fontFamily:
+        typography
+          .fontFamily
+          .bold,
+    },
+
+    // ========================================================
+    // TERMS / LOGIN
+    // ========================================================
+
+    terms: {
+      textAlign:
+        'center',
+      fontSize: 10,
+      lineHeight: 15,
+      marginTop: 11,
+      paddingHorizontal: 8,
+      fontFamily:
+        typography
+          .fontFamily
+          .regular,
+    },
+
+    loginRow: {
+      flexDirection:
+        'row',
+      justifyContent:
+        'center',
+      alignItems:
+        'center',
+      flexWrap:
+        'wrap',
+      marginTop: 15,
+    },
+
+    loginText: {
+      fontSize: 12,
+      fontFamily:
+        typography
+          .fontFamily
+          .regular,
+    },
+
+    loginLinkButton: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      marginLeft: 5,
+      paddingVertical: 3,
+    },
+
+    loginLink: {
+      color: GREEN,
+      fontSize: 12,
+      marginRight: 3,
+      fontFamily:
+        typography
+          .fontFamily
+          .bold,
+    },
+
+    // ========================================================
+    // DESKTOP LEFT
+    // ========================================================
+
+    desktopContainer: {
+      flex: 1,
+      flexDirection:
+        'row',
+      width: '100%',
+      height: '100%',
+      minHeight: 0,
+    },
+
+    desktopBrand: {
+      width: '48%',
+      minWidth: 0,
+      height: '100%',
+      backgroundColor:
+        GREEN,
+    },
+
+    desktopBrandInner: {
+      flex: 1,
+      paddingHorizontal: 52,
+      paddingVertical: 42,
+      justifyContent:
+        'space-between',
+      minHeight: 0,
+      backgroundColor:
+        GREEN,
+      overflow: 'hidden',
+    },
+
+    desktopBrandTop: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
+
+    desktopLogo: {
+      width: 55,
+      height: 55,
+      borderRadius: 16,
+      backgroundColor:
+        'rgba(255,255,255,0.15)',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      marginRight: 13,
+    },
+
+    desktopBrandName: {
+      color: WHITE,
+      fontSize: 21,
+      fontFamily:
+        typography
+          .fontFamily
+          .bold,
+    },
+
+    desktopCenter: {
+      width: '100%',
+      maxWidth: 570,
+      alignSelf:
+        'center',
+    },
+
+    pill: {
+      alignSelf:
+        'flex-start',
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+      borderRadius: 30,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      backgroundColor:
+        'rgba(255,255,255,0.13)',
+      marginBottom: 17,
+      gap: 6,
+    },
+
+    pillText: {
+      color:
+        'rgba(255,255,255,0.88)',
+      fontSize: 9.5,
+      letterSpacing: 1,
+      fontFamily:
+        typography
+          .fontFamily
+          .bold,
+    },
+
+    desktopTitle: {
+      color: WHITE,
+      fontSize: 39,
+      lineHeight: 47,
+      fontFamily:
+        typography
+          .fontFamily
+          .bold,
+      marginBottom: 16,
+    },
+
+    desktopDescription: {
+      color:
+        'rgba(255,255,255,0.88)',
+      fontSize: 14,
+      lineHeight: 22,
+      fontFamily:
+        typography
+          .fontFamily
+          .regular,
+      maxWidth: 520,
+    },
+
+    desktopFeatures: {
+      marginTop: 30,
+      gap: 14,
+    },
+
+    desktopFeature: {
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+    },
+
+    desktopFeatureIcon: {
+      width: 43,
+      height: 43,
+      borderRadius: 13,
+      backgroundColor:
+        'rgba(255,255,255,0.14)',
+      alignItems:
+        'center',
+      justifyContent:
+        'center',
+      marginRight: 12,
+      flexShrink: 0,
+    },
+
+    desktopFeatureText: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    desktopFeatureTitle: {
+      color: WHITE,
+      fontSize: 13,
+      fontFamily:
+        typography
+          .fontFamily
+          .bold,
+      marginBottom: 2,
+    },
+
+    desktopFeatureDescription: {
+      color:
+        'rgba(255,255,255,0.76)',
+      fontSize: 11.5,
+      lineHeight: 17,
+      fontFamily:
+        typography
+          .fontFamily
+          .regular,
+    },
+
+    desktopFooter: {
+      borderTopWidth: 1,
+      borderTopColor:
+        'rgba(255,255,255,0.18)',
+      paddingTop: 16,
+      flexDirection:
+        'row',
+      justifyContent:
+        'space-between',
+      alignItems:
+        'center',
+    },
+
+    desktopFooterText: {
+      color:
+        'rgba(255,255,255,0.70)',
+      fontSize: 10,
+      fontFamily:
+        typography
+          .fontFamily
+          .regular,
+    },
+
+    // ========================================================
+    // DESKTOP RIGHT
+    // ========================================================
+
+    desktopRight: {
+      flex: 1,
+      width: '52%',
+      minWidth: 0,
+      height: '100%',
+    },
+
+    desktopScroll: {
+      flex: 1,
+      width: '100%',
+    },
+
+    desktopScrollContent: {
+      flexGrow: 1,
+      justifyContent:
+        'center',
+
+      // Même fond que formCard
+      paddingHorizontal: 48,
+      paddingVertical: 30,
+    },
+
+    desktopFormWrapper: {
+      width: '100%',
+      maxWidth: 590,
+      alignSelf:
+        'center',
+    },
+
+    // ========================================================
+    // BOUTON RETOUR WEB
+    // ========================================================
+
+    desktopBack: {
+      alignSelf:
+        'flex-start',
+      flexDirection:
+        'row',
+      alignItems:
+        'center',
+
+      minHeight: 36,
+
+      borderRadius: 10,
+      borderWidth: 1,
+
+      paddingHorizontal: 11,
+      paddingVertical: 7,
+
+      marginBottom: 10,
+
+      // Ombre légère
+      ...(Platform.OS ===
+      'web'
+        ? {
+            boxShadow:
+              '0 1px 4px rgba(0,0,0,0.05)',
+          }
+        : {
+            shadowColor: '#000',
+            shadowOffset: {
+              width: 0,
+              height: 1,
+            },
+            shadowOpacity: 0.04,
+            shadowRadius: 3,
+            elevation: 1,
+          }),
+    },
+
+    desktopBackText: {
+      fontSize: 12,
+      marginLeft: 6,
+      fontFamily:
+        typography
+          .fontFamily
+          .medium,
+    },
+  });
 
 export default RegisterScreen;

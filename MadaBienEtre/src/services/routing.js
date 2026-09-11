@@ -121,12 +121,82 @@ export const calculateDistance = async (lat1, lng1, lat2, lng2, mode = 'driving'
  * @param {boolean} alternatives - alternatives=true
  * @returns {Promise<{coordinates: Array, distance: number, distanceText: string, duration: number, durationText: string, steps: Array, polyline: string} | null>}
  */
-export const calculateRoute = async (lat1, lng1, lat2, lng2, mode = 'driving', alternatives = false) => {
+export const calculateRoute = async (
+  lat1,
+  lng1,
+  lat2,
+  lng2,
+  mode = 'driving',
+  alternatives = false
+) => {
+  // Validation des coordonnées avant tout appel réseau.
+  const coordinatesAreValid = [lat1, lng1, lat2, lng2].every(
+    (value) => value != null && Number.isFinite(Number(value))
+  );
+
+  if (!coordinatesAreValid) {
+    console.warn('⚠️ Invalid route coordinates:', { lat1, lng1, lat2, lng2 });
+    return null;
+  }
+
+  const originLat = Number(lat1);
+  const originLng = Number(lng1);
+  const destinationLat = Number(lat2);
+  const destinationLng = Number(lng2);
+
+  // Fallback local : fonctionne même si Google Directions est indisponible
+  // (Web/CORS, clé API, quota, réseau, etc.).
+  const createFallbackRoute = () => {
+    const distance = haversineDistance(
+      originLat,
+      originLng,
+      destinationLat,
+      destinationLng
+    );
+
+    if (distance == null) return null;
+
+    const duration = estimateDuration(distance, mode);
+
+    return {
+      coordinates: [
+        { latitude: originLat, longitude: originLng },
+        { latitude: destinationLat, longitude: destinationLng },
+      ],
+      distance,
+      distanceText: formatDistance(distance),
+      duration,
+      durationText: formatDuration(duration),
+      steps: [],
+      polyline: '',
+      summary: 'Trajet estimé',
+      bounds: {
+        northeast: {
+          lat: Math.max(originLat, destinationLat),
+          lng: Math.max(originLng, destinationLng),
+        },
+        southwest: {
+          lat: Math.min(originLat, destinationLat),
+          lng: Math.min(originLng, destinationLng),
+        },
+      },
+      waypoints: [],
+      isFallback: true,
+    };
+  };
+
+  // Si aucune clé Google n'est disponible, inutile de provoquer une erreur
+  // réseau : on utilise directement le calcul local.
+  if (!GOOGLE_MAPS_API_KEY) {
+    console.warn('⚠️ GOOGLE_MAPS_API_KEY absente. Utilisation du trajet local.');
+    return createFallbackRoute();
+  }
+
   try {
     const response = await axios.get(GOOGLE_DIRECTIONS_URL, {
       params: {
-        origin: `${lat1},${lng1}`,
-        destination: `${lat2},${lng2}`,
+        origin: `${originLat},${originLng}`,
+        destination: `${destinationLat},${destinationLng}`,
         key: GOOGLE_MAPS_API_KEY,
         mode,
         alternatives: alternatives ? 'true' : 'false',
@@ -135,38 +205,68 @@ export const calculateRoute = async (lat1, lng1, lat2, lng2, mode = 'driving', a
       timeout: 15000,
     });
 
-    if (response.data.status === 'OK' && response.data.routes.length > 0) {
+    if (
+      response.data?.status === 'OK' &&
+      Array.isArray(response.data?.routes) &&
+      response.data.routes.length > 0
+    ) {
       const route = response.data.routes[0];
-      const leg = route.legs[0];
-      // ✅ Extraire les coordonnées du polyline
+      const leg = route.legs?.[0];
+
+      if (!leg?.distance || !leg?.duration) {
+        console.warn('⚠️ Google Directions response incomplete.');
+        return createFallbackRoute();
+      }
+
       const polyline = route.overview_polyline?.points || '';
       const coordinates = decodePolyline(polyline);
 
       return {
-        coordinates,
-        distance: leg.distance.value / 1000, // km
+        coordinates:
+          coordinates.length > 0
+            ? coordinates
+            : [
+                { latitude: originLat, longitude: originLng },
+                { latitude: destinationLat, longitude: destinationLng },
+              ],
+        distance: leg.distance.value / 1000,
         distanceText: leg.distance.text,
-        duration: leg.duration.value / 60, // minutes
+        duration: leg.duration.value / 60,
         durationText: leg.duration.text,
-        steps: leg.steps.map((step) => ({
-          instruction: step.html_instructions,
-          distance: step.distance.text,
-          duration: step.duration.text,
-          latitude: step.start_location.lat,
-          longitude: step.start_location.lng,
+        steps: (leg.steps || []).map((step) => ({
+          instruction: step.html_instructions || '',
+          distance: step.distance?.text || '',
+          duration: step.duration?.text || '',
+          latitude: step.start_location?.lat,
+          longitude: step.start_location?.lng,
         })),
         polyline,
         summary: route.summary || '',
         bounds: route.bounds,
         waypoints: route.waypoint_order || [],
+        isFallback: false,
       };
     }
 
-    console.log('❌ Directions status:', response.data.status);
-    return null;
+    console.warn(
+      '⚠️ Google Directions unavailable:',
+      response.data?.status || 'UNKNOWN_STATUS',
+      response.data?.error_message || ''
+    );
+
+    return createFallbackRoute();
   } catch (error) {
-    console.error('❌ Route calculation error:', error.message);
-    return null;
+    // "Network Error" est fréquent sur Expo Web lorsque l'endpoint Google
+    // bloque la requête côté navigateur (CORS), ou si le réseau/quotas/API
+    // ne sont pas disponibles. On ne laisse plus l'erreur casser l'écran.
+    const message = error?.message || 'Unknown network error';
+
+    console.warn(
+      '⚠️ Google route unavailable, using local fallback:',
+      message
+    );
+
+    return createFallbackRoute();
   }
 };
 
