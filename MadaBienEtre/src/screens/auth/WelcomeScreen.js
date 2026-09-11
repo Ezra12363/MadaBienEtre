@@ -314,7 +314,7 @@ export default function WelcomeScreen({ navigation }) {
           <View style={styles.headerActions}>
             <Pressable
               onPress={handleLogin}
-              style={styles.loginButton}
+              style={[styles.loginButton, styles.headerWhiteButton]}
             >
               <Text style={styles.loginButtonText}>
                 Connexion
@@ -323,7 +323,7 @@ export default function WelcomeScreen({ navigation }) {
 
             <Pressable
               onPress={handleRegister}
-              style={styles.registerButton}
+              style={[styles.registerButton, styles.headerWhiteButton]}
             >
               <Text style={styles.registerButtonText}>
                 Créer un compte
@@ -342,7 +342,7 @@ export default function WelcomeScreen({ navigation }) {
             <Ionicons
               name={menuOpen ? 'close' : 'menu'}
               size={28}
-              color={COLORS.primaryDark}
+              color={COLORS.primary}
             />
           </Pressable>
         )}
@@ -1551,14 +1551,14 @@ export default function WelcomeScreen({ navigation }) {
       />
 
       <View style={styles.screen}>
+        {renderHeader()}
+
         <ScrollView
           ref={scrollRef}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {renderHeader()}
-
           {renderHero()}
 
           {renderQuickActions()}
@@ -1615,18 +1615,52 @@ const styles = StyleSheet.create({
   },
 
   /* =======================================================
-     HEADER
+     HEADER FIXE / STICKY
+     Le header est hors du ScrollView.
+     Le contenu défile indépendamment sous le header.
   ======================================================= */
 
+
+  headerWhiteButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    borderRadius: 10,
+    minHeight: 42,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerButtonLogo: {
+    width: 20,
+    height: 20,
+    resizeMode: 'contain',
+    marginRight: 7,
+    tintColor: '#FFFFFF',
+  },
+  headerButtonLabel: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
+  },
   header: {
     width: '100%',
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.primary,
 
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomWidth: 0,
+    borderBottomColor: COLORS.primaryDark,
 
     zIndex: 100,
-    elevation: 5,
+    elevation: 8,
+
+    ...Platform.select({
+      web: {
+        position: 'sticky',
+        top: 0,
+        boxShadow: '0px 4px 14px rgba(0,0,0,0.16)',
+      },
+    }),
   },
 
   headerInner: {
@@ -1665,6 +1699,7 @@ const styles = StyleSheet.create({
   logoContainerMobile: {
     flex: 1,
     marginRight: 12,
+    justifyContent: 'flex-start', alignItems: 'center',
   },
 
   logoBox: {
@@ -1673,7 +1708,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 14,
 
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: COLORS.white,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -1682,10 +1717,10 @@ const styles = StyleSheet.create({
   },
 
   logoBoxMobile: {
-    width: 46,
-    height: 46,
+    width: 43,
+    height: 43,
 
-    borderRadius: 13,
+    borderRadius: 12,
 
     marginRight: 9,
   },
@@ -1696,22 +1731,25 @@ const styles = StyleSheet.create({
   },
 
   logoMobile: {
-    width: 35,
-    height: 35,
+    width: 33,
+    height: 33,
   },
 
   logoTexts: {
     flexShrink: 1,
+    alignItems: 'flex-start',
   },
 
   logoTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: COLORS.primaryDark,
+    color: COLORS.white,
   },
 
   logoTitleMobile: {
     fontSize: 16,
+    color: COLORS.white,
+    textAlign: 'center',
   },
 
   logoSubtitle: {
@@ -1719,11 +1757,13 @@ const styles = StyleSheet.create({
 
     fontSize: 10,
 
-    color: COLORS.textSoft,
+    color: '#DDF0E1',
   },
 
   logoSubtitleMobile: {
-    fontSize: 9,
+    fontSize: 8,
+    color: '#DDF0E1',
+    textAlign: 'center',
   },
 
   desktopNav: {
@@ -1744,7 +1784,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
 
-    color: COLORS.textSoft,
+    color: COLORS.white,
   },
 
   headerActions: {
@@ -1762,7 +1802,7 @@ const styles = StyleSheet.create({
   },
 
   loginButtonText: {
-    color: COLORS.primaryDark,
+    color: COLORS.white,
 
     fontSize: 14,
     fontWeight: '700',
@@ -1789,12 +1829,12 @@ const styles = StyleSheet.create({
   ======================================================= */
 
   menuButton: {
-    width: 45,
-    height: 45,
+    width: 43,
+    height: 43,
 
     borderRadius: 12,
 
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: COLORS.white,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -1803,12 +1843,12 @@ const styles = StyleSheet.create({
   mobileMenu: {
     paddingHorizontal: 18,
     paddingBottom: 18,
-    paddingTop: 4,
+    paddingTop: 8,
 
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.primaryDark,
 
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: 'rgba(255,255,255,0.18)',
   },
 
   mobileNavItem: {
@@ -1824,13 +1864,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
 
-    color: COLORS.text,
+    color: COLORS.white,
   },
 
   mobileDivider: {
     height: 1,
 
-    backgroundColor: COLORS.border,
+    backgroundColor: 'rgba(255,255,255,0.18)',
 
     marginVertical: 9,
   },

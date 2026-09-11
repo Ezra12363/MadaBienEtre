@@ -2,6 +2,17 @@
 // ============================================================
 // MADA BIEN-ÊTRE — REGISTER SCREEN
 // Responsive Web + Android + iOS
+//
+// Design:
+// - Même esprit moderne que WelcomeScreen
+// - Desktop : panneau vert + formulaire compact
+// - Tablet : formulaire centré
+// - Mobile/Android : header compact + formulaire scrollable
+// - Keyboard Android : le formulaire reste accessible
+// - Validation + force du mot de passe
+// - Choix Client / Thérapeute
+// - Toast
+// - Dark mode
 // ============================================================
 
 import React, {
@@ -34,10 +45,12 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { typography } from '../../theme';
+import AppHeader from '../../components/common/AppHeader';
 
 // ============================================================
 // CONSTANTES
@@ -47,10 +60,6 @@ const GREEN = '#2E7D32';
 const GREEN_DARK = '#1B5E20';
 const GREEN_LIGHT = '#EAF5EC';
 const WHITE = '#FFFFFF';
-
-const LIGHT_BACKGROUND = '#F6F9F6';
-const DARK_BACKGROUND = '#121212';
-const DARK_FORM = '#1E1E2E';
 
 const DESKTOP_BREAKPOINT = 1100;
 const TABLET_BREAKPOINT = 700;
@@ -66,17 +75,9 @@ const CustomToast = ({
   onDismiss,
   isDark = false,
 }) => {
-  const translateY = useRef(
-    new Animated.Value(-90)
-  ).current;
-
-  const opacity = useRef(
-    new Animated.Value(0)
-  ).current;
-
-  const scale = useRef(
-    new Animated.Value(0.96)
-  ).current;
+  const translateY = useRef(new Animated.Value(-90)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.96)).current;
 
   const config = {
     success: {
@@ -88,7 +89,6 @@ const CustomToast = ({
       iconColor: '#059669',
       textColor: isDark ? '#A7F3D0' : '#065F46',
     },
-
     error: {
       icon: 'alert-circle',
       title: 'Erreur',
@@ -98,7 +98,6 @@ const CustomToast = ({
       iconColor: '#DC2626',
       textColor: isDark ? '#FECACA' : '#991B1B',
     },
-
     info: {
       icon: 'information-circle',
       title: 'Information',
@@ -108,7 +107,6 @@ const CustomToast = ({
       iconColor: '#2563EB',
       textColor: isDark ? '#BFDBFE' : '#1E40AF',
     },
-
     warning: {
       icon: 'warning',
       title: 'Attention',
@@ -120,8 +118,7 @@ const CustomToast = ({
     },
   };
 
-  const current =
-    config[type] || config.info;
+  const current = config[type] || config.info;
 
   useEffect(() => {
     if (visible) {
@@ -132,14 +129,12 @@ const CustomToast = ({
           tension: 70,
           useNativeDriver: true,
         }),
-
         Animated.timing(opacity, {
           toValue: 1,
           duration: 220,
           easing: Easing.out(Easing.ease),
           useNativeDriver: true,
         }),
-
         Animated.spring(scale, {
           toValue: 1,
           friction: 8,
@@ -154,13 +149,11 @@ const CustomToast = ({
           duration: 180,
           useNativeDriver: true,
         }),
-
         Animated.timing(opacity, {
           toValue: 0,
           duration: 150,
           useNativeDriver: true,
         }),
-
         Animated.timing(scale, {
           toValue: 0.96,
           duration: 150,
@@ -168,12 +161,7 @@ const CustomToast = ({
         }),
       ]).start();
     }
-  }, [
-    visible,
-    opacity,
-    scale,
-    translateY,
-  ]);
+  }, [visible, opacity, scale, translateY]);
 
   if (!visible) return null;
 
@@ -184,10 +172,7 @@ const CustomToast = ({
         styles.toastContainer,
         {
           opacity,
-          transform: [
-            { translateY },
-            { scale },
-          ],
+          transform: [{ translateY }, { scale }],
         },
       ]}
     >
@@ -195,20 +180,15 @@ const CustomToast = ({
         style={[
           styles.toast,
           {
-            backgroundColor:
-              current.background,
-            borderColor:
-              current.border,
+            backgroundColor: current.background,
+            borderColor: current.border,
           },
         ]}
       >
         <View
           style={[
             styles.toastIcon,
-            {
-              backgroundColor:
-                current.iconBackground,
-            },
+            { backgroundColor: current.iconBackground },
           ]}
         >
           <Ionicons
@@ -218,16 +198,11 @@ const CustomToast = ({
           />
         </View>
 
-        <View
-          style={styles.toastContent}
-        >
+        <View style={styles.toastContent}>
           <Text
             style={[
               styles.toastTitle,
-              {
-                color:
-                  current.textColor,
-              },
+              { color: current.textColor },
             ]}
           >
             {current.title}
@@ -236,10 +211,7 @@ const CustomToast = ({
           <Text
             style={[
               styles.toastMessage,
-              {
-                color:
-                  current.textColor,
-              },
+              { color: current.textColor },
             ]}
             numberOfLines={4}
           >
@@ -250,12 +222,7 @@ const CustomToast = ({
         <TouchableOpacity
           onPress={onDismiss}
           style={styles.toastClose}
-          hitSlop={{
-            top: 10,
-            bottom: 10,
-            left: 10,
-            right: 10,
-          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Ionicons
             name="close"
@@ -272,62 +239,25 @@ const CustomToast = ({
 // PASSWORD STRENGTH
 // ============================================================
 
-const PasswordStrength = ({
-  password,
-  isDark,
-}) => {
+const PasswordStrength = ({ password, isDark }) => {
   const strength = useMemo(() => {
     if (!password) return null;
 
     let score = 0;
 
-    if (password.length >= 8)
-      score++;
-
-    if (password.length >= 12)
-      score++;
-
-    if (
-      /[a-z]/.test(password) &&
-      /[A-Z]/.test(password)
-    ) {
-      score++;
-    }
-
-    if (/\d/.test(password))
-      score++;
-
-    if (
-      /[^a-zA-Z0-9]/.test(password)
-    ) {
-      score++;
-    }
+    if (password.length >= 8) score++;
+    if (password.length >= 12) score++;
+    if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
+    if (/\d/.test(password)) score++;
+    if (/[^a-zA-Z0-9]/.test(password)) score++;
 
     const levels = [
-      {
-        label: 'Très faible',
-        color: '#EF4444',
-      },
-      {
-        label: 'Faible',
-        color: '#EF4444',
-      },
-      {
-        label: 'Moyen',
-        color: '#F59E0B',
-      },
-      {
-        label: 'Fort',
-        color: '#10B981',
-      },
-      {
-        label: 'Très fort',
-        color: '#10B981',
-      },
-      {
-        label: 'Excellent',
-        color: '#059669',
-      },
+      { label: 'Très faible', color: '#EF4444' },
+      { label: 'Faible', color: '#EF4444' },
+      { label: 'Moyen', color: '#F59E0B' },
+      { label: 'Fort', color: '#10B981' },
+      { label: 'Très fort', color: '#10B981' },
+      { label: 'Excellent', color: '#059669' },
     ];
 
     return {
@@ -339,17 +269,12 @@ const PasswordStrength = ({
   if (!strength) return null;
 
   return (
-    <View
-      style={styles.passwordStrength}
-    >
+    <View style={styles.passwordStrength}>
       <View
         style={[
           styles.passwordTrack,
           {
-            backgroundColor:
-              isDark
-                ? '#374151'
-                : '#E5E7EB',
+            backgroundColor: isDark ? '#374151' : '#E5E7EB',
           },
         ]}
       >
@@ -357,12 +282,8 @@ const PasswordStrength = ({
           style={[
             styles.passwordProgress,
             {
-              width: `${
-                (strength.score / 5) *
-                100
-              }%`,
-              backgroundColor:
-                strength.color,
+              width: `${(strength.score / 5) * 100}%`,
+              backgroundColor: strength.color,
             },
           ]}
         />
@@ -371,10 +292,7 @@ const PasswordStrength = ({
       <Text
         style={[
           styles.passwordStrengthText,
-          {
-            color:
-              strength.color,
-          },
+          { color: strength.color },
         ]}
       >
         {strength.label}
@@ -384,59 +302,37 @@ const PasswordStrength = ({
 };
 
 // ============================================================
-// STEPS INDICATOR
+// STEPS
 // ============================================================
 
-const StepsIndicator = ({
-  currentStep,
-  isDark,
-}) => {
+const StepsIndicator = ({ currentStep, isDark }) => {
   const steps = [
-    {
-      title: 'Compte',
-      icon: 'person-outline',
-    },
-    {
-      title: 'Vérification',
-      icon: 'mail-outline',
-    },
-    {
-      title: 'Terminé',
-      icon: 'checkmark-circle-outline',
-    },
+    { title: 'Compte', icon: 'person-outline' },
+    { title: 'Vérification', icon: 'mail-outline' },
+    { title: 'Terminé', icon: 'checkmark-circle-outline' },
   ];
 
   return (
     <View style={styles.steps}>
       {steps.map((step, index) => {
-        const completed =
-          index < currentStep;
-
-        const active =
-          index === currentStep;
+        const completed = index < currentStep;
+        const active = index === currentStep;
 
         return (
-          <React.Fragment
-            key={step.title}
-          >
-            <View
-              style={styles.stepItem}
-            >
+          <React.Fragment key={step.title}>
+            <View style={styles.stepItem}>
               <View
                 style={[
                   styles.stepCircle,
                   {
                     backgroundColor:
-                      completed ||
-                      active
+                      completed || active
                         ? GREEN
                         : isDark
                         ? '#303044'
                         : '#F3F4F6',
-
                     borderColor:
-                      completed ||
-                      active
+                      completed || active
                         ? GREEN
                         : isDark
                         ? '#454557'
@@ -445,20 +341,12 @@ const StepsIndicator = ({
                 ]}
               >
                 {completed ? (
-                  <Ionicons
-                    name="checkmark"
-                    size={14}
-                    color={WHITE}
-                  />
+                  <Ionicons name="checkmark" size={14} color={WHITE} />
                 ) : (
                   <Ionicons
                     name={step.icon}
                     size={14}
-                    color={
-                      active
-                        ? WHITE
-                        : '#9CA3AF'
-                    }
+                    color={active ? WHITE : '#9CA3AF'}
                   />
                 )}
               </View>
@@ -468,8 +356,7 @@ const StepsIndicator = ({
                   styles.stepText,
                   {
                     color:
-                      active ||
-                      completed
+                      active || completed
                         ? GREEN
                         : isDark
                         ? '#6B7280'
@@ -481,15 +368,13 @@ const StepsIndicator = ({
               </Text>
             </View>
 
-            {index <
-              steps.length - 1 && (
+            {index < steps.length - 1 && (
               <View
                 style={[
                   styles.stepLine,
                   {
                     backgroundColor:
-                      index <
-                      currentStep
+                      index < currentStep
                         ? GREEN
                         : isDark
                         ? '#374151'
@@ -528,31 +413,19 @@ const Field = ({
   inputRef,
 }) => {
   return (
-    <View
-      style={styles.fieldGroup}
-    >
-      <View
-        style={styles.fieldLabelRow}
-      >
+    <View style={styles.fieldGroup}>
+      <View style={styles.fieldLabelRow}>
         <Text
           style={[
             styles.fieldLabel,
-            {
-              color: isDark
-                ? '#E5E7EB'
-                : '#1F2937',
-            },
+            { color: isDark ? '#E5E7EB' : '#1F2937' },
           ]}
         >
           {label}
         </Text>
 
         {error ? (
-          <Ionicons
-            name="alert-circle"
-            size={14}
-            color="#EF4444"
-          />
+          <Ionicons name="alert-circle" size={14} color="#EF4444" />
         ) : null}
       </View>
 
@@ -560,11 +433,7 @@ const Field = ({
         style={[
           styles.inputWrapper,
           {
-            backgroundColor:
-              isDark
-                ? '#252535'
-                : '#FFFFFF',
-
+            backgroundColor: isDark ? '#252535' : '#F8FAF8',
             borderColor: error
               ? '#EF4444'
               : isDark
@@ -576,11 +445,7 @@ const Field = ({
         <Ionicons
           name={icon}
           size={19}
-          color={
-            error
-              ? '#EF4444'
-              : GREEN
-          }
+          color={error ? '#EF4444' : GREEN}
         />
 
         <TextInput
@@ -588,36 +453,22 @@ const Field = ({
           style={[
             styles.input,
             {
-              color: isDark
-                ? WHITE
-                : '#17201A',
+              color: isDark ? WHITE : '#17201A',
             },
           ]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={
-            isDark
-              ? '#6B7280'
-              : '#9CA3AF'
-          }
+          placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
           onFocus={onFocus}
           onBlur={onBlur}
-          secureTextEntry={
-            secureTextEntry
-          }
+          secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
-          autoCapitalize={
-            autoCapitalize
-          }
+          autoCapitalize={autoCapitalize}
           autoCorrect={false}
           spellCheck={false}
-          returnKeyType={
-            returnKeyType
-          }
-          onSubmitEditing={
-            onSubmitEditing
-          }
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
           blurOnSubmit={false}
           underlineColorAndroid="transparent"
           textAlignVertical="center"
@@ -628,22 +479,11 @@ const Field = ({
         {onToggleSecure ? (
           <TouchableOpacity
             onPress={onToggleSecure}
-            style={
-              styles.eyeButton
-            }
-            hitSlop={{
-              top: 10,
-              bottom: 10,
-              left: 10,
-              right: 10,
-            }}
+            style={styles.eyeButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             <Ionicons
-              name={
-                secureTextEntry
-                  ? 'eye-outline'
-                  : 'eye-off-outline'
-              }
+              name={secureTextEntry ? 'eye-outline' : 'eye-off-outline'}
               size={19}
               color="#9CA3AF"
             />
@@ -652,20 +492,13 @@ const Field = ({
       </View>
 
       {error ? (
-        <View
-          style={styles.errorRow}
-        >
+        <View style={styles.errorRow}>
           <Ionicons
             name="information-circle-outline"
             size={12}
             color="#EF4444"
           />
-
-          <Text
-            style={styles.errorText}
-          >
-            {error}
-          </Text>
+          <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : null}
     </View>
@@ -697,7 +530,6 @@ const RoleCard = ({
           : isDark
           ? '#252535'
           : WHITE,
-
         borderColor: active
           ? GREEN
           : isDark
@@ -723,25 +555,15 @@ const RoleCard = ({
       <Ionicons
         name={icon}
         size={21}
-        color={
-          active
-            ? GREEN
-            : '#8A948C'
-        }
+        color={active ? GREEN : '#8A948C'}
       />
     </View>
 
-    <View
-      style={styles.roleInfo}
-    >
+    <View style={styles.roleInfo}>
       <Text
         style={[
           styles.roleTitle,
-          {
-            color: isDark
-              ? WHITE
-              : '#17201A',
-          },
+          { color: isDark ? WHITE : '#17201A' },
         ]}
       >
         {title}
@@ -750,11 +572,7 @@ const RoleCard = ({
       <Text
         style={[
           styles.roleDescription,
-          {
-            color: isDark
-              ? '#9CA3AF'
-              : '#66736A',
-          },
+          { color: isDark ? '#9CA3AF' : '#66736A' },
         ]}
       >
         {description}
@@ -764,18 +582,10 @@ const RoleCard = ({
     <View
       style={[
         styles.radio,
-        {
-          borderColor: active
-            ? GREEN
-            : '#D1D5DB',
-        },
+        { borderColor: active ? GREEN : '#D1D5DB' },
       ]}
     >
-      {active ? (
-        <View
-          style={styles.radioInner}
-        />
-      ) : null}
+      {active ? <View style={styles.radioInner} /> : null}
     </View>
   </TouchableOpacity>
 );
@@ -784,113 +594,61 @@ const RoleCard = ({
 // MAIN
 // ============================================================
 
-const RegisterScreen = ({
-  navigation,
-}) => {
-  const window =
-    useWindowDimensions();
+const RegisterScreen = ({ navigation }) => {
+  const window = useWindowDimensions();
 
-  const width =
-    window?.width ||
-    Dimensions.get('window').width;
+  const insets = useSafeAreaInsets();
 
-  const height =
-    window?.height ||
-    Dimensions.get('window').height;
+  const width = window?.width || Dimensions.get('window').width;
+  const height = window?.height || Dimensions.get('window').height;
 
-  const isDesktop =
-    Platform.OS === 'web' &&
-    width >= DESKTOP_BREAKPOINT;
-
+  const isDesktop = Platform.OS === 'web' && width >= DESKTOP_BREAKPOINT;
   const isTablet =
-    width >= TABLET_BREAKPOINT &&
-    width < DESKTOP_BREAKPOINT;
+    width >= TABLET_BREAKPOINT && width < DESKTOP_BREAKPOINT;
+  const isSmallPhone = width <= 380;
+  const isMobileLayout = !isDesktop;
 
-  const isSmallPhone =
-    width <= 380;
+  const { register } = useAuth();
+  const { isDark } = useTheme();
 
-  const isMobileLayout =
-    !isDesktop;
+  const [formData, setFormData] = useState({
+    fullname: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+    role: 'CLIENT',
+  });
 
-  const { register } =
-    useAuth();
+  const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const { isDark } =
-    useTheme();
+  const [toast, setToast] = useState({
+    visible: false,
+    type: 'info',
+    message: '',
+  });
 
-  const [formData, setFormData] =
-    useState({
-      fullname: '',
-      email: '',
-      phone: '',
-      password: '',
-      confirmPassword: '',
-      role: 'CLIENT',
-    });
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
 
-  const [errors, setErrors] =
-    useState({});
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(22)).current;
+  const toastTimer = useRef(null);
 
-  const [isLoading, setIsLoading] =
-    useState(false);
+  const scrollRef = useRef(null);
 
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const fullnameRef = useRef(null);
+  const emailRef = useRef(null);
+  const phoneRef = useRef(null);
+  const passwordRef = useRef(null);
+  const confirmPasswordRef = useRef(null);
 
-  const [
-    showConfirmPassword,
-    setShowConfirmPassword,
-  ] = useState(false);
-
-  const [toast, setToast] =
-    useState({
-      visible: false,
-      type: 'info',
-      message: '',
-    });
-
-  const [
-    keyboardVisible,
-    setKeyboardVisible,
-  ] = useState(false);
-
-  const [currentStep, setCurrentStep] =
-    useState(0);
-
-  const fadeAnim =
-    useRef(
-      new Animated.Value(0)
-    ).current;
-
-  const slideAnim =
-    useRef(
-      new Animated.Value(22)
-    ).current;
-
-  const toastTimer =
-    useRef(null);
-
-  const scrollRef =
-    useRef(null);
-
-  const fullnameRef =
-    useRef(null);
-
-  const emailRef =
-    useRef(null);
-
-  const phoneRef =
-    useRef(null);
-
-  const passwordRef =
-    useRef(null);
-
-  const confirmPasswordRef =
-    useRef(null);
-
-  // ==========================================================
-  // ANIMATION
-  // ==========================================================
+  // ----------------------------------------------------------
+  // INTRO ANIMATION
+  // ----------------------------------------------------------
 
   useEffect(() => {
     Animated.parallel([
@@ -899,7 +657,6 @@ const RegisterScreen = ({
         duration: 450,
         useNativeDriver: true,
       }),
-
       Animated.spring(slideAnim, {
         toValue: 0,
         friction: 8,
@@ -909,41 +666,24 @@ const RegisterScreen = ({
     ]).start();
 
     return () => {
-      if (toastTimer.current) {
-        clearTimeout(
-          toastTimer.current
-        );
-      }
+      if (toastTimer.current) clearTimeout(toastTimer.current);
     };
-  }, [
-    fadeAnim,
-    slideAnim,
-  ]);
+  }, [fadeAnim, slideAnim]);
 
-  // ==========================================================
+  // ----------------------------------------------------------
   // KEYBOARD
-  // ==========================================================
+  // ----------------------------------------------------------
 
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      return undefined;
-    }
+    if (Platform.OS === 'web') return undefined;
 
-    const showSub =
-      Keyboard.addListener(
-        'keyboardDidShow',
-        () => {
-          setKeyboardVisible(true);
-        }
-      );
+    const showSub = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardVisible(true);
+    });
 
-    const hideSub =
-      Keyboard.addListener(
-        'keyboardDidHide',
-        () => {
-          setKeyboardVisible(false);
-        }
-      );
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardVisible(false);
+    });
 
     return () => {
       showSub.remove();
@@ -951,617 +691,366 @@ const RegisterScreen = ({
     };
   }, []);
 
-  // ==========================================================
+  // ----------------------------------------------------------
   // TOAST
-  // ==========================================================
+  // ----------------------------------------------------------
 
-  const showToast = useCallback(
-    (type, message) => {
-      if (toastTimer.current) {
-        clearTimeout(
-          toastTimer.current
-        );
+  const showToast = useCallback((type, message) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+
+    setToast({
+      visible: true,
+      type,
+      message,
+    });
+
+    toastTimer.current = setTimeout(() => {
+      setToast(prev => ({ ...prev, visible: false }));
+    }, 4500);
+  }, []);
+
+  const dismissToast = useCallback(() => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+
+    setToast(prev => ({
+      ...prev,
+      visible: false,
+    }));
+  }, []);
+
+  // ----------------------------------------------------------
+  // UPDATE
+  // ----------------------------------------------------------
+
+  const updateField = useCallback((field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    setErrors(prev => {
+      if (!prev[field]) return prev;
+
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }, []);
+
+  // ----------------------------------------------------------
+  // VALIDATION
+  // ----------------------------------------------------------
+
+  const getFieldError = useCallback(
+    (field, value, passwordValue = formData.password) => {
+      const clean = String(value ?? '');
+
+      switch (field) {
+        case 'fullname':
+          if (!clean.trim()) return 'Le nom complet est requis.';
+          if (clean.trim().length < 2) {
+            return 'Le nom doit contenir au moins 2 caractères.';
+          }
+          return '';
+
+        case 'email': {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+          if (!clean.trim()) return "L'adresse email est requise.";
+          if (!emailRegex.test(clean.trim())) {
+            return 'Veuillez saisir une adresse email valide.';
+          }
+          return '';
+        }
+
+        case 'phone': {
+          const phone = clean.replace(/\s/g, '');
+
+          if (!phone) return 'Le numéro de téléphone est requis.';
+          if (!/^[0-9+()-]{8,15}$/.test(phone)) {
+            return 'Veuillez saisir un numéro de téléphone valide.';
+          }
+          return '';
+        }
+
+        case 'password':
+          if (!clean) return 'Le mot de passe est requis.';
+          if (clean.length < 8) {
+            return 'Le mot de passe doit contenir au moins 8 caractères.';
+          }
+          return '';
+
+        case 'confirmPassword':
+          if (!clean) return 'Veuillez confirmer votre mot de passe.';
+          if (clean !== passwordValue) {
+            return 'Les mots de passe ne correspondent pas.';
+          }
+          return '';
+
+        default:
+          return '';
       }
-
-      setToast({
-        visible: true,
-        type,
-        message,
-      });
-
-      toastTimer.current =
-        setTimeout(() => {
-          setToast(prev => ({
-            ...prev,
-            visible: false,
-          }));
-        }, 4500);
     },
-    []
+    [formData.password]
   );
 
-  const dismissToast =
-    useCallback(() => {
-      if (toastTimer.current) {
-        clearTimeout(
-          toastTimer.current
-        );
-      }
+  const validateField = useCallback(
+    (field, value, passwordValue = formData.password) => {
+      const message = getFieldError(field, value, passwordValue);
 
-      setToast(prev => ({
-        ...prev,
-        visible: false,
-      }));
-    }, []);
+      setErrors(prev => {
+        const next = { ...prev };
 
-  // ==========================================================
-  // UPDATE FIELD
-  // ==========================================================
+        if (message) next[field] = message;
+        else delete next[field];
 
-  const updateField =
-    useCallback(
-      (field, value) => {
-        setFormData(prev => ({
-          ...prev,
-          [field]: value,
-        }));
-
-        setErrors(prev => {
-          if (!prev[field]) {
-            return prev;
-          }
-
-          const next = {
-            ...prev,
-          };
-
-          delete next[field];
-
-          return next;
-        });
-      },
-      []
-    );
-
-  // ==========================================================
-  // VALIDATION
-  // ==========================================================
-
-  const getFieldError =
-    useCallback(
-      (
-        field,
-        value,
-        passwordValue = formData.password
-      ) => {
-        const clean =
-          String(value ?? '');
-
-        switch (field) {
-          case 'fullname':
-            if (!clean.trim()) {
-              return 'Le nom complet est requis.';
-            }
-
-            if (
-              clean.trim().length < 2
-            ) {
-              return 'Le nom doit contenir au moins 2 caractères.';
-            }
-
-            return '';
-
-          case 'email': {
-            const emailRegex =
-              /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-            if (!clean.trim()) {
-              return "L'adresse email est requise.";
-            }
-
-            if (
-              !emailRegex.test(
-                clean.trim()
-              )
-            ) {
-              return 'Veuillez saisir une adresse email valide.';
-            }
-
-            return '';
-          }
-
-          case 'phone': {
-            const phone =
-              clean.replace(
-                /\s/g,
-                ''
-              );
-
-            if (!phone) {
-              return 'Le numéro de téléphone est requis.';
-            }
-
-            if (
-              !/^[0-9+()-]{8,15}$/.test(
-                phone
-              )
-            ) {
-              return 'Veuillez saisir un numéro de téléphone valide.';
-            }
-
-            return '';
-          }
-
-          case 'password':
-            if (!clean) {
-              return 'Le mot de passe est requis.';
-            }
-
-            if (clean.length < 8) {
-              return 'Le mot de passe doit contenir au moins 8 caractères.';
-            }
-
-            return '';
-
-          case 'confirmPassword':
-            if (!clean) {
-              return 'Veuillez confirmer votre mot de passe.';
-            }
-
-            if (
-              clean !== passwordValue
-            ) {
-              return 'Les mots de passe ne correspondent pas.';
-            }
-
-            return '';
-
-          default:
-            return '';
-        }
-      },
-      [formData.password]
-    );
-
-  const validateField =
-    useCallback(
-      (
-        field,
-        value,
-        passwordValue = formData.password
-      ) => {
-        const message =
-          getFieldError(
-            field,
-            value,
-            passwordValue
-          );
-
-        setErrors(prev => {
-          const next = {
-            ...prev,
-          };
-
-          if (message) {
-            next[field] = message;
-          } else {
-            delete next[field];
-          }
-
-          return next;
-        });
-
-        return !message;
-      },
-      [
-        formData.password,
-        getFieldError,
-      ]
-    );
-
-  const validateForm =
-    useCallback(() => {
-      const newErrors = {};
-
-      const fields = [
-        [
-          'fullname',
-          formData.fullname,
-        ],
-        [
-          'email',
-          formData.email,
-        ],
-        [
-          'phone',
-          formData.phone,
-        ],
-        [
-          'password',
-          formData.password,
-        ],
-        [
-          'confirmPassword',
-          formData.confirmPassword,
-        ],
-      ];
-
-      fields.forEach(
-        ([field, value]) => {
-          const error =
-            getFieldError(
-              field,
-              value,
-              formData.password
-            );
-
-          if (error) {
-            newErrors[field] =
-              error;
-          }
-        }
-      );
-
-      setErrors(newErrors);
-
-      return (
-        Object.keys(
-          newErrors
-        ).length === 0
-      );
-    }, [
-      formData,
-      getFieldError,
-    ]);
-
-  // ==========================================================
-  // SCROLL
-  // ==========================================================
-
-  const scrollToInput =
-    useCallback(
-      inputRef => {
-        if (
-          !isMobileLayout ||
-          !inputRef?.current
-        ) {
-          return;
-        }
-
-        InteractionManager.runAfterInteractions(
-          () => {
-            setTimeout(() => {
-              try {
-                const scrollView =
-                  scrollRef.current;
-
-                if (!scrollView) {
-                  return;
-                }
-
-                const responder =
-                  scrollView.getScrollResponder?.();
-
-                if (
-                  responder &&
-                  responder.scrollResponderScrollNativeHandleToKeyboard
-                ) {
-                  responder.scrollResponderScrollNativeHandleToKeyboard(
-                    inputRef.current,
-                    Platform.OS ===
-                      'android'
-                      ? 180
-                      : 90,
-                    true
-                  );
-
-                  return;
-                }
-
-                if (
-                  Platform.OS ===
-                  'web'
-                ) {
-                  inputRef.current?.measureInWindow?.(
-                    (
-                      x,
-                      y,
-                      inputWidth,
-                      inputHeight
-                    ) => {
-                      const visibleHeight =
-                        Math.max(
-                          300,
-                          height - 100
-                        );
-
-                      if (
-                        y +
-                          inputHeight >
-                        visibleHeight
-                      ) {
-                        scrollView.scrollTo(
-                          {
-                            y: Math.max(
-                              0,
-                              y -
-                                visibleHeight +
-                                inputHeight +
-                                100
-                            ),
-                            animated:
-                              true,
-                          }
-                        );
-                      }
-                    }
-                  );
-                }
-              } catch (error) {
-                console.log(
-                  'Scroll input error:',
-                  error
-                );
-              }
-            }, 120);
-          }
-        );
-      },
-      [
-        height,
-        isMobileLayout,
-      ]
-    );
-
-  const focusField =
-    useCallback(
-      ref => {
-        ref?.current?.focus?.();
-        scrollToInput(ref);
-      },
-      [scrollToInput]
-    );
-
-  const scrollToTop =
-    useCallback(() => {
-      scrollRef.current?.scrollTo({
-        y: 0,
-        animated: true,
+        return next;
       });
-    }, []);
 
-  const scrollToFirstError =
-    useCallback(
-      errorObject => {
-        const first =
-          Object.keys(
-            errorObject
-          )[0];
+      return !message;
+    },
+    [formData.password, getFieldError]
+  );
 
-        const refs = {
-          fullname:
-            fullnameRef,
-          email:
-            emailRef,
-          phone:
-            phoneRef,
-          password:
-            passwordRef,
-          confirmPassword:
-            confirmPasswordRef,
-        };
+  const validateForm = useCallback(() => {
+    const newErrors = {};
 
-        const ref =
-          refs[first];
+    const fields = [
+      ['fullname', formData.fullname],
+      ['email', formData.email],
+      ['phone', formData.phone],
+      ['password', formData.password],
+      ['confirmPassword', formData.confirmPassword],
+    ];
 
-        if (
-          ref?.current &&
-          isMobileLayout
-        ) {
-          setTimeout(() => {
-            scrollToInput(ref);
-            ref.current?.focus?.();
-          }, 180);
-        } else {
-          scrollToTop();
-        }
-      },
-      [
-        isMobileLayout,
-        scrollToInput,
-        scrollToTop,
-      ]
-    );
+    fields.forEach(([field, value]) => {
+      const error = getFieldError(
+        field,
+        value,
+        formData.password
+      );
 
-  // ==========================================================
+      if (error) newErrors[field] = error;
+    });
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0;
+  }, [formData, getFieldError]);
+
+  // ----------------------------------------------------------
+  // SCROLL — IMPORTANT POUR ANDROID
+  // ----------------------------------------------------------
+
+  const scrollToInput = useCallback(
+    inputRef => {
+      if (!isMobileLayout || !inputRef?.current) return;
+
+      InteractionManager.runAfterInteractions(() => {
+        setTimeout(() => {
+          try {
+            const scrollView = scrollRef.current;
+            if (!scrollView) return;
+
+            const responder = scrollView.getScrollResponder?.();
+
+            if (
+              responder &&
+              responder.scrollResponderScrollNativeHandleToKeyboard
+            ) {
+              responder.scrollResponderScrollNativeHandleToKeyboard(
+                inputRef.current,
+                Platform.OS === 'android' ? 150 : 90,
+                true
+              );
+              return;
+            }
+
+            // Fallback Web
+            if (Platform.OS === 'web') {
+              inputRef.current?.measureInWindow?.(
+                (x, y, inputWidth, inputHeight) => {
+                  const visibleHeight = Math.max(300, height - 100);
+
+                  if (y + inputHeight > visibleHeight) {
+                    scrollView.scrollTo({
+                      y: Math.max(
+                        0,
+                        y - visibleHeight + inputHeight + 100
+                      ),
+                      animated: true,
+                    });
+                  }
+                }
+              );
+            }
+          } catch (error) {
+            console.log('Scroll input error:', error);
+          }
+        }, 100);
+      });
+    },
+    [height, isMobileLayout]
+  );
+
+  const focusField = useCallback(
+    ref => {
+      ref?.current?.focus?.();
+      scrollToInput(ref);
+    },
+    [scrollToInput]
+  );
+
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({
+      y: 0,
+      animated: true,
+    });
+  }, []);
+
+  const scrollToFirstError = useCallback(
+    errorObject => {
+      const first = Object.keys(errorObject)[0];
+
+      const refs = {
+        fullname: fullnameRef,
+        email: emailRef,
+        phone: phoneRef,
+        password: passwordRef,
+        confirmPassword: confirmPasswordRef,
+      };
+
+      const ref = refs[first];
+
+      if (ref?.current && isMobileLayout) {
+        setTimeout(() => {
+          scrollToInput(ref);
+          ref.current?.focus?.();
+        }, 180);
+      } else {
+        scrollToTop();
+      }
+    },
+    [isMobileLayout, scrollToInput, scrollToTop]
+  );
+
+  // ----------------------------------------------------------
   // REGISTER
-  // ==========================================================
+  // ----------------------------------------------------------
 
-  const handleRegister =
-    async () => {
-      Keyboard.dismiss();
+  const handleRegister = async () => {
+    Keyboard.dismiss();
 
-      const valid =
-        validateForm();
+    const valid = validateForm();
 
-      if (!valid) {
+    if (!valid) {
+      showToast(
+        'error',
+        'Veuillez corriger les informations indiquées avant de continuer.'
+      );
+
+      setTimeout(() => {
+        scrollToFirstError(
+          Object.fromEntries(
+            Object.entries(formData)
+              .filter(([key]) =>
+                [
+                  'fullname',
+                  'email',
+                  'phone',
+                  'password',
+                  'confirmPassword',
+                ].includes(key)
+              )
+              .map(([key, value]) => [
+                key,
+                getFieldError(
+                  key,
+                  value,
+                  formData.password
+                ),
+              ])
+              .filter(([, error]) => error)
+          )
+        );
+      }, 120);
+
+      return;
+    }
+
+    setIsLoading(true);
+    setCurrentStep(1);
+    dismissToast();
+
+    try {
+      const result = await register({
+        fullname: formData.fullname.trim(),
+        email: formData.email.trim().toLowerCase(),
+        phone: formData.phone.trim(),
+        password: formData.password,
+        role: formData.role,
+      });
+
+      if (result?.success) {
+        setCurrentStep(2);
+
         showToast(
-          'error',
-          'Veuillez corriger les informations indiquées avant de continuer.'
+          'success',
+          'Votre compte a été créé. Vérifiez votre adresse email pour continuer.'
         );
 
         setTimeout(() => {
-          const errorObject =
-            Object.fromEntries(
-              Object.entries(
-                formData
-              )
-                .filter(
-                  ([key]) =>
-                    [
-                      'fullname',
-                      'email',
-                      'phone',
-                      'password',
-                      'confirmPassword',
-                    ].includes(
-                      key
-                    )
-                )
-                .map(
-                  ([
-                    key,
-                    value,
-                  ]) => [
-                    key,
-                    getFieldError(
-                      key,
-                      value,
-                      formData.password
-                    ),
-                  ]
-                )
-                .filter(
-                  ([, error]) =>
-                    error
-                )
-            );
-
-          scrollToFirstError(
-            errorObject
-          );
-        }, 120);
-
-        return;
-      }
-
-      setIsLoading(true);
-      setCurrentStep(1);
-      dismissToast();
-
-      try {
-        const result =
-          await register({
-            fullname:
-              formData.fullname.trim(),
-
-            email:
-              formData.email
-                .trim()
-                .toLowerCase(),
-
-            phone:
-              formData.phone.trim(),
-
-            password:
-              formData.password,
-
-            role:
-              formData.role,
+          navigation.navigate('OTPVerification', {
+            email: formData.email.trim().toLowerCase(),
+            fullname: formData.fullname.trim(),
           });
-
-        if (result?.success) {
-          setCurrentStep(2);
-
-          showToast(
-            'success',
-            'Votre compte a été créé. Vérifiez votre adresse email pour continuer.'
-          );
-
-          setTimeout(() => {
-            navigation.navigate(
-              'OTPVerification',
-              {
-                email:
-                  formData.email
-                    .trim()
-                    .toLowerCase(),
-
-                fullname:
-                  formData.fullname
-                    .trim(),
-              }
-            );
-          }, 1300);
-        } else {
-          setCurrentStep(0);
-
-          showToast(
-            'error',
-            result?.error ||
-              "Impossible de créer votre compte. Veuillez réessayer."
-          );
-        }
-      } catch (error) {
-        console.error(
-          'Register error:',
-          error
-        );
-
+        }, 1300);
+      } else {
         setCurrentStep(0);
 
         showToast(
           'error',
-          'Une erreur est survenue. Vérifiez votre connexion puis réessayez.'
+          result?.error ||
+            "Impossible de créer votre compte. Veuillez réessayer."
         );
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Register error:', error);
+      setCurrentStep(0);
 
-  // ==========================================================
-  // FORMULAIRE
-  // ==========================================================
+      showToast(
+        'error',
+        'Une erreur est survenue. Vérifiez votre connexion puis réessayez.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ----------------------------------------------------------
+  // FORM
+  // ----------------------------------------------------------
 
   const renderForm = () => (
     <Animated.View
       style={[
         styles.formCard,
-
-        isDesktop &&
-          styles.formCardDesktop,
-
-        isTablet &&
-          styles.formCardTablet,
-
-        isSmallPhone &&
-          styles.formCardSmall,
-
+        isDesktop && styles.formCardDesktop,
+        isTablet && styles.formCardTablet,
+        isSmallPhone && styles.formCardSmall,
         {
-          // ==================================================
-          // IMPORTANT :
-          // Le formulaire prend maintenant le même fond
-          // que l'extérieur.
-          // ==================================================
-          backgroundColor:
-            isDark
-              ? DARK_BACKGROUND
-              : LIGHT_BACKGROUND,
-
+          backgroundColor: isDark ? '#1E1E2E' : WHITE,
           opacity: fadeAnim,
-
-          transform: [
-            {
-              translateY:
-                slideAnim,
-            },
-          ],
+          transform: [{ translateY: slideAnim }],
         },
       ]}
     >
-      {/* HEADER FORMULAIRE */}
-
-      <View
-        style={styles.formIntro}
-      >
+      <View style={styles.formIntro}>
         <View
           style={[
             styles.formIcon,
             {
-              backgroundColor:
-                isDark
-                  ? '#263C2A'
-                  : GREEN_LIGHT,
+              backgroundColor: isDark ? '#263C2A' : GREEN_LIGHT,
             },
           ]}
         >
@@ -1572,24 +1061,12 @@ const RegisterScreen = ({
           />
         </View>
 
-        <View
-          style={
-            styles.formIntroText
-          }
-        >
+        <View style={styles.formIntroText}>
           <Text
             style={[
               styles.formTitle,
-
-              isSmallPhone &&
-                styles.formTitleSmall,
-
-              {
-                color:
-                  isDark
-                    ? WHITE
-                    : '#17201A',
-              },
+              isSmallPhone && styles.formTitleSmall,
+              { color: isDark ? WHITE : '#17201A' },
             ]}
           >
             Créer votre compte
@@ -1598,12 +1075,7 @@ const RegisterScreen = ({
           <Text
             style={[
               styles.formDescription,
-              {
-                color:
-                  isDark
-                    ? '#9CA3AF'
-                    : '#66736A',
-              },
+              { color: isDark ? '#9CA3AF' : '#66736A' },
             ]}
           >
             Inscrivez-vous en quelques secondes.
@@ -1611,223 +1083,102 @@ const RegisterScreen = ({
         </View>
       </View>
 
-      {/* ETAPES */}
-
       <StepsIndicator
-        currentStep={
-          currentStep
-        }
+        currentStep={currentStep}
         isDark={isDark}
       />
 
-      {/* NOM */}
-
       <Field
-        inputRef={
-          fullnameRef
-        }
+        inputRef={fullnameRef}
         label="Nom complet"
         icon="person-outline"
-        value={
-          formData.fullname
-        }
-        onChangeText={text =>
-          updateField(
-            'fullname',
-            text
-          )
-        }
+        value={formData.fullname}
+        onChangeText={text => updateField('fullname', text)}
         placeholder="Ex. Jean Rakoto"
-        error={
-          errors.fullname
-        }
-        onFocus={() =>
-          scrollToInput(
-            fullnameRef
-          )
-        }
+        error={errors.fullname}
+        onFocus={() => scrollToInput(fullnameRef)}
         onBlur={() =>
-          validateField(
-            'fullname',
-            formData.fullname
-          )
+          validateField('fullname', formData.fullname)
         }
         isDark={isDark}
         returnKeyType="next"
-        onSubmitEditing={() =>
-          focusField(
-            emailRef
-          )
-        }
+        onSubmitEditing={() => focusField(emailRef)}
       />
 
-      {/* EMAIL */}
-
       <Field
-        inputRef={
-          emailRef
-        }
+        inputRef={emailRef}
         label="Adresse email"
         icon="mail-outline"
-        value={
-          formData.email
-        }
-        onChangeText={text =>
-          updateField(
-            'email',
-            text
-          )
-        }
+        value={formData.email}
+        onChangeText={text => updateField('email', text)}
         placeholder="exemple@email.com"
-        error={
-          errors.email
-        }
-        onFocus={() =>
-          scrollToInput(
-            emailRef
-          )
-        }
+        error={errors.email}
+        onFocus={() => scrollToInput(emailRef)}
         onBlur={() =>
-          validateField(
-            'email',
-            formData.email
-          )
+          validateField('email', formData.email)
         }
         isDark={isDark}
         keyboardType="email-address"
         autoCapitalize="none"
         returnKeyType="next"
-        onSubmitEditing={() =>
-          focusField(
-            phoneRef
-          )
-        }
+        onSubmitEditing={() => focusField(phoneRef)}
       />
 
-      {/* TELEPHONE */}
-
       <Field
-        inputRef={
-          phoneRef
-        }
+        inputRef={phoneRef}
         label="Numéro de téléphone"
         icon="call-outline"
-        value={
-          formData.phone
-        }
-        onChangeText={text =>
-          updateField(
-            'phone',
-            text
-          )
-        }
+        value={formData.phone}
+        onChangeText={text => updateField('phone', text)}
         placeholder="034 00 000 00"
-        error={
-          errors.phone
-        }
-        onFocus={() =>
-          scrollToInput(
-            phoneRef
-          )
-        }
+        error={errors.phone}
+        onFocus={() => scrollToInput(phoneRef)}
         onBlur={() =>
-          validateField(
-            'phone',
-            formData.phone
-          )
+          validateField('phone', formData.phone)
         }
         isDark={isDark}
         keyboardType="phone-pad"
         returnKeyType="next"
-        onSubmitEditing={() =>
-          focusField(
-            passwordRef
-          )
-        }
+        onSubmitEditing={() => focusField(passwordRef)}
       />
 
-      {/* PASSWORD */}
-
       <Field
-        inputRef={
-          passwordRef
-        }
+        inputRef={passwordRef}
         label="Mot de passe"
         icon="lock-closed-outline"
-        value={
-          formData.password
-        }
-        onChangeText={text =>
-          updateField(
-            'password',
-            text
-          )
-        }
+        value={formData.password}
+        onChangeText={text => updateField('password', text)}
         placeholder="Minimum 8 caractères"
-        error={
-          errors.password
-        }
-        onFocus={() =>
-          scrollToInput(
-            passwordRef
-          )
-        }
+        error={errors.password}
+        onFocus={() => scrollToInput(passwordRef)}
         onBlur={() =>
-          validateField(
-            'password',
-            formData.password
-          )
+          validateField('password', formData.password)
         }
         isDark={isDark}
-        secureTextEntry={
-          !showPassword
-        }
+        secureTextEntry={!showPassword}
         onToggleSecure={() =>
-          setShowPassword(
-            prev => !prev
-          )
+          setShowPassword(prev => !prev)
         }
         returnKeyType="next"
-        onSubmitEditing={() =>
-          focusField(
-            confirmPasswordRef
-          )
-        }
+        onSubmitEditing={() => focusField(confirmPasswordRef)}
       />
 
       <PasswordStrength
-        password={
-          formData.password
-        }
+        password={formData.password}
         isDark={isDark}
       />
 
-      {/* CONFIRMATION */}
-
       <Field
-        inputRef={
-          confirmPasswordRef
-        }
+        inputRef={confirmPasswordRef}
         label="Confirmer le mot de passe"
         icon="shield-checkmark-outline"
-        value={
-          formData.confirmPassword
-        }
+        value={formData.confirmPassword}
         onChangeText={text =>
-          updateField(
-            'confirmPassword',
-            text
-          )
+          updateField('confirmPassword', text)
         }
         placeholder="Saisissez à nouveau votre mot de passe"
-        error={
-          errors.confirmPassword
-        }
-        onFocus={() =>
-          scrollToInput(
-            confirmPasswordRef
-          )
-        }
+        error={errors.confirmPassword}
+        onFocus={() => scrollToInput(confirmPasswordRef)}
         onBlur={() =>
           validateField(
             'confirmPassword',
@@ -1836,148 +1187,85 @@ const RegisterScreen = ({
           )
         }
         isDark={isDark}
-        secureTextEntry={
-          !showConfirmPassword
-        }
+        secureTextEntry={!showConfirmPassword}
         onToggleSecure={() =>
-          setShowConfirmPassword(
-            prev => !prev
-          )
+          setShowConfirmPassword(prev => !prev)
         }
         returnKeyType="done"
-        onSubmitEditing={
-          handleRegister
-        }
+        onSubmitEditing={handleRegister}
       />
 
-      {/* TYPE COMPTE */}
+      <View style={styles.roleSection}>
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: isDark ? '#E5E7EB' : '#1F2937' },
+              ]}
+            >
+              Type de compte
+            </Text>
 
-      <View
-        style={styles.roleSection}
-      >
-        <View
-          style={
-            styles.sectionHeader
-          }
-        >
-          <Text
-            style={[
-              styles.sectionTitle,
-              {
-                color:
-                  isDark
-                    ? '#E5E7EB'
-                    : '#1F2937',
-              },
-            ]}
-          >
-            Type de compte
-          </Text>
-
-          <Text
-            style={[
-              styles.sectionHint,
-              {
-                color:
-                  isDark
-                    ? '#6B7280'
-                    : '#8A948C',
-              },
-            ]}
-          >
-            Choisissez votre profil
-          </Text>
+            <Text
+              style={[
+                styles.sectionHint,
+                { color: isDark ? '#6B7280' : '#8A948C' },
+              ]}
+            >
+              Choisissez votre profil
+            </Text>
+          </View>
         </View>
 
         <View
           style={[
             styles.roleList,
-            isDesktop &&
-              styles.roleListDesktop,
+            isDesktop && styles.roleListDesktop,
           ]}
         >
           <RoleCard
-            active={
-              formData.role ===
-              'CLIENT'
-            }
+            active={formData.role === 'CLIENT'}
             icon="person-outline"
             title="Client"
             description="Réserver un massage"
-            onPress={() =>
-              updateField(
-                'role',
-                'CLIENT'
-              )
-            }
+            onPress={() => updateField('role', 'CLIENT')}
             isDark={isDark}
           />
 
           <RoleCard
-            active={
-              formData.role ===
-              'THERAPIST'
-            }
+            active={formData.role === 'THERAPIST'}
             icon="medkit-outline"
             title="Thérapeute"
             description="Proposer mes services"
-            onPress={() =>
-              updateField(
-                'role',
-                'THERAPIST'
-              )
-            }
+            onPress={() => updateField('role', 'THERAPIST')}
             isDark={isDark}
           />
         </View>
       </View>
 
-      {/* BOUTON CREATION */}
-
       <TouchableOpacity
         style={[
           styles.registerButton,
-          isLoading &&
-            styles.registerButtonDisabled,
+          isLoading && styles.registerButtonDisabled,
         ]}
-        onPress={
-          handleRegister
-        }
-        disabled={
-          isLoading
-        }
+        onPress={handleRegister}
+        disabled={isLoading}
         activeOpacity={0.88}
       >
-        <View
-          style={
-            styles.registerButtonInner
-          }
-        >
+        <View style={styles.registerButtonInner}>
           {isLoading ? (
             <>
-              <ActivityIndicator
-                color={WHITE}
-                size="small"
-              />
-
-              <Text
-                style={
-                  styles.registerButtonText
-                }
-              >
+              <ActivityIndicator color={WHITE} size="small" />
+              <Text style={styles.registerButtonText}>
                 Création du compte...
               </Text>
             </>
           ) : (
             <>
-              <Text
-                style={
-                  styles.registerButtonText
-                }
-              >
+              <Text style={styles.registerButtonText}>
                 Créer mon compte
               </Text>
-
               <Ionicons
                 name="arrow-forward"
                 size={18}
@@ -1988,60 +1276,31 @@ const RegisterScreen = ({
         </View>
       </TouchableOpacity>
 
-      {/* CONDITIONS */}
-
       <Text
         style={[
           styles.terms,
-          {
-            color:
-              isDark
-                ? '#6B7280'
-                : '#8A948C',
-          },
+          { color: isDark ? '#6B7280' : '#8A948C' },
         ]}
       >
         En créant votre compte, vous acceptez nos conditions
         d'utilisation et notre politique de confidentialité.
       </Text>
 
-      {/* LOGIN */}
-
-      <View
-        style={styles.loginRow}
-      >
+      <View style={styles.loginRow}>
         <Text
           style={[
             styles.loginText,
-            {
-              color:
-                isDark
-                  ? '#9CA3AF'
-                  : '#66736A',
-            },
+            { color: isDark ? '#9CA3AF' : '#66736A' },
           ]}
         >
           Vous avez déjà un compte ?
         </Text>
 
         <TouchableOpacity
-          onPress={() =>
-            navigation.navigate(
-              'Login'
-            )
-          }
-          style={
-            styles.loginLinkButton
-          }
+          onPress={() => navigation.navigate('Login')}
+          style={styles.loginLinkButton}
         >
-          <Text
-            style={
-              styles.loginLink
-            }
-          >
-            Se connecter
-          </Text>
-
+          <Text style={styles.loginLink}>Se connecter</Text>
           <Ionicons
             name="arrow-forward"
             size={14}
@@ -2052,521 +1311,238 @@ const RegisterScreen = ({
     </Animated.View>
   );
 
-  // ==========================================================
-  // MOBILE
-  // ==========================================================
+  // ----------------------------------------------------------
+  // MOBILE / TABLET
+  // ----------------------------------------------------------
 
-  const renderMobile =
-    () => (
-      <KeyboardAvoidingView
-        style={[
-          styles.mobileKeyboard,
-          {
-            backgroundColor:
-              isDark
-                ? DARK_BACKGROUND
-                : LIGHT_BACKGROUND,
-          },
-        ]}
-        behavior={
-          Platform.OS ===
-          'ios'
-            ? 'padding'
-            : Platform.OS ===
-              'android'
-            ? 'height'
-            : undefined
-        }
-        keyboardVerticalOffset={
-          Platform.OS ===
-          'ios'
-            ? 0
-            : Platform.OS ===
-              'android'
-            ? 24
-            : 0
-        }
+  const renderMobile = () => (
+    <KeyboardAvoidingView
+      style={[
+        styles.mobileKeyboard,
+        { backgroundColor: isDark ? '#121212' : '#F6F9F6' },
+      ]}
+      behavior={
+        Platform.OS === 'ios'
+          ? 'padding'
+          : Platform.OS === 'android'
+          ? 'height'
+          : undefined
+      }
+      keyboardVerticalOffset={
+        Platform.OS === 'ios'
+          ? 0
+          : Platform.OS === 'android'
+          ? 24
+          : 0
+      }
+    >
+      {/* HEADER FIXE : hors du ScrollView */}
+      <AppHeader
+        navigation={navigation}
+        showBack
+      />
+
+      <TouchableWithoutFeedback
+        onPress={Keyboard.dismiss}
+        accessible={false}
       >
-        <TouchableWithoutFeedback
-          onPress={
-            Keyboard.dismiss
-          }
-          accessible={false}
-        >
-          <ScrollView
-            ref={scrollRef}
-            style={[
-              styles.mobileScroll,
-              {
-                backgroundColor:
-                  isDark
-                    ? DARK_BACKGROUND
-                    : LIGHT_BACKGROUND,
-              },
-            ]}
-            contentContainerStyle={[
-              styles.mobileContent,
-
-              isTablet &&
-                styles.mobileContentTablet,
-
-              {
-                paddingBottom:
-                  keyboardVisible
-                    ? Platform.OS ===
-                      'android'
-                      ? 500
-                      : 320
-                    : 70,
-              },
-            ]}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode={
-              Platform.OS ===
-              'ios'
-                ? 'interactive'
-                : 'on-drag'
-            }
-            showsVerticalScrollIndicator={
-              false
-            }
-            nestedScrollEnabled
-            removeClippedSubviews={
-              false
-            }
-            automaticallyAdjustContentInsets={
-              false
-            }
-            contentInsetAdjustmentBehavior="automatic"
-            scrollEventThrottle={16}
-            bounces
-          >
-            {/* HEADER MOBILE */}
-
-            <View
-              style={
-                styles.mobileHeader
-              }
-            >
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.goBack()
-                }
-                style={
-                  styles.backButton
-                }
-                hitSlop={{
-                  top: 10,
-                  bottom: 10,
-                  left: 10,
-                  right: 10,
-                }}
-              >
-                <Ionicons
-                  name="arrow-back"
-                  size={21}
-                  color={WHITE}
-                />
-              </TouchableOpacity>
-
-              <View
-                style={
-                  styles.mobileBrand
-                }
-              >
-                <View
-                  style={
-                    styles.mobileLogo
-                  }
-                >
-                  <Ionicons
-                    name="leaf-outline"
-                    size={24}
-                    color={WHITE}
-                  />
-                </View>
-
-                <Text
-                  style={
-                    styles.mobileBrandName
-                  }
-                >
-                  Mada Bien-être
-                </Text>
-              </View>
-
-              <View
-                style={
-                  styles.mobileHeaderText
-                }
-              >
-                <Text
-                  style={
-                    styles.mobileHeaderTitle
-                  }
-                >
-                  Créer un compte
-                </Text>
-
-                <Text
-                  style={
-                    styles.mobileHeaderSubtitle
-                  }
-                >
-                  Votre bien-être commence ici.
-                </Text>
-              </View>
-
-              <View
-                style={
-                  styles.headerDecorationOne
-                }
-              />
-
-              <View
-                style={
-                  styles.headerDecorationTwo
-                }
-              />
-            </View>
-
-            {renderForm()}
-          </ScrollView>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
-    );
-
-  // ==========================================================
-  // DESKTOP WEB
-  // ==========================================================
-
-  const renderDesktop =
-    () => (
-      <View
-        style={[
-          styles.desktopContainer,
-          {
-            // Même fond général à droite
-            backgroundColor:
-              isDark
-                ? DARK_BACKGROUND
-                : LIGHT_BACKGROUND,
-          },
-        ]}
-      >
-        {/* ==================================================
-            LEFT — BRAND
-        ================================================== */}
-
-        <View
-          style={
-            styles.desktopBrand
-          }
-        >
-          <View
-            style={
-              styles.desktopBrandInner
-            }
-          >
-            <View
-              style={
-                styles.desktopBrandTop
-              }
-            >
-              <View
-                style={
-                  styles.desktopLogo
-                }
-              >
-                <Ionicons
-                  name="leaf-outline"
-                  size={29}
-                  color={WHITE}
-                />
-              </View>
-
-              <Text
-                style={
-                  styles.desktopBrandName
-                }
-              >
-                Mada Bien-être
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.desktopCenter
-              }
-            >
-              <View
-                style={
-                  styles.pill
-                }
-              >
-                <Ionicons
-                  name="heart-outline"
-                  size={14}
-                  color={WHITE}
-                />
-
-                <Text
-                  style={
-                    styles.pillText
-                  }
-                >
-                  ESPACE BIEN-ÊTRE
-                </Text>
-              </View>
-
-              <Text
-                style={
-                  styles.desktopTitle
-                }
-              >
-                Votre bien-être,{'\n'}
-                commence ici.
-              </Text>
-
-              <Text
-                style={
-                  styles.desktopDescription
-                }
-              >
-                Créez votre compte et profitez
-                d'une expérience simple, proche
-                et personnalisée avec
-                Mada Bien-être.
-              </Text>
-
-              <View
-                style={
-                  styles.desktopFeatures
-                }
-              >
-                {[
-                  {
-                    icon:
-                      'location-outline',
-                    title:
-                      'Proximité',
-                    text:
-                      'Trouvez des thérapeutes à proximité.',
-                  },
-                  {
-                    icon:
-                      'calendar-outline',
-                    title:
-                      'Simplicité',
-                    text:
-                      'Réservez vos séances facilement.',
-                  },
-                  {
-                    icon:
-                      'shield-checkmark-outline',
-                    title:
-                      'Confiance',
-                    text:
-                      'Une expérience pensée pour vous.',
-                  },
-                ].map(
-                  item => (
-                    <View
-                      key={
-                        item.title
-                      }
-                      style={
-                        styles.desktopFeature
-                      }
-                    >
-                      <View
-                        style={
-                          styles.desktopFeatureIcon
-                        }
-                      >
-                        <Ionicons
-                          name={
-                            item.icon
-                          }
-                          size={
-                            19
-                          }
-                          color={
-                            WHITE
-                          }
-                        />
-                      </View>
-
-                      <View
-                        style={
-                          styles.desktopFeatureText
-                        }
-                      >
-                        <Text
-                          style={
-                            styles.desktopFeatureTitle
-                          }
-                        >
-                          {
-                            item.title
-                          }
-                        </Text>
-
-                        <Text
-                          style={
-                            styles.desktopFeatureDescription
-                          }
-                        >
-                          {
-                            item.text
-                          }
-                        </Text>
-                      </View>
-                    </View>
-                  )
-                )}
-              </View>
-            </View>
-
-            <View
-              style={
-                styles.desktopFooter
-              }
-            >
-              <Text
-                style={
-                  styles.desktopFooterText
-                }
-              >
-                © 2026 Mada Bien-être
-              </Text>
-
-              <Text
-                style={
-                  styles.desktopFooterText
-                }
-              >
-                Bien-être • Confiance • Proximité
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* ==================================================
-            RIGHT — FORMULAIRE
-        ================================================== */}
-
-        <View
+        <ScrollView
+          ref={scrollRef}
           style={[
-            styles.desktopRight,
+            styles.mobileScrollView,
+            { backgroundColor: isDark ? '#121212' : '#F6F9F6' },
+          ]}
+          contentContainerStyle={[
+            styles.mobileScrollContent,
+            isTablet && styles.mobileContentTablet,
             {
-              // IMPORTANT :
-              // Même couleur que le fond du formulaire.
-              backgroundColor:
-                isDark
-                  ? DARK_BACKGROUND
-                  : LIGHT_BACKGROUND,
+              // Réserve l'espace du header fixe + la safe area.
+              paddingTop:
+                insets.top +
+                (Platform.OS === 'android' ? 68 : 76),
+
+              // Espace supplémentaire lorsque le clavier est ouvert.
+              // Le formulaire reste ainsi entièrement défilable sur Android.
+              paddingBottom:
+                keyboardVisible
+                  ? Platform.OS === 'android'
+                    ? 500
+                    : 320
+                  : 70,
             },
           ]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={
+            Platform.OS === 'ios' ? 'interactive' : 'on-drag'
+          }
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+          removeClippedSubviews={false}
+          automaticallyAdjustContentInsets={false}
+          contentInsetAdjustmentBehavior="automatic"
+          scrollEventThrottle={16}
+          bounces
         >
-          <ScrollView
-            ref={scrollRef}
-            style={
-              styles.desktopScroll
-            }
-            contentContainerStyle={
-              styles.desktopScrollContent
-            }
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={
-              false
-            }
-            removeClippedSubviews={
-              false
-            }
-          >
-            <View
-              style={
-                styles.desktopFormWrapper
-              }
-            >
-              {/* =================================================
-                  BOUTON RETOUR AU-DESSUS DU FORMULAIRE
-              ================================================= */}
+          {renderForm()}
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
+  );
 
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.goBack()
-                }
-                style={[
-                  styles.desktopBack,
-                  {
-                    backgroundColor:
-                      isDark
-                        ? '#1E1E2E'
-                        : '#FFFFFF',
-                    borderColor:
-                      isDark
-                        ? '#303044'
-                        : '#E1E9E2',
-                  },
-                ]}
-                activeOpacity={0.8}
-                hitSlop={{
-                  top: 8,
-                  bottom: 8,
-                  left: 8,
-                  right: 8,
-                }}
-              >
-                <Ionicons
-                  name="arrow-back"
-                  size={17}
-                  color={
-                    isDark
-                      ? '#E5E7EB'
-                      : '#64748B'
-                  }
-                />
+  // ----------------------------------------------------------
+  // DESKTOP
+  // ----------------------------------------------------------
 
-                <Text
-                  style={[
-                    styles.desktopBackText,
-                    {
-                      color:
-                        isDark
-                          ? '#E5E7EB'
-                          : '#64748B',
-                    },
-                  ]}
-                >
-                  Retour
-                </Text>
-              </TouchableOpacity>
-
-              {/* FORMULAIRE SANS FOND BLANC SEPARE */}
-
-              {renderForm()}
+  const renderDesktop = () => (
+    <View
+      style={[
+        styles.desktopContainer,
+        { backgroundColor: isDark ? '#111111' : WHITE },
+      ]}
+    >
+      <View style={styles.desktopBrand}>
+        <View style={styles.desktopBrandInner}>
+          <View style={styles.desktopBrandTop}>
+            <View style={styles.desktopLogo}>
+              <Ionicons
+                name="leaf-outline"
+                size={29}
+                color={WHITE}
+              />
             </View>
-          </ScrollView>
+
+            <Text style={styles.desktopBrandName}>
+              Mada Bien-être
+            </Text>
+          </View>
+
+          <View style={styles.desktopCenter}>
+            <View style={styles.pill}>
+              <Ionicons
+                name="heart-outline"
+                size={14}
+                color={WHITE}
+              />
+              <Text style={styles.pillText}>
+                ESPACE BIEN-ÊTRE
+              </Text>
+            </View>
+
+            <Text style={styles.desktopTitle}>
+              Votre bien-être,{'\n'}
+              commence ici.
+            </Text>
+
+            <Text style={styles.desktopDescription}>
+              Créez votre compte et profitez d'une expérience
+              simple, proche et personnalisée avec Mada Bien-être.
+            </Text>
+
+            <View style={styles.desktopFeatures}>
+              {[
+                {
+                  icon: 'location-outline',
+                  title: 'Proximité',
+                  text: 'Trouvez des thérapeutes à proximité.',
+                },
+                {
+                  icon: 'calendar-outline',
+                  title: 'Simplicité',
+                  text: 'Réservez vos séances facilement.',
+                },
+                {
+                  icon: 'shield-checkmark-outline',
+                  title: 'Confiance',
+                  text: 'Une expérience pensée pour vous.',
+                },
+              ].map(item => (
+                <View
+                  key={item.title}
+                  style={styles.desktopFeature}
+                >
+                  <View style={styles.desktopFeatureIcon}>
+                    <Ionicons
+                      name={item.icon}
+                      size={19}
+                      color={WHITE}
+                    />
+                  </View>
+
+                  <View style={styles.desktopFeatureText}>
+                    <Text style={styles.desktopFeatureTitle}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.desktopFeatureDescription}>
+                      {item.text}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.desktopFooter}>
+            <Text style={styles.desktopFooterText}>
+              © 2026 Mada Bien-être
+            </Text>
+            <Text style={styles.desktopFooterText}>
+              Bien-être • Confiance • Proximité
+            </Text>
+          </View>
         </View>
       </View>
-    );
 
-  // ==========================================================
+      <View
+        style={[
+          styles.desktopRight,
+          { backgroundColor: isDark ? '#121212' : '#F8FAF8' },
+        ]}
+      >
+        <ScrollView
+          ref={scrollRef}
+          style={styles.desktopScroll}
+          contentContainerStyle={styles.desktopScrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          removeClippedSubviews={false}
+        >
+          <View style={styles.desktopFormWrapper}>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              style={styles.desktopBack}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons
+                name="arrow-back"
+                size={17}
+                color={isDark ? '#E5E7EB' : '#64748B'}
+              />
+              <Text
+                style={[
+                  styles.desktopBackText,
+                  { color: isDark ? '#E5E7EB' : '#64748B' },
+                ]}
+              >
+                Retour
+              </Text>
+            </TouchableOpacity>
+
+            {renderForm()}
+          </View>
+        </ScrollView>
+      </View>
+    </View>
+  );
+
+  // ----------------------------------------------------------
   // RETURN
-  // ==========================================================
+  // ----------------------------------------------------------
 
   return (
     <SafeAreaView
       style={[
         styles.safeArea,
-        {
-          backgroundColor:
-            isDark
-              ? DARK_BACKGROUND
-              : LIGHT_BACKGROUND,
-        },
+        { backgroundColor: isDark ? '#121212' : WHITE },
       ]}
     >
       <StatusBar
@@ -2576,22 +1552,14 @@ const RegisterScreen = ({
       />
 
       <CustomToast
-        visible={
-          toast.visible
-        }
+        visible={toast.visible}
         type={toast.type}
-        message={
-          toast.message
-        }
-        onDismiss={
-          dismissToast
-        }
+        message={toast.message}
+        onDismiss={dismissToast}
         isDark={isDark}
       />
 
-      {isDesktop
-        ? renderDesktop()
-        : renderMobile()}
+      {isDesktop ? renderDesktop() : renderMobile()}
     </SafeAreaView>
   );
 };
@@ -2600,1007 +1568,760 @@ const RegisterScreen = ({
 // STYLES
 // ============================================================
 
-const styles =
-  StyleSheet.create({
-    // ========================================================
-    // GLOBAL
-    // ========================================================
-
-    safeArea: {
-      flex: 1,
-      width: '100%',
-      height: '100%',
-    },
-
-    // ========================================================
-    // TOAST
-    // ========================================================
-
-    toastContainer: {
-      position: 'absolute',
-      top:
-        Platform.OS ===
-        'web'
-          ? 18
-          : 12,
-      left: 0,
-      right: 0,
-      zIndex: 99999,
-      elevation: 99999,
-      alignItems:
-        'center',
-      paddingHorizontal: 14,
-    },
-
-    toast: {
-      width: '100%',
-      maxWidth: 500,
-      minHeight: 64,
-      borderRadius: 16,
-      borderWidth: 1,
-      paddingHorizontal: 11,
-      paddingVertical: 9,
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 7,
-      },
-      shadowOpacity: 0.12,
-      shadowRadius: 18,
-      elevation: 10,
-    },
-
-    toastIcon: {
-      width: 41,
-      height: 41,
-      borderRadius: 13,
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-      flexShrink: 0,
-    },
-
-    toastContent: {
-      flex: 1,
-      minWidth: 0,
-      marginLeft: 10,
-      marginRight: 6,
-    },
-
-    toastTitle: {
-      fontSize: 12.5,
-      fontFamily:
-        typography
-          .fontFamily
-          .bold,
-      marginBottom: 2,
-    },
-
-    toastMessage: {
-      fontSize: 11.5,
-      lineHeight: 16,
-      fontFamily:
-        typography
-          .fontFamily
-          .regular,
-    },
-
-    toastClose: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-    },
-
-    // ========================================================
-    // MOBILE
-    // ========================================================
-
-    mobileKeyboard: {
-      flex: 1,
-      minHeight: 0,
-      width: '100%',
-    },
-
-    mobileScroll: {
-      flex: 1,
-      width: '100%',
-    },
-
-    mobileContent: {
-      flexGrow: 1,
-      width: '100%',
-      minHeight: '100%',
-    },
-
-    mobileContentTablet: {
-      alignItems:
-        'center',
-    },
-
-    mobileHeader: {
-      width: '100%',
-      minHeight: 205,
-      paddingHorizontal: 20,
-      paddingTop:
-        Platform.OS ===
-        'ios'
-          ? 20
-          : 22,
-      paddingBottom: 28,
-      backgroundColor:
-        GREEN,
-      borderBottomLeftRadius: 28,
-      borderBottomRightRadius: 28,
-      overflow: 'hidden',
-    },
-
-    backButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor:
-        'rgba(255,255,255,0.15)',
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-    },
-
-    mobileBrand: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      marginTop: 15,
-    },
-
-    mobileLogo: {
-      width: 45,
-      height: 45,
-      borderRadius: 14,
-      backgroundColor:
-        'rgba(255,255,255,0.15)',
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-      marginRight: 10,
-    },
-
-    mobileBrandName: {
-      color: WHITE,
-      fontSize: 18,
-      fontFamily:
-        typography
-          .fontFamily
-          .bold,
-    },
-
-    mobileHeaderText: {
-      marginTop: 19,
-    },
-
-    mobileHeaderTitle: {
-      color: WHITE,
-      fontSize: 26,
-      lineHeight: 32,
-      fontFamily:
-        typography
-          .fontFamily
-          .bold,
-    },
-
-    mobileHeaderSubtitle: {
-      color:
-        'rgba(255,255,255,0.86)',
-      fontSize: 13.5,
-      lineHeight: 19,
-      marginTop: 3,
-      fontFamily:
-        typography
-          .fontFamily
-          .regular,
-    },
-
-    headerDecorationOne: {
-      position:
-        'absolute',
-      width: 150,
-      height: 150,
-      borderRadius: 75,
-      right: -60,
-      top: -65,
-      backgroundColor:
-        'rgba(255,255,255,0.055)',
-    },
-
-    headerDecorationTwo: {
-      position:
-        'absolute',
-      width: 95,
-      height: 95,
-      borderRadius: 48,
-      right: 20,
-      bottom: -55,
-      backgroundColor:
-        'rgba(255,255,255,0.045)',
-    },
-
-    // ========================================================
-    // FORM
-    // ========================================================
-
-    formCard: {
-      width: '100%',
-
-      // IMPORTANT :
-      // Tsy misy border/card fotsy intsony.
-      // Mitovy amin'ny fond extérieur.
-      paddingHorizontal: 20,
-      paddingTop: 23,
-      paddingBottom: 30,
-    },
-
-    formCardDesktop: {
-      paddingHorizontal: 0,
-      paddingTop: 0,
-      paddingBottom: 35,
-    },
-
-    formCardTablet: {
-      maxWidth: 720,
-      alignSelf:
-        'center',
-      paddingHorizontal: 32,
-    },
-
-    formCardSmall: {
-      paddingHorizontal: 16,
-      paddingTop: 20,
-      paddingBottom: 26,
-    },
-
-    formIntro: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      marginBottom: 17,
-    },
-
-    formIcon: {
-      width: 47,
-      height: 47,
-      borderRadius: 14,
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-      marginRight: 12,
-      flexShrink: 0,
-    },
-
-    formIntroText: {
-      flex: 1,
-      minWidth: 0,
-    },
-
-    formTitle: {
-      fontSize: 23,
-      lineHeight: 29,
-      fontFamily:
-        typography
-          .fontFamily
-          .bold,
-      marginBottom: 2,
-    },
-
-    formTitleSmall: {
-      fontSize: 21,
-      lineHeight: 27,
-    },
-
-    formDescription: {
-      fontSize: 12.5,
-      lineHeight: 18,
-      fontFamily:
-        typography
-          .fontFamily
-          .regular,
-    },
-
-    // ========================================================
-    // STEPS
-    // ========================================================
-
-    steps: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      width: '100%',
-      marginBottom: 18,
-    },
-
-    stepItem: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      flexShrink: 0,
-    },
-
-    stepCircle: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      borderWidth: 1,
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-    },
-
-    stepText: {
-      fontSize: 10.5,
-      marginLeft: 5,
-      fontFamily:
-        typography
-          .fontFamily
-          .medium,
-    },
-
-    stepLine: {
-      flex: 1,
-      height: 1,
-      minWidth: 8,
-      marginHorizontal: 7,
-    },
-
-    // ========================================================
-    // INPUT
-    // ========================================================
-
-    fieldGroup: {
-      width: '100%',
-      marginBottom: 12,
-    },
-
-    fieldLabelRow: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      justifyContent:
-        'space-between',
-      marginBottom: 6,
-    },
-
-    fieldLabel: {
-      fontSize: 12.5,
-      fontFamily:
-        typography
-          .fontFamily
-          .medium,
-    },
-
-    inputWrapper: {
-      width: '100%',
-      minHeight: 51,
-      borderRadius: 12,
-      borderWidth: 1,
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      paddingHorizontal: 13,
-
-      // Petite ombre très légère
-      // pour séparer visuellement les champs
-      // sans créer une carte blanche.
-      ...(Platform.OS ===
-      'web'
-        ? {
-            boxShadow:
-              '0 1px 3px rgba(0,0,0,0.04)',
-          }
-        : {
-            shadowColor: '#000',
-            shadowOffset: {
-              width: 0,
-              height: 1,
-            },
-            shadowOpacity: 0.03,
-            shadowRadius: 2,
-            elevation: 1,
-          }),
-    },
-
-    input: {
-      flex: 1,
-      minWidth: 0,
-      minHeight: 49,
-      fontSize: 14,
-      fontFamily:
-        typography
-          .fontFamily
-          .regular,
-      paddingHorizontal: 9,
-      paddingVertical: 8,
-
-      ...(Platform.OS ===
-      'web'
-        ? {
-            outlineStyle:
-              'none',
-            outlineWidth: 0,
-          }
-        : {}),
-    },
-
-    eyeButton: {
-      padding: 5,
-      flexShrink: 0,
-    },
-
-    errorRow: {
-      flexDirection:
-        'row',
-      alignItems:
-        'flex-start',
-      marginTop: 4,
-    },
-
-    errorText: {
-      flex: 1,
-      marginLeft: 4,
-      color: '#EF4444',
-      fontSize: 11,
-      lineHeight: 15,
-      fontFamily:
-        typography
-          .fontFamily
-          .regular,
-    },
-
-    // ========================================================
-    // PASSWORD
-    // ========================================================
-
-    passwordStrength: {
-      width: '100%',
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      marginTop: -3,
-      marginBottom: 12,
-    },
-
-    passwordTrack: {
-      flex: 1,
-      height: 4,
-      borderRadius: 2,
-      overflow: 'hidden',
-    },
-
-    passwordProgress: {
-      height: '100%',
-      borderRadius: 2,
-    },
-
-    passwordStrengthText: {
-      width: 68,
-      textAlign:
-        'right',
-      marginLeft: 7,
-      fontSize: 10.5,
-      fontFamily:
-        typography
-          .fontFamily
-          .medium,
-    },
-
-    // ========================================================
-    // ROLE
-    // ========================================================
-
-    roleSection: {
-      width: '100%',
-      marginTop: 3,
-      marginBottom: 16,
-    },
-
-    sectionHeader: {
-      marginBottom: 8,
-    },
-
-    sectionTitle: {
-      fontSize: 12.5,
-      fontFamily:
-        typography
-          .fontFamily
-          .medium,
-    },
-
-    sectionHint: {
-      fontSize: 10.5,
-      marginTop: 2,
-      fontFamily:
-        typography
-          .fontFamily
-          .regular,
-    },
-
-    roleList: {
-      width: '100%',
-      gap: 9,
-    },
-
-    roleListDesktop: {
-      flexDirection:
-        'row',
-    },
-
-    roleCard: {
-      flex: 1,
-      minHeight: 70,
-      borderRadius: 12,
-      borderWidth: 1,
-      padding: 10,
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      minWidth: 0,
-    },
-
-    roleIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 11,
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-      flexShrink: 0,
-    },
-
-    roleInfo: {
-      flex: 1,
-      minWidth: 0,
-      marginLeft: 9,
-      marginRight: 6,
-    },
-
-    roleTitle: {
-      fontSize: 13.5,
-      fontFamily:
-        typography
-          .fontFamily
-          .bold,
-    },
-
-    roleDescription: {
-      fontSize: 10.5,
-      lineHeight: 15,
-      marginTop: 2,
-      fontFamily:
-        typography
-          .fontFamily
-          .regular,
-    },
-
-    radio: {
-      width: 19,
-      height: 19,
-      borderRadius: 10,
-      borderWidth: 2,
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-      flexShrink: 0,
-    },
-
-    radioInner: {
-      width: 9,
-      height: 9,
-      borderRadius: 5,
-      backgroundColor:
-        GREEN,
-    },
-
-    // ========================================================
-    // BUTTON
-    // ========================================================
-
-    registerButton: {
-      width: '100%',
-      minHeight: 52,
-      borderRadius: 13,
-      overflow: 'hidden',
-      backgroundColor:
-        GREEN,
-      shadowColor:
-        GREEN,
-      shadowOffset: {
-        width: 0,
-        height: 5,
-      },
-      shadowOpacity: 0.20,
-      shadowRadius: 10,
-      elevation: 5,
-    },
-
-    registerButtonDisabled: {
-      opacity: 0.75,
-    },
-
-    registerButtonInner: {
-      minHeight: 52,
-      paddingHorizontal: 18,
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-      gap: 8,
-      backgroundColor:
-        GREEN,
-    },
-
-    registerButtonText: {
-      color: WHITE,
-      fontSize: 14,
-      fontFamily:
-        typography
-          .fontFamily
-          .bold,
-    },
-
-    // ========================================================
-    // TERMS / LOGIN
-    // ========================================================
-
-    terms: {
-      textAlign:
-        'center',
-      fontSize: 10,
-      lineHeight: 15,
-      marginTop: 11,
-      paddingHorizontal: 8,
-      fontFamily:
-        typography
-          .fontFamily
-          .regular,
-    },
-
-    loginRow: {
-      flexDirection:
-        'row',
-      justifyContent:
-        'center',
-      alignItems:
-        'center',
-      flexWrap:
-        'wrap',
-      marginTop: 15,
-    },
-
-    loginText: {
-      fontSize: 12,
-      fontFamily:
-        typography
-          .fontFamily
-          .regular,
-    },
-
-    loginLinkButton: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      marginLeft: 5,
-      paddingVertical: 3,
-    },
-
-    loginLink: {
-      color: GREEN,
-      fontSize: 12,
-      marginRight: 3,
-      fontFamily:
-        typography
-          .fontFamily
-          .bold,
-    },
-
-    // ========================================================
-    // DESKTOP LEFT
-    // ========================================================
-
-    desktopContainer: {
-      flex: 1,
-      flexDirection:
-        'row',
-      width: '100%',
-      height: '100%',
-      minHeight: 0,
-    },
-
-    desktopBrand: {
-      width: '48%',
-      minWidth: 0,
-      height: '100%',
-      backgroundColor:
-        GREEN,
-    },
-
-    desktopBrandInner: {
-      flex: 1,
-      paddingHorizontal: 52,
-      paddingVertical: 42,
-      justifyContent:
-        'space-between',
-      minHeight: 0,
-      backgroundColor:
-        GREEN,
-      overflow: 'hidden',
-    },
-
-    desktopBrandTop: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-    },
-
-    desktopLogo: {
-      width: 55,
-      height: 55,
-      borderRadius: 16,
-      backgroundColor:
-        'rgba(255,255,255,0.15)',
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-      marginRight: 13,
-    },
-
-    desktopBrandName: {
-      color: WHITE,
-      fontSize: 21,
-      fontFamily:
-        typography
-          .fontFamily
-          .bold,
-    },
-
-    desktopCenter: {
-      width: '100%',
-      maxWidth: 570,
-      alignSelf:
-        'center',
-    },
-
-    pill: {
-      alignSelf:
-        'flex-start',
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      borderRadius: 30,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      backgroundColor:
-        'rgba(255,255,255,0.13)',
-      marginBottom: 17,
-      gap: 6,
-    },
-
-    pillText: {
-      color:
-        'rgba(255,255,255,0.88)',
-      fontSize: 9.5,
-      letterSpacing: 1,
-      fontFamily:
-        typography
-          .fontFamily
-          .bold,
-    },
-
-    desktopTitle: {
-      color: WHITE,
-      fontSize: 39,
-      lineHeight: 47,
-      fontFamily:
-        typography
-          .fontFamily
-          .bold,
-      marginBottom: 16,
-    },
-
-    desktopDescription: {
-      color:
-        'rgba(255,255,255,0.88)',
-      fontSize: 14,
-      lineHeight: 22,
-      fontFamily:
-        typography
-          .fontFamily
-          .regular,
-      maxWidth: 520,
-    },
-
-    desktopFeatures: {
-      marginTop: 30,
-      gap: 14,
-    },
-
-    desktopFeature: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-    },
-
-    desktopFeatureIcon: {
-      width: 43,
-      height: 43,
-      borderRadius: 13,
-      backgroundColor:
-        'rgba(255,255,255,0.14)',
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-      marginRight: 12,
-      flexShrink: 0,
-    },
-
-    desktopFeatureText: {
-      flex: 1,
-      minWidth: 0,
-    },
-
-    desktopFeatureTitle: {
-      color: WHITE,
-      fontSize: 13,
-      fontFamily:
-        typography
-          .fontFamily
-          .bold,
-      marginBottom: 2,
-    },
-
-    desktopFeatureDescription: {
-      color:
-        'rgba(255,255,255,0.76)',
-      fontSize: 11.5,
-      lineHeight: 17,
-      fontFamily:
-        typography
-          .fontFamily
-          .regular,
-    },
-
-    desktopFooter: {
-      borderTopWidth: 1,
-      borderTopColor:
-        'rgba(255,255,255,0.18)',
-      paddingTop: 16,
-      flexDirection:
-        'row',
-      justifyContent:
-        'space-between',
-      alignItems:
-        'center',
-    },
-
-    desktopFooterText: {
-      color:
-        'rgba(255,255,255,0.70)',
-      fontSize: 10,
-      fontFamily:
-        typography
-          .fontFamily
-          .regular,
-    },
-
-    // ========================================================
-    // DESKTOP RIGHT
-    // ========================================================
-
-    desktopRight: {
-      flex: 1,
-      width: '52%',
-      minWidth: 0,
-      height: '100%',
-    },
-
-    desktopScroll: {
-      flex: 1,
-      width: '100%',
-    },
-
-    desktopScrollContent: {
-      flexGrow: 1,
-      justifyContent:
-        'center',
-
-      // Même fond que formCard
-      paddingHorizontal: 48,
-      paddingVertical: 30,
-    },
-
-    desktopFormWrapper: {
-      width: '100%',
-      maxWidth: 590,
-      alignSelf:
-        'center',
-    },
-
-    // ========================================================
-    // BOUTON RETOUR WEB
-    // ========================================================
-
-    desktopBack: {
-      alignSelf:
-        'flex-start',
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-
-      minHeight: 36,
-
-      borderRadius: 10,
-      borderWidth: 1,
-
-      paddingHorizontal: 11,
-      paddingVertical: 7,
-
-      marginBottom: 10,
-
-      // Ombre légère
-      ...(Platform.OS ===
-      'web'
-        ? {
-            boxShadow:
-              '0 1px 4px rgba(0,0,0,0.05)',
-          }
-        : {
-            shadowColor: '#000',
-            shadowOffset: {
-              width: 0,
-              height: 1,
-            },
-            shadowOpacity: 0.04,
-            shadowRadius: 3,
-            elevation: 1,
-          }),
-    },
-
-    desktopBackText: {
-      fontSize: 12,
-      marginLeft: 6,
-      fontFamily:
-        typography
-          .fontFamily
-          .medium,
-    },
-  });
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+  },
+
+  // ----------------------------------------------------------
+  // TOAST
+  // ----------------------------------------------------------
+
+  toastContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'web' ? 18 : 12,
+    left: 0,
+    right: 0,
+    zIndex: 99999,
+    elevation: 99999,
+    alignItems: 'center',
+    paddingHorizontal: 14,
+  },
+
+  toast: {
+    width: '100%',
+    maxWidth: 500,
+    minHeight: 64,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+
+  toastIcon: {
+    width: 41,
+    height: 41,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+
+  toastContent: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 10,
+    marginRight: 6,
+  },
+
+  toastTitle: {
+    fontSize: 12.5,
+    fontFamily: typography.fontFamily.bold,
+    marginBottom: 2,
+  },
+
+  toastMessage: {
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  toastClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // ----------------------------------------------------------
+  // MOBILE
+  // ----------------------------------------------------------
+
+  mobileKeyboard: {
+    flex: 1,
+    minHeight: 0,
+    width: '100%',
+  },
+
+  mobileScrollView: {
+    flex: 1,
+    width: '100%',
+  },
+
+  mobileScrollContent: {
+    flexGrow: 1,
+    width: '100%',
+    minHeight: '100%',
+  },
+
+  mobileScroll: {
+    flex: 1,
+    width: '100%',
+  },
+
+  mobileContent: {
+    flexGrow: 1,
+    width: '100%',
+    minHeight: '100%',
+  },
+
+  mobileContentTablet: {
+    alignItems: 'center',
+  },
+
+  mobileHeader: {
+    width: '100%',
+    minHeight: 205,
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 20 : 22,
+    paddingBottom: 28,
+    backgroundColor: GREEN,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    overflow: 'hidden',
+  },
+
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  mobileBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 15,
+  },
+
+  mobileLogo: {
+    width: 45,
+    height: 45,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  mobileBrandName: {
+    color: WHITE,
+    fontSize: 18,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  mobileHeaderText: {
+    marginTop: 19,
+  },
+
+  mobileHeaderTitle: {
+    color: WHITE,
+    fontSize: 26,
+    lineHeight: 32,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  mobileHeaderSubtitle: {
+    color: 'rgba(255,255,255,0.86)',
+    fontSize: 13.5,
+    lineHeight: 19,
+    marginTop: 3,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  headerDecorationOne: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    right: -60,
+    top: -65,
+    backgroundColor: 'rgba(255,255,255,0.055)',
+  },
+
+  headerDecorationTwo: {
+    position: 'absolute',
+    width: 95,
+    height: 95,
+    borderRadius: 48,
+    right: 20,
+    bottom: -55,
+    backgroundColor: 'rgba(255,255,255,0.045)',
+  },
+
+  // ----------------------------------------------------------
+  // FORM CARD
+  // ----------------------------------------------------------
+
+  formCard: {
+    width: '100%',
+    paddingHorizontal: 20,
+    paddingTop: 23,
+    paddingBottom: 30,
+  },
+
+  formCardDesktop: {
+    paddingHorizontal: 0,
+    paddingTop: 3,
+    paddingBottom: 35,
+  },
+
+  formCardTablet: {
+    maxWidth: 720,
+    alignSelf: 'center',
+    paddingHorizontal: 32,
+  },
+
+  formCardSmall: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 26,
+  },
+
+  formIntro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 17,
+  },
+
+  formIcon: {
+    width: 47,
+    height: 47,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    flexShrink: 0,
+  },
+
+  formIntroText: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  formTitle: {
+    fontSize: 23,
+    lineHeight: 29,
+    fontFamily: typography.fontFamily.bold,
+    marginBottom: 2,
+  },
+
+  formTitleSmall: {
+    fontSize: 21,
+    lineHeight: 27,
+  },
+
+  formDescription: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  // ----------------------------------------------------------
+  // STEPS
+  // ----------------------------------------------------------
+
+  steps: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 18,
+  },
+
+  stepItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+
+  stepCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  stepText: {
+    fontSize: 10.5,
+    marginLeft: 5,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  stepLine: {
+    flex: 1,
+    height: 1,
+    minWidth: 8,
+    marginHorizontal: 7,
+  },
+
+  // ----------------------------------------------------------
+  // INPUT
+  // ----------------------------------------------------------
+
+  fieldGroup: {
+    width: '100%',
+    marginBottom: 12,
+  },
+
+  fieldLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+
+  fieldLabel: {
+    fontSize: 12.5,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  inputWrapper: {
+    width: '100%',
+    minHeight: 51,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 13,
+  },
+
+  input: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 49,
+    fontSize: 14,
+    fontFamily: typography.fontFamily.regular,
+    paddingHorizontal: 9,
+    paddingVertical: 8,
+    ...(Platform.OS === 'web'
+      ? {
+          outlineStyle: 'none',
+          outlineWidth: 0,
+        }
+      : {}),
+  },
+
+  eyeButton: {
+    padding: 5,
+    flexShrink: 0,
+  },
+
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 4,
+  },
+
+  errorText: {
+    flex: 1,
+    marginLeft: 4,
+    color: '#EF4444',
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  // ----------------------------------------------------------
+  // PASSWORD
+  // ----------------------------------------------------------
+
+  passwordStrength: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: -3,
+    marginBottom: 12,
+  },
+
+  passwordTrack: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+
+  passwordProgress: {
+    height: '100%',
+    borderRadius: 2,
+  },
+
+  passwordStrengthText: {
+    width: 68,
+    textAlign: 'right',
+    marginLeft: 7,
+    fontSize: 10.5,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  // ----------------------------------------------------------
+  // ROLE
+  // ----------------------------------------------------------
+
+  roleSection: {
+    width: '100%',
+    marginTop: 3,
+    marginBottom: 16,
+  },
+
+  sectionHeader: {
+    marginBottom: 8,
+  },
+
+  sectionTitle: {
+    fontSize: 12.5,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  sectionHint: {
+    fontSize: 10.5,
+    marginTop: 2,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  roleList: {
+    width: '100%',
+    gap: 9,
+  },
+
+  roleListDesktop: {
+    flexDirection: 'row',
+  },
+
+  roleCard: {
+    flex: 1,
+    minHeight: 70,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+  },
+
+  roleIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+
+  roleInfo: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 9,
+    marginRight: 6,
+  },
+
+  roleTitle: {
+    fontSize: 13.5,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  roleDescription: {
+    fontSize: 10.5,
+    lineHeight: 15,
+    marginTop: 2,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  radio: {
+    width: 19,
+    height: 19,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+
+  radioInner: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: GREEN,
+  },
+
+  // ----------------------------------------------------------
+  // BUTTON
+  // ----------------------------------------------------------
+
+  registerButton: {
+    width: '100%',
+    minHeight: 52,
+    borderRadius: 13,
+    overflow: 'hidden',
+    backgroundColor: GREEN,
+    shadowColor: GREEN,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.20,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+
+  registerButtonDisabled: {
+    opacity: 0.75,
+  },
+
+  registerButtonInner: {
+    minHeight: 52,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: GREEN,
+  },
+
+  registerButtonText: {
+    color: WHITE,
+    fontSize: 14,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  // ----------------------------------------------------------
+  // TERMS / LOGIN
+  // ----------------------------------------------------------
+
+  terms: {
+    textAlign: 'center',
+    fontSize: 10,
+    lineHeight: 15,
+    marginTop: 11,
+    paddingHorizontal: 8,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  loginRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: 15,
+  },
+
+  loginText: {
+    fontSize: 12,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  loginLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 5,
+    paddingVertical: 3,
+  },
+
+  loginLink: {
+    color: GREEN,
+    fontSize: 12,
+    marginRight: 3,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  // ----------------------------------------------------------
+  // DESKTOP LEFT
+  // ----------------------------------------------------------
+
+  desktopContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    width: '100%',
+    height: '100%',
+    minHeight: 0,
+  },
+
+  desktopBrand: {
+    width: '48%',
+    minWidth: 0,
+    height: '100%',
+    backgroundColor: GREEN,
+  },
+
+  desktopBrandInner: {
+    flex: 1,
+    paddingHorizontal: 52,
+    paddingVertical: 42,
+    justifyContent: 'space-between',
+    minHeight: 0,
+    backgroundColor: GREEN,
+    overflow: 'hidden',
+  },
+
+  desktopBrandTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  desktopLogo: {
+    width: 55,
+    height: 55,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 13,
+  },
+
+  desktopBrandName: {
+    color: WHITE,
+    fontSize: 21,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  desktopCenter: {
+    width: '100%',
+    maxWidth: 570,
+    alignSelf: 'center',
+  },
+
+  pill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 30,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(255,255,255,0.13)',
+    marginBottom: 17,
+    gap: 6,
+  },
+
+  pillText: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 9.5,
+    letterSpacing: 1,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  desktopTitle: {
+    color: WHITE,
+    fontSize: 39,
+    lineHeight: 47,
+    fontFamily: typography.fontFamily.bold,
+    marginBottom: 16,
+  },
+
+  desktopDescription: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 14,
+    lineHeight: 22,
+    fontFamily: typography.fontFamily.regular,
+    maxWidth: 520,
+  },
+
+  desktopFeatures: {
+    marginTop: 30,
+    gap: 14,
+  },
+
+  desktopFeature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  desktopFeatureIcon: {
+    width: 43,
+    height: 43,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    flexShrink: 0,
+  },
+
+  desktopFeatureText: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  desktopFeatureTitle: {
+    color: WHITE,
+    fontSize: 13,
+    fontFamily: typography.fontFamily.bold,
+    marginBottom: 2,
+  },
+
+  desktopFeatureDescription: {
+    color: 'rgba(255,255,255,0.76)',
+    fontSize: 11.5,
+    lineHeight: 17,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  desktopFooter: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.18)',
+    paddingTop: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+
+  desktopFooterText: {
+    color: 'rgba(255,255,255,0.70)',
+    fontSize: 10,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  // ----------------------------------------------------------
+  // DESKTOP RIGHT
+  // ----------------------------------------------------------
+
+  desktopRight: {
+    flex: 1,
+    width: '52%',
+    minWidth: 0,
+    height: '100%',
+  },
+
+  desktopScroll: {
+    flex: 1,
+    width: '100%',
+  },
+
+  desktopScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 48,
+    paddingVertical: 30,
+  },
+
+  desktopFormWrapper: {
+    width: '100%',
+    maxWidth: 590,
+    alignSelf: 'center',
+  },
+
+  desktopBack: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    marginBottom: 3,
+  },
+
+  desktopBackText: {
+    fontSize: 12,
+    marginLeft: 6,
+    fontFamily: typography.fontFamily.medium,
+  },
+});
 
 export default RegisterScreen;

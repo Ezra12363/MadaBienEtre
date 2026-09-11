@@ -24,6 +24,7 @@ import {
   ScrollView,
   useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -39,6 +40,7 @@ import {
 } from '../../theme';
 
 import FormInput from '../../components/common/FormInput';
+import AppHeader from '../../components/common/AppHeader';
 
 
 // ============================================================
@@ -87,6 +89,8 @@ const ForgotPasswordScreen = ({ navigation }) => {
   const { forgotPassword } = useAuth();
 
   const { isDark } = useTheme();
+
+  const insets = useSafeAreaInsets();
 
 
   // ==========================================================
@@ -1187,17 +1191,19 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                 {
                   paddingTop:
-                    keyboardVisible
+                    insets.top +
+                    (Platform.OS === 'android' ? 68 : 76) +
+                    (keyboardVisible
                       ? 10
                       : isVerySmallScreen
                         ? 12
                         : isSmallScreen
                           ? 18
-                          : 28,
+                          : 28),
 
                   paddingBottom:
                     keyboardVisible
-                      ? 30
+                      ? (Platform.OS === 'android' ? 500 : 320)
                       : 38,
 
                   paddingHorizontal:
@@ -1997,6 +2003,12 @@ const styles = StyleSheet.create({
   // ==========================================================
   // MOBILE
   // ==========================================================
+
+  mobileRoot: {
+    flex: 1,
+    width: '100%',
+    position: 'relative',
+  },
 
   mobileSafeArea: {
     flex: 1,

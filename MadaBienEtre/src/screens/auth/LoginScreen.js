@@ -31,9 +31,11 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../context/AuthContext';
 import notificationService from '../../services/notificationService';
+import AppHeader from '../../components/common/AppHeader';
 
 /* ============================================================
    COLORS
@@ -193,6 +195,8 @@ export default function LoginScreen({
 }) {
   const { width, height } =
     useWindowDimensions();
+
+  const insets = useSafeAreaInsets();
 
   /* ==========================================================
      RESPONSIVE
@@ -1182,74 +1186,11 @@ export default function LoginScreen({
 
   const renderMobileHeader =
     () => (
-      <View
-        style={[
-          styles.mobileHeader,
-          {
-            paddingTop:
-              androidStatusBar +
-              (isShort ? 7 : 10),
-          },
-        ]}
-      >
-        <Pressable
-          onPress={handleBack}
-          style={
-            styles.backButton
-          }
-          hitSlop={8}
-        >
-          <Ionicons
-            name="arrow-back"
-            size={21}
-            color={
-              COLORS.primaryDark
-            }
-          />
-        </Pressable>
-
-        <View
-          style={
-            styles.mobileBrand
-          }
-        >
-          <View
-            style={
-              styles.mobileLogoBox
-            }
-          >
-            <Image
-              source={require('../../../assets/logo.png')}
-              style={
-                styles.mobileLogo
-              }
-              resizeMode="contain"
-            />
-          </View>
-
-          <View
-            style={
-              styles.mobileBrandText
-            }
-          >
-            <Text
-              style={
-                styles.mobileBrandName
-              }
-            >
-              Mada Bien-être
-            </Text>
-
-            <Text
-              style={
-                styles.mobileBrandSubtitle
-              }
-            >
-              Votre bien-être, notre priorité
-            </Text>
-          </View>
-        </View>
-      </View>
+      <AppHeader
+        navigation={navigation}
+        showBack
+        onBack={handleBack}
+      />
     );
 
   /* ==========================================================
@@ -1268,12 +1209,16 @@ export default function LoginScreen({
             : undefined
         }
       >
+        {/* HEADER FIXE : hors du ScrollView */}
+        {renderMobileHeader()}
+
         <TouchableWithoutFeedback
           onPress={() =>
             Keyboard.dismiss()
           }
         >
           <ScrollView
+            style={styles.mobileScrollView}
             showsVerticalScrollIndicator={
               false
             }
@@ -1285,12 +1230,17 @@ export default function LoginScreen({
             }
             contentContainerStyle={[
               styles.mobileScrollContent,
+              {
+                // Réserve exactement l'espace occupé par le
+                // header fixe : safe-area + hauteur du header.
+                paddingTop:
+                  insets.top +
+                  (IS_ANDROID ? 68 : 76),
+              },
               isShort &&
                 styles.mobileScrollShort,
             ]}
           >
-            {renderMobileHeader()}
-
             <View
               style={
                 styles.mobileHero
@@ -1768,16 +1718,8 @@ export default function LoginScreen({
       }
     >
       <StatusBar
-        barStyle={
-          isDesktop
-            ? 'light-content'
-            : 'dark-content'
-        }
-        backgroundColor={
-          isDesktop
-            ? COLORS.primaryDark
-            : COLORS.white
-        }
+        barStyle="light-content"
+        backgroundColor={COLORS.primaryDark}
         translucent={false}
       />
 
@@ -1897,6 +1839,10 @@ const styles = StyleSheet.create({
       COLORS.background,
   },
 
+  mobileScrollView: {
+    flex: 1,
+  },
+
   mobileScrollContent: {
     flexGrow: 1,
     paddingBottom: 25,
@@ -1908,95 +1854,9 @@ const styles = StyleSheet.create({
 
   /* ==========================================================
      MOBILE HEADER
+     (le header lui-même est géré par le composant partagé
+     <AppHeader /> — vert thème, voir renderMobileHeader)
   ========================================================== */
-
-  mobileHeader: {
-    width: '100%',
-    minHeight: 76,
-
-    paddingHorizontal: 16,
-    paddingBottom: 9,
-
-    backgroundColor:
-      COLORS.white,
-
-    borderBottomWidth: 1,
-    borderBottomColor:
-      COLORS.borderLight,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-
-    backgroundColor:
-      COLORS.primaryLight,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 11,
-  },
-
-  mobileBrand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    flex: 1,
-  },
-
-  mobileLogoBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-
-    backgroundColor:
-      COLORS.primaryLight,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 10,
-  },
-
-  mobileLogo: {
-    width: 37,
-    height: 37,
-  },
-
-  mobileBrandText: {
-    flex: 1,
-  },
-
-  mobileBrandName: {
-    color:
-      COLORS.primaryDark,
-
-    fontSize: 17,
-    fontWeight: '900',
-  },
-
-  mobileBrandSubtitle: {
-    color:
-      COLORS.textSoft,
-
-    fontSize: 9.5,
-
-    marginTop: 2,
-  },
 
   /* ==========================================================
      MOBILE HERO
