@@ -1,4 +1,5 @@
 # app/schemas/__init__.py
+
 from .auth import *
 from .user import *
 from .booking import *
@@ -11,3 +12,4 @@ from .negotiation import *
 from .therapist import *
 from .availability import *
 from .massage import *
+from .user_online_status import *

@@ -1,4 +1,4 @@
-# app/models/booking.py (ajout des foreign_keys explicites)
+# app/models/booking.py (ajout de therapist_assigned_at + foreign_keys explicites)
 from sqlalchemy import Column, Integer, String, DECIMAL, TIMESTAMP, Text, Enum, ForeignKey, Index, CheckConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -31,7 +31,31 @@ class Booking(Base):
     
     scheduled_date = Column(TIMESTAMP, nullable=False, index=True)
     scheduled_duration_minutes = Column(Integer, default=60)
+
+    # ============================================================
+    # DATES AUTOMATIQUES DU CYCLE DE VIE
+    #
+    # Ces 3 colonnes ne sont JAMAIS renseignées par le frontend.
+    # Elles sont posées uniquement côté backend, au moment exact
+    # où l'événement métier correspondant se produit :
+    #
+    #   therapist_assigned_at -> app/api/offers.py::accept_offer()
+    #   actual_start_time     -> app/api/bookings.py::start_booking()
+    #   actual_end_time       -> app/api/bookings.py::complete_booking()
+    # ============================================================
+
+    # Date/heure d'assignation définitive du thérapeute
+    # (posée automatiquement quand une offre est acceptée)
+    therapist_assigned_at = Column(
+        TIMESTAMP,
+        nullable=True,
+        index=True,
+    )
+
+    # Date/heure réelle du début du massage
     actual_start_time = Column(TIMESTAMP, nullable=True)
+
+    # Date/heure réelle de fin du massage
     actual_end_time = Column(TIMESTAMP, nullable=True)
     
     preferred_gender = Column(Enum('male', 'female', 'any', name='gender_preference'), nullable=True)
@@ -58,6 +82,7 @@ class Booking(Base):
         Index('idx_bookings_status', 'status'),
         Index('idx_bookings_scheduled_date', 'scheduled_date'),
         Index('idx_bookings_expires_at', 'expires_at'),
+        Index('idx_bookings_therapist_assigned_at', 'therapist_assigned_at'),
         CheckConstraint('client_price_proposed >= 0', name='check_price_positive'),
     )
     
@@ -132,5 +157,9 @@ class Booking(Base):
             "address": self.address,
             "scheduled_date": self.scheduled_date,
             "duration_minutes": self.scheduled_duration_minutes,
-            "created_at": self.created_at
+            "created_at": self.created_at,
+            # Dates automatiques du cycle de vie
+            "therapist_assigned_at": self.therapist_assigned_at,
+            "actual_start_time": self.actual_start_time,
+            "actual_end_time": self.actual_end_time,
         }

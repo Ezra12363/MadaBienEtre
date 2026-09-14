@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 
 import {
   View,
@@ -17,6 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
+import { useTheme } from '../../context/ThemeContext';
+
 /* =========================================================
    CONFIGURATION
 ========================================================= */
@@ -31,13 +33,14 @@ const APP_STORE_URL = '';
    COLORS
 ========================================================= */
 
-const COLORS = {
+const LIGHT_COLORS = {
   primary: '#2E7D32',
   primaryDark: '#164B2A',
   primaryMid: '#1F6B38',
   primaryLight: '#EAF5EC',
 
   background: '#F7FAF7',
+  surface: '#FFFFFF',
   white: '#FFFFFF',
 
   text: '#17201A',
@@ -47,6 +50,29 @@ const COLORS = {
 
   orange: '#F59E0B',
   blue: '#2563EB',
+
+  heroGradient: ['#EAF7ED', '#F5FBF6', '#FFFFFF'],
+};
+
+const DARK_COLORS = {
+  primary: '#34A853',
+  primaryDark: '#0E2415',
+  primaryMid: '#1E5C33',
+  primaryLight: 'rgba(76,175,80,0.16)',
+
+  background: '#0B0F0C',
+  surface: '#161D19',
+  white: '#FFFFFF',
+
+  text: '#EDF3EE',
+  textSoft: '#9AA79E',
+  border: '#26302A',
+  muted: '#7C8A81',
+
+  orange: '#FBBF24',
+  blue: '#60A5FA',
+
+  heroGradient: ['#101B13', '#0D1610', '#0A100C'],
 };
 
 /* =========================================================
@@ -142,6 +168,22 @@ export default function WelcomeScreen({ navigation }) {
   const scrollRef = useRef(null);
 
   const [menuOpen, setMenuOpen] = useState(false);
+
+  /* =======================================================
+     THEME (mode sombre)
+  ======================================================= */
+
+  const { isDark } = useTheme();
+
+  const COLORS = useMemo(
+    () => (isDark ? DARK_COLORS : LIGHT_COLORS),
+    [isDark]
+  );
+
+  const styles = useMemo(
+    () => createStyles(COLORS),
+    [COLORS]
+  );
 
   /*
     IMPORTANT :
@@ -442,11 +484,7 @@ export default function WelcomeScreen({ navigation }) {
 
   const renderHero = () => (
     <LinearGradient
-      colors={[
-        '#EAF7ED',
-        '#F5FBF6',
-        '#FFFFFF',
-      ]}
+      colors={COLORS.heroGradient}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[
@@ -1545,8 +1583,8 @@ export default function WelcomeScreen({ navigation }) {
       edges={['top']}
     >
       <StatusBar
-        barStyle="dark-content"
-        backgroundColor={COLORS.white}
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={COLORS.background}
         translucent={false}
       />
 
@@ -1584,14 +1622,14 @@ export default function WelcomeScreen({ navigation }) {
    STYLES
 ========================================================= */
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS) => StyleSheet.create({
   /* =======================================================
      BASE
   ======================================================= */
 
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.background,
   },
 
   screen: {
@@ -1979,7 +2017,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
 
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
 
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -2120,7 +2158,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 12,
 
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
 
     borderWidth: 1,
     borderColor: COLORS.border,
@@ -2357,7 +2395,7 @@ const styles = StyleSheet.create({
 
     maxWidth: 190,
 
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
 
     borderRadius: 15,
 
@@ -2454,7 +2492,7 @@ const styles = StyleSheet.create({
   ======================================================= */
 
   quickSection: {
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
 
     paddingVertical: 22,
 
@@ -2491,7 +2529,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
 
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
 
     gap: 12,
   },
@@ -2555,7 +2593,7 @@ const styles = StyleSheet.create({
   section: {
     paddingVertical: 75,
 
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
   },
 
   advantagesSection: {
@@ -2660,7 +2698,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 18,
 
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
 
     elevation: 2,
 
@@ -2758,7 +2796,7 @@ const styles = StyleSheet.create({
 
     minHeight: 135,
 
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
 
     borderRadius: 16,
 
@@ -2934,7 +2972,7 @@ const styles = StyleSheet.create({
 
     borderRadius: 14,
 
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -3202,7 +3240,7 @@ const styles = StyleSheet.create({
   ctaSection: {
     paddingVertical: 70,
 
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surface,
   },
 
   ctaCard: {

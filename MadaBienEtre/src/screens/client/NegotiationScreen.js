@@ -52,6 +52,7 @@ import {
 import Header from '../../components/common/Header';
 import offerService from '../../services/offerService';
 import bookingService from '../../services/bookingService';
+import therapistService from '../../services/therapistService';
 
 // ============================================================
 // CONSTANTS
@@ -484,13 +485,48 @@ const getTherapistAvatarFromData = (
     source?.therapistPhoto ??
     source?.therapist_image ??
     source?.therapistImage ??
+    source?.therapist_profile_image_url ??
+    source?.therapistProfileImageUrl ??
     therapist?.avatar ??
     therapist?.avatar_url ??
+    therapist?.avatarUrl ??
     therapist?.photo ??
     therapist?.photo_url ??
+    therapist?.photoUrl ??
     therapist?.image ??
     therapist?.image_url ??
+    therapist?.imageUrl ??
+    // ✅ Nom de champ réellement utilisé par le backend
+    // (voir therapistService / profil thérapeute) — c'était
+    // manquant ici, ce qui faisait que la vraie photo de
+    // profil n'était quasiment jamais trouvée.
+    therapist?.profile_image_url ??
+    therapist?.profileImageUrl ??
     ''
+  );
+};
+
+// ============================================================
+
+// Identifiant du thérapeute, pour aller chercher son profil
+// COMPLET et RÉEL en base via therapistService.getTherapist(id)
+// (les objets "booking"/"offer" ne contiennent pas toujours
+// toutes les infos, notamment la photo).
+const getTherapistIdFromData = (
+  source
+) => {
+  const therapist =
+    getTherapistObject(source);
+
+  return (
+    source?.therapist_id ??
+    source?.therapistId ??
+    source?.assigned_therapist_id ??
+    source?.assignedTherapistId ??
+    therapist?.id ??
+    therapist?.user_id ??
+    therapist?.userId ??
+    null
   );
 };
 
@@ -698,6 +734,46 @@ const NegotiationScreen = ({
     avatar: '',
     isOnline: null,
   });
+
+  // Identifiant thérapeute déjà utilisé pour éviter de refaire
+  // le même appel therapistService.getTherapist(id) en boucle.
+  const fetchedTherapistIdRef = useRef(null);
+
+  // ==========================================================
+  // FETCH THERAPIST PROFILE (données réelles en base)
+  // ==========================================================
+
+  const fetchTherapistFullProfile = useCallback(
+    async (id) => {
+      if (!id) {
+        return;
+      }
+
+      if (
+        fetchedTherapistIdRef.current ===
+        String(id)
+      ) {
+        return;
+      }
+
+      fetchedTherapistIdRef.current = String(id);
+
+      try {
+        const result =
+          await therapistService.getTherapist(id);
+
+        if (result?.success && result?.data) {
+          updateTherapistProfile(result.data);
+        }
+      } catch (error) {
+        console.log(
+          'ℹ️ Impossible de récupérer le profil thérapeute:',
+          error?.message
+        );
+      }
+    },
+    []
+  );
 
   // ==========================================================
   // TOAST
@@ -1069,6 +1145,10 @@ const NegotiationScreen = ({
             updateTherapistProfile(
               booking
             );
+
+            fetchTherapistFullProfile(
+              getTherapistIdFromData(booking)
+            );
           }
         } catch (error) {
           console.log(
@@ -1080,6 +1160,7 @@ const NegotiationScreen = ({
       [
         bookingId,
         updateTherapistProfile,
+        fetchTherapistFullProfile,
       ]
     );
 
@@ -1160,6 +1241,10 @@ const NegotiationScreen = ({
             updateTherapistProfile(
               booking
             );
+
+            fetchTherapistFullProfile(
+              getTherapistIdFromData(booking)
+            );
           }
 
           // --------------------------------------------------
@@ -1210,6 +1295,15 @@ const NegotiationScreen = ({
 
             updateTherapistProfile(
               therapistOfferForProfile.therapist
+            );
+
+            fetchTherapistFullProfile(
+              getTherapistIdFromData(
+                therapistOfferForProfile
+              ) ??
+                getTherapistIdFromData(
+                  therapistOfferForProfile.therapist
+                )
             );
           }
 
@@ -1342,6 +1436,7 @@ const NegotiationScreen = ({
         bookingId,
         findLatestTherapistOffer,
         updateTherapistProfile,
+        fetchTherapistFullProfile,
       ]
     );
 
@@ -2221,7 +2316,7 @@ const NegotiationScreen = ({
                 styles.profileRow
               }
             >
-              {/* PROFIL CARRE */}
+              {/* PROFIL AVATAR ROND */}
 
               <View
                 style={
@@ -2239,30 +2334,35 @@ const NegotiationScreen = ({
                     }
                   />
                 ) : (
-                  <Ionicons
-                    name="person"
-                    size={34}
-                    color={GREEN}
-                  />
+                  <View
+                    style={
+                      styles.profilePlaceholder
+                    }
+                  >
+                    <Ionicons
+                      name="person"
+                      size={30}
+                      color={GREEN}
+                    />
+                  </View>
                 )}
 
-                {/* POINT ONLINE */}
+                {/* BADGE STATUT EN LIGNE (intégré au cadre) */}
 
-                <View
-                  style={[
-                    styles.onlineDot,
-                    {
-                      backgroundColor:
-                        therapistProfile.isOnline ===
-                        true
-                          ? GREEN
-                          : therapistProfile.isOnline ===
-                            false
-                          ? RED
-                          : GRAY,
-                    },
-                  ]}
-                />
+                {typeof therapistProfile.isOnline ===
+                  'boolean' && (
+                  <View
+                    style={[
+                      styles.onlineDot,
+                      {
+                        backgroundColor:
+                          therapistProfile.isOnline
+                            ? GREEN
+                            : RED,
+                      },
+                    ]}
+                  />
+                )}
               </View>
 
               <View
@@ -2357,63 +2457,50 @@ const NegotiationScreen = ({
                   </Text>
                 </View>
 
-                {/* DISPONIBILITE */}
+                {/* DISPONIBILITE (masqué si statut inconnu) */}
 
-                <View
-                  style={[
-                    styles.onlineStatus,
-                    {
-                      backgroundColor:
-                        therapistProfile.isOnline ===
-                        true
-                          ? GREEN_PALE
-                          : therapistProfile.isOnline ===
-                            false
-                          ? '#FDECEC'
-                          : '#F2F3F5',
-                    },
-                  ]}
-                >
+                {typeof therapistProfile.isOnline ===
+                  'boolean' && (
                   <View
                     style={[
-                      styles.onlineStatusDot,
+                      styles.onlineStatus,
                       {
                         backgroundColor:
-                          therapistProfile.isOnline ===
-                          true
-                            ? GREEN
-                            : therapistProfile.isOnline ===
-                              false
-                            ? RED
-                            : GRAY,
-                      },
-                    ]}
-                  />
-
-                  <Text
-                    style={[
-                      styles.onlineStatusText,
-                      {
-                        color:
-                          therapistProfile.isOnline ===
-                          true
-                            ? GREEN
-                            : therapistProfile.isOnline ===
-                              false
-                            ? RED
-                            : GRAY,
+                          therapistProfile.isOnline
+                            ? GREEN_PALE
+                            : '#FDECEC',
                       },
                     ]}
                   >
-                    {therapistProfile.isOnline ===
-                    true
-                      ? 'En ligne'
-                      : therapistProfile.isOnline ===
-                        false
-                      ? 'Hors ligne'
-                      : 'Disponibilité inconnue'}
-                  </Text>
-                </View>
+                    <View
+                      style={[
+                        styles.onlineStatusDot,
+                        {
+                          backgroundColor:
+                            therapistProfile.isOnline
+                              ? GREEN
+                              : RED,
+                        },
+                      ]}
+                    />
+
+                    <Text
+                      style={[
+                        styles.onlineStatusText,
+                        {
+                          color:
+                            therapistProfile.isOnline
+                              ? GREEN
+                              : RED,
+                        },
+                      ]}
+                    >
+                      {therapistProfile.isOnline
+                        ? 'En ligne'
+                        : 'Hors ligne'}
+                    </Text>
+                  </View>
+                )}
               </View>
 
               {/* BOOKING */}
@@ -4127,9 +4214,12 @@ const styles = StyleSheet.create({
   },
 
   profileSquare: {
-    width: 82,
-    height: 82,
-    borderRadius: 10,
+    width: 68,
+    height: 68,
+    // ✅ Carré avec bordures légèrement arrondies (demande
+    // explicite), au lieu d'un cercle plein (borderRadius
+    // égal à la moitié de la largeur).
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: GREEN_BORDER,
     backgroundColor: GREEN_PALE,
@@ -4141,17 +4231,26 @@ const styles = StyleSheet.create({
   profileImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 8,
+    borderRadius: 14,
+  },
+
+  profilePlaceholder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: GREEN_PALE,
   },
 
   onlineDot: {
     position: 'absolute',
-    width: 13,
-    height: 13,
-    borderRadius: 7,
-    right: -4,
-    bottom: -4,
-    borderWidth: 2,
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    right: 0,
+    bottom: 1,
+    borderWidth: 2.5,
     borderColor: '#FFFFFF',
   },
 

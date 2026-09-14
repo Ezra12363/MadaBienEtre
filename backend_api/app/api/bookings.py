@@ -30,6 +30,7 @@ from ..models.negotiation import Negotiation
 from ..schemas.booking import (
     BookingCreate,
     BookingResponse,
+    BookingDetailResponse,
     BookingUpdate,
 )
 
@@ -315,12 +316,28 @@ def booking_response_dict(
             or 60
         ),
 
-        "actual_start_time": (
-            booking.actual_start_time
+        # ------------------------------------------------
+        # DATES AUTOMATIQUES DU CYCLE DE VIE DE LA RESERVATION
+        #
+        # therapist_assigned_at -> posé automatiquement quand
+        #   l'offre est acceptée (voir app/api/offers.py,
+        #   accept_offer()).
+        # actual_start_time -> posé automatiquement quand le
+        #   thérapeute démarre le massage (PUT /bookings/start/{id}).
+        # actual_end_time -> posé automatiquement quand le
+        #   thérapeute termine le massage (PUT /bookings/complete/{id}).
+        # ------------------------------------------------
+
+        "therapist_assigned_at": getattr(
+            booking, "therapist_assigned_at", None
         ),
 
-        "actual_end_time": (
-            booking.actual_end_time
+        "actual_start_time": getattr(
+            booking, "actual_start_time", None
+        ),
+
+        "actual_end_time": getattr(
+            booking, "actual_end_time", None
         ),
 
         "preferred_gender": (
@@ -369,6 +386,38 @@ def booking_response_dict(
             therapist.fullname
             if therapist
             else None
+        ),
+
+        # ----------------------------------------------------
+        # ⚠️ AJOUT : ces 4 champs étaient absents du dict alors
+        # que HistoryScreen.js (getTherapistPhoto/Email/Phone/
+        # OnlineStatus) les attend précisément sous ces noms.
+        # Résultat avant ce fix : jamais de vraie photo/email/
+        # téléphone affichés côté client, uniquement le nom.
+        # ----------------------------------------------------
+
+        "therapist_email": (
+            getattr(therapist, "email", None)
+            if therapist
+            else None
+        ),
+
+        "therapist_phone": (
+            getattr(therapist, "phone", None)
+            if therapist
+            else None
+        ),
+
+        "therapist_photo_url": (
+            getattr(therapist, "profile_image", None)
+            if therapist
+            else None
+        ),
+
+        "therapist_is_online": (
+            bool(getattr(therapist, "is_online", False))
+            if therapist
+            else False
         ),
 
         "massage_type_name": (
@@ -456,7 +505,7 @@ def can_view_booking(
 
 @router.post(
     "/",
-    response_model=BookingResponse,
+    response_model=BookingDetailResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_booking(
@@ -659,92 +708,173 @@ async def create_booking(
 
     # ========================================================
     # NOTIFICATION THERAPEUTES
+    #
+    # ⚠️ Tout ce bloc est entouré d'un try/except global : la
+    # réservation est DEJA créée et commit() plus haut. Quoi
+    # qu'il arrive dans la logique de notification (bug futur,
+    # colonne manquante, service de notification en panne...),
+    # ça ne doit JAMAIS transformer une création de réservation
+    # réussie en erreur 500 pour le client.
     # ========================================================
-
-    therapists = db.query(
-        User
-    ).filter(
-
-        User.role == "THERAPIST",
-
-        User.is_active == True,
-
-        User.deleted_at.is_(None),
-
-        User.verification_status
-        == "approved",
-
-        User.is_online == True,
-
-        User.is_available == True,
-    ).all()
 
     notified = 0
 
-    for therapist in therapists:
+    try:
 
-        distance = haversine_km(
+        therapists = db.query(
+            User
+        ).filter(
 
-            new_booking.client_latitude,
-            new_booking.client_longitude,
+            User.role == "THERAPIST",
 
-            therapist.latitude,
-            therapist.longitude,
+            User.is_active == True,
+
+            User.deleted_at.is_(None),
+
+            User.verification_status
+            == "approved",
+
+            User.is_online == True,
+
+            User.is_available == True,
+        ).all()
+
+        # ----------------------------------------------------
+        # DIAGNOSTIC : si personne n'est notifié, on veut savoir
+        # IMMEDIATEMENT pourquoi en lisant les logs, plutôt que
+        # de deviner. On compte donc chaque filtre séparément.
+        # ----------------------------------------------------
+
+        total_therapists = db.query(User).filter(
+            User.role == "THERAPIST",
+            User.deleted_at.is_(None),
+        ).count()
+
+        logger.info(
+            "BOOKING %s -> %s thérapeute(s) au total, "
+            "%s correspondent aux filtres "
+            "(actif+vérifié+en ligne+disponible)",
+            new_booking.id,
+            total_therapists,
+            len(therapists),
         )
 
-        radius = float(
-            therapist.service_radius
-            or 10
-        )
-
-        # Si les deux GPS existent
-        # on respecte le rayon.
-        if (
-            distance is not None
-            and distance > radius
-        ):
-            continue
-
-        try:
-
-            send_notification(
-
-                therapist.id,
-
-                "Nouvelle demande de massage",
-
-                (
-                    f"{current_user.fullname} "
-                    f"demande "
-                    f"{massage_type.name} "
-                    f"pour "
-                    f"{float(new_booking.client_price_proposed):,.0f} Ar"
-                ),
-
-                "new_booking",
-
-                {
-                    "booking_id":
-                    new_booking.id
-                },
-            )
-
-            notified += 1
-
-        except Exception:
-
-            logger.exception(
-                "Notification failed "
-                "therapist=%s booking=%s",
-                therapist.id,
+        if not therapists:
+            logger.warning(
+                "BOOKING %s -> AUCUN thérapeute ne correspond aux "
+                "filtres (is_active/verification_status=approved/"
+                "is_online/is_available). Aucune notification ne "
+                "peut donc être envoyée pour cette demande.",
                 new_booking.id,
             )
 
-    logger.info(
-        "BOOKING %s -> %s therapists notified",
-        new_booking.id,
-        notified,
-    )
+        for therapist in therapists:
+
+            # ------------------------------------------------
+            # ⚠️ FIX IMPORTANT
+            #
+            # AVANT : haversine_km() était appelé hors de tout
+            # try/except. Si un SEUL thérapeute avait une
+            # latitude ou une longitude manquante (None), le
+            # calcul plantait avec une exception non rattrapée
+            # qui arrêtait TOUTE la boucle instantanément : plus
+            # aucun thérapeute suivant n'était notifié, et la
+            # requête entière remontait en erreur 500 (alors que
+            # la réservation, elle, était déjà enregistrée en
+            # base par le commit() plus haut). C'est ce qui
+            # expliquait "la réservation est créée mais jamais
+            # aucune notification".
+            #
+            # MAINTENANT : une erreur sur UN thérapeute (GPS
+            # manquant, valeur invalide, etc.) est loguée et
+            # ignorée, sans jamais interrompre les autres.
+            # ------------------------------------------------
+
+            try:
+
+                distance = haversine_km(
+
+                    new_booking.client_latitude,
+                    new_booking.client_longitude,
+
+                    therapist.latitude,
+                    therapist.longitude,
+                )
+
+            except Exception:
+
+                logger.exception(
+                    "Erreur calcul distance (GPS manquant/invalide) "
+                    "therapist=%s booking=%s -> notification envoyée "
+                    "quand même, sans filtre de distance.",
+                    therapist.id,
+                    new_booking.id,
+                )
+
+                distance = None
+
+            radius = float(
+                therapist.service_radius
+                or 10
+            )
+
+            # Si les deux GPS existent
+            # on respecte le rayon.
+            if (
+                distance is not None
+                and distance > radius
+            ):
+                continue
+
+            try:
+
+                send_notification(
+
+                    therapist.id,
+
+                    "Nouvelle demande de massage",
+
+                    (
+                        f"{current_user.fullname} "
+                        f"demande "
+                        f"{massage_type.name} "
+                        f"pour "
+                        f"{float(new_booking.client_price_proposed):,.0f} Ar"
+                    ),
+
+                    "new_booking",
+
+                    {
+                        "booking_id":
+                        new_booking.id
+                    },
+                )
+
+                notified += 1
+
+            except Exception:
+
+                logger.exception(
+                    "Notification failed "
+                    "therapist=%s booking=%s",
+                    therapist.id,
+                    new_booking.id,
+                )
+
+        logger.info(
+            "BOOKING %s -> %s therapists notified",
+            new_booking.id,
+            notified,
+        )
+
+    except Exception:
+
+        logger.exception(
+            "BOOKING %s -> échec complet du bloc de "
+            "notification (la réservation reste créée "
+            "normalement, seule la notification a échoué).",
+            new_booking.id,
+        )
 
     return booking_response_dict(
         new_booking
@@ -1852,7 +1982,7 @@ async def get_bookings(
 
 @router.get(
     "/{booking_id}",
-    response_model=BookingResponse,
+    response_model=BookingDetailResponse,
 )
 async def get_booking(
 
@@ -1908,7 +2038,7 @@ async def get_booking(
 
 @router.put(
     "/{booking_id}",
-    response_model=BookingResponse,
+    response_model=BookingDetailResponse,
 )
 async def update_booking(
 

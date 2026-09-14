@@ -2,12 +2,14 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
+
 from starlette.exceptions import HTTPException as StarletteHTTPException
 import logging
 import time
 from pathlib import Path
 from contextlib import asynccontextmanager
 
+from .api import client_status
 from .core.config import settings
 from .core.database import init_database
 from .core.middleware import setup_middlewares
@@ -16,7 +18,7 @@ from .api import (
     auth, users, therapists, bookings, offers, payments,
     reviews, notifications, geolocation, chatbot, ai,
     pricing, sos, websocket, analytics, admin, massage_public,
-    certificates,
+    certificates, client_status,
 )
 from .api.availability import router as availability_router
 
@@ -164,9 +166,11 @@ async def version():
 # ============================================================
 # ROUTERS
 # ============================================================
+
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(availability_router)
+app.include_router(client_status.router)
 app.include_router(therapists.router)
 app.include_router(bookings.router)
 app.include_router(offers.router)

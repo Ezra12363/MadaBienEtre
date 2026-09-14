@@ -36,7 +36,9 @@ import {
   Animated,
   Image,
   Linking,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
 } from 'react-native';
 
@@ -321,6 +323,40 @@ const formatTime = (value) => {
     hour: '2-digit',
     minute: '2-digit',
   });
+};
+
+// ============================================================
+// FORMAT DATE + HEURE (utilisé pour les dates automatiques :
+// therapist_assigned_at, actual_start_time, actual_end_time)
+// ============================================================
+
+const formatDateTime = (value) => {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
+    return null;
+  }
+
+  const date = parseDateValue(value);
+
+  if (!date) {
+    return null;
+  }
+
+  const datePart = date.toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const timePart = date.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  return `${datePart} à ${timePart}`;
 };
 
 // ============================================================
@@ -752,6 +788,58 @@ const BookingDetailScreen = ({
   ] = useState(false);
 
   // ==========================================================
+  // CERTIFICATE MODAL
+  // ==========================================================
+
+  const [
+    certificateModalVisible,
+    setCertificateModalVisible,
+  ] = useState(false);
+
+  const [
+    certificateModalUrl,
+    setCertificateModalUrl,
+  ] = useState('');
+
+  // ==========================================================
+  // TOAST (notification centrée, alignée sous le header)
+  // ==========================================================
+
+  const [toast, setToast] = useState({
+    visible: false,
+    type: 'success',
+    message: '',
+  });
+
+  const toastTimerRef = useRef(null);
+
+  const showToast = useCallback(
+    (message, type = 'success') => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+
+      setToast({ visible: true, type, message });
+
+      toastTimerRef.current = setTimeout(() => {
+        setToast((previous) => ({
+          ...previous,
+          visible: false,
+        }));
+      }, 2800);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
+
+  // ==========================================================
   // LOAD BOOKING DETAILS
   // ==========================================================
 
@@ -925,21 +1013,7 @@ const BookingDetailScreen = ({
         }));
       }
 
-      if (Platform.OS === 'web') {
-        if (
-          typeof window !== 'undefined' &&
-          typeof window.alert === 'function'
-        ) {
-          window.alert(
-            'Réservation annulée avec succès.'
-          );
-        }
-      } else {
-        Alert.alert(
-          'Réservation',
-          'Réservation annulée avec succès.'
-        );
-      }
+      showToast('Réservation annulée avec succès.', 'success');
     } catch (error) {
       console.error(
         '❌ [CLIENT BOOKING DETAIL] Cancel:',
@@ -950,19 +1024,7 @@ const BookingDetailScreen = ({
         error?.message ||
         "Impossible d'annuler la réservation.";
 
-      if (Platform.OS === 'web') {
-        if (
-          typeof window !== 'undefined' &&
-          typeof window.alert === 'function'
-        ) {
-          window.alert(message);
-        }
-      } else {
-        Alert.alert(
-          'Erreur',
-          message
-        );
-      }
+      showToast(message, 'error');
     } finally {
       setIsCancelling(false);
     }
@@ -1034,21 +1096,10 @@ const BookingDetailScreen = ({
     phoneNumber
   ) => {
     if (!phoneNumber) {
-      if (Platform.OS === 'web') {
-        if (
-          typeof window !== 'undefined' &&
-          typeof window.alert === 'function'
-        ) {
-          window.alert(
-            'Le numéro du thérapeute est indisponible.'
-          );
-        }
-      } else {
-        Alert.alert(
-          'Téléphone',
-          'Le numéro du thérapeute est indisponible.'
-        );
-      }
+      showToast(
+        'Le numéro du thérapeute est indisponible.',
+        'error'
+      );
 
       return;
     }
@@ -1063,21 +1114,57 @@ const BookingDetailScreen = ({
         error
       );
 
-      if (Platform.OS === 'web') {
-        if (
-          typeof window !== 'undefined' &&
-          typeof window.alert === 'function'
-        ) {
-          window.alert(
-            "Impossible d'ouvrir l'application téléphone."
-          );
-        }
-      } else {
-        Alert.alert(
-          'Téléphone',
-          "Impossible d'ouvrir l'application téléphone."
-        );
-      }
+      showToast(
+        "Impossible d'ouvrir l'application téléphone.",
+        'error'
+      );
+    }
+  };
+
+  // ==========================================================
+  // VOIR LE CERTIFICAT PROFESSIONNEL DU THÉRAPEUTE
+  // ==========================================================
+
+  const handleViewCertificate = (
+    certificateUrl
+  ) => {
+    if (!certificateUrl) {
+      showToast(
+        'Le certificat professionnel de ce thérapeute n’est pas encore disponible.',
+        'error'
+      );
+
+      return;
+    }
+
+    // Affiche le certificat directement dans une modale
+    // (aperçu image, ou bouton "Ouvrir" pour les PDF), au lieu
+    // de quitter l'application via Linking.openURL.
+    setCertificateModalUrl(certificateUrl);
+    setCertificateModalVisible(true);
+  };
+
+  const closeCertificateModal = useCallback(() => {
+    setCertificateModalVisible(false);
+  }, []);
+
+  const isCertificateImage = /\.(png|jpe?g|webp|gif|heic|heif)(\?.*)?$/i.test(
+    certificateModalUrl || ''
+  );
+
+  const handleOpenCertificateExternally = async () => {
+    try {
+      await Linking.openURL(certificateModalUrl);
+    } catch (error) {
+      console.error(
+        '❌ [CLIENT BOOKING DETAIL] Certificat impossible à ouvrir:',
+        error
+      );
+
+      showToast(
+        "Impossible d'ouvrir le certificat pour le moment.",
+        'error'
+      );
     }
   };
 
@@ -1262,6 +1349,36 @@ const BookingDetailScreen = ({
     booking?.scheduled_date;
 
   // ==========================================================
+  // DATES AUTOMATIQUES DU CYCLE DE VIE (posées côté backend)
+  //
+  // therapist_assigned_at -> quand l'offre du thérapeute est
+  //   acceptée (voir app/api/offers.py::accept_offer).
+  // actual_start_time -> quand le thérapeute appuie sur
+  //   "Démarrer le massage" (PUT /bookings/start/{id}).
+  // actual_end_time -> quand le thérapeute appuie sur
+  //   "Terminer le massage" (PUT /bookings/complete/{id}).
+  //
+  // Ces champs restent null tant que l'événement correspondant
+  // ne s'est pas encore produit ; on ne les affiche donc que
+  // lorsqu'ils sont renseignés.
+  // ==========================================================
+
+  const therapistAssignedAt =
+    booking?.therapist_assigned_at ??
+    booking?.therapistAssignedAt ??
+    null;
+
+  const actualStartTime =
+    booking?.actual_start_time ??
+    booking?.actualStartTime ??
+    null;
+
+  const actualEndTime =
+    booking?.actual_end_time ??
+    booking?.actualEndTime ??
+    null;
+
+  // ==========================================================
   // THERAPIST DATA
   // ==========================================================
 
@@ -1329,6 +1446,17 @@ const BookingDetailScreen = ({
       therapistFromBooking?.online ??
       false
   );
+
+  const therapistCertificateUrl =
+    therapistProfile?.certificate_url ??
+    therapistProfile?.certificate_pro_url ??
+    therapistProfile?.professional_certificate_url ??
+    therapistProfile?.certification_url ??
+    therapistProfile?.certificateUrl ??
+    therapistFromBooking?.certificate_url ??
+    therapistFromBooking?.certificate_pro_url ??
+    booking?.therapist_certificate_url ??
+    null;
 
   // ==========================================================
   // PRICES
@@ -1653,6 +1781,102 @@ const BookingDetailScreen = ({
               </View>
             </View>
 
+            {/* Massage démarré à (automatique, dès que le thérapeute démarre) */}
+            {formatDateTime(actualStartTime) && (
+              <View style={styles.infoRow}>
+                <View
+                  style={[
+                    styles.infoIcon,
+                    {
+                      backgroundColor:
+                        '#FF980015',
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="play-circle-outline"
+                    size={20}
+                    color="#FF9800"
+                  />
+                </View>
+
+                <View
+                  style={styles.infoContent}
+                >
+                  <Text
+                    style={[
+                      styles.infoLabel,
+                      {
+                        color:
+                          themeColors.textSecondary,
+                      },
+                    ]}
+                  >
+                    Massage démarré à
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.infoValue,
+                      {
+                        color: themeColors.text,
+                      },
+                    ]}
+                  >
+                    {formatDateTime(actualStartTime)}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Massage terminé à (automatique, dès que le thérapeute termine) */}
+            {formatDateTime(actualEndTime) && (
+              <View style={styles.infoRow}>
+                <View
+                  style={[
+                    styles.infoIcon,
+                    {
+                      backgroundColor:
+                        '#2E7D3215',
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="checkmark-done-outline"
+                    size={20}
+                    color="#2E7D32"
+                  />
+                </View>
+
+                <View
+                  style={styles.infoContent}
+                >
+                  <Text
+                    style={[
+                      styles.infoLabel,
+                      {
+                        color:
+                          themeColors.textSecondary,
+                      },
+                    ]}
+                  >
+                    Massage terminé à
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.infoValue,
+                      {
+                        color: themeColors.text,
+                      },
+                    ]}
+                  >
+                    {formatDateTime(actualEndTime)}
+                  </Text>
+                </View>
+              </View>
+            )}
+
             {/* Adresse */}
             <View style={styles.infoRow}>
               <View
@@ -1942,37 +2166,40 @@ const BookingDetailScreen = ({
                     Thérapeute professionnel
                   </Text>
 
-                  <View
-                    style={styles.onlineStatusRow}
-                  >
+                  {/* Date d'assignation automatique du thérapeute
+                      (posée par le backend dès que l'offre est
+                      acceptée). Le statut en ligne/hors ligne est
+                      déjà visible sur le cadre de la photo de
+                      profil ci-dessus (petit point vert/gris) —
+                      pas besoin de le répéter ici. */}
+                  {formatDateTime(therapistAssignedAt) && (
                     <View
-                      style={[
-                        styles.largeStatusDot,
-                        {
-                          backgroundColor:
-                            therapistOnline
-                              ? '#4CAF50'
-                              : '#9E9E9E',
-                        },
-                      ]}
-                    />
-
-                    <Text
-                      style={[
-                        styles.onlineStatusText,
-                        {
-                          color:
-                            therapistOnline
-                              ? '#2E7D32'
-                              : themeColors.textSecondary,
-                        },
-                      ]}
+                      style={styles.assignedAtRow}
                     >
-                      {therapistOnline
-                        ? 'En ligne'
-                        : 'Hors ligne'}
-                    </Text>
-                  </View>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={13}
+                        color={
+                          themeColors.textSecondary
+                        }
+                      />
+
+                      <Text
+                        style={[
+                          styles.assignedAtText,
+                          {
+                            color:
+                              themeColors.textSecondary,
+                          },
+                        ]}
+                      >
+                        Assigné le{' '}
+                        {formatDateTime(
+                          therapistAssignedAt
+                        )}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </View>
 
@@ -2076,6 +2303,34 @@ const BookingDetailScreen = ({
                       </Text>
                     </TouchableOpacity>
                   )}
+
+                  <TouchableOpacity
+                    style={styles.secondaryAction}
+                    onPress={() =>
+                      handleViewCertificate(
+                        therapistCertificateUrl
+                      )
+                    }
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons
+                      name="certificate-outline"
+                      size={19}
+                      color={colors.primary}
+                    />
+
+                    <Text
+                      style={[
+                        styles.secondaryActionText,
+                        {
+                          color:
+                            colors.primary,
+                        },
+                      ]}
+                    >
+                      Certification
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
@@ -2400,6 +2655,157 @@ const BookingDetailScreen = ({
           </Text>
         </View>
       </ScrollView>
+
+      {/* ==================================================
+          TOAST — notification centrée, alignée sous le header
+      ================================================== */}
+
+      {toast.visible && (
+        <View
+          pointerEvents="none"
+          style={styles.toastOverlay}
+        >
+          <View
+            style={[
+              styles.toastCard,
+              {
+                backgroundColor: themeColors.card,
+                borderColor:
+                  toast.type === 'error'
+                    ? '#D32F2F40'
+                    : `${colors.primary}40`,
+              },
+            ]}
+          >
+            <Ionicons
+              name={
+                toast.type === 'error'
+                  ? 'alert-circle'
+                  : 'checkmark-circle'
+              }
+              size={18}
+              color={
+                toast.type === 'error'
+                  ? '#D32F2F'
+                  : colors.primary
+              }
+            />
+
+            <Text
+              numberOfLines={2}
+              style={[
+                styles.toastText,
+                { color: themeColors.text },
+              ]}
+            >
+              {toast.message}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* ==================================================
+          CERTIFICAT — modale d'aperçu
+      ================================================== */}
+
+      <Modal
+        visible={certificateModalVisible}
+        transparent
+        animationType="fade"
+        // Android : sans ça, la modale peut être partiellement
+        // masquée par la barre de statut sur certains téléphones.
+        statusBarTranslucent={Platform.OS === 'android'}
+        onRequestClose={closeCertificateModal}
+      >
+        <Pressable
+          style={styles.certificateBackdrop}
+          onPress={closeCertificateModal}
+        >
+          <Pressable
+            style={[
+              styles.certificateCard,
+              { backgroundColor: themeColors.card },
+            ]}
+            onPress={() => {}}
+          >
+            <View style={styles.certificateHeaderRow}>
+              <Text
+                style={[
+                  styles.certificateTitle,
+                  { color: themeColors.text },
+                ]}
+              >
+                Certificat professionnel
+              </Text>
+
+              <TouchableOpacity
+                onPress={closeCertificateModal}
+                hitSlop={{
+                  top: 8,
+                  bottom: 8,
+                  left: 8,
+                  right: 8,
+                }}
+              >
+                <Ionicons
+                  name="close"
+                  size={22}
+                  color={themeColors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.certificateBody}
+              contentContainerStyle={
+                styles.certificateBodyContent
+              }
+            >
+              {isCertificateImage ? (
+                <Image
+                  source={{ uri: certificateModalUrl }}
+                  style={styles.certificateImage}
+                  resizeMode="contain"
+                />
+              ) : (
+                <View style={styles.certificateFileBox}>
+                  <MaterialCommunityIcons
+                    name="file-certificate-outline"
+                    size={48}
+                    color={colors.primary}
+                  />
+
+                  <Text
+                    style={[
+                      styles.certificateFileText,
+                      { color: themeColors.textSecondary },
+                    ]}
+                  >
+                    Ce document ne peut pas être prévisualisé
+                    directement. Ouvrez-le pour le consulter.
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.certificateOpenButton}
+              onPress={handleOpenCertificateExternally}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name="open-outline"
+                size={18}
+                color="#FFFFFF"
+              />
+
+              <Text style={styles.certificateOpenButtonText}>
+                Ouvrir le document complet
+              </Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -2681,22 +3087,16 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
-  onlineStatusRow: {
+  assignedAtRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
+    gap: 5,
   },
 
-  largeStatusDot: {
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    marginRight: 6,
-  },
-
-  onlineStatusText: {
+  assignedAtText: {
     fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.medium,
   },
 
   profileInfoGrid: {
@@ -2737,12 +3137,14 @@ const styles = StyleSheet.create({
 
   therapistActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
     marginTop: spacing.lg,
   },
 
   secondaryAction: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '30%',
     minHeight: 44,
     borderRadius: 10,
     borderWidth: 1,
@@ -2868,6 +3270,126 @@ const styles = StyleSheet.create({
 
   bookingIdText: {
     fontSize: typography.fontSize.xs,
+  },
+
+  // ==========================================================
+  // TOAST — notification centrée, alignée sous le header
+  // ==========================================================
+
+  toastOverlay: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? 66 : 100,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 9999,
+    elevation: 9999,
+  },
+
+  toastCard: {
+    maxWidth: '90%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+
+  toastText: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  // ==========================================================
+  // CERTIFICAT — modale
+  // ==========================================================
+
+  certificateBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,20,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+
+  certificateCard: {
+    width: '100%',
+    maxWidth: 480,
+    maxHeight: '85%',
+    borderRadius: 20,
+    padding: 18,
+    // S'assure que le contenu de la modale (image, bouton)
+    // reste toujours visible en entier, sans être coupé, sur
+    // web comme sur Android.
+    overflow: 'hidden',
+  },
+
+  certificateHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+
+  certificateTitle: {
+    fontSize: 16,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  certificateBody: {
+    minHeight: 200,
+    maxHeight: 420,
+  },
+
+  certificateBodyContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  certificateImage: {
+    width: '100%',
+    height: 380,
+    borderRadius: 12,
+  },
+
+  certificateFileBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 30,
+    paddingHorizontal: 10,
+    gap: 12,
+  },
+
+  certificateFileText: {
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+  },
+
+  certificateOpenButton: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 13,
+    backgroundColor: colors.primary,
+  },
+
+  certificateOpenButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13.5,
+    fontFamily: typography.fontFamily.bold,
   },
 });
 

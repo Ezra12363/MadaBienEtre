@@ -26,7 +26,9 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Image,
   RefreshControl,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -39,13 +41,18 @@ import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import offerService from '../../services/offerService';
 import bookingService from '../../services/bookingService';
+import therapistService from '../../services/therapistService';
 
 // ============================================================
 // HELPERS
 // ============================================================
 
-const GREEN = '#00C853';
-const ORANGE = '#B26A00';
+// ✅ Thème harmonisé avec HomeScreen.js (même vert PRIMARY, même
+// orange que les cartes de promotions de l'accueil).
+const PRIMARY = colors.primary || '#168A55';
+const PRIMARY_DARK = '#0B633C';
+const GREEN = '#00A86B'; // SUCCESS (HomeScreen) — statut "accepté"
+const ORANGE = '#F28A24'; // même orange que les cartes de HomeScreen
 
 const money = (value) => {
   const number = Number(value);
@@ -127,6 +134,13 @@ const OffersScreen = ({ navigation, route }) => {
   const [, forceTick] = useState(0);
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
+  // ✅ Profils thérapeutes RÉELS (photo, nom, téléphone) chargés
+  // depuis la base via therapistService, indexés par user_id.
+  // Les offres ne contiennent qu'un "user_name" à plat — pas de
+  // photo — donc on va chercher le vrai profil complet.
+  const [therapistProfiles, setTherapistProfiles] = useState({});
+  const fetchedTherapistIdsRef = useRef(new Set());
+
   const loadData = useCallback(async () => {
     if (!bookingId) {
       setError('Réservation introuvable.');
@@ -170,6 +184,83 @@ const OffersScreen = ({ navigation, route }) => {
       useNativeDriver: true,
     }).start();
   }, []);
+
+  // ✅ Charge le profil thérapeute RÉEL (photo, nom, téléphone)
+  // pour chaque offre venant d'un thérapeute, une seule fois
+  // par identifiant.
+  useEffect(() => {
+    const idsToFetch = offers
+      .filter((offer) => {
+        const mine =
+          user?.id && offer?.user_id
+            ? String(offer.user_id) === String(user.id)
+            : offer?.user_type === 'client';
+        return !mine && offer?.user_id;
+      })
+      .map((offer) => String(offer.user_id))
+      .filter(
+        (id) => !fetchedTherapistIdsRef.current.has(id)
+      );
+
+    const uniqueIds = [...new Set(idsToFetch)];
+
+    if (uniqueIds.length === 0) {
+      return;
+    }
+
+    uniqueIds.forEach((id) =>
+      fetchedTherapistIdsRef.current.add(id)
+    );
+
+    (async () => {
+      const results = await Promise.all(
+        uniqueIds.map((id) => therapistService.getTherapist(id))
+      );
+
+      setTherapistProfiles((previous) => {
+        const next = { ...previous };
+        uniqueIds.forEach((id, index) => {
+          const result = results[index];
+          if (result?.success && result?.data) {
+            next[id] = result.data;
+          }
+        });
+        return next;
+      });
+    })();
+  }, [offers, user]);
+
+  const getTherapistPhoto = (offer) => {
+    const profile =
+      therapistProfiles[String(offer?.user_id)];
+
+    return (
+      profile?.profile_image_url ||
+      profile?.profileImageUrl ||
+      profile?.avatar_url ||
+      profile?.avatarUrl ||
+      profile?.photo_url ||
+      profile?.photoUrl ||
+      profile?.image_url ||
+      profile?.imageUrl ||
+      profile?.avatar ||
+      profile?.photo ||
+      ''
+    );
+  };
+
+  const getTherapistPhone = (offer) => {
+    const profile =
+      therapistProfiles[String(offer?.user_id)];
+
+    return (
+      profile?.phone ||
+      profile?.phone_number ||
+      profile?.telephone ||
+      profile?.mobile ||
+      ''
+    );
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -271,7 +362,16 @@ const OffersScreen = ({ navigation, route }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <Header title="Négociations" showBack />
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor={PRIMARY_DARK}
+      />
+
+      <Header
+        title="Négociations"
+        subtitle="Vos offres et contre-propositions"
+        showBack
+      />
 
       <Animated.ScrollView
         style={[styles.scrollView, { opacity: fadeAnim }]}
@@ -337,14 +437,32 @@ const OffersScreen = ({ navigation, route }) => {
                   <View style={styles.offerHeader}>
                     <View style={styles.therapistInfo}>
                       <View style={styles.therapistAvatar}>
-                        <Text style={styles.therapistAvatarText}>
-                          {getDisplayName(offer).charAt(0).toUpperCase()}
-                        </Text>
+                        {!mine && getTherapistPhoto(offer) ? (
+                          <Image
+                            source={{ uri: getTherapistPhoto(offer) }}
+                            style={styles.therapistAvatarImage}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <Text style={styles.therapistAvatarText}>
+                            {getDisplayName(offer).charAt(0).toUpperCase()}
+                          </Text>
+                        )}
                       </View>
                       <View>
                         <Text style={[styles.therapistName, { color: themeColors.text }]}>
                           {mine ? 'Votre contre-offre' : getDisplayName(offer)}
                         </Text>
+
+                        {!mine && !!getTherapistPhone(offer) && (
+                          <View style={styles.therapistPhoneRow}>
+                            <Ionicons name="call-outline" size={11} color={themeColors.textSecondary} />
+                            <Text style={[styles.therapistPhoneText, { color: themeColors.textSecondary }]}>
+                              {getTherapistPhone(offer)}
+                            </Text>
+                          </View>
+                        )}
+
                         <View
                           style={[
                             styles.statusBadge,
@@ -565,12 +683,19 @@ const styles = StyleSheet.create({
   offerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   therapistInfo: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   therapistAvatar: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 46, height: 46,
+    // ✅ Carré avec bordures légèrement arrondies (au lieu
+    // d'un cercle plein) pour la photo de profil.
+    borderRadius: 12,
     backgroundColor: colors.primary + '20',
     alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
   },
+  therapistAvatarImage: { width: '100%', height: '100%' },
   therapistAvatarText: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, color: colors.primary },
   therapistName: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
+  therapistPhoneRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  therapistPhoneText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular },
   statusBadge: {
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.xs,

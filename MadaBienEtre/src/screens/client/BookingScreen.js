@@ -22,11 +22,14 @@ import {
   Dimensions,
   Keyboard,
   Animated,
+  InteractionManager,
+  findNodeHandle,
   Easing,
   Image,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, typography } from '../../theme';
@@ -55,8 +58,14 @@ const { width } = Dimensions.get('window');
 
 const IS_WEB = Platform.OS === 'web';
 
-const MAP_GREEN = '#00C853';
-const MAP_GREEN_DARK = '#009624';
+// ✅ Thème harmonisé avec HomeScreen.js (même vert PRIMARY partout)
+const PRIMARY = colors.primary || '#168A55';
+const PRIMARY_DARK = '#0B633C';
+
+// Alias conservés pour ne pas casser les usages existants dans ce
+// fichier (carte, marqueurs...) — pointent maintenant vers le thème.
+const MAP_GREEN = PRIMARY;
+const MAP_GREEN_DARK = PRIMARY_DARK;
 
 const EMPTY_MASSAGE_TYPES = [];
 
@@ -293,13 +302,18 @@ const TypeCardVisual = ({
     );
   }
 
+  // ✅ L'image remplit maintenant tout le badge (100% x 100%) au
+  // lieu d'être une vignette arrondie plus petite flottant au
+  // centre d'un badge rond : le conteneur parent ("typeIcon")
+  // fait désormais lui-même office de masque (overflow: hidden),
+  // donc l'image est toujours nette, bien cadrée et sans bord
+  // visible de la couleur de fond derrière elle.
   return (
     <Image
       source={{ uri: imageUrl }}
       style={{
-        width: size,
-        height: size,
-        borderRadius: 16,
+        width: '100%',
+        height: '100%',
       }}
       resizeMode="cover"
       onError={() => setFailed(true)}
@@ -372,6 +386,16 @@ const BookingScreen = ({
     useState(false);
 
   const [showTimePicker, setShowTimePicker] =
+    useState(false);
+
+  // ✅ États de focus pour un rendu "premium" : le cadre de
+  // l'input se met en évidence (bordure + ombre colorée) pendant
+  // la saisie, comme sur les interfaces de paiement/réservation
+  // internationales (Stripe, Airbnb, etc.).
+  const [isPriceFocused, setIsPriceFocused] =
+    useState(false);
+
+  const [isInstructionsFocused, setIsInstructionsFocused] =
     useState(false);
 
   // ============================================================
@@ -680,11 +704,12 @@ const BookingScreen = ({
   // ============================================================
 
   const getToastConfig = () => {
+    // ✅ Palette alignée sur HomeScreen.js.
     switch (toast.type) {
       case 'success':
         return {
           icon: 'checkmark-circle',
-          color: '#00C853',
+          color: '#00A86B',
           background: isDark
             ? '#14271D'
             : '#FFFFFF',
@@ -693,7 +718,7 @@ const BookingScreen = ({
       case 'error':
         return {
           icon: 'close-circle',
-          color: '#E53935',
+          color: '#D9363E',
           background: isDark
             ? '#2B1717'
             : '#FFFFFF',
@@ -702,7 +727,7 @@ const BookingScreen = ({
       case 'warning':
         return {
           icon: 'warning',
-          color: '#FF9800',
+          color: '#E89B22',
           background: isDark
             ? '#2B2416'
             : '#FFFFFF',
@@ -711,7 +736,7 @@ const BookingScreen = ({
       default:
         return {
           icon: 'information-circle',
-          color: colors.primary,
+          color: '#2584D8',
           background: isDark
             ? '#171F32'
             : '#FFFFFF',
@@ -728,6 +753,11 @@ const BookingScreen = ({
   const addressInputRef = useRef(null);
 
   const priceInputRef = useRef(null);
+
+  // Ref dédié au champ multiline "Instructions spéciales".
+  // Il permet de demander au ScrollView Android de faire remonter
+  // exactement ce champ au-dessus du clavier.
+  const instructionsInputRef = useRef(null);
 
   const mapRef = useRef(null);
 
@@ -756,31 +786,51 @@ const BookingScreen = ({
   );
 
   // ============================================================
-  // KEYBOARD
+  // KEYBOARD ANDROID — GESTION DU CHAMP ACTIF
   // ============================================================
+  // IMPORTANT :
+  // Aucun setState n'est effectué au focus. Cela évite un rerender
+  // qui peut faire perdre le focus du TextInput Android.
 
-  useEffect(() => {
-    if (IS_WEB) return;
+  const scrollInputIntoView = (inputRef, extraOffset = 100) => {
+    if (IS_WEB || !inputRef?.current) return;
 
-    const listener =
-      Keyboard.addListener(
-        'keyboardDidShow',
-        () => {
-          setTimeout(() => {
-            scrollViewRef.current?.scrollToEnd({
-              animated: true,
-            });
-          }, 150);
+    const node = findNodeHandle(inputRef.current);
+    if (!node) return;
+
+    InteractionManager.runAfterInteractions(() => {
+      requestAnimationFrame(() => {
+        try {
+          scrollViewRef.current?.scrollResponderScrollNativeHandleToKeyboard(
+            node,
+            extraOffset,
+            true
+          );
+        } catch (error) {
+          console.log('Keyboard scroll:', error?.message);
         }
-      );
+      });
+    });
+  };
 
-    return () => {
-      listener.remove();
-    };
-  }, []);
+  const handlePriceFocus = () => {
+    if (IS_WEB) return;
+    setTimeout(() => {
+      scrollInputIntoView(priceInputRef, 110);
+    }, 250);
+  };
+
+  const handleInstructionsFocus = () => {
+    if (IS_WEB) return;
+    setTimeout(() => {
+      scrollInputIntoView(instructionsInputRef, 140);
+    }, 250);
+  };
 
   // ============================================================
   // BASE PRICE
+  // ============================================================
+
   // ============================================================
 
   const getBasePrice = () => {
@@ -2178,18 +2228,13 @@ const BookingScreen = ({
       ]}
     >
       <StatusBar
-        barStyle={
-          isDark
-            ? 'light-content'
-            : 'dark-content'
-        }
-        backgroundColor={
-          themeColors.background
-        }
+        barStyle="light-content"
+        backgroundColor={PRIMARY_DARK}
       />
 
       <Header
         title="Nouvelle réservation"
+        subtitle="Votre bien-être, notre priorité"
         showBack
         rightComponent={
           // ✅ Icône "liste" dans le header, à droite : accès direct
@@ -2203,7 +2248,7 @@ const BookingScreen = ({
             accessibilityRole="button"
             accessibilityLabel="Voir toutes mes réservations"
           >
-            <Ionicons name="list-outline" size={22} color={colors.primary} />
+            <Ionicons name="list-outline" size={20} color="#FFFFFF" />
           </TouchableOpacity>
         }
       />
@@ -2319,16 +2364,8 @@ const BookingScreen = ({
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={
-          Platform.OS === 'ios'
-            ? 'padding'
-            : undefined
-        }
-        keyboardVerticalOffset={
-          Platform.OS === 'ios'
-            ? 100
-            : 0
-        }
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
       >
         <ScrollView
           ref={scrollViewRef}
@@ -2345,10 +2382,13 @@ const BookingScreen = ({
           showsVerticalScrollIndicator={
             false
           }
-          keyboardShouldPersistTaps="always"
-          automaticallyAdjustKeyboardInsets={
-            true
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={
+            Platform.OS === 'android' ? 'on-drag' : 'interactive'
           }
+          automaticallyAdjustKeyboardInsets={true}
+          contentInsetAdjustmentBehavior="automatic"
+          overScrollMode="always"
         >
 
           {/* ================================================= */}
@@ -2929,8 +2969,9 @@ const BookingScreen = ({
                     themeColors.surface,
                   borderColor:
                     themeColors.border ||
-                    '#E0E0E0',
+                      '#E0E0E0',
                 },
+
               ]}
             >
               <Text
@@ -2958,9 +2999,15 @@ const BookingScreen = ({
                 onChangeText={
                   setPriceProposed
                 }
+                onFocus={handlePriceFocus}
+                onBlur={() => {}}
                 keyboardType="numeric"
+                inputMode="numeric"
                 returnKeyType="done"
-                blurOnSubmit={false}
+                blurOnSubmit={true}
+                caretHidden={false}
+                selectionColor={colors.primary}
+                selectTextOnFocus={false}
               />
             </View>
 
@@ -3009,8 +3056,9 @@ const BookingScreen = ({
                     themeColors.surface,
                   borderColor:
                     themeColors.border ||
-                    '#E0E0E0',
+                      '#E0E0E0',
                 },
+
               ]}
             >
               <Ionicons
@@ -3021,10 +3069,10 @@ const BookingScreen = ({
               />
 
               <TextInput
+                ref={instructionsInputRef}
                 style={[
-                  styles.addressInput,
+                  styles.specialInstructionsInput,
                   {
-                    minHeight: 80,
                     color:
                       themeColors.text,
                   },
@@ -3037,6 +3085,8 @@ const BookingScreen = ({
                 onChangeText={
                   setSpecialInstructions
                 }
+                onFocus={handleInstructionsFocus}
+                onBlur={() => {}}
                 multiline
                 numberOfLines={3}
                 maxLength={500}
@@ -3059,8 +3109,8 @@ const BookingScreen = ({
               <TouchableOpacity
                 activeOpacity={0.85}
                 style={[
-                  styles.submitButton,
                   styles.submitButtonHalf,
+                  styles.submitButtonShadow,
                   isLoading && styles.submitButtonDisabled,
                 ]}
                 onPress={handleSubmit}
@@ -3068,16 +3118,26 @@ const BookingScreen = ({
                 accessibilityRole="button"
                 accessibilityLabel="Soumettre ma demande"
               >
-                {isLoading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="send" size={20} color="#fff" />
-                    <Text style={styles.submitButtonText}>
-                      Soumettre ma demande
-                    </Text>
-                  </>
-                )}
+                <LinearGradient
+                  colors={[
+                    colors.primary,
+                    colors.primaryLight || colors.primary,
+                  ]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.submitButton}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="send" size={20} color="#fff" />
+                      <Text style={styles.submitButtonText}>
+                        Soumettre ma demande
+                      </Text>
+                    </>
+                  )}
+                </LinearGradient>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -3123,19 +3183,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // ✅ Bouton rond de l'icône "liste" dans le header.
+  // ✅ Bouton rond de l'icône "liste" dans le header (même style que
+  // les boutons latéraux du header vert de HomeScreen).
   headerListButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 40,
+    height: 40,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary + '15',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.28)',
     ...(IS_WEB ? { cursor: 'pointer' } : {}),
   },
 
   keyboardView: {
     flex: 1,
+    minHeight: 0,
   },
 
   container: {
@@ -3144,7 +3208,9 @@ const styles = StyleSheet.create({
 
   contentContainer: {
     paddingTop: spacing.sm,
-    paddingBottom: 120,
+    // Espace supplémentaire sous le dernier champ pour que le clavier
+    // Android ne bloque jamais la zone active.
+    paddingBottom: Platform.OS === 'android' ? 220 : 120,
   },
 
   // ==========================================================
@@ -3349,6 +3415,14 @@ const styles = StyleSheet.create({
 
     overflow: 'hidden',
 
+    // ✅ Légère ombre premium (carte qui "flotte" un peu),
+    // cohérente avec les autres cartes de l'app.
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+
     ...Platform.select({
       web: {
         cursor: 'pointer',
@@ -3358,7 +3432,10 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // ✅ IMAGE PLUS GRANDE
+  // ✅ VIGNETTE TYPE DE MASSAGE — carré à bordures arrondies
+  // (au lieu d'un cercle) pour un rendu net et cohérent avec le
+  // reste de l'app, sans bord de couleur de fond visible autour
+  // de l'image.
   // ==========================================================
 
   typeIcon: {
@@ -3366,7 +3443,7 @@ const styles = StyleSheet.create({
 
     height: 78,
 
-    borderRadius: 39,
+    borderRadius: 20,
 
     alignItems: 'center',
 
@@ -3511,8 +3588,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
-    borderRadius: 13,
-    borderWidth: 1,
+    // ✅ Rayon aligné sur celui des boutons (16) pour une
+    // cohérence visuelle "premium" sur toute l'interface.
+    borderRadius: 16,
+    borderWidth: 1.5,
     gap: spacing.sm,
   },
 
@@ -3524,6 +3603,25 @@ const styles = StyleSheet.create({
     fontFamily:
       typography.fontFamily.regular,
     padding: 0,
+    margin: 0,
+    includeFontPadding: false,
+    outlineStyle: 'none',
+  },
+
+  // Champ "Instructions spéciales" séparé du champ adresse :
+  // multiline stable sur Android et curseur placé correctement.
+  specialInstructionsInput: {
+    flex: 1,
+    minHeight: 82,
+    fontSize:
+      typography.fontSize.md,
+    lineHeight: 21,
+    fontFamily:
+      typography.fontFamily.regular,
+    padding: 0,
+    margin: 0,
+    includeFontPadding: true,
+    textAlignVertical: 'top',
     outlineStyle: 'none',
   },
 
@@ -3552,8 +3650,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
-    borderRadius: 13,
-    borderWidth: 1,
+    borderRadius: 16,
+    borderWidth: 1.5,
+  },
+
+  // ✅ Halo/ombre colorée affiché uniquement quand le champ est
+  // actif — même codage visuel que "focus ring" sur les
+  // interfaces de réservation/paiement standards.
+  priceContainerFocused: {
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 3,
   },
 
   priceCurrency: {
@@ -3567,12 +3676,16 @@ const styles = StyleSheet.create({
 
   priceInput: {
     flex: 1,
-    height: 50,
+    height: 52,
+    minWidth: 0,
     fontSize:
       typography.fontSize.lg,
     fontFamily:
       typography.fontFamily.bold,
     padding: 0,
+    margin: 0,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
     outlineStyle: 'none',
   },
 
@@ -3612,6 +3725,20 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
 
+  // ✅ Ombre colorée "premium" du bouton principal, posée sur le
+  // conteneur externe (pas sur le dégradé lui-même) afin qu'elle
+  // reste bien visible sur toutes les plateformes.
+  submitButtonShadow: {
+    shadowColor: colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+
   viewRequestsButton: {
     flex: 1,
     flexBasis: 0,
@@ -3621,7 +3748,7 @@ const styles = StyleSheet.create({
     // identiques visuellement, seule la couleur change.
     minHeight: 56,
     borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: 1.5,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     flexDirection: 'row',
@@ -3647,25 +3774,18 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 
+  // ✅ Style du dégradé interne du bouton principal — plus de
+  // couleur/ombre ici (déplacées sur les conteneurs parents), il
+  // ne gère plus que la mise en page du contenu.
   submitButton: {
     minHeight: 56,
-    backgroundColor: colors.primary,
+    width: '100%',
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 10,
-    // ✅ Ombre adoucie (avant : opacity 0.25 / radius 8 / elevation 5)
-    // pour ne plus paraître disproportionnée par rapport au bouton
-    // "Voir mes demandes" juste à côté.
-    shadowColor: colors.primary,
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 6,
-    elevation: 3,
+    paddingHorizontal: spacing.sm,
   },
 
   submitButtonDisabled: {
@@ -3777,21 +3897,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    minHeight: 46,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    minHeight: 50,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
 
   mapSearchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 14.5,
     padding: 0,
-    minHeight: 44,
+    minHeight: 46,
   },
 
   mapSearchDropdown: {

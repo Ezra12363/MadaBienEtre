@@ -10,6 +10,7 @@ import React, {
   useRef,
   useEffect,
   useCallback,
+  useMemo,
 } from 'react';
 
 import {
@@ -34,6 +35,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import notificationService from '../../services/notificationService';
 import AppHeader from '../../components/common/AppHeader';
 
@@ -41,18 +43,21 @@ import AppHeader from '../../components/common/AppHeader';
    COLORS
 ============================================================ */
 
-const COLORS = {
+const LIGHT_COLORS = {
   primary: '#2E7D32',
   primaryDark: '#164B2A',
   primaryMid: '#1F6B38',
   primaryLight: '#EAF5EC',
 
   background: '#F6FAF7',
+  surface: '#FFFFFF',
+  surfaceSoft: '#F9FBF9',
   white: '#FFFFFF',
 
   text: '#17201A',
   textSoft: '#66736A',
   muted: '#8A948C',
+  placeholder: '#9AA59D',
 
   border: '#DDE7DF',
   borderLight: '#E8EFE9',
@@ -62,6 +67,32 @@ const COLORS = {
 
   blue: '#2563EB',
   blueLight: '#EFF6FF',
+};
+
+const DARK_COLORS = {
+  primary: '#34A853',
+  primaryDark: '#0E2415',
+  primaryMid: '#1E5C33',
+  primaryLight: 'rgba(76,175,80,0.16)',
+
+  background: '#0B0F0C',
+  surface: '#161D19',
+  surfaceSoft: '#131A16',
+  white: '#FFFFFF',
+
+  text: '#EDF3EE',
+  textSoft: '#9AA79E',
+  muted: '#7C8A81',
+  placeholder: '#6B776F',
+
+  border: '#26302A',
+  borderLight: '#212A24',
+
+  red: '#F87171',
+  redLight: 'rgba(248,113,113,0.12)',
+
+  blue: '#60A5FA',
+  blueLight: 'rgba(96,165,250,0.12)',
 };
 
 /* ============================================================
@@ -77,6 +108,72 @@ const DESKTOP_BREAKPOINT = 950;
 /* ============================================================
    TOAST
 ============================================================ */
+
+const toastStyles = StyleSheet.create({
+  toastOverlay: {
+    position: 'absolute',
+    top: IS_ANDROID
+      ? (StatusBar.currentHeight || 0) + 8
+      : 15,
+    left: 12,
+    right: 12,
+    zIndex: 99999,
+    elevation: 99999,
+    alignItems: 'center',
+    pointerEvents: 'box-none',
+  },
+
+  toastContainer: {
+    width: '100%',
+    maxWidth: 560,
+    minHeight: 60,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+
+  toastIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginRight: 10,
+  },
+
+  toastText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+
+  toastClose: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginLeft: 5,
+  },
+});
 
 const Toast = ({
   visible,
@@ -132,11 +229,11 @@ const Toast = ({
   return (
     <View
       pointerEvents="box-none"
-      style={styles.toastOverlay}
+      style={toastStyles.toastOverlay}
     >
       <Animated.View
         style={[
-          styles.toastContainer,
+          toastStyles.toastContainer,
           {
             backgroundColor: current.background,
             borderColor: current.border,
@@ -145,7 +242,7 @@ const Toast = ({
       >
         <View
           style={[
-            styles.toastIcon,
+            toastStyles.toastIcon,
             {
               backgroundColor:
                 current.iconBackground,
@@ -161,7 +258,7 @@ const Toast = ({
 
         <Text
           style={[
-            styles.toastText,
+            toastStyles.toastText,
             {
               color: current.text,
             },
@@ -172,7 +269,7 @@ const Toast = ({
 
         <Pressable
           onPress={onDismiss}
-          style={styles.toastClose}
+          style={toastStyles.toastClose}
           hitSlop={10}
         >
           <Ionicons
@@ -197,6 +294,22 @@ export default function LoginScreen({
     useWindowDimensions();
 
   const insets = useSafeAreaInsets();
+
+  /* ==========================================================
+     THEME (mode sombre)
+  ========================================================== */
+
+  const { isDark } = useTheme();
+
+  const COLORS = useMemo(
+    () => (isDark ? DARK_COLORS : LIGHT_COLORS),
+    [isDark]
+  );
+
+  const styles = useMemo(
+    () => createStyles(COLORS),
+    [COLORS]
+  );
 
   /* ==========================================================
      RESPONSIVE
@@ -756,7 +869,7 @@ export default function LoginScreen({
               placeholder
             }
             placeholderTextColor={
-              '#9AA59D'
+              COLORS.placeholder
             }
             keyboardType={
               keyboardType
@@ -1749,7 +1862,7 @@ export default function LoginScreen({
    STYLES
 ============================================================ */
 
-const styles = StyleSheet.create({
+const createStyles = (COLORS) => StyleSheet.create({
 
   /* ==========================================================
      GENERAL
@@ -1759,74 +1872,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor:
       COLORS.background,
-  },
-
-  /* ==========================================================
-     TOAST
-  ========================================================== */
-
-  toastOverlay: {
-    position: 'absolute',
-    top: IS_ANDROID
-      ? (StatusBar.currentHeight || 0) + 8
-      : 15,
-    left: 12,
-    right: 12,
-    zIndex: 99999,
-    elevation: 99999,
-    alignItems: 'center',
-    pointerEvents: 'box-none',
-  },
-
-  toastContainer: {
-    width: '100%',
-    maxWidth: 560,
-    minHeight: 60,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-
-  toastIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 10,
-  },
-
-  toastText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600',
-  },
-
-  toastClose: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginLeft: 5,
   },
 
   /* ==========================================================
@@ -1878,7 +1923,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
 
     backgroundColor:
-      COLORS.white,
+      COLORS.surface,
 
     borderRadius: 100,
 
@@ -2045,7 +2090,7 @@ const styles = StyleSheet.create({
       COLORS.border,
 
     backgroundColor:
-      COLORS.white,
+      COLORS.surface,
 
     flexDirection: 'row',
     alignItems: 'center',
@@ -2277,7 +2322,7 @@ const styles = StyleSheet.create({
       COLORS.border,
 
     backgroundColor:
-      COLORS.white,
+      COLORS.surface,
 
     flexDirection: 'row',
     alignItems: 'center',
@@ -2377,7 +2422,7 @@ const styles = StyleSheet.create({
       COLORS.borderLight,
 
     backgroundColor:
-      '#F9FBF9',
+      COLORS.surfaceSoft,
 
     paddingHorizontal: 11,
 

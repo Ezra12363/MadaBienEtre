@@ -51,6 +51,9 @@ class BookingDetailResponse(BookingResponse):
     therapist_phone: Optional[str] = None
     client_latitude: Optional[float] = None
     client_longitude: Optional[float] = None
+    # Date/heure automatique d'assignation définitive du thérapeute
+    # (posée par accept_offer() quand l'offre est acceptée)
+    therapist_assigned_at: Optional[datetime] = None
     actual_start_time: Optional[datetime] = None
     actual_end_time: Optional[datetime] = None
     negotiation_history: Optional[List[dict]] = None

@@ -945,12 +945,23 @@ async def accept_offer(
 
     # ========================================================
     # ACCEPTATION
+    #
+    # Ce point est atteint aussi bien quand c'est le CLIENT qui
+    # accepte l'offre du thérapeute, que quand c'est le
+    # THERAPEUTE qui accepte l'offre du client : dans les deux
+    # cas, booking.therapist_id est déjà défini plus haut, et le
+    # thérapeute devient définitivement assigné à cet instant.
     # ========================================================
 
     offer.status = "accepted"
 
     booking.final_price = offer.price_offered
     booking.status = "confirmed"
+
+    # Date/heure automatique d'assignation définitive du
+    # thérapeute (affichée ensuite côté client sur l'écran de
+    # détail de la réservation).
+    booking.therapist_assigned_at = datetime.utcnow()
 
     # ========================================================
     # REJETER LES AUTRES OFFRES ACTIVE
@@ -1011,6 +1022,7 @@ async def accept_offer(
         "offer_id": offer.id,
         "booking_id": booking.id,
         "therapist_id": booking.therapist_id,
+        "therapist_assigned_at": booking.therapist_assigned_at,
         "final_price": float(
             offer.price_offered
         ),

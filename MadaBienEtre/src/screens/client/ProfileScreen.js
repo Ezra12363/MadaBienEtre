@@ -50,6 +50,8 @@ import useLocationTracking from '../../hooks/useLocationTracking';
 import { put } from '../../services/api';
 import api from '../../services/api';
 
+import ClientOnlineStatusCard from '../../components/client/ClientOnlineStatusCard';
+
 // ============================================================
 // CONSTANTS
 // ============================================================
@@ -2166,6 +2168,69 @@ const ProfileScreen = ({ navigation }) => {
               )}
             </View>
           </LinearGradient>
+        </Animatable.View>
+
+        {/* ======================================================
+            STATUT EN LIGNE
+        ====================================================== */}
+
+        <Animatable.View
+          animation="fadeInUp"
+          delay={60}
+          duration={500}
+          style={styles.sectionContainer}
+        >
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: themeColors.surface,
+              },
+            ]}
+          >
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeaderLeft}>
+                <View
+                  style={[
+                    styles.sectionIcon,
+                    {
+                      backgroundColor: `${GREEN_DARK}14`,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="radio-outline"
+                    size={20}
+                    color={GREEN_DARK}
+                  />
+                </View>
+
+                <View>
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { color: themeColors.text },
+                    ]}
+                  >
+                    Statut en ligne
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.sectionSubtitle,
+                      { color: themeColors.textSecondary },
+                    ]}
+                  >
+                    Contrôlez votre visibilité dans l'app
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={{ marginTop: 12 }}>
+              <ClientOnlineStatusCard variant="compact" />
+            </View>
+          </View>
         </Animatable.View>
 
         {/* ======================================================
