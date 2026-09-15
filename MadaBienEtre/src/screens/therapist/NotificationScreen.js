@@ -1,4 +1,3 @@
-
 // src/screens/therapist/NotificationScreen.js
 
 /**
@@ -52,6 +51,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Animatable from 'react-native-animatable';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -247,6 +247,19 @@ const resolveCategory = (type) => {
   }
 
   return 'system';
+};
+
+
+/**
+ * Libellés lisibles par catégorie (utilisés dans le menu d'options
+ * et pour le message de confirmation de désactivation).
+ */
+const CATEGORY_LABELS = {
+  booking: 'Réservations',
+  offer: 'Négociations',
+  payment: 'Paiements',
+  system: 'Système',
+  sos: 'Alertes SOS',
 };
 
 
@@ -497,6 +510,9 @@ const NotificationScreen = ({
     isDark,
   } = useTheme();
 
+  const insets =
+    useSafeAreaInsets();
+
 
   const {
     unreadCount,
@@ -575,6 +591,28 @@ const NotificationScreen = ({
 
 
   /* ==========================================================
+     OPTIONS BOTTOM SHEET (⋮ sur chaque notification)
+  ========================================================== */
+
+  const [
+    optionsVisible,
+    setOptionsVisible,
+  ] = useState(false);
+
+
+  const [
+    notificationForOptions,
+    setNotificationForOptions,
+  ] = useState(null);
+
+
+  const [
+    disablingTypeLoading,
+    setDisablingTypeLoading,
+  ] = useState(false);
+
+
+  /* ==========================================================
      TOAST
   ========================================================== */
 
@@ -616,6 +654,22 @@ const NotificationScreen = ({
 
 
   const modalOpacity =
+    useRef(
+      new Animated.Value(0)
+    ).current;
+
+
+  /* ==========================================================
+     OPTIONS SHEET ANIMATION
+  ========================================================== */
+
+  const sheetTranslateY =
+    useRef(
+      new Animated.Value(400)
+    ).current;
+
+
+  const sheetBackdropOpacity =
     useRef(
       new Animated.Value(0)
     ).current;
@@ -903,6 +957,107 @@ const NotificationScreen = ({
       modalOpacity,
       modalScale,
     ]);
+
+
+  /* ==========================================================
+     OPEN OPTIONS SHEET (⋮)
+  ========================================================== */
+
+  const openOptionsSheet =
+    useCallback(
+      (notification) => {
+
+        setNotificationForOptions(
+          notification
+        );
+
+        setOptionsVisible(
+          true
+        );
+
+        sheetTranslateY.setValue(400);
+        sheetBackdropOpacity.setValue(0);
+
+        Animated.parallel([
+          Animated.timing(
+            sheetBackdropOpacity,
+            {
+              toValue: 1,
+              duration: 200,
+              useNativeDriver: true,
+            }
+          ),
+
+          Animated.spring(
+            sheetTranslateY,
+            {
+              toValue: 0,
+              friction: 9,
+              tension: 70,
+              useNativeDriver: true,
+            }
+          ),
+        ]).start();
+
+      },
+      [
+        sheetBackdropOpacity,
+        sheetTranslateY,
+      ]
+    );
+
+
+  /* ==========================================================
+     CLOSE OPTIONS SHEET
+  ========================================================== */
+
+  const closeOptionsSheet =
+    useCallback(
+      (callback) => {
+
+        Animated.parallel([
+          Animated.timing(
+            sheetBackdropOpacity,
+            {
+              toValue: 0,
+              duration: 160,
+              useNativeDriver: true,
+            }
+          ),
+
+          Animated.timing(
+            sheetTranslateY,
+            {
+              toValue: 400,
+              duration: 200,
+              useNativeDriver: true,
+            }
+          ),
+        ]).start(() => {
+
+          setOptionsVisible(
+            false
+          );
+
+          setNotificationForOptions(
+            null
+          );
+
+          if (
+            typeof callback ===
+            'function'
+          ) {
+            callback();
+          }
+
+        });
+
+      },
+      [
+        sheetBackdropOpacity,
+        sheetTranslateY,
+      ]
+    );
 
 
   /* ==========================================================
@@ -1716,20 +1871,147 @@ const NotificationScreen = ({
 
 
   /* ==========================================================
-     HANDLE DELETE
+     HANDLE OPEN OPTIONS (⋮ sur une notification)
   ========================================================== */
 
-  const handleDeleteNotification =
+  const handleOpenNotificationOptions =
     useCallback(
       (notification) => {
 
-        openDeleteModal(
+        openOptionsSheet(
           notification
         );
 
       },
       [
+        openOptionsSheet,
+      ]
+    );
+
+
+  /* ==========================================================
+     SHEET ACTION : SUPPRIMER
+     (ferme le sheet puis ouvre la modale de confirmation
+     existante)
+  ========================================================== */
+
+  const handleSheetDeletePress =
+    useCallback(
+      () => {
+
+        const target =
+          notificationForOptions;
+
+        closeOptionsSheet(
+          () => {
+
+            if (target) {
+              openDeleteModal(
+                target
+              );
+            }
+
+          }
+        );
+
+      },
+      [
+        closeOptionsSheet,
+        notificationForOptions,
         openDeleteModal,
+      ]
+    );
+
+
+  /* ==========================================================
+     SHEET ACTION : DÉSACTIVER LA NOTIFICATION
+     Désactive les notifications de ce type (catégorie) via
+     les préférences du compte.
+  ========================================================== */
+
+  const handleSheetDisablePress =
+    useCallback(
+      async () => {
+
+        const target =
+          notificationForOptions;
+
+        if (!target) {
+          closeOptionsSheet();
+          return;
+        }
+
+        const category =
+          resolveCategory(
+            target?.type ||
+            target?.notification_type
+          );
+
+        const categoryLabel =
+          CATEGORY_LABELS[
+            category
+          ] || 'ce type';
+
+        setDisablingTypeLoading(
+          true
+        );
+
+        try {
+
+          const result =
+            await notificationService.updatePreferences(
+              {
+                [`${category}_enabled`]: false,
+              }
+            );
+
+          if (
+            result?.success
+          ) {
+
+            showToast({
+              type: 'success',
+              title: 'Notifications désactivées',
+              message: `Vous ne recevrez plus de notifications « ${categoryLabel} ».`,
+            });
+
+          } else {
+
+            showToast({
+              type: 'error',
+              title: 'Erreur',
+              message:
+                result?.error ||
+                'Impossible de désactiver ces notifications.',
+            });
+
+          }
+
+        } catch (error) {
+
+          showToast({
+            type: 'error',
+            title: 'Erreur',
+            message:
+              error?.message ||
+              'Impossible de désactiver ces notifications.',
+          });
+
+        } finally {
+
+          setDisablingTypeLoading(
+            false
+          );
+
+          closeOptionsSheet();
+
+        }
+
+      },
+      [
+        closeOptionsSheet,
+        notificationForOptions,
+        showToast,
       ]
     );
 
@@ -2393,26 +2675,25 @@ const NotificationScreen = ({
 
 
               {/* ==================================================
-                  DELETE BUTTON
+                  OPTIONS BUTTON (⋮)
               ================================================== */}
 
               <TouchableOpacity
-                style={[
-                  styles.deleteButton,
-
-                  {
-                    backgroundColor:
-                      isDark
-                        ? 'rgba(211,47,47,0.12)'
-                        : '#FFF1F1',
-                  },
-                ]}
+                style={
+                  styles.optionsButton
+                }
                 onPress={() =>
-                  handleDeleteNotification(
+                  handleOpenNotificationOptions(
                     item
                   )
                 }
-                activeOpacity={0.75}
+                activeOpacity={0.5}
+                hitSlop={{
+                  top: 8,
+                  bottom: 8,
+                  left: 8,
+                  right: 8,
+                }}
                 disabled={
                   isDeleting ||
                   isReading
@@ -2429,9 +2710,13 @@ const NotificationScreen = ({
                 ) : (
 
                   <Ionicons
-                    name="trash-outline"
+                    name="ellipsis-vertical"
                     size={18}
-                    color="#D32F2F"
+                    color={
+                      isDark
+                        ? '#C7CBD1'
+                        : '#5B6472'
+                    }
                   />
 
                 )}
@@ -2469,7 +2754,7 @@ const NotificationScreen = ({
         deletingId,
         getColor,
         getIcon,
-        handleDeleteNotification,
+        handleOpenNotificationOptions,
         handleNotificationPress,
         isDark,
         readingId,
@@ -3205,6 +3490,363 @@ const NotificationScreen = ({
         )}
 
       </Animated.View>
+
+
+      {/* ========================================================
+          NOTIFICATION OPTIONS BOTTOM SHEET (⋮)
+      ======================================================== */}
+
+      <Modal
+        visible={
+          optionsVisible
+        }
+        transparent
+        animationType="none"
+        statusBarTranslucent
+        onRequestClose={() =>
+          closeOptionsSheet()
+        }
+      >
+
+        <Animated.View
+          style={[
+            styles.sheetOverlay,
+
+            {
+              opacity:
+                sheetBackdropOpacity,
+            },
+          ]}
+        >
+
+          <TouchableOpacity
+            style={
+              StyleSheet.absoluteFill
+            }
+            activeOpacity={1}
+            onPress={() =>
+              closeOptionsSheet()
+            }
+          />
+
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            styles.sheetContainer,
+
+            {
+              backgroundColor:
+                themeColors.surface,
+
+              paddingBottom:
+                Math.max(
+                  insets.bottom,
+                  16
+                ) + 14,
+
+              transform: [
+                {
+                  translateY:
+                    sheetTranslateY,
+                },
+              ],
+            },
+          ]}
+        >
+
+          <View
+            style={[
+              styles.sheetHandle,
+
+              {
+                backgroundColor:
+                  isDark
+                    ? 'rgba(255,255,255,0.18)'
+                    : '#DEDEE2',
+              },
+            ]}
+          />
+
+
+          {/* NOTIFICATION PREVIEW */}
+
+          {notificationForOptions && (
+            <View
+              style={
+                styles.sheetPreview
+              }
+            >
+
+              <View
+                style={[
+                  styles.sheetPreviewIcon,
+
+                  {
+                    backgroundColor: `${getColor(
+                      notificationForOptions?.type ||
+                      notificationForOptions?.notification_type
+                    )}18`,
+                  },
+                ]}
+              >
+
+                <Ionicons
+                  name={getIcon(
+                    notificationForOptions?.type ||
+                    notificationForOptions?.notification_type
+                  )}
+                  size={20}
+                  color={getColor(
+                    notificationForOptions?.type ||
+                    notificationForOptions?.notification_type
+                  )}
+                />
+
+              </View>
+
+              <Text
+                numberOfLines={2}
+                style={[
+                  styles.sheetPreviewText,
+
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+              >
+                {safeText(
+                  notificationForOptions?.title,
+                  'Notification'
+                )}
+              </Text>
+
+            </View>
+          )}
+
+
+          <View
+            style={[
+              styles.sheetDivider,
+
+              {
+                backgroundColor:
+                  isDark
+                    ? 'rgba(255,255,255,0.08)'
+                    : '#ECECEC',
+              },
+            ]}
+          />
+
+
+          {/* OPTION : SUPPRIMER */}
+
+          <TouchableOpacity
+            style={
+              styles.sheetOption
+            }
+            activeOpacity={0.7}
+            onPress={
+              handleSheetDeletePress
+            }
+          >
+
+            <View
+              style={[
+                styles.sheetOptionIcon,
+
+                {
+                  backgroundColor:
+                    isDark
+                      ? 'rgba(211,47,47,0.14)'
+                      : '#FFF1F1',
+                },
+              ]}
+            >
+
+              <Ionicons
+                name="trash-outline"
+                size={19}
+                color="#D32F2F"
+              />
+
+            </View>
+
+            <View
+              style={
+                styles.sheetOptionTextWrap
+              }
+            >
+
+              <Text
+                style={[
+                  styles.sheetOptionTitle,
+
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+              >
+                Supprimer la notification
+              </Text>
+
+              <Text
+                style={[
+                  styles.sheetOptionSubtitle,
+
+                  {
+                    color:
+                      themeColors.textSecondary,
+                  },
+                ]}
+              >
+                Elle sera définitivement supprimée
+              </Text>
+
+            </View>
+
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={
+                themeColors.textSecondary
+              }
+            />
+
+          </TouchableOpacity>
+
+
+          {/* OPTION : DÉSACTIVER */}
+
+          <TouchableOpacity
+            style={
+              styles.sheetOption
+            }
+            activeOpacity={0.7}
+            onPress={
+              handleSheetDisablePress
+            }
+            disabled={
+              disablingTypeLoading
+            }
+          >
+
+            <View
+              style={[
+                styles.sheetOptionIcon,
+
+                {
+                  backgroundColor:
+                    isDark
+                      ? 'rgba(117,117,117,0.18)'
+                      : '#F0F1F3',
+                },
+              ]}
+            >
+
+              {disablingTypeLoading ? (
+
+                <ActivityIndicator
+                  size="small"
+                  color="#757575"
+                />
+
+              ) : (
+
+                <Ionicons
+                  name="notifications-off-outline"
+                  size={19}
+                  color="#757575"
+                />
+
+              )}
+
+            </View>
+
+            <View
+              style={
+                styles.sheetOptionTextWrap
+              }
+            >
+
+              <Text
+                style={[
+                  styles.sheetOptionTitle,
+
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+              >
+                Désactiver la notification
+              </Text>
+
+              <Text
+                style={[
+                  styles.sheetOptionSubtitle,
+
+                  {
+                    color:
+                      themeColors.textSecondary,
+                  },
+                ]}
+              >
+                Vous ne recevrez plus ce type de notification
+              </Text>
+
+            </View>
+
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={
+                themeColors.textSecondary
+              }
+            />
+
+          </TouchableOpacity>
+
+
+          {/* ANNULER */}
+
+          <TouchableOpacity
+            style={[
+              styles.sheetCancelButton,
+
+              {
+                backgroundColor:
+                  isDark
+                    ? 'rgba(255,255,255,0.06)'
+                    : '#F2F2F2',
+              },
+            ]}
+            activeOpacity={0.75}
+            onPress={() =>
+              closeOptionsSheet()
+            }
+          >
+
+            <Text
+              style={[
+                styles.sheetCancelText,
+
+                {
+                  color:
+                    themeColors.text,
+                },
+              ]}
+            >
+              Annuler
+            </Text>
+
+          </TouchableOpacity>
+
+        </Animated.View>
+
+      </Modal>
 
 
       {/* ========================================================
@@ -4073,19 +4715,133 @@ const styles =
 
 
     /* ==========================================================
-       DELETE
+       OPTIONS BUTTON (⋮)
     ========================================================== */
 
-    deleteButton: {
-      width: 36,
-      height: 36,
-
-      borderRadius: 10,
+    optionsButton: {
+      width: 32,
+      height: 32,
 
       marginLeft: 5,
 
+      backgroundColor: 'transparent',
+
       alignItems: 'center',
       justifyContent: 'center',
+    },
+
+
+    /* ==========================================================
+       OPTIONS BOTTOM SHEET
+    ========================================================== */
+
+    sheetOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+
+    sheetContainer: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      bottom: 0,
+
+      borderTopLeftRadius: 26,
+      borderTopRightRadius: 26,
+
+      paddingHorizontal: 20,
+      paddingTop: 12,
+
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: -4,
+      },
+      shadowOpacity: 0.15,
+      shadowRadius: 18,
+      elevation: 24,
+    },
+
+    sheetHandle: {
+      width: 42,
+      height: 5,
+      borderRadius: 3,
+      alignSelf: 'center',
+      marginBottom: 16,
+    },
+
+    sheetPreview: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 14,
+    },
+
+    sheetPreviewIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    sheetPreviewText: {
+      flex: 1,
+      fontSize: 13.5,
+      lineHeight: 19,
+      fontFamily:
+        typography.fontFamily.semiBold,
+    },
+
+    sheetDivider: {
+      height: 1,
+      marginBottom: 6,
+    },
+
+    sheetOption: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 13,
+      paddingVertical: 12,
+    },
+
+    sheetOptionIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    sheetOptionTextWrap: {
+      flex: 1,
+    },
+
+    sheetOptionTitle: {
+      fontSize: 14,
+      marginBottom: 2,
+      fontFamily:
+        typography.fontFamily.semiBold,
+    },
+
+    sheetOptionSubtitle: {
+      fontSize: 11.5,
+      fontFamily:
+        typography.fontFamily.regular,
+    },
+
+    sheetCancelButton: {
+      marginTop: 8,
+      height: 49,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    sheetCancelText: {
+      fontSize: 14,
+      fontFamily:
+        typography.fontFamily.semiBold,
     },
 
 
@@ -4517,4 +5273,3 @@ const styles =
 
 
 export default NotificationScreen;
-

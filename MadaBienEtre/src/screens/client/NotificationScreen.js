@@ -69,6 +69,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Animatable from 'react-native-animatable';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -189,6 +190,19 @@ const resolveCategory = (type) => {
   }
 
   return 'system';
+};
+
+
+/**
+ * Libellés humains des catégories de notification.
+ * Utilisés dans le bottom sheet (désactivation) et le toast associé.
+ */
+const CATEGORY_LABELS = {
+  booking: 'Réservations',
+  offer: 'Négociations',
+  payment: 'Paiements',
+  system: 'Système',
+  sos: 'SOS',
 };
 
 
@@ -379,6 +393,9 @@ const NotificationScreen = ({
     refreshUnreadCount,
   } = useNotifications();
 
+  const insets =
+    useSafeAreaInsets();
+
 
   /* ==========================================================
      STATE
@@ -428,6 +445,36 @@ const NotificationScreen = ({
     notificationToDelete,
     setNotificationToDelete,
   ] = useState(null);
+
+
+  /* ==========================================================
+     ACTION SHEET (⋮ menu)
+  ========================================================== */
+
+  const [
+    actionSheetVisible,
+    setActionSheetVisible,
+  ] = useState(false);
+
+  const [
+    notificationForActionSheet,
+    setNotificationForActionSheet,
+  ] = useState(null);
+
+  const [
+    disablingCategory,
+    setDisablingCategory,
+  ] = useState(null);
+
+  const sheetTranslateY =
+    useRef(
+      new Animated.Value(400)
+    ).current;
+
+  const sheetBackdropOpacity =
+    useRef(
+      new Animated.Value(0)
+    ).current;
 
 
   /* ==========================================================
@@ -1100,6 +1147,206 @@ const NotificationScreen = ({
       );
 
     }, [deletingId]);
+
+
+  /* ==========================================================
+     OPEN ACTION SHEET (⋮)
+  ========================================================== */
+
+  const openActionSheet =
+    useCallback(
+      (notification) => {
+
+        setNotificationForActionSheet(
+          notification
+        );
+
+        setActionSheetVisible(
+          true
+        );
+
+        sheetTranslateY.setValue(400);
+        sheetBackdropOpacity.setValue(0);
+
+        Animated.parallel([
+
+          Animated.spring(
+            sheetTranslateY,
+            {
+              toValue: 0,
+              useNativeDriver: true,
+              bounciness: 4,
+              speed: 14,
+            }
+          ),
+
+          Animated.timing(
+            sheetBackdropOpacity,
+            {
+              toValue: 1,
+              duration: 220,
+              useNativeDriver: true,
+            }
+          ),
+
+        ]).start();
+
+      },
+      [
+        sheetTranslateY,
+        sheetBackdropOpacity,
+      ]
+    );
+
+
+  /* ==========================================================
+     CLOSE ACTION SHEET
+  ========================================================== */
+
+  const closeActionSheet =
+    useCallback(
+      (afterClose) => {
+
+        if (disablingCategory) {
+          return;
+        }
+
+        Animated.parallel([
+
+          Animated.timing(
+            sheetTranslateY,
+            {
+              toValue: 400,
+              duration: 200,
+              useNativeDriver: true,
+            }
+          ),
+
+          Animated.timing(
+            sheetBackdropOpacity,
+            {
+              toValue: 0,
+              duration: 200,
+              useNativeDriver: true,
+            }
+          ),
+
+        ]).start(() => {
+
+          setActionSheetVisible(
+            false
+          );
+
+          setNotificationForActionSheet(
+            null
+          );
+
+          if (
+            typeof afterClose ===
+            'function'
+          ) {
+            afterClose();
+          }
+
+        });
+
+      },
+      [
+        disablingCategory,
+        sheetTranslateY,
+        sheetBackdropOpacity,
+      ]
+    );
+
+
+  /* ==========================================================
+     DÉSACTIVER LA NOTIFICATION (par catégorie)
+  ========================================================== */
+
+  const handleDisableCategory =
+    useCallback(
+      async () => {
+
+        const notification =
+          notificationForActionSheet;
+
+        if (!notification) {
+          return;
+        }
+
+        const category =
+          resolveCategory(
+            notification?.type
+          );
+
+        const categoryLabel =
+          CATEGORY_LABELS[
+            category
+          ] || 'cette catégorie';
+
+        setDisablingCategory(
+          category
+        );
+
+        try {
+
+          const result =
+            await notificationService.updatePreferences({
+              [`${category}_enabled`]: false,
+            });
+
+          const success =
+            result?.success === true;
+
+          if (!success) {
+
+            throw new Error(
+              result?.error ||
+              'Mise à jour impossible'
+            );
+
+          }
+
+          setDisablingCategory(
+            null
+          );
+
+          closeActionSheet(() => {
+
+            showToast({
+              type: 'success',
+              title: 'Notifications désactivées',
+              message: `Vous ne recevrez plus de notifications « ${categoryLabel} ».`,
+            });
+
+          });
+
+        } catch (error) {
+
+          console.error(
+            '❌ [CLIENT Notifications] Désactivation impossible:',
+            error
+          );
+
+          setDisablingCategory(
+            null
+          );
+
+          showToast({
+            type: 'error',
+            title: 'Action impossible',
+            message: `Impossible de désactiver les notifications « ${categoryLabel} ».`,
+          });
+
+        }
+
+      },
+      [
+        notificationForActionSheet,
+        closeActionSheet,
+        showToast,
+      ]
+    );
 
 
   /* ==========================================================
@@ -1929,6 +2176,301 @@ const NotificationScreen = ({
 
 
   /* ==========================================================
+     RENDER ACTION SHEET (menu ⋮)
+  ========================================================== */
+
+  const renderActionSheet =
+    () => {
+
+      const notification =
+        notificationForActionSheet;
+
+      const category =
+        resolveCategory(
+          notification?.type
+        );
+
+      const categoryLabel =
+        CATEGORY_LABELS[
+          category
+        ] || 'cette catégorie';
+
+      const icon =
+        getIcon(
+          notification?.type
+        );
+
+      const color =
+        getColor(
+          notification?.type
+        );
+
+      const isDisabling =
+        !!disablingCategory;
+
+
+      return (
+        <Modal
+          visible={
+            actionSheetVisible
+          }
+          transparent
+          animationType="none"
+          statusBarTranslucent
+          onRequestClose={() =>
+            closeActionSheet()
+          }
+        >
+
+          <Animated.View
+            style={[
+              styles.sheetOverlay,
+              {
+                opacity:
+                  sheetBackdropOpacity,
+              },
+            ]}
+          >
+
+            <Pressable
+              style={
+                StyleSheet.absoluteFill
+              }
+              onPress={() =>
+                closeActionSheet()
+              }
+            />
+
+
+            <Animated.View
+              style={[
+                styles.sheetContainer,
+                {
+                  backgroundColor:
+                    themeColors.surface,
+
+                  borderColor:
+                    isDark
+                      ? 'rgba(255,255,255,0.08)'
+                      : '#ECECEC',
+
+                  paddingBottom:
+                    Math.max(
+                      insets.bottom,
+                      16
+                    ) + 14,
+
+                  transform: [
+                    {
+                      translateY:
+                        sheetTranslateY,
+                    },
+                  ],
+                },
+              ]}
+            >
+
+              <View
+                style={
+                  styles.sheetHandle
+                }
+              />
+
+
+              {/* ----------------------------------------------
+                  APERÇU NOTIFICATION
+              ---------------------------------------------- */}
+
+              <View
+                style={[
+                  styles.sheetPreview,
+                  {
+                    borderBottomColor:
+                      isDark
+                        ? 'rgba(255,255,255,0.08)'
+                        : '#F0F0F0',
+                  },
+                ]}
+              >
+
+                <View
+                  style={[
+                    styles.sheetPreviewIcon,
+                    {
+                      backgroundColor:
+                        `${color}18`,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name={icon}
+                    size={20}
+                    color={color}
+                  />
+                </View>
+
+                <Text
+                  numberOfLines={2}
+                  style={[
+                    styles.sheetPreviewTitle,
+                    {
+                      color:
+                        themeColors.text,
+                    },
+                  ]}
+                >
+                  {safeText(
+                    notification?.title,
+                    'Notification'
+                  )}
+                </Text>
+
+              </View>
+
+
+              {/* ----------------------------------------------
+                  SUPPRIMER LA NOTIFICATION
+              ---------------------------------------------- */}
+
+              <TouchableOpacity
+                style={styles.sheetOption}
+                activeOpacity={0.7}
+                disabled={isDisabling}
+                onPress={() =>
+                  closeActionSheet(() =>
+                    handleDeleteNotification(
+                      notification
+                    )
+                  )
+                }
+              >
+
+                <View
+                  style={[
+                    styles.sheetOptionIcon,
+                    {
+                      backgroundColor:
+                        isDark
+                          ? 'rgba(211,47,47,0.15)'
+                          : '#FFF1F1',
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="trash-outline"
+                    size={18}
+                    color="#D32F2F"
+                  />
+                </View>
+
+                <Text
+                  style={[
+                    styles.sheetOptionText,
+                    { color: '#D32F2F' },
+                  ]}
+                >
+                  Supprimer la notification
+                </Text>
+
+              </TouchableOpacity>
+
+
+              {/* ----------------------------------------------
+                  DÉSACTIVER LA NOTIFICATION
+              ---------------------------------------------- */}
+
+              <TouchableOpacity
+                style={styles.sheetOption}
+                activeOpacity={0.7}
+                disabled={isDisabling}
+                onPress={
+                  handleDisableCategory
+                }
+              >
+
+                <View
+                  style={[
+                    styles.sheetOptionIcon,
+                    {
+                      backgroundColor:
+                        isDark
+                          ? 'rgba(255,255,255,0.08)'
+                          : '#F2F2F2',
+                    },
+                  ]}
+                >
+                  {isDisabling ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={
+                        themeColors.textSecondary
+                      }
+                    />
+                  ) : (
+                    <Ionicons
+                      name="notifications-off-outline"
+                      size={18}
+                      color={
+                        themeColors.text
+                      }
+                    />
+                  )}
+                </View>
+
+                <Text
+                  style={[
+                    styles.sheetOptionText,
+                    { color: themeColors.text },
+                  ]}
+                >
+                  {isDisabling
+                    ? `Désactivation « ${categoryLabel} »…`
+                    : `Désactiver « ${categoryLabel} »`}
+                </Text>
+
+              </TouchableOpacity>
+
+
+              {/* ----------------------------------------------
+                  ANNULER
+              ---------------------------------------------- */}
+
+              <TouchableOpacity
+                style={[
+                  styles.sheetCancel,
+                  {
+                    backgroundColor:
+                      isDark
+                        ? 'rgba(255,255,255,0.06)'
+                        : '#F5F5F5',
+                  },
+                ]}
+                activeOpacity={0.8}
+                disabled={isDisabling}
+                onPress={() =>
+                  closeActionSheet()
+                }
+              >
+                <Text
+                  style={[
+                    styles.sheetCancelText,
+                    { color: themeColors.text },
+                  ]}
+                >
+                  Annuler
+                </Text>
+              </TouchableOpacity>
+
+            </Animated.View>
+
+          </Animated.View>
+        </Modal>
+      );
+
+    };
+
+
+  /* ==========================================================
      RENDER NOTIFICATION
   ========================================================== */
 
@@ -2277,25 +2819,25 @@ const NotificationScreen = ({
 
 
               {/* =================================================
-                  DELETE
+                  MENU (⋮)
               ================================================= */}
 
               <TouchableOpacity
-                style={[
-                  styles.deleteButton,
-                  {
-                    backgroundColor:
-                      isDark
-                        ? 'rgba(211,47,47,0.12)'
-                        : '#FFF1F1',
-                  },
-                ]}
+                style={
+                  styles.menuButton
+                }
                 onPress={() =>
-                  handleDeleteNotification(
+                  openActionSheet(
                     item
                   )
                 }
-                activeOpacity={0.75}
+                activeOpacity={0.5}
+                hitSlop={{
+                  top: 8,
+                  bottom: 8,
+                  left: 8,
+                  right: 8,
+                }}
                 disabled={
                   isDeleting ||
                   isReading
@@ -2305,13 +2847,17 @@ const NotificationScreen = ({
                 {isDeleting ? (
                   <ActivityIndicator
                     size="small"
-                    color="#D32F2F"
+                    color={
+                      themeColors.textSecondary
+                    }
                   />
                 ) : (
                   <Ionicons
-                    name="trash-outline"
+                    name="ellipsis-vertical"
                     size={18}
-                    color="#D32F2F"
+                    color={
+                      themeColors.textSecondary
+                    }
                   />
                 )}
 
@@ -2350,6 +2896,7 @@ const NotificationScreen = ({
         getIcon,
         handleDeleteNotification,
         handleNotificationPress,
+        openActionSheet,
         isDark,
         readingId,
         themeColors.surface,
@@ -2979,6 +3526,8 @@ const NotificationScreen = ({
 
       {renderDeleteModal()}
 
+      {renderActionSheet()}
+
     </View>
   );
 };
@@ -3497,13 +4046,13 @@ const styles = StyleSheet.create({
      DELETE BUTTON
   ========================================================== */
 
-  deleteButton: {
-    width: 36,
-    height: 36,
-
-    borderRadius: 10,
+  menuButton: {
+    width: 32,
+    height: 32,
 
     marginLeft: 5,
+
+    backgroundColor: 'transparent',
 
     alignItems: 'center',
     justifyContent: 'center',
@@ -3700,6 +4249,146 @@ const styles = StyleSheet.create({
 
     fontFamily:
       typography.fontFamily.bold,
+  },
+
+
+  /* ==========================================================
+     ACTION SHEET (menu ⋮)
+  ========================================================== */
+
+  sheetOverlay: {
+    flex: 1,
+
+    backgroundColor:
+      'rgba(0,0,0,0.5)',
+
+    justifyContent: 'flex-end',
+  },
+
+  sheetContainer: {
+    width: '100%',
+
+    alignSelf: 'stretch',
+
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+
+    borderWidth: 1,
+    borderBottomWidth: 0,
+
+    paddingHorizontal: 18,
+
+    paddingTop: 10,
+
+    shadowColor: '#000',
+
+    shadowOffset: {
+      width: 0,
+      height: -4,
+    },
+
+    shadowOpacity: 0.15,
+
+    shadowRadius: 16,
+
+    elevation: 20,
+  },
+
+  sheetHandle: {
+    width: 40,
+    height: 4,
+
+    borderRadius: 3,
+
+    backgroundColor:
+      'rgba(150,150,150,0.4)',
+
+    alignSelf: 'center',
+
+    marginBottom: 14,
+  },
+
+  sheetPreview: {
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    gap: 12,
+
+    paddingBottom: 14,
+
+    marginBottom: 8,
+
+    borderBottomWidth: 1,
+  },
+
+  sheetPreviewIcon: {
+    width: 40,
+    height: 40,
+
+    borderRadius: 13,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  sheetPreviewTitle: {
+    flex: 1,
+
+    fontSize:
+      typography.fontSize.sm,
+
+    lineHeight: 19,
+
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  sheetOption: {
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    gap: 13,
+
+    paddingVertical: 13,
+  },
+
+  sheetOptionIcon: {
+    width: 36,
+    height: 36,
+
+    borderRadius: 11,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  sheetOptionText: {
+    fontSize:
+      typography.fontSize.md,
+
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  sheetCancel: {
+    marginTop: 10,
+
+    minHeight: 48,
+
+    borderRadius: 14,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  sheetCancelText: {
+    fontSize:
+      typography.fontSize.md,
+
+    fontFamily:
+      typography.fontFamily.semiBold,
   },
 
 

@@ -24,6 +24,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Header from '../../components/common/Header';
 import { useAuth } from '../../context/AuthContext';
@@ -888,6 +889,12 @@ const BookingActionSheet = ({
   onViewDetails,
   onCancel,
 }) => {
+  // ⚠️ Android : la hauteur de la barre de navigation
+  // gestuelle varie selon les téléphones. On l'ajoute au
+  // padding bas du sheet pour que "Fermer" ne soit jamais
+  // masqué ou coupé par cette barre.
+  const insets = useSafeAreaInsets();
+
   return (
     <Modal
       visible={visible}
@@ -903,7 +910,12 @@ const BookingActionSheet = ({
         <Pressable
           style={[
             styles.actionSheet,
-            { backgroundColor: themeColors.card },
+            {
+              backgroundColor: themeColors.card,
+              paddingBottom:
+                20 +
+                (Platform.OS === 'android' ? insets.bottom : 0),
+            },
           ]}
           onPress={() => {}}
         >
@@ -1062,6 +1074,12 @@ const CalendarFilterModal = ({
   onReset,
   onApply,
 }) => {
+  // ⚠️ Android : idem que pour l'ActionSheet, on ajoute la
+  // hauteur réelle de la barre de navigation gestuelle au
+  // padding bas pour que "Réinitialiser" / "Appliquer" restent
+  // toujours visibles et cliquables au-dessus du menu système.
+  const insets = useSafeAreaInsets();
+
   const [viewDate, setViewDate] = useState(
     () => range?.start || new Date(),
   );
@@ -1113,7 +1131,12 @@ const CalendarFilterModal = ({
         <Pressable
           style={[
             styles.calendarSheet,
-            { backgroundColor: themeColors.card },
+            {
+              backgroundColor: themeColors.card,
+              paddingBottom:
+                20 +
+                (Platform.OS === 'android' ? insets.bottom : 0),
+            },
           ]}
           onPress={() => {}}
         >
@@ -3419,7 +3442,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     paddingHorizontal: 18,
     paddingTop: 10,
-    paddingBottom: 28,
+    // paddingBottom réel calculé dans le composant (insets.bottom
+    // + marge) pour tenir compte de la barre de navigation Android.
   },
 
   actionSheetHandle: {
@@ -3484,9 +3508,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     paddingHorizontal: 18,
     paddingTop: 10,
-    // Marge de sécurité en bas : évite que le bottom-sheet ne
-    // soit masqué par la barre de navigation gestuelle Android.
-    paddingBottom: Platform.OS === 'android' ? 34 : 28,
+    // paddingBottom réel calculé dans le composant (insets.bottom
+    // + marge) pour tenir compte de la barre de navigation Android.
   },
 
   calendarModalTitle: {
