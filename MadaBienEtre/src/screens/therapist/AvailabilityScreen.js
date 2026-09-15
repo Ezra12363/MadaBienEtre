@@ -1,32 +1,4 @@
 // src/screens/therapist/AvailabilityScreen.js
-/**
- * ============================================================
- * AVAILABILITY SCREEN
- * ============================================================
- *
- * Gestion complète des disponibilités du thérapeute :
- *
- * 1. Statut En ligne / Hors ligne
- * 2. Disponibilité générale
- * 3. Planning hebdomadaire
- * 4. Modification des heures
- * 5. Dates bloquées
- * 6. Création d'une date bloquée
- * 7. Suppression d'une date bloquée
- *
- * COMPATIBILITÉ :
- * - Android
- * - iOS
- * - Web
- *
- * IMPORTANT :
- * - Suppression des dates bloquées avec Modal custom
- *   afin de garantir le fonctionnement Web + Android + iOS.
- * - Notifications avec Toast custom.
- * - Aucun Alert.alert pour les actions principales.
- * - Les dates sont formatées en heure locale.
- * ============================================================
- */
 
 import React, {
   useState,
@@ -50,7 +22,6 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import * as Animatable from 'react-native-animatable';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { useTheme } from '../../context/ThemeContext';
@@ -59,10 +30,14 @@ import Header from '../../components/common/Header';
 import availabilityService from '../../services/availabilityService';
 
 // ============================================================
-// CONFIG
+// CONFIGURATION
 // ============================================================
 
 const IS_WEB = Platform.OS === 'web';
+
+const PRIMARY = colors.primary || '#168A55';
+const DANGER = colors.error || '#DC2626';
+const WARNING = '#D97706';
 
 const DAY_NAMES = [
   'Dimanche',
@@ -75,38 +50,38 @@ const DAY_NAMES = [
 ];
 
 // ============================================================
-// HELPERS DATE
+// HELPERS DATES
 // ============================================================
 
 const startOfLocalDay = (date = new Date()) => {
-  const d = new Date(date);
+  const result = new Date(date);
 
-  d.setHours(0, 0, 0, 0);
+  result.setHours(0, 0, 0, 0);
 
-  return d;
+  return result;
 };
 
 const formatLocalDate = (date) => {
   if (!date) return '';
 
-  const d = new Date(date);
+  const result = new Date(date);
 
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+  const year = result.getFullYear();
+  const month = String(result.getMonth() + 1).padStart(2, '0');
+  const day = String(result.getDate()).padStart(2, '0');
 
   return `${year}-${month}-${day}`;
 };
 
 const parseLocalDate = (dateString) => {
   if (!dateString) {
-    return new Date();
+    return startOfLocalDay();
   }
 
-  const parts = dateString.split('-').map(Number);
+  const parts = String(dateString).split('-').map(Number);
 
   if (parts.length !== 3) {
-    return new Date();
+    return startOfLocalDay();
   }
 
   const [year, month, day] = parts;
@@ -122,36 +97,38 @@ const parseLocalDate = (dateString) => {
   );
 };
 
-const parseTimeToDate = (timeStr) => {
-  const [h, m] = (timeStr || '09:00')
+const parseTimeToDate = (timeString = '09:00') => {
+  const [hours, minutes] = String(timeString)
     .split(':')
     .map(Number);
 
-  const d = new Date();
+  const result = new Date();
 
-  d.setHours(
-    Number.isFinite(h) ? h : 9,
-    Number.isFinite(m) ? m : 0,
+  result.setHours(
+    Number.isFinite(hours) ? hours : 9,
+    Number.isFinite(minutes) ? minutes : 0,
     0,
     0
   );
 
-  return d;
+  return result;
 };
 
 const formatDateToTime = (date) => {
   if (!date) return '09:00';
 
-  const h = String(date.getHours()).padStart(2, '0');
-  const m = String(date.getMinutes()).padStart(2, '0');
+  const result = new Date(date);
 
-  return `${h}:${m}`;
+  const hours = String(result.getHours()).padStart(2, '0');
+  const minutes = String(result.getMinutes()).padStart(2, '0');
+
+  return `${hours}:${minutes}`;
 };
 
-const timeToMinutes = (time) => {
-  if (!time) return 0;
+const timeToMinutes = (timeString) => {
+  if (!timeString) return 0;
 
-  const [hours, minutes] = time
+  const [hours, minutes] = String(timeString)
     .split(':')
     .map(Number);
 
@@ -161,11 +138,23 @@ const timeToMinutes = (time) => {
   );
 };
 
-const compareDatesOnly = (a, b) => {
-  const dateA = startOfLocalDay(a);
-  const dateB = startOfLocalDay(b);
+const compareDatesOnly = (firstDate, secondDate) => {
+  return (
+    startOfLocalDay(firstDate).getTime() -
+    startOfLocalDay(secondDate).getTime()
+  );
+};
 
-  return dateA.getTime() - dateB.getTime();
+const getBlockedStart = (item) => {
+  return item?.start || item?.start_date || '';
+};
+
+const getBlockedEnd = (item) => {
+  return item?.end || item?.end_date || '';
+};
+
+const getBlockedId = (item) => {
+  return item?.id ?? item?.blocked_date_id ?? item?.blockedDateId;
 };
 
 // ============================================================
@@ -186,24 +175,22 @@ const WebDateInput = ({
       value={value || ''}
       min={min || undefined}
       onChange={(event) => {
-        const value = event.target.value;
-
-        if (value) {
-          onChange(value);
+        if (event.target.value) {
+          onChange(event.target.value);
         }
       }}
       style={{
         width: '100%',
-        height: 44,
-        borderRadius: 10,
+        height: 46,
+        borderRadius: 13,
         border: `1px solid ${
-          themeColors.border || '#ddd'
+          themeColors.border || '#D1D5DB'
         }`,
         backgroundColor:
-          themeColors.background || '#fff',
-        color: themeColors.text || '#222',
-        padding: '0 12px',
-        fontSize: 15,
+          themeColors.background || '#FFFFFF',
+        color: themeColors.text || '#111827',
+        padding: '0 13px',
+        fontSize: 14,
         boxSizing: 'border-box',
         outline: 'none',
       }}
@@ -229,24 +216,22 @@ const WebTimeInput = ({
       value={value || ''}
       min={min || undefined}
       onChange={(event) => {
-        const value = event.target.value;
-
-        if (value) {
-          onChange(value);
+        if (event.target.value) {
+          onChange(event.target.value);
         }
       }}
       style={{
         width: '100%',
-        height: 44,
-        borderRadius: 10,
+        height: 46,
+        borderRadius: 13,
         border: `1px solid ${
-          themeColors.border || '#ddd'
+          themeColors.border || '#D1D5DB'
         }`,
         backgroundColor:
-          themeColors.background || '#fff',
-        color: themeColors.text || '#222',
-        padding: '0 12px',
-        fontSize: 15,
+          themeColors.background || '#FFFFFF',
+        color: themeColors.text || '#111827',
+        padding: '0 13px',
+        fontSize: 14,
         boxSizing: 'border-box',
         outline: 'none',
       }}
@@ -255,7 +240,59 @@ const WebTimeInput = ({
 };
 
 // ============================================================
-// TOAST COMPONENT
+// ANIMATED PRESSABLE BUTTON
+// ============================================================
+
+const AnimatedActionButton = ({
+  children,
+  onPress,
+  disabled = false,
+  style,
+}) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 4,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 5,
+    }).start();
+  };
+
+  return (
+    <Animated.View
+      style={[
+        {
+          transform: [{ scale }],
+        },
+        style,
+      ]}
+    >
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={disabled}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={0.85}
+      >
+        {children}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+// ============================================================
+// TOAST
 // ============================================================
 
 const Toast = ({
@@ -267,25 +304,23 @@ const Toast = ({
 }) => {
   if (!visible) return null;
 
-  const isSuccess = type === 'success';
   const isError = type === 'error';
   const isWarning = type === 'warning';
 
-  let iconName = 'checkmark-circle';
-  let iconColor = '#16A34A';
+  const iconName = isError
+    ? 'close-circle'
+    : isWarning
+      ? 'warning'
+      : 'checkmark-circle';
 
-  if (isError) {
-    iconName = 'close-circle';
-    iconColor = '#DC2626';
-  } else if (isWarning) {
-    iconName = 'warning';
-    iconColor = '#D97706';
-  }
+  const iconColor = isError
+    ? DANGER
+    : isWarning
+      ? WARNING
+      : PRIMARY;
 
   return (
-    <Animatable.View
-      animation="fadeInDown"
-      duration={250}
+    <View
       style={[
         styles.toastContainer,
         {
@@ -297,8 +332,7 @@ const Toast = ({
         style={[
           styles.toastIcon,
           {
-            backgroundColor:
-              iconColor + '15',
+            backgroundColor: `${iconColor}18`,
           },
         ]}
       >
@@ -336,7 +370,7 @@ const Toast = ({
           color="#777"
         />
       </TouchableOpacity>
-    </Animatable.View>
+    </View>
   );
 };
 
@@ -367,21 +401,24 @@ const ConfirmDeleteModal = ({
             styles.confirmModal,
             {
               backgroundColor:
-                themeColors.surface || '#fff',
+                themeColors.surface || '#FFFFFF',
             },
           ]}
         >
-          {/* ICON */}
-
-          <View style={styles.confirmIcon}>
+          <View
+            style={[
+              styles.confirmIcon,
+              {
+                backgroundColor: `${DANGER}15`,
+              },
+            ]}
+          >
             <Ionicons
               name="trash-outline"
               size={28}
-              color="#DC2626"
+              color={DANGER}
             />
           </View>
-
-          {/* TITLE */}
 
           <Text
             style={[
@@ -394,14 +431,11 @@ const ConfirmDeleteModal = ({
             Supprimer la date bloquée ?
           </Text>
 
-          {/* DESCRIPTION */}
-
           <Text
             style={[
               styles.confirmMessage,
               {
-                color:
-                  themeColors.textSecondary,
+                color: themeColors.textSecondary,
               },
             ]}
           >
@@ -409,25 +443,21 @@ const ConfirmDeleteModal = ({
             période d'indisponibilité ?
           </Text>
 
-          {/* DATE */}
-
           <View
             style={[
               styles.confirmDateBox,
               {
                 backgroundColor:
-                  themeColors.background ||
-                  '#F8FAFC',
+                  themeColors.background || '#F8FAFC',
                 borderColor:
-                  themeColors.border ||
-                  '#E5E7EB',
+                  themeColors.border || '#E5E7EB',
               },
             ]}
           >
             <Ionicons
               name="calendar-outline"
-              size={20}
-              color={colors.primary}
+              size={21}
+              color={PRIMARY}
             />
 
             <View style={styles.confirmDateText}>
@@ -435,18 +465,13 @@ const ConfirmDeleteModal = ({
                 style={[
                   styles.confirmDate,
                   {
-                    color:
-                      themeColors.text,
+                    color: themeColors.text,
                   },
                 ]}
               >
-                {item.start ||
-                  item.start_date ||
-                  ''}
+                {getBlockedStart(item)}
                 {' → '}
-                {item.end ||
-                  item.end_date ||
-                  ''}
+                {getBlockedEnd(item)}
               </Text>
 
               {!!item.reason && (
@@ -465,64 +490,66 @@ const ConfirmDeleteModal = ({
             </View>
           </View>
 
-          {/* ACTIONS */}
-
           <View style={styles.confirmActions}>
-            <TouchableOpacity
-              style={[
-                styles.confirmButton,
-                styles.confirmCancelButton,
-                {
-                  borderColor:
-                    themeColors.border ||
-                    '#D1D5DB',
-                },
-              ]}
+            <AnimatedActionButton
               onPress={onCancel}
               disabled={loading}
-              activeOpacity={0.8}
+              style={styles.actionFlex}
             >
-              <Text
+              <View
                 style={[
-                  styles.confirmCancelText,
+                  styles.confirmButton,
+                  styles.confirmCancelButton,
                   {
-                    color:
-                      themeColors.text,
+                    borderColor:
+                      themeColors.border || '#D1D5DB',
                   },
                 ]}
               >
-                Annuler
-              </Text>
-            </TouchableOpacity>
+                <Text
+                  style={[
+                    styles.confirmCancelText,
+                    {
+                      color: themeColors.text,
+                    },
+                  ]}
+                >
+                  Annuler
+                </Text>
+              </View>
+            </AnimatedActionButton>
 
-            <TouchableOpacity
-              style={[
-                styles.confirmButton,
-                styles.confirmDeleteButton,
-              ]}
+            <AnimatedActionButton
               onPress={onConfirm}
               disabled={loading}
-              activeOpacity={0.8}
+              style={styles.actionFlex}
             >
-              {loading ? (
-                <ActivityIndicator
-                  size="small"
-                  color="#fff"
-                />
-              ) : (
-                <>
-                  <Ionicons
-                    name="trash-outline"
-                    size={18}
-                    color="#fff"
+              <View
+                style={[
+                  styles.confirmButton,
+                  styles.confirmDeleteButton,
+                ]}
+              >
+                {loading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color="#FFFFFF"
                   />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="trash-outline"
+                      size={18}
+                      color="#FFFFFF"
+                    />
 
-                  <Text style={styles.confirmDeleteText}>
-                    Supprimer
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+                    <Text style={styles.confirmDeleteText}>
+                      Supprimer
+                    </Text>
+                  </>
+                )}
+              </View>
+            </AnimatedActionButton>
           </View>
         </View>
       </View>
@@ -534,42 +561,24 @@ const ConfirmDeleteModal = ({
 // COMPONENT
 // ============================================================
 
-const AvailabilityScreen = ({ navigation }) => {
+const AvailabilityScreen = () => {
   const { colors: themeColors } = useTheme();
 
   const fadeAnim = useRef(
     new Animated.Value(0)
   ).current;
 
-  // ==========================================================
-  // MAIN STATES
-  // ==========================================================
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [isOnline, setIsOnline] = useState(false);
+  const [isAvailable, setIsAvailable] = useState(false);
 
-  const [saving, setSaving] =
-    useState(false);
-
-  const [isOnline, setIsOnline] =
-    useState(false);
-
-  const [isAvailable, setIsAvailable] =
-    useState(false);
-
-  const [
-    weeklySchedule,
-    setWeeklySchedule,
-  ] = useState(
+  const [weeklySchedule, setWeeklySchedule] = useState(
     availabilityService.getDefaultWeeklySchedule()
   );
 
-  const [blockedDates, setBlockedDates] =
-    useState([]);
-
-  // ==========================================================
-  // TOAST
-  // ==========================================================
+  const [blockedDates, setBlockedDates] = useState([]);
 
   const [toast, setToast] = useState({
     visible: false,
@@ -580,16 +589,49 @@ const AvailabilityScreen = ({ navigation }) => {
 
   const toastTimer = useRef(null);
 
+  const [showBlockModal, setShowBlockModal] = useState(false);
+
+  const [blockForm, setBlockForm] = useState({
+    start_date: startOfLocalDay(),
+    end_date: startOfLocalDay(),
+    reason: '',
+    is_all_day: true,
+  });
+
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [blockSaving, setBlockSaving] = useState(false);
+
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+
+  const [showEditDayModal, setShowEditDayModal] = useState(false);
+  const [editingDay, setEditingDay] = useState(null);
+
+  const [editStartTime, setEditStartTime] = useState(
+    parseTimeToDate('09:00')
+  );
+
+  const [editEndTime, setEditEndTime] = useState(
+    parseTimeToDate('18:00')
+  );
+
+  const [showEditStartPicker, setShowEditStartPicker] =
+    useState(false);
+
+  const [showEditEndPicker, setShowEditEndPicker] =
+    useState(false);
+
+  const [editDaySaving, setEditDaySaving] = useState(false);
+
+  // ==========================================================
+  // TOAST
+  // ==========================================================
+
   const showToast = useCallback(
-    (
-      type,
-      title,
-      message = ''
-    ) => {
+    (type, title, message = '') => {
       if (toastTimer.current) {
-        clearTimeout(
-          toastTimer.current
-        );
+        clearTimeout(toastTimer.current);
       }
 
       setToast({
@@ -599,22 +641,19 @@ const AvailabilityScreen = ({ navigation }) => {
         message,
       });
 
-      toastTimer.current =
-        setTimeout(() => {
-          setToast((previous) => ({
-            ...previous,
-            visible: false,
-          }));
-        }, 3200);
+      toastTimer.current = setTimeout(() => {
+        setToast((previous) => ({
+          ...previous,
+          visible: false,
+        }));
+      }, 3200);
     },
     []
   );
 
   const hideToast = useCallback(() => {
     if (toastTimer.current) {
-      clearTimeout(
-        toastTimer.current
-      );
+      clearTimeout(toastTimer.current);
     }
 
     setToast((previous) => ({
@@ -626,589 +665,366 @@ const AvailabilityScreen = ({ navigation }) => {
   useEffect(() => {
     return () => {
       if (toastTimer.current) {
-        clearTimeout(
-          toastTimer.current
-        );
+        clearTimeout(toastTimer.current);
       }
     };
   }, []);
 
   // ==========================================================
-  // BLOCK DATE MODAL
-  // ==========================================================
-
-  const [
-    showBlockModal,
-    setShowBlockModal,
-  ] = useState(false);
-
-  const [blockForm, setBlockForm] =
-    useState({
-      start_date: startOfLocalDay(),
-      end_date: startOfLocalDay(),
-      reason: '',
-      is_all_day: true,
-    });
-
-  const [
-    showStartPicker,
-    setShowStartPicker,
-  ] = useState(false);
-
-  const [
-    showEndPicker,
-    setShowEndPicker,
-  ] = useState(false);
-
-  const [
-    blockSaving,
-    setBlockSaving,
-  ] = useState(false);
-
-  // ==========================================================
-  // DELETE CONFIRMATION
-  // ==========================================================
-
-  const [
-    deleteTarget,
-    setDeleteTarget,
-  ] = useState(null);
-
-  const [
-    deleteSaving,
-    setDeleteSaving,
-  ] = useState(false);
-
-  // ==========================================================
-  // EDIT HOURS MODAL
-  // ==========================================================
-
-  const [
-    showEditDayModal,
-    setShowEditDayModal,
-  ] = useState(false);
-
-  const [editingDay, setEditingDay] =
-    useState(null);
-
-  const [
-    editStartTime,
-    setEditStartTime,
-  ] = useState(
-    parseTimeToDate('09:00')
-  );
-
-  const [
-    editEndTime,
-    setEditEndTime,
-  ] = useState(
-    parseTimeToDate('18:00')
-  );
-
-  const [
-    showEditStartPicker,
-    setShowEditStartPicker,
-  ] = useState(false);
-
-  const [
-    showEditEndPicker,
-    setShowEditEndPicker,
-  ] = useState(false);
-
-  const [
-    editDaySaving,
-    setEditDaySaving,
-  ] = useState(false);
-
-  // ==========================================================
   // LOAD AVAILABILITY
   // ==========================================================
 
-  const loadAvailability =
-    useCallback(async () => {
-      try {
-        setLoading(true);
+  const loadAvailability = useCallback(async () => {
+    try {
+      setLoading(true);
 
-        const result =
-          await availabilityService.getMyAvailability();
+      const result =
+        await availabilityService.getMyAvailability();
 
-        console.log(
-          '📥 Availability response:',
-          result
-        );
+      console.log(
+        '📥 Availability response:',
+        result
+      );
+
+      if (result.success && result.data) {
+        const data = result.data;
+
+        setIsOnline(data.is_online ?? false);
+        setIsAvailable(data.is_available ?? false);
 
         if (
-          result.success &&
-          result.data
+          Array.isArray(data.weekly) &&
+          data.weekly.length > 0
         ) {
-          const data = result.data;
+          const defaults =
+            availabilityService.getDefaultWeeklySchedule();
 
-          setIsOnline(
-            data.is_online ?? false
-          );
-
-          setIsAvailable(
-            data.is_available ?? false
-          );
-
-          // --------------------------------
-          // WEEKLY
-          // --------------------------------
-
-          if (
-            Array.isArray(data.weekly) &&
-            data.weekly.length > 0
-          ) {
-            const defaults =
-              availabilityService.getDefaultWeeklySchedule();
-
-            const merged =
-              defaults.map((def) => {
-                const serverDay =
-                  data.weekly.find(
-                    (item) =>
-                      Number(item.day) ===
-                      Number(def.day)
-                  );
-
-                return serverDay
-                  ? {
-                      ...def,
-                      ...serverDay,
-                    }
-                  : def;
-              });
-
-            setWeeklySchedule(
-              merged
+          const merged = defaults.map((defaultDay) => {
+            const serverDay = data.weekly.find(
+              (item) =>
+                Number(item.day) ===
+                Number(defaultDay.day)
             );
-          }
 
-          // --------------------------------
-          // BLOCKED DATES
-          // --------------------------------
+            return serverDay
+              ? {
+                  ...defaultDay,
+                  ...serverDay,
+                }
+              : defaultDay;
+          });
 
-          if (
-            Array.isArray(data.blocked)
-          ) {
-            setBlockedDates(
-              data.blocked
-            );
-          }
-        } else {
-          console.warn(
-            '⚠️ Disponibilités non chargées:',
-            result.error
-          );
-
-          showToast(
-            'error',
-            'Erreur',
-            result.error ||
-              'Impossible de charger les disponibilités.'
-          );
+          setWeeklySchedule(merged);
         }
-      } catch (error) {
-        console.error(
-          '❌ loadAvailability:',
-          error
-        );
 
+        if (Array.isArray(data.blocked)) {
+          setBlockedDates(data.blocked);
+        }
+      } else {
         showToast(
           'error',
           'Erreur',
-          'Impossible de charger les disponibilités.'
+          result.error ||
+            'Impossible de charger les disponibilités.'
         );
-      } finally {
-        setLoading(false);
       }
-    }, [showToast]);
+    } catch (error) {
+      console.error(
+        '❌ loadAvailability:',
+        error
+      );
 
-  // ==========================================================
-  // INITIALIZATION
-  // ==========================================================
+      showToast(
+        'error',
+        'Erreur',
+        'Impossible de charger les disponibilités.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
 
   useEffect(() => {
     loadAvailability();
 
     Animated.timing(fadeAnim, {
       toValue: 1,
-      duration: 700,
+      duration: 600,
       useNativeDriver: true,
     }).start();
-  }, [
-    loadAvailability,
-    fadeAnim,
-  ]);
+  }, [loadAvailability, fadeAnim]);
 
   // ==========================================================
   // TOGGLE ONLINE
   // ==========================================================
 
-  const handleToggleOnline =
-    async () => {
-      const previous = isOnline;
-      const next = !previous;
+  const handleToggleOnline = async () => {
+    const previous = isOnline;
+    const next = !previous;
 
-      setIsOnline(next);
+    setIsOnline(next);
 
-      try {
-        const result =
-          await availabilityService.toggleOnline();
+    try {
+      const result =
+        await availabilityService.toggleOnline();
 
-        if (!result.success) {
-          setIsOnline(previous);
-
-          showToast(
-            'error',
-            'Erreur',
-            result.error ||
-              'Impossible de modifier le statut.'
-          );
-
-          return;
-        }
-
-        const serverValue =
-          result.data?.is_online ??
-          next;
-
-        setIsOnline(serverValue);
-
-        showToast(
-          'success',
-          serverValue
-            ? 'Vous êtes en ligne'
-            : 'Vous êtes hors ligne',
-          serverValue
-            ? 'Vous recevez maintenant les demandes.'
-            : 'Vous ne recevrez plus de nouvelles demandes.'
-        );
-      } catch (error) {
+      if (!result.success) {
         setIsOnline(previous);
 
         showToast(
           'error',
           'Erreur',
-          error.message ||
-            'Erreur réseau.'
+          result.error ||
+            'Impossible de modifier le statut.'
         );
+
+        return;
       }
-    };
+
+      const serverValue =
+        result.data?.is_online ?? next;
+
+      setIsOnline(serverValue);
+
+      showToast(
+        'success',
+        serverValue
+          ? 'Vous êtes en ligne'
+          : 'Vous êtes hors ligne',
+        serverValue
+          ? 'Vous recevez maintenant les demandes.'
+          : 'Vous ne recevrez plus de nouvelles demandes.'
+      );
+    } catch (error) {
+      setIsOnline(previous);
+
+      showToast(
+        'error',
+        'Erreur',
+        error.message || 'Erreur réseau.'
+      );
+    }
+  };
 
   // ==========================================================
   // TOGGLE GENERAL AVAILABILITY
   // ==========================================================
 
-  const handleToggleAvailable =
-    async () => {
-      const previous =
-        isAvailable;
+  const handleToggleAvailable = async () => {
+    const previous = isAvailable;
+    const next = !previous;
 
-      const next = !previous;
+    setIsAvailable(next);
 
-      setIsAvailable(next);
+    try {
+      const result =
+        await availabilityService.toggleAvailable();
 
-      try {
-        const result =
-          await availabilityService.toggleAvailable();
-
-        if (!result.success) {
-          setIsAvailable(previous);
-
-          showToast(
-            'error',
-            'Erreur',
-            result.error ||
-              'Impossible de modifier la disponibilité.'
-          );
-
-          return;
-        }
-
-        const serverValue =
-          result.data?.is_available ??
-          next;
-
-        setIsAvailable(
-          serverValue
-        );
-
-        showToast(
-          'success',
-          'Disponibilité mise à jour',
-          serverValue
-            ? 'Vous êtes maintenant disponible.'
-            : 'Vous êtes maintenant indisponible.'
-        );
-      } catch (error) {
+      if (!result.success) {
         setIsAvailable(previous);
 
         showToast(
           'error',
           'Erreur',
-          error.message ||
-            'Erreur réseau.'
+          result.error ||
+            'Impossible de modifier la disponibilité.'
         );
+
+        return;
       }
-    };
+
+      const serverValue =
+        result.data?.is_available ?? next;
+
+      setIsAvailable(serverValue);
+
+      showToast(
+        'success',
+        'Disponibilité mise à jour',
+        serverValue
+          ? 'Vous êtes maintenant disponible.'
+          : 'Vous êtes maintenant indisponible.'
+      );
+    } catch (error) {
+      setIsAvailable(previous);
+
+      showToast(
+        'error',
+        'Erreur',
+        error.message || 'Erreur réseau.'
+      );
+    }
+  };
 
   // ==========================================================
   // TOGGLE DAY
   // ==========================================================
 
-  const handleToggleDay =
-    async (dayIndex) => {
-      const previous =
-        weeklySchedule;
+  const handleToggleDay = async (dayIndex) => {
+    const previous = weeklySchedule;
 
-      const updated =
-        weeklySchedule.map(
-          (day) =>
-            day.day === dayIndex
-              ? {
-                  ...day,
-                  is_available:
-                    !day.is_available,
-                }
-              : day
-        );
+    const updated = weeklySchedule.map((day) =>
+      Number(day.day) === Number(dayIndex)
+        ? {
+            ...day,
+            is_available: !day.is_available,
+          }
+        : day
+    );
 
-      setWeeklySchedule(updated);
-      setSaving(true);
+    setWeeklySchedule(updated);
+    setSaving(true);
 
-      try {
-        const result =
-          await availabilityService.updateWeeklySchedule(
-            updated
-          );
-
-        if (!result.success) {
-          setWeeklySchedule(
-            previous
-          );
-
-          showToast(
-            'error',
-            'Erreur',
-            result.error ||
-              'Impossible de mettre à jour le planning.'
-          );
-
-          return;
-        }
-
-        const updatedDay =
-          updated.find(
-            (day) =>
-              day.day === dayIndex
-          );
-
-        showToast(
-          'success',
-          'Planning mis à jour',
-          `${DAY_NAMES[dayIndex]} : ${
-            updatedDay?.is_available
-              ? 'disponible'
-              : 'fermé'
-          }.`
-        );
-      } catch (error) {
-        setWeeklySchedule(
-          previous
-        );
-
-        showToast(
-          'error',
-          'Erreur',
-          error.message ||
-            'Erreur réseau.'
-        );
-      } finally {
-        setSaving(false);
-      }
-    };
-
-  // ==========================================================
-  // OPEN EDIT HOURS MODAL
-  // ==========================================================
-
-  const handleEditDayHours =
-    (dayItem) => {
-      setEditingDay(dayItem);
-
-      setEditStartTime(
-        parseTimeToDate(
-          dayItem.start || '09:00'
-        )
-      );
-
-      setEditEndTime(
-        parseTimeToDate(
-          dayItem.end || '18:00'
-        )
-      );
-
-      setShowEditStartPicker(
-        false
-      );
-
-      setShowEditEndPicker(false);
-
-      setShowEditDayModal(true);
-    };
-
-  // ==========================================================
-  // WEB EDIT START TIME
-  // ==========================================================
-
-  const handleWebStartTimeChange =
-    (value) => {
-      setEditStartTime(
-        parseTimeToDate(value)
-      );
-    };
-
-  // ==========================================================
-  // WEB EDIT END TIME
-  // ==========================================================
-
-  const handleWebEndTimeChange =
-    (value) => {
-      setEditEndTime(
-        parseTimeToDate(value)
-      );
-    };
-
-  // ==========================================================
-  // CONFIRM EDIT HOURS
-  // ==========================================================
-
-  const handleConfirmEditDayHours =
-    async () => {
-      if (!editingDay) {
-        return;
-      }
-
-      const start =
-        formatDateToTime(
-          editStartTime
-        );
-
-      const end =
-        formatDateToTime(
-          editEndTime
-        );
-
-      const startMinutes =
-        timeToMinutes(start);
-
-      const endMinutes =
-        timeToMinutes(end);
-
-      if (
-        endMinutes <=
-        startMinutes
-      ) {
-        showToast(
-          'warning',
-          'Heure invalide',
-          "L'heure de fin doit être après l'heure de début."
-        );
-
-        return;
-      }
-
-      const previous =
-        weeklySchedule;
-
-      const editedDayName =
-        DAY_NAMES[editingDay.day];
-
-      const updated =
-        weeklySchedule.map(
-          (day) =>
-            day.day === editingDay.day
-              ? {
-                  ...day,
-                  start,
-                  end,
-                }
-              : day
-        );
-
-      setWeeklySchedule(updated);
-      setEditDaySaving(true);
-
-      try {
-        console.log(
-          '📤 Updating weekly schedule:',
+    try {
+      const result =
+        await availabilityService.updateWeeklySchedule(
           updated
         );
 
-        const result =
-          await availabilityService.updateWeeklySchedule(
-            updated
-          );
-
-        if (result.success) {
-          setShowEditDayModal(false);
-
-          setEditingDay(null);
-
-          setShowEditStartPicker(
-            false
-          );
-
-          setShowEditEndPicker(
-            false
-          );
-
-          showToast(
-            'success',
-            'Horaires enregistrés',
-            `Horaires de ${editedDayName} : ${start} → ${end}.`
-          );
-        } else {
-          setWeeklySchedule(
-            previous
-          );
-
-          showToast(
-            'error',
-            'Erreur',
-            result.error ||
-              'Impossible de mettre à jour les horaires.'
-          );
-        }
-      } catch (error) {
-        setWeeklySchedule(
-          previous
-        );
-
-        console.error(
-          '❌ updateWeeklySchedule:',
-          error
-        );
+      if (!result.success) {
+        setWeeklySchedule(previous);
 
         showToast(
           'error',
           'Erreur',
-          error.message ||
-            'Erreur réseau.'
+          result.error ||
+            'Impossible de mettre à jour le planning.'
         );
-      } finally {
-        setEditDaySaving(false);
+
+        return;
       }
-    };
+
+      const updatedDay = updated.find(
+        (day) =>
+          Number(day.day) === Number(dayIndex)
+      );
+
+      showToast(
+        'success',
+        'Planning mis à jour',
+        `${DAY_NAMES[dayIndex]} : ${
+          updatedDay?.is_available
+            ? 'disponible'
+            : 'fermé'
+        }.`
+      );
+    } catch (error) {
+      setWeeklySchedule(previous);
+
+      showToast(
+        'error',
+        'Erreur',
+        error.message || 'Erreur réseau.'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // ==========================================================
-  // OPEN BLOCK DATE MODAL
+  // EDIT DAY HOURS
+  // ==========================================================
+
+  const handleEditDayHours = (dayItem) => {
+    setEditingDay(dayItem);
+
+    setEditStartTime(
+      parseTimeToDate(dayItem.start || '09:00')
+    );
+
+    setEditEndTime(
+      parseTimeToDate(dayItem.end || '18:00')
+    );
+
+    setShowEditStartPicker(false);
+    setShowEditEndPicker(false);
+    setShowEditDayModal(true);
+  };
+
+  const handleConfirmEditDayHours = async () => {
+    if (!editingDay) return;
+
+    const start = formatDateToTime(editStartTime);
+    const end = formatDateToTime(editEndTime);
+
+    if (
+      timeToMinutes(end) <=
+      timeToMinutes(start)
+    ) {
+      showToast(
+        'warning',
+        'Heure invalide',
+        "L'heure de fin doit être après l'heure de début."
+      );
+
+      return;
+    }
+
+    const previous = weeklySchedule;
+
+    const updated = weeklySchedule.map((day) =>
+      Number(day.day) === Number(editingDay.day)
+        ? {
+            ...day,
+            start,
+            end,
+          }
+        : day
+    );
+
+    setWeeklySchedule(updated);
+    setEditDaySaving(true);
+
+    try {
+      const result =
+        await availabilityService.updateWeeklySchedule(
+          updated
+        );
+
+      if (!result.success) {
+        setWeeklySchedule(previous);
+
+        showToast(
+          'error',
+          'Erreur',
+          result.error ||
+            'Impossible de mettre à jour les horaires.'
+        );
+
+        return;
+      }
+
+      setShowEditDayModal(false);
+      setEditingDay(null);
+      setShowEditStartPicker(false);
+      setShowEditEndPicker(false);
+
+      showToast(
+        'success',
+        'Horaires enregistrés',
+        `Horaires de ${
+          DAY_NAMES[editingDay.day]
+        } : ${start} → ${end}.`
+      );
+    } catch (error) {
+      setWeeklySchedule(previous);
+
+      showToast(
+        'error',
+        'Erreur',
+        error.message || 'Erreur réseau.'
+      );
+    } finally {
+      setEditDaySaving(false);
+    }
+  };
+
+  // ==========================================================
+  // BLOCKED DATES
   // ==========================================================
 
   const openBlockModal = () => {
-    const today =
-      startOfLocalDay();
+    const today = startOfLocalDay();
 
     setBlockForm({
       start_date: today,
@@ -1219,420 +1035,226 @@ const AvailabilityScreen = ({ navigation }) => {
 
     setShowStartPicker(false);
     setShowEndPicker(false);
-
     setShowBlockModal(true);
   };
 
-  // ==========================================================
-  // CHANGE START DATE
-  // ==========================================================
+  const handleStartDateChange = (selectedDate) => {
+    if (!selectedDate) return;
 
-  const handleStartDateChange =
-    (selectedDate) => {
-      if (!selectedDate) {
-        return;
+    const start = startOfLocalDay(selectedDate);
+
+    setBlockForm((previous) => {
+      let end = previous.end_date;
+
+      if (compareDatesOnly(end, start) < 0) {
+        end = start;
       }
 
-      const start =
-        startOfLocalDay(
-          selectedDate
-        );
+      return {
+        ...previous,
+        start_date: start,
+        end_date: end,
+      };
+    });
+  };
 
-      setBlockForm(
-        (previous) => {
-          let end =
-            previous.end_date;
+  const handleEndDateChange = (selectedDate) => {
+    if (!selectedDate) return;
 
-          if (
-            compareDatesOnly(
-              end,
-              start
-            ) < 0
-          ) {
-            end = start;
-          }
+    const end = startOfLocalDay(selectedDate);
 
-          return {
-            ...previous,
-            start_date: start,
-            end_date: end,
-          };
-        }
-      );
-    };
+    setBlockForm((previous) => ({
+      ...previous,
+      end_date: end,
+    }));
+  };
 
-  // ==========================================================
-  // CHANGE END DATE
-  // ==========================================================
+  const handleAddBlockedDate = async () => {
+    const start = startOfLocalDay(
+      blockForm.start_date
+    );
 
-  const handleEndDateChange =
-    (selectedDate) => {
-      if (!selectedDate) {
-        return;
-      }
+    const end = startOfLocalDay(
+      blockForm.end_date
+    );
 
-      const end =
-        startOfLocalDay(
-          selectedDate
-        );
+    const today = startOfLocalDay();
 
-      setBlockForm(
-        (previous) => ({
-          ...previous,
-          end_date: end,
-        })
-      );
-    };
-
-  // ==========================================================
-  // WEB START DATE
-  // ==========================================================
-
-  const handleWebStartDateChange =
-    (value) => {
-      const selected =
-        parseLocalDate(value);
-
-      handleStartDateChange(
-        selected
-      );
-    };
-
-  // ==========================================================
-  // WEB END DATE
-  // ==========================================================
-
-  const handleWebEndDateChange =
-    (value) => {
-      const selected =
-        parseLocalDate(value);
-
-      handleEndDateChange(
-        selected
-      );
-    };
-
-  // ==========================================================
-  // ADD BLOCKED DATE
-  // ==========================================================
-
-  const handleAddBlockedDate =
-    async () => {
-      const start =
-        startOfLocalDay(
-          blockForm.start_date
-        );
-
-      const end =
-        startOfLocalDay(
-          blockForm.end_date
-        );
-
-      const today =
-        startOfLocalDay();
-
-      // ----------------------------------
-      // VALIDATION DATE
-      // ----------------------------------
-
-      if (
-        compareDatesOnly(
-          start,
-          today
-        ) < 0
-      ) {
-        showToast(
-          'warning',
-          'Date invalide',
-          'La date de début ne peut pas être dans le passé.'
-        );
-
-        return;
-      }
-
-      if (
-        compareDatesOnly(
-          end,
-          start
-        ) < 0
-      ) {
-        showToast(
-          'warning',
-          'Date invalide',
-          'La date de fin doit être égale ou postérieure à la date de début.'
-        );
-
-        return;
-      }
-
-      const startStr =
-        formatLocalDate(start);
-
-      const endStr =
-        formatLocalDate(end);
-
-      console.log(
-        '📅 Date bloquée:',
-        {
-          start_date: startStr,
-          end_date: endStr,
-        }
+    if (compareDatesOnly(start, today) < 0) {
+      showToast(
+        'warning',
+        'Date invalide',
+        'La date de début ne peut pas être dans le passé.'
       );
 
-      setBlockSaving(true);
+      return;
+    }
 
-      try {
-        const payload = {
-          start_date: startStr,
-          end_date: endStr,
-          reason:
-            blockForm.reason.trim() ||
-            undefined,
-          is_all_day:
-            blockForm.is_all_day,
-        };
+    if (compareDatesOnly(end, start) < 0) {
+      showToast(
+        'warning',
+        'Date invalide',
+        'La date de fin doit être égale ou postérieure à la date de début.'
+      );
 
-        console.log(
-          '📤 Add blocked date:',
+      return;
+    }
+
+    const startStr = formatLocalDate(start);
+    const endStr = formatLocalDate(end);
+
+    setBlockSaving(true);
+
+    try {
+      const payload = {
+        start_date: startStr,
+        end_date: endStr,
+        reason:
+          blockForm.reason.trim() || undefined,
+        is_all_day: blockForm.is_all_day,
+      };
+
+      const result =
+        await availabilityService.addBlockedDate(
           payload
         );
 
-        const result =
-          await availabilityService.addBlockedDate(
-            payload
-          );
-
-        if (result.success) {
-          // --------------------------------
-          // IMPORTANT :
-          // On recharge depuis l'API afin
-          // d'avoir la vraie donnée serveur.
-          // --------------------------------
-
-          setShowBlockModal(false);
-
-          setBlockForm({
-            start_date:
-              startOfLocalDay(),
-            end_date:
-              startOfLocalDay(),
-            reason: '',
-            is_all_day: true,
-          });
-
-          if (result.data) {
-            setBlockedDates(
-              (previous) => [
-                ...previous,
-                result.data,
-              ]
-            );
-          } else {
-            await loadAvailability();
-          }
-
-          showToast(
-            'success',
-            'Date bloquée ajoutée',
-            `${startStr} → ${endStr}`
-          );
-        } else {
-          showToast(
-            'error',
-            'Erreur',
-            result.error ||
-              "Impossible d'ajouter la date bloquée."
-          );
-        }
-      } catch (error) {
-        console.error(
-          '❌ addBlockedDate:',
-          error
-        );
-
+      if (!result.success) {
         showToast(
           'error',
           'Erreur',
-          error.message ||
+          result.error ||
             "Impossible d'ajouter la date bloquée."
         );
-      } finally {
-        setBlockSaving(false);
-      }
-    };
 
-  // ==========================================================
-  // OPEN DELETE CONFIRMATION
-  // ==========================================================
-
-  const handleDeleteBlockedDate =
-    (blockedItem) => {
-      if (!blockedItem) {
         return;
       }
 
-      /*
-       * IMPORTANT :
-       *
-       * On ne fait PLUS Alert.alert().
-       *
-       * Le Modal custom fonctionne correctement
-       * sur Android, iOS ET Web.
-       */
+      setShowBlockModal(false);
 
-      setDeleteTarget(blockedItem);
-    };
+      setBlockForm({
+        start_date: startOfLocalDay(),
+        end_date: startOfLocalDay(),
+        reason: '',
+        is_all_day: true,
+      });
 
-  // ==========================================================
-  // CANCEL DELETE
-  // ==========================================================
-
-  const cancelDeleteBlockedDate =
-    () => {
-      if (deleteSaving) {
-        return;
+      if (result.data) {
+        setBlockedDates((previous) => [
+          ...previous,
+          result.data,
+        ]);
+      } else {
+        await loadAvailability();
       }
+
+      showToast(
+        'success',
+        'Date bloquée ajoutée',
+        `${startStr} → ${endStr}`
+      );
+    } catch (error) {
+      showToast(
+        'error',
+        'Erreur',
+        error.message ||
+          "Impossible d'ajouter la date bloquée."
+      );
+    } finally {
+      setBlockSaving(false);
+    }
+  };
+
+  const handleDeleteBlockedDate = (item) => {
+    if (!item) return;
+
+    setDeleteTarget(item);
+  };
+
+  const cancelDeleteBlockedDate = () => {
+    if (deleteSaving) return;
+
+    setDeleteTarget(null);
+  };
+
+  const confirmDeleteBlockedDate = async () => {
+    if (!deleteTarget) return;
+
+    const item = deleteTarget;
+    const itemId = getBlockedId(item);
+
+    if (itemId === undefined || itemId === null) {
+      showToast(
+        'error',
+        'Suppression impossible',
+        "L'identifiant de la date bloquée est introuvable."
+      );
 
       setDeleteTarget(null);
-    };
+      return;
+    }
 
-  // ==========================================================
-  // CONFIRM DELETE
-  // ==========================================================
+    setDeleteSaving(true);
 
-  const confirmDeleteBlockedDate =
-    async () => {
-      if (!deleteTarget) {
-        return;
-      }
+    try {
+      const result =
+        await availabilityService.deleteBlockedDate(
+          itemId
+        );
 
-      const item = deleteTarget;
-
-      /*
-       * Vérification ID.
-       *
-       * Le backend doit recevoir l'id réel
-       * de la date bloquée.
-       */
-
-      if (
-        item.id === undefined ||
-        item.id === null
-      ) {
+      if (!result.success) {
         showToast(
           'error',
           'Suppression impossible',
-          "L'identifiant de la date bloquée est introuvable."
+          result.error ||
+            'Impossible de supprimer la date bloquée.'
         );
-
-        setDeleteTarget(null);
 
         return;
       }
 
-      setDeleteSaving(true);
+      setBlockedDates((previous) =>
+        previous.filter(
+          (blocked) =>
+            getBlockedId(blocked) !== itemId
+        )
+      );
 
-      try {
-        console.log(
-          '🗑️ Suppression date bloquée:',
-          item.id
-        );
+      setDeleteTarget(null);
 
-        const result =
-          await availabilityService.deleteBlockedDate(
-            item.id
-          );
+      showToast(
+        'success',
+        'Date supprimée',
+        'La date bloquée a été supprimée avec succès.'
+      );
 
-        console.log(
-          '📥 Delete blocked date response:',
-          result
-        );
-
-        if (result.success) {
-          /*
-           * Suppression optimiste côté interface.
-           *
-           * Ainsi la ligne disparaît immédiatement
-           * sur Web comme sur Android.
-           */
-
-          setBlockedDates(
-            (previous) =>
-              previous.filter(
-                (blocked) =>
-                  blocked.id !== item.id
-              )
-          );
-
-          setDeleteTarget(null);
-
-          showToast(
-            'success',
-            'Date supprimée',
-            'La date bloquée a été supprimée avec succès.'
-          );
-
-          /*
-           * Recharge après suppression.
-           *
-           * Cela garantit que l'interface reste
-           * synchronisée avec le backend.
-           */
-          await loadAvailability();
-        } else {
-          showToast(
-            'error',
-            'Suppression impossible',
-            result.error ||
-              'Impossible de supprimer la date bloquée.'
-          );
-        }
-      } catch (error) {
-        console.error(
-          '❌ deleteBlockedDate:',
-          error
-        );
-
-        showToast(
-          'error',
-          'Erreur de suppression',
-          error.message ||
-            'Erreur réseau lors de la suppression.'
-        );
-      } finally {
-        setDeleteSaving(false);
-      }
-    };
-
-  // ==========================================================
-  // CLOSE BLOCK MODAL
-  // ==========================================================
+      await loadAvailability();
+    } catch (error) {
+      showToast(
+        'error',
+        'Erreur de suppression',
+        error.message ||
+          'Erreur réseau lors de la suppression.'
+      );
+    } finally {
+      setDeleteSaving(false);
+    }
+  };
 
   const closeBlockModal = () => {
-    if (blockSaving) {
-      return;
-    }
+    if (blockSaving) return;
 
     setShowStartPicker(false);
     setShowEndPicker(false);
-
     setShowBlockModal(false);
   };
 
-  // ==========================================================
-  // CLOSE EDIT MODAL
-  // ==========================================================
-
   const closeEditModal = () => {
-    if (editDaySaving) {
-      return;
-    }
+    if (editDaySaving) return;
 
     setShowEditStartPicker(false);
     setShowEditEndPicker(false);
-
     setShowEditDayModal(false);
-
     setEditingDay(null);
   };
 
@@ -1653,7 +1275,7 @@ const AvailabilityScreen = ({ navigation }) => {
       >
         <ActivityIndicator
           size="large"
-          color={colors.primary}
+          color={PRIMARY}
         />
 
         <Text
@@ -1685,10 +1307,6 @@ const AvailabilityScreen = ({ navigation }) => {
         },
       ]}
     >
-      {/* ====================================================
-          TOAST
-      ==================================================== */}
-
       <View
         pointerEvents="box-none"
         style={styles.toastWrapper}
@@ -1702,10 +1320,6 @@ const AvailabilityScreen = ({ navigation }) => {
         />
       </View>
 
-      {/* ====================================================
-          HEADER
-      ==================================================== */}
-
       <Header
         title="Disponibilité"
         showBack
@@ -1713,7 +1327,7 @@ const AvailabilityScreen = ({ navigation }) => {
           saving ? (
             <ActivityIndicator
               size="small"
-              color={colors.primary}
+              color={PRIMARY}
             />
           ) : null
         }
@@ -1723,189 +1337,276 @@ const AvailabilityScreen = ({ navigation }) => {
         style={{
           opacity: fadeAnim,
         }}
-        showsVerticalScrollIndicator={
-          false
-        }
-        contentContainerStyle={
-          styles.scrollContent
-        }
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* ====================================================
-            1. STATUT EN LIGNE
-        ==================================================== */}
+        {/* STATUT EN LIGNE */}
 
-        <Animatable.View
-          animation="fadeInDown"
-          duration={500}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor:
+                themeColors.surface,
+              borderColor:
+                themeColors.border || '#E5E7EB',
+            },
+          ]}
         >
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor:
-                  themeColors.surface,
-              },
-            ]}
-          >
+          <View style={styles.cardTopLine}>
             <View
-              style={styles.rowBetween}
+              style={[
+                styles.roundIcon,
+                {
+                  backgroundColor: isOnline
+                    ? `${PRIMARY}18`
+                    : '#9CA3AF18',
+                },
+              ]}
             >
-              <View
-                style={styles.flex1}
-              >
-                <Text
-                  style={[
-                    styles.cardTitle,
-                    {
-                      color:
-                        themeColors.text,
-                    },
-                  ]}
-                >
-                  Statut
-                </Text>
-
-                <Text
-                  style={[
-                    styles.cardSub,
-                    {
-                      color:
-                        themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  {isOnline
-                    ? '🟢 En ligne — vous recevez des demandes'
-                    : '⚪ Hors ligne — vous ne recevez pas de demandes'}
-                </Text>
-              </View>
-
-              <Switch
-                value={isOnline}
-                onValueChange={
-                  handleToggleOnline
-                }
-                trackColor={{
-                  false: '#ccc',
-                  true: colors.primary,
-                }}
-                thumbColor="#fff"
+              <Ionicons
+                name="radio-outline"
+                size={22}
+                color={isOnline ? PRIMARY : '#6B7280'}
               />
             </View>
+
+            <View style={styles.flex1}>
+              <Text
+                style={[
+                  styles.cardTitle,
+                  {
+                    color: themeColors.text,
+                  },
+                ]}
+              >
+                Statut en ligne
+              </Text>
+
+              <Text
+                style={[
+                  styles.cardSub,
+                  {
+                    color:
+                      themeColors.textSecondary,
+                  },
+                ]}
+              >
+                {isOnline
+                  ? 'Vous recevez les nouvelles demandes.'
+                  : 'Vous ne recevez pas de nouvelles demandes.'}
+              </Text>
+            </View>
+
+            <Switch
+              value={isOnline}
+              onValueChange={handleToggleOnline}
+              trackColor={{
+                false: '#D1D5DB',
+                true: PRIMARY,
+              }}
+              thumbColor="#FFFFFF"
+            />
           </View>
-        </Animatable.View>
 
-        {/* ====================================================
-            2. DISPONIBILITÉ GÉNÉRALE
-        ==================================================== */}
-
-        <Animatable.View
-          animation="fadeInUp"
-          delay={100}
-          duration={500}
-        >
           <View
             style={[
-              styles.card,
+              styles.statusPill,
               {
-                backgroundColor:
-                  themeColors.surface,
+                backgroundColor: isOnline
+                  ? `${PRIMARY}12`
+                  : '#6B728012',
               },
             ]}
           >
             <View
-              style={styles.rowBetween}
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor: isOnline
+                    ? PRIMARY
+                    : '#9CA3AF',
+                },
+              ]}
+            />
+
+            <Text
+              style={[
+                styles.statusPillText,
+                {
+                  color: isOnline
+                    ? PRIMARY
+                    : '#6B7280',
+                },
+              ]}
             >
-              <View
-                style={styles.flex1}
-              >
-                <Text
-                  style={[
-                    styles.cardTitle,
-                    {
-                      color:
-                        themeColors.text,
-                    },
-                  ]}
-                >
-                  Disponibilité générale
-                </Text>
+              {isOnline ? 'En ligne' : 'Hors ligne'}
+            </Text>
+          </View>
+        </View>
 
-                <Text
-                  style={[
-                    styles.cardSub,
-                    {
-                      color:
-                        themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  {isAvailable
-                    ? '✅ Disponible pour de nouvelles réservations'
-                    : '🔴 Non disponible'}
-                </Text>
-              </View>
+        {/* DISPONIBILITÉ GÉNÉRALE */}
 
-              <Switch
-                value={isAvailable}
-                onValueChange={
-                  handleToggleAvailable
-                }
-                trackColor={{
-                  false: '#ccc',
-                  true: colors.primary,
-                }}
-                thumbColor="#fff"
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor:
+                themeColors.surface,
+              borderColor:
+                themeColors.border || '#E5E7EB',
+            },
+          ]}
+        >
+          <View style={styles.cardTopLine}>
+            <View
+              style={[
+                styles.roundIcon,
+                {
+                  backgroundColor: isAvailable
+                    ? `${PRIMARY}18`
+                    : `${DANGER}15`,
+                },
+              ]}
+            >
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={22}
+                color={isAvailable ? PRIMARY : DANGER}
               />
             </View>
+
+            <View style={styles.flex1}>
+              <Text
+                style={[
+                  styles.cardTitle,
+                  {
+                    color: themeColors.text,
+                  },
+                ]}
+              >
+                Disponibilité générale
+              </Text>
+
+              <Text
+                style={[
+                  styles.cardSub,
+                  {
+                    color:
+                      themeColors.textSecondary,
+                  },
+                ]}
+              >
+                {isAvailable
+                  ? 'Vous êtes disponible pour de nouvelles réservations.'
+                  : 'Vous êtes actuellement indisponible.'}
+              </Text>
+            </View>
+
+            <Switch
+              value={isAvailable}
+              onValueChange={handleToggleAvailable}
+              trackColor={{
+                false: '#D1D5DB',
+                true: PRIMARY,
+              }}
+              thumbColor="#FFFFFF"
+            />
           </View>
-        </Animatable.View>
 
-        {/* ====================================================
-            3. PLANNING HEBDOMADAIRE
-        ==================================================== */}
-
-        <Animatable.View
-          animation="fadeInUp"
-          delay={200}
-          duration={500}
-        >
           <View
             style={[
-              styles.card,
+              styles.statusPill,
               {
-                backgroundColor:
-                  themeColors.surface,
+                backgroundColor: isAvailable
+                  ? `${PRIMARY}12`
+                  : `${DANGER}12`,
               },
             ]}
           >
             <View
-              style={styles.sectionHeader}
+              style={[
+                styles.statusDot,
+                {
+                  backgroundColor: isAvailable
+                    ? PRIMARY
+                    : DANGER,
+                },
+              ]}
+            />
+
+            <Text
+              style={[
+                styles.statusPillText,
+                {
+                  color: isAvailable
+                    ? PRIMARY
+                    : DANGER,
+                },
+              ]}
             >
+              {isAvailable
+                ? 'Disponible'
+                : 'Indisponible'}
+            </Text>
+          </View>
+        </View>
+
+        {/* PLANNING HEBDOMADAIRE */}
+
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor:
+                themeColors.surface,
+              borderColor:
+                themeColors.border || '#E5E7EB',
+            },
+          ]}
+        >
+          <View style={styles.sectionHeader}>
+            <View>
               <Text
                 style={[
                   styles.sectionTitle,
                   {
-                    color:
-                      themeColors.text,
+                    color: themeColors.text,
                   },
                 ]}
               >
                 Planning hebdomadaire
               </Text>
 
-              {saving && (
-                <ActivityIndicator
-                  size="small"
-                  color={
-                    colors.primary
-                  }
-                />
-              )}
+              <Text
+                style={[
+                  styles.sectionSub,
+                  {
+                    color:
+                      themeColors.textSecondary,
+                  },
+                ]}
+              >
+                Définissez vos jours et heures de travail.
+              </Text>
             </View>
 
-            {weeklySchedule.map(
-              (dayItem) => (
+            {saving && (
+              <ActivityIndicator
+                size="small"
+                color={PRIMARY}
+              />
+            )}
+          </View>
+
+          <View style={styles.scheduleList}>
+            {weeklySchedule.map((dayItem, index) => {
+              const dayNumber = Number(dayItem.day);
+              const dayName =
+                DAY_NAMES[dayNumber] ||
+                DAY_NAMES[index];
+
+              return (
                 <View
                   key={dayItem.day}
                   style={[
@@ -1913,15 +1614,26 @@ const AvailabilityScreen = ({ navigation }) => {
                     {
                       borderBottomColor:
                         themeColors.border ||
-                        '#eee',
+                        '#E5E7EB',
                     },
                   ]}
                 >
-                  <View
-                    style={
-                      styles.dayNameWrap
-                    }
-                  >
+                  <View style={styles.dayAvatar}>
+                    <Text
+                      style={[
+                        styles.dayAvatarText,
+                        {
+                          color: dayItem.is_available
+                            ? PRIMARY
+                            : '#9CA3AF',
+                        },
+                      ]}
+                    >
+                      {dayName.charAt(0)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.dayNameWrap}>
                     <Text
                       style={[
                         styles.dayName,
@@ -1931,79 +1643,52 @@ const AvailabilityScreen = ({ navigation }) => {
                         },
                       ]}
                     >
-                      {
-                        DAY_NAMES[
-                          dayItem.day
-                        ]
-                      }
+                      {dayName}
                     </Text>
 
                     {dayItem.is_available ? (
                       <TouchableOpacity
                         onPress={() =>
-                          handleEditDayHours(
-                            dayItem
-                          )
+                          handleEditDayHours(dayItem)
                         }
-                        activeOpacity={
-                          0.7
-                        }
-                      >
-                        <View
-                          style={
-                            styles.hoursTouchable
-                          }
-                        >
-                          <Ionicons
-                            name="time-outline"
-                            size={14}
-                            color={
-                              colors.primary
-                            }
-                          />
-
-                          <Text
-                            style={[
-                              styles.dayHours,
-                              {
-                                color:
-                                  themeColors.textSecondary,
-                              },
-                            ]}
-                          >
-                            {dayItem.start ||
-                              '09:00'}{' '}
-                            –{' '}
-                            {dayItem.end ||
-                              '18:00'}
-                          </Text>
-
-                          <Ionicons
-                            name="pencil-outline"
-                            size={13}
-                            color={
-                              colors.primary
-                            }
-                          />
-                        </View>
-                      </TouchableOpacity>
-                    ) : (
-                      <View
-                        style={
-                          styles.closedWrap
-                        }
+                        activeOpacity={0.75}
+                        style={styles.hoursTouchable}
                       >
                         <Ionicons
-                          name="close-circle-outline"
+                          name="time-outline"
                           size={14}
-                          color="#e53935"
+                          color={PRIMARY}
                         />
 
                         <Text
-                          style={
-                            styles.dayClosed
-                          }
+                          style={[
+                            styles.dayHours,
+                            {
+                              color:
+                                themeColors.textSecondary,
+                            },
+                          ]}
                         >
+                          {dayItem.start || '09:00'}
+                          {' – '}
+                          {dayItem.end || '18:00'}
+                        </Text>
+
+                        <Ionicons
+                          name="pencil-outline"
+                          size={13}
+                          color={PRIMARY}
+                        />
+                      </TouchableOpacity>
+                    ) : (
+                      <View style={styles.closedWrap}>
+                        <Ionicons
+                          name="close-circle-outline"
+                          size={14}
+                          color={DANGER}
+                        />
+
+                        <Text style={styles.dayClosed}>
                           Fermé
                         </Text>
                       </View>
@@ -2011,108 +1696,136 @@ const AvailabilityScreen = ({ navigation }) => {
                   </View>
 
                   <Switch
-                    value={
-                      !!dayItem.is_available
-                    }
+                    value={!!dayItem.is_available}
                     onValueChange={() =>
-                      handleToggleDay(
-                        dayItem.day
-                      )
+                      handleToggleDay(dayItem.day)
                     }
                     trackColor={{
-                      false: '#ccc',
-                      true: colors.primary,
+                      false: '#D1D5DB',
+                      true: PRIMARY,
                     }}
-                    thumbColor="#fff"
+                    thumbColor="#FFFFFF"
                   />
                 </View>
-              )
-            )}
+              );
+            })}
           </View>
-        </Animatable.View>
+        </View>
 
-        {/* ====================================================
-            4. DATES BLOQUÉES
-        ==================================================== */}
+        {/* DATES BLOQUÉES */}
 
-        <Animatable.View
-          animation="fadeInUp"
-          delay={300}
-          duration={500}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor:
+                themeColors.surface,
+              borderColor:
+                themeColors.border || '#E5E7EB',
+            },
+          ]}
         >
-          <View
-            style={[
-              styles.card,
-              {
-                backgroundColor:
-                  themeColors.surface,
-              },
-            ]}
-          >
-            <View
-              style={styles.rowBetween}
-            >
+          <View style={styles.sectionHeader}>
+            <View>
               <Text
                 style={[
                   styles.sectionTitle,
                   {
-                    color:
-                      themeColors.text,
+                    color: themeColors.text,
                   },
                 ]}
               >
                 Dates bloquées
               </Text>
 
-              <TouchableOpacity
-                onPress={
-                  openBlockModal
-                }
-                activeOpacity={0.7}
+              <Text
+                style={[
+                  styles.sectionSub,
+                  {
+                    color:
+                      themeColors.textSecondary,
+                  },
+                ]}
               >
-                <Ionicons
-                  name="add-circle"
-                  size={30}
-                  color={
-                    colors.primary
-                  }
-                />
-              </TouchableOpacity>
+                Gérez vos périodes d'indisponibilité.
+              </Text>
             </View>
 
-            {blockedDates.length ===
-            0 ? (
+            <AnimatedActionButton
+              onPress={openBlockModal}
+              style={styles.addButtonWrapper}
+            >
               <View
-                style={
-                  styles.emptyBlocked
-                }
+                style={[
+                  styles.addButton,
+                  {
+                    backgroundColor: PRIMARY,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="add"
+                  size={21}
+                  color="#FFFFFF"
+                />
+              </View>
+            </AnimatedActionButton>
+          </View>
+
+          {blockedDates.length === 0 ? (
+            <View style={styles.emptyBlocked}>
+              <View
+                style={[
+                  styles.emptyIcon,
+                  {
+                    backgroundColor:
+                      themeColors.background ||
+                      '#F8FAFC',
+                  },
+                ]}
               >
                 <Ionicons
                   name="calendar-outline"
-                  size={32}
+                  size={30}
                   color={
                     themeColors.textSecondary
                   }
                 />
-
-                <Text
-                  style={[
-                    styles.emptyText,
-                    {
-                      color:
-                        themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  Aucune date bloquée
-                </Text>
               </View>
-            ) : (
-              blockedDates.map(
-                (item, index) => (
+
+              <Text
+                style={[
+                  styles.emptyTitle,
+                  {
+                    color: themeColors.text,
+                  },
+                ]}
+              >
+                Aucune date bloquée
+              </Text>
+
+              <Text
+                style={[
+                  styles.emptyText,
+                  {
+                    color:
+                      themeColors.textSecondary,
+                  },
+                ]}
+              >
+                Ajoutez une période pendant laquelle
+                vous ne serez pas disponible.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.blockedList}>
+              {blockedDates.map((item, index) => {
+                const itemId = getBlockedId(item);
+
+                return (
                   <View
                     key={
-                      item.id ??
+                      itemId ??
                       `blocked-${index}`
                     }
                     style={[
@@ -2120,30 +1833,27 @@ const AvailabilityScreen = ({ navigation }) => {
                       {
                         borderBottomColor:
                           themeColors.border ||
-                          '#eee',
+                          '#E5E7EB',
                       },
                     ]}
                   >
                     <View
-                      style={
-                        styles.blockIcon
-                      }
+                      style={[
+                        styles.blockIcon,
+                        {
+                          backgroundColor:
+                            `${DANGER}12`,
+                        },
+                      ]}
                     >
                       <Ionicons
                         name="calendar-outline"
-                        size={18}
-                        color={
-                          colors.error ||
-                          '#e53935'
-                        }
+                        size={19}
+                        color={DANGER}
                       />
                     </View>
 
-                    <View
-                      style={
-                        styles.flex1
-                      }
-                    >
+                    <View style={styles.flex1}>
                       <Text
                         style={[
                           styles.blockedDates,
@@ -2153,11 +1863,9 @@ const AvailabilityScreen = ({ navigation }) => {
                           },
                         ]}
                       >
-                        {item.start ||
-                          item.start_date}{' '}
-                        →{' '}
-                        {item.end ||
-                          item.end_date}
+                        {getBlockedStart(item)}
+                        {' → '}
+                        {getBlockedEnd(item)}
                       </Text>
 
                       {item.reason ? (
@@ -2174,127 +1882,102 @@ const AvailabilityScreen = ({ navigation }) => {
                         </Text>
                       ) : null}
 
-                      {item.is_all_day !==
-                        false && (
-                        <Text
+                      {item.is_all_day !== false && (
+                        <View
                           style={[
-                            styles.allDayLabel,
+                            styles.allDayBadge,
                             {
-                              color:
-                                colors.primary,
+                              backgroundColor:
+                                `${PRIMARY}12`,
                             },
                           ]}
                         >
-                          Toute la journée
-                        </Text>
+                          <Text
+                            style={[
+                              styles.allDayLabel,
+                              {
+                                color: PRIMARY,
+                              },
+                            ]}
+                          >
+                            Toute la journée
+                          </Text>
+                        </View>
                       )}
                     </View>
 
-                    {/* ========================================
-                        DELETE BUTTON
-                        ======================================== */}
-
-                    <TouchableOpacity
+                    <AnimatedActionButton
                       onPress={() =>
-                        handleDeleteBlockedDate(
-                          item
-                        )
+                        handleDeleteBlockedDate(item)
                       }
-                      activeOpacity={0.7}
-                      hitSlop={{
-                        top: 10,
-                        bottom: 10,
-                        left: 10,
-                        right: 10,
-                      }}
-                      style={
-                        styles.deleteButton
-                      }
+                      style={styles.deleteButtonWrapper}
                     >
-                      <Ionicons
-                        name="trash-outline"
-                        size={21}
-                        color={
-                          colors.error ||
-                          '#e53935'
-                        }
-                      />
-                    </TouchableOpacity>
+                      <View
+                        style={[
+                          styles.deleteButton,
+                          {
+                            backgroundColor:
+                              `${DANGER}10`,
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name="trash-outline"
+                          size={20}
+                          color={DANGER}
+                        />
+                      </View>
+                    </AnimatedActionButton>
                   </View>
-                )
-              )
-            )}
-          </View>
-        </Animatable.View>
+                );
+              })}
+            </View>
+          )}
+        </View>
       </Animated.ScrollView>
 
-      {/* ======================================================
-          MODAL : CRÉER DATE BLOQUÉE
-      ====================================================== */}
+      {/* MODAL AJOUT DATE BLOQUÉE */}
 
       <Modal
-        visible={
-          showBlockModal
-        }
+        visible={showBlockModal}
         transparent
         animationType="slide"
-        onRequestClose={
-          closeBlockModal
-        }
+        onRequestClose={closeBlockModal}
       >
-        <View
-          style={
-            styles.modalOverlay
-          }
-        >
+        <View style={styles.modalOverlay}>
           <View
             style={[
               styles.modalContent,
               {
                 backgroundColor:
-                  themeColors.surface ||
-                  '#fff',
+                  themeColors.surface || '#FFFFFF',
               },
             ]}
           >
-            {/* HEADER */}
-
-            <View
-              style={
-                styles.modalHeader
-              }
-            >
-              <View
-                style={
-                  styles.modalTitleWrap
-                }
-              >
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleWrap}>
                 <View
                   style={[
                     styles.modalIcon,
                     {
                       backgroundColor:
-                        colors.primary +
-                        '18',
+                        `${PRIMARY}18`,
                     },
                   ]}
                 >
                   <Ionicons
                     name="calendar-outline"
                     size={21}
-                    color={
-                      colors.primary
-                    }
+                    color={PRIMARY}
                   />
                 </View>
 
-                <View>
+                <View style={styles.flex1}>
                   <Text
                     style={[
                       styles.modalTitle,
                       {
-                        color:
-                          themeColors.text,
+                        color: themeColors.text,
                       },
                     ]}
                   >
@@ -2316,9 +1999,7 @@ const AvailabilityScreen = ({ navigation }) => {
               </View>
 
               <TouchableOpacity
-                onPress={
-                  closeBlockModal
-                }
+                onPress={closeBlockModal}
                 hitSlop={{
                   top: 8,
                   bottom: 8,
@@ -2328,7 +2009,7 @@ const AvailabilityScreen = ({ navigation }) => {
               >
                 <Ionicons
                   name="close-circle"
-                  size={27}
+                  size={28}
                   color={
                     themeColors.textSecondary
                   }
@@ -2337,16 +2018,12 @@ const AvailabilityScreen = ({ navigation }) => {
             </View>
 
             <ScrollView
-              showsVerticalScrollIndicator={
-                false
-              }
+              showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={
                 styles.modalScrollContent
               }
             >
-              {/* DATE DÉBUT */}
-
               <Text
                 style={[
                   styles.inputLabel,
@@ -2364,14 +2041,12 @@ const AvailabilityScreen = ({ navigation }) => {
                   value={formatLocalDate(
                     blockForm.start_date
                   )}
-                  min={formatLocalDate(
-                    new Date()
-                  )}
-                  themeColors={
-                    themeColors
-                  }
-                  onChange={
-                    handleWebStartDateChange
+                  min={formatLocalDate(new Date())}
+                  themeColors={themeColors}
+                  onChange={(value) =>
+                    handleStartDateChange(
+                      parseLocalDate(value)
+                    )
                   }
                 />
               ) : (
@@ -2382,24 +2057,20 @@ const AvailabilityScreen = ({ navigation }) => {
                       {
                         borderColor:
                           themeColors.border ||
-                          '#ddd',
+                          '#D1D5DB',
                         backgroundColor:
                           themeColors.background ||
-                          '#fff',
+                          '#FFFFFF',
                       },
                     ]}
                     onPress={() =>
-                      setShowStartPicker(
-                        true
-                      )
+                      setShowStartPicker(true)
                     }
                   >
                     <Ionicons
                       name="calendar-outline"
                       size={18}
-                      color={
-                        colors.primary
-                      }
+                      color={PRIMARY}
                     />
 
                     <Text
@@ -2427,25 +2098,14 @@ const AvailabilityScreen = ({ navigation }) => {
 
                   {showStartPicker && (
                     <DateTimePicker
-                      value={
-                        blockForm.start_date
-                      }
+                      value={blockForm.start_date}
                       mode="date"
                       display="default"
-                      minimumDate={
-                        startOfLocalDay()
-                      }
-                      onChange={(
-                        event,
-                        selected
-                      ) => {
-                        setShowStartPicker(
-                          false
-                        );
+                      minimumDate={startOfLocalDay()}
+                      onChange={(event, selected) => {
+                        setShowStartPicker(false);
 
-                        if (
-                          selected
-                        ) {
+                        if (selected) {
                           handleStartDateChange(
                             selected
                           );
@@ -2455,8 +2115,6 @@ const AvailabilityScreen = ({ navigation }) => {
                   )}
                 </>
               )}
-
-              {/* DATE FIN */}
 
               <Text
                 style={[
@@ -2478,11 +2136,11 @@ const AvailabilityScreen = ({ navigation }) => {
                   min={formatLocalDate(
                     blockForm.start_date
                   )}
-                  themeColors={
-                    themeColors
-                  }
-                  onChange={
-                    handleWebEndDateChange
+                  themeColors={themeColors}
+                  onChange={(value) =>
+                    handleEndDateChange(
+                      parseLocalDate(value)
+                    )
                   }
                 />
               ) : (
@@ -2493,24 +2151,20 @@ const AvailabilityScreen = ({ navigation }) => {
                       {
                         borderColor:
                           themeColors.border ||
-                          '#ddd',
+                          '#D1D5DB',
                         backgroundColor:
                           themeColors.background ||
-                          '#fff',
+                          '#FFFFFF',
                       },
                     ]}
                     onPress={() =>
-                      setShowEndPicker(
-                        true
-                      )
+                      setShowEndPicker(true)
                     }
                   >
                     <Ionicons
                       name="calendar-outline"
                       size={18}
-                      color={
-                        colors.primary
-                      }
+                      color={PRIMARY}
                     />
 
                     <Text
@@ -2538,25 +2192,14 @@ const AvailabilityScreen = ({ navigation }) => {
 
                   {showEndPicker && (
                     <DateTimePicker
-                      value={
-                        blockForm.end_date
-                      }
+                      value={blockForm.end_date}
                       mode="date"
                       display="default"
-                      minimumDate={
-                        blockForm.start_date
-                      }
-                      onChange={(
-                        event,
-                        selected
-                      ) => {
-                        setShowEndPicker(
-                          false
-                        );
+                      minimumDate={blockForm.start_date}
+                      onChange={(event, selected) => {
+                        setShowEndPicker(false);
 
-                        if (
-                          selected
-                        ) {
+                        if (selected) {
                           handleEndDateChange(
                             selected
                           );
@@ -2567,27 +2210,21 @@ const AvailabilityScreen = ({ navigation }) => {
                 </>
               )}
 
-              {/* INFO */}
-
               <View
                 style={[
                   styles.infoBox,
                   {
                     backgroundColor:
-                      colors.primary +
-                      '10',
+                      `${PRIMARY}10`,
                     borderColor:
-                      colors.primary +
-                      '30',
+                      `${PRIMARY}30`,
                   },
                 ]}
               >
                 <Ionicons
                   name="information-circle-outline"
-                  size={18}
-                  color={
-                    colors.primary
-                  }
+                  size={19}
+                  color={PRIMARY}
                 />
 
                 <Text
@@ -2599,13 +2236,11 @@ const AvailabilityScreen = ({ navigation }) => {
                     },
                   ]}
                 >
-                  La période sélectionnée
-                  sera indisponible pour
-                  les nouvelles réservations.
+                  La période sélectionnée sera
+                  indisponible pour les nouvelles
+                  réservations.
                 </Text>
               </View>
-
-              {/* RAISON */}
 
               <Text
                 style={[
@@ -2617,11 +2252,7 @@ const AvailabilityScreen = ({ navigation }) => {
                 ]}
               >
                 Raison
-                <Text
-                  style={
-                    styles.optionalText
-                  }
-                >
+                <Text style={styles.optionalText}>
                   {' '}
                   (optionnel)
                 </Text>
@@ -2631,29 +2262,25 @@ const AvailabilityScreen = ({ navigation }) => {
                 style={[
                   styles.textInput,
                   {
-                    color:
-                      themeColors.text,
+                    color: themeColors.text,
                     borderColor:
                       themeColors.border ||
-                      '#ddd',
+                      '#D1D5DB',
                     backgroundColor:
-                      themeColors.background,
+                      themeColors.background ||
+                      '#FFFFFF',
                   },
                 ]}
                 placeholder="Ex : Vacances, formation, congé..."
                 placeholderTextColor={
                   themeColors.textSecondary
                 }
-                value={
-                  blockForm.reason
-                }
+                value={blockForm.reason}
                 onChangeText={(value) =>
-                  setBlockForm(
-                    (previous) => ({
-                      ...previous,
-                      reason: value,
-                    })
-                  )
+                  setBlockForm((previous) => ({
+                    ...previous,
+                    reason: value,
+                  }))
                 }
                 maxLength={255}
                 multiline
@@ -2661,154 +2288,118 @@ const AvailabilityScreen = ({ navigation }) => {
                 textAlignVertical="top"
               />
 
-              {/* ACTIONS */}
-
-              <View
-                style={
-                  styles.modalActions
-                }
-              >
-                <TouchableOpacity
-                  style={[
-                    styles.modalBtn,
-                    styles.cancelBtn,
-                    {
-                      borderColor:
-                        themeColors.border ||
-                        '#ddd',
-                    },
-                  ]}
-                  onPress={
-                    closeBlockModal
-                  }
-                  disabled={
-                    blockSaving
-                  }
+              <View style={styles.modalActions}>
+                <AnimatedActionButton
+                  onPress={closeBlockModal}
+                  disabled={blockSaving}
+                  style={styles.actionFlex}
                 >
-                  <Text
+                  <View
                     style={[
-                      styles.cancelBtnText,
+                      styles.modalBtn,
+                      styles.cancelBtn,
                       {
-                        color:
-                          themeColors.text,
+                        borderColor:
+                          themeColors.border ||
+                          '#D1D5DB',
                       },
                     ]}
                   >
-                    Annuler
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.cancelBtnText,
+                        {
+                          color:
+                            themeColors.text,
+                        },
+                      ]}
+                    >
+                      Annuler
+                    </Text>
+                  </View>
+                </AnimatedActionButton>
 
-                <TouchableOpacity
-                  style={[
-                    styles.modalBtn,
-                    {
-                      backgroundColor:
-                        colors.primary,
-                    },
-                  ]}
-                  onPress={
-                    handleAddBlockedDate
-                  }
-                  disabled={
-                    blockSaving
-                  }
+                <AnimatedActionButton
+                  onPress={handleAddBlockedDate}
+                  disabled={blockSaving}
+                  style={styles.actionFlex}
                 >
-                  {blockSaving ? (
-                    <ActivityIndicator
-                      size="small"
-                      color="#fff"
-                    />
-                  ) : (
-                    <>
-                      <Ionicons
-                        name="checkmark"
-                        size={18}
-                        color="#fff"
+                  <View
+                    style={[
+                      styles.modalBtn,
+                      {
+                        backgroundColor: PRIMARY,
+                      },
+                    ]}
+                  >
+                    {blockSaving ? (
+                      <ActivityIndicator
+                        size="small"
+                        color="#FFFFFF"
                       />
+                    ) : (
+                      <>
+                        <Ionicons
+                          name="checkmark"
+                          size={18}
+                          color="#FFFFFF"
+                        />
 
-                      <Text
-                        style={
-                          styles.confirmBtnText
-                        }
-                      >
-                        Bloquer la date
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                        <Text style={styles.confirmBtnText}>
+                          Bloquer la date
+                        </Text>
+                      </>
+                    )}
+                  </View>
+                </AnimatedActionButton>
               </View>
             </ScrollView>
           </View>
         </View>
       </Modal>
 
-      {/* ======================================================
-          MODAL : MODIFIER LES HORAIRES
-      ====================================================== */}
+      {/* MODAL MODIFICATION DES HORAIRES */}
 
       <Modal
-        visible={
-          showEditDayModal
-        }
+        visible={showEditDayModal}
         transparent
         animationType="slide"
-        onRequestClose={
-          closeEditModal
-        }
+        onRequestClose={closeEditModal}
       >
-        <View
-          style={
-            styles.modalOverlay
-          }
-        >
+        <View style={styles.modalOverlay}>
           <View
             style={[
               styles.modalContent,
               {
                 backgroundColor:
-                  themeColors.surface ||
-                  '#fff',
+                  themeColors.surface || '#FFFFFF',
               },
             ]}
           >
-            {/* HEADER */}
-
-            <View
-              style={
-                styles.modalHeader
-              }
-            >
-              <View
-                style={
-                  styles.modalTitleWrap
-                }
-              >
+            <View style={styles.modalHeader}>
+              <View style={styles.modalTitleWrap}>
                 <View
                   style={[
                     styles.modalIcon,
                     {
                       backgroundColor:
-                        colors.primary +
-                        '18',
+                        `${PRIMARY}18`,
                     },
                   ]}
                 >
                   <Ionicons
                     name="time-outline"
                     size={21}
-                    color={
-                      colors.primary
-                    }
+                    color={PRIMARY}
                   />
                 </View>
 
-                <View>
+                <View style={styles.flex1}>
                   <Text
                     style={[
                       styles.modalTitle,
                       {
-                        color:
-                          themeColors.text,
+                        color: themeColors.text,
                       },
                     ]}
                   >
@@ -2825,18 +2416,14 @@ const AvailabilityScreen = ({ navigation }) => {
                     ]}
                   >
                     {editingDay
-                      ? DAY_NAMES[
-                          editingDay.day
-                        ]
+                      ? DAY_NAMES[editingDay.day]
                       : 'Planning'}
                   </Text>
                 </View>
               </View>
 
               <TouchableOpacity
-                onPress={
-                  closeEditModal
-                }
+                onPress={closeEditModal}
                 hitSlop={{
                   top: 8,
                   bottom: 8,
@@ -2846,7 +2433,7 @@ const AvailabilityScreen = ({ navigation }) => {
               >
                 <Ionicons
                   name="close-circle"
-                  size={27}
+                  size={28}
                   color={
                     themeColors.textSecondary
                   }
@@ -2855,16 +2442,12 @@ const AvailabilityScreen = ({ navigation }) => {
             </View>
 
             <ScrollView
-              showsVerticalScrollIndicator={
-                false
-              }
+              showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={
                 styles.modalScrollContent
               }
             >
-              {/* HEURE DÉBUT */}
-
               <Text
                 style={[
                   styles.inputLabel,
@@ -2879,14 +2462,12 @@ const AvailabilityScreen = ({ navigation }) => {
 
               {IS_WEB ? (
                 <WebTimeInput
-                  value={formatDateToTime(
-                    editStartTime
-                  )}
-                  themeColors={
-                    themeColors
-                  }
-                  onChange={
-                    handleWebStartTimeChange
+                  value={formatDateToTime(editStartTime)}
+                  themeColors={themeColors}
+                  onChange={(value) =>
+                    setEditStartTime(
+                      parseTimeToDate(value)
+                    )
                   }
                 />
               ) : (
@@ -2897,24 +2478,20 @@ const AvailabilityScreen = ({ navigation }) => {
                       {
                         borderColor:
                           themeColors.border ||
-                          '#ddd',
+                          '#D1D5DB',
                         backgroundColor:
                           themeColors.background ||
-                          '#fff',
+                          '#FFFFFF',
                       },
                     ]}
                     onPress={() =>
-                      setShowEditStartPicker(
-                        true
-                      )
+                      setShowEditStartPicker(true)
                     }
                   >
                     <Ionicons
                       name="time-outline"
                       size={18}
-                      color={
-                        colors.primary
-                      }
+                      color={PRIMARY}
                     />
 
                     <Text
@@ -2926,9 +2503,7 @@ const AvailabilityScreen = ({ navigation }) => {
                         },
                       ]}
                     >
-                      {formatDateToTime(
-                        editStartTime
-                      )}
+                      {formatDateToTime(editStartTime)}
                     </Text>
 
                     <Ionicons
@@ -2942,34 +2517,21 @@ const AvailabilityScreen = ({ navigation }) => {
 
                   {showEditStartPicker && (
                     <DateTimePicker
-                      value={
-                        editStartTime
-                      }
+                      value={editStartTime}
                       mode="time"
                       is24Hour
                       display="default"
-                      onChange={(
-                        event,
-                        selected
-                      ) => {
-                        setShowEditStartPicker(
-                          false
-                        );
+                      onChange={(event, selected) => {
+                        setShowEditStartPicker(false);
 
-                        if (
-                          selected
-                        ) {
-                          setEditStartTime(
-                            selected
-                          );
+                        if (selected) {
+                          setEditStartTime(selected);
                         }
                       }}
                     />
                   )}
                 </>
               )}
-
-              {/* HEURE FIN */}
 
               <Text
                 style={[
@@ -2985,17 +2547,13 @@ const AvailabilityScreen = ({ navigation }) => {
 
               {IS_WEB ? (
                 <WebTimeInput
-                  value={formatDateToTime(
-                    editEndTime
-                  )}
-                  min={formatDateToTime(
-                    editStartTime
-                  )}
-                  themeColors={
-                    themeColors
-                  }
-                  onChange={
-                    handleWebEndTimeChange
+                  value={formatDateToTime(editEndTime)}
+                  min={formatDateToTime(editStartTime)}
+                  themeColors={themeColors}
+                  onChange={(value) =>
+                    setEditEndTime(
+                      parseTimeToDate(value)
+                    )
                   }
                 />
               ) : (
@@ -3006,24 +2564,20 @@ const AvailabilityScreen = ({ navigation }) => {
                       {
                         borderColor:
                           themeColors.border ||
-                          '#ddd',
+                          '#D1D5DB',
                         backgroundColor:
                           themeColors.background ||
-                          '#fff',
+                          '#FFFFFF',
                       },
                     ]}
                     onPress={() =>
-                      setShowEditEndPicker(
-                        true
-                      )
+                      setShowEditEndPicker(true)
                     }
                   >
                     <Ionicons
                       name="time-outline"
                       size={18}
-                      color={
-                        colors.primary
-                      }
+                      color={PRIMARY}
                     />
 
                     <Text
@@ -3035,9 +2589,7 @@ const AvailabilityScreen = ({ navigation }) => {
                         },
                       ]}
                     >
-                      {formatDateToTime(
-                        editEndTime
-                      )}
+                      {formatDateToTime(editEndTime)}
                     </Text>
 
                     <Ionicons
@@ -3051,26 +2603,15 @@ const AvailabilityScreen = ({ navigation }) => {
 
                   {showEditEndPicker && (
                     <DateTimePicker
-                      value={
-                        editEndTime
-                      }
+                      value={editEndTime}
                       mode="time"
                       is24Hour
                       display="default"
-                      onChange={(
-                        event,
-                        selected
-                      ) => {
-                        setShowEditEndPicker(
-                          false
-                        );
+                      onChange={(event, selected) => {
+                        setShowEditEndPicker(false);
 
-                        if (
-                          selected
-                        ) {
-                          setEditEndTime(
-                            selected
-                          );
+                        if (selected) {
+                          setEditEndTime(selected);
                         }
                       }}
                     />
@@ -3078,34 +2619,24 @@ const AvailabilityScreen = ({ navigation }) => {
                 </>
               )}
 
-              {/* PREVIEW */}
-
               <View
                 style={[
                   styles.schedulePreview,
                   {
                     backgroundColor:
-                      colors.primary +
-                      '10',
+                      `${PRIMARY}10`,
                     borderColor:
-                      colors.primary +
-                      '30',
+                      `${PRIMARY}30`,
                   },
                 ]}
               >
                 <Ionicons
                   name="calendar-outline"
                   size={22}
-                  color={
-                    colors.primary
-                  }
+                  color={PRIMARY}
                 />
 
-                <View
-                  style={
-                    styles.previewTextWrap
-                  }
-                >
+                <View style={styles.previewTextWrap}>
                   <Text
                     style={[
                       styles.previewLabel,
@@ -3122,158 +2653,116 @@ const AvailabilityScreen = ({ navigation }) => {
                     style={[
                       styles.previewValue,
                       {
-                        color:
-                          themeColors.text,
+                        color: themeColors.text,
                       },
                     ]}
                   >
-                    {formatDateToTime(
-                      editStartTime
-                    )}{' '}
-                    →{' '}
-                    {formatDateToTime(
-                      editEndTime
-                    )}
+                    {formatDateToTime(editStartTime)}
+                    {' → '}
+                    {formatDateToTime(editEndTime)}
                   </Text>
                 </View>
               </View>
 
-              {/* WARNING */}
-
               {timeToMinutes(
-                formatDateToTime(
-                  editEndTime
-                )
+                formatDateToTime(editEndTime)
               ) <=
                 timeToMinutes(
-                  formatDateToTime(
-                    editStartTime
-                  )
+                  formatDateToTime(editStartTime)
                 ) && (
-                <View
-                  style={
-                    styles.warningBox
-                  }
-                >
+                <View style={styles.warningBox}>
                   <Ionicons
                     name="warning-outline"
                     size={18}
-                    color="#E53935"
+                    color={DANGER}
                   />
 
-                  <Text
-                    style={
-                      styles.warningText
-                    }
-                  >
-                    L'heure de fin doit
-                    être après l'heure
-                    de début.
+                  <Text style={styles.warningText}>
+                    L'heure de fin doit être après
+                    l'heure de début.
                   </Text>
                 </View>
               )}
 
-              {/* ACTIONS */}
-
-              <View
-                style={
-                  styles.modalActions
-                }
-              >
-                <TouchableOpacity
-                  style={[
-                    styles.modalBtn,
-                    styles.cancelBtn,
-                    {
-                      borderColor:
-                        themeColors.border ||
-                        '#ddd',
-                    },
-                  ]}
-                  onPress={
-                    closeEditModal
-                  }
-                  disabled={
-                    editDaySaving
-                  }
+              <View style={styles.modalActions}>
+                <AnimatedActionButton
+                  onPress={closeEditModal}
+                  disabled={editDaySaving}
+                  style={styles.actionFlex}
                 >
-                  <Text
+                  <View
                     style={[
-                      styles.cancelBtnText,
+                      styles.modalBtn,
+                      styles.cancelBtn,
                       {
-                        color:
-                          themeColors.text,
+                        borderColor:
+                          themeColors.border ||
+                          '#D1D5DB',
                       },
                     ]}
                   >
-                    Annuler
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={[
+                        styles.cancelBtnText,
+                        {
+                          color:
+                            themeColors.text,
+                        },
+                      ]}
+                    >
+                      Annuler
+                    </Text>
+                  </View>
+                </AnimatedActionButton>
 
-                <TouchableOpacity
-                  style={[
-                    styles.modalBtn,
-                    {
-                      backgroundColor:
-                        colors.primary,
-                    },
-                  ]}
-                  onPress={
-                    handleConfirmEditDayHours
-                  }
-                  disabled={
-                    editDaySaving
-                  }
+                <AnimatedActionButton
+                  onPress={handleConfirmEditDayHours}
+                  disabled={editDaySaving}
+                  style={styles.actionFlex}
                 >
-                  {editDaySaving ? (
-                    <ActivityIndicator
-                      size="small"
-                      color="#fff"
-                    />
-                  ) : (
-                    <>
-                      <Ionicons
-                        name="save-outline"
-                        size={17}
-                        color="#fff"
+                  <View
+                    style={[
+                      styles.modalBtn,
+                      {
+                        backgroundColor: PRIMARY,
+                      },
+                    ]}
+                  >
+                    {editDaySaving ? (
+                      <ActivityIndicator
+                        size="small"
+                        color="#FFFFFF"
                       />
+                    ) : (
+                      <>
+                        <Ionicons
+                          name="save-outline"
+                          size={17}
+                          color="#FFFFFF"
+                        />
 
-                      <Text
-                        style={
-                          styles.confirmBtnText
-                        }
-                      >
-                        Enregistrer
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
+                        <Text style={styles.confirmBtnText}>
+                          Enregistrer
+                        </Text>
+                      </>
+                    )}
+                  </View>
+                </AnimatedActionButton>
               </View>
             </ScrollView>
           </View>
         </View>
       </Modal>
 
-      {/* ======================================================
-          MODAL : CONFIRMATION SUPPRESSION
-          IMPORTANT POUR WEB
-      ====================================================== */}
+      {/* MODAL CONFIRMATION SUPPRESSION */}
 
       <ConfirmDeleteModal
-        visible={
-          !!deleteTarget
-        }
+        visible={!!deleteTarget}
         item={deleteTarget}
         loading={deleteSaving}
-        onCancel={
-          cancelDeleteBlockedDate
-        }
-        onConfirm={
-          confirmDeleteBlockedDate
-        }
-        themeColors={
-          themeColors
-        }
+        onCancel={cancelDeleteBlockedDate}
+        onConfirm={confirmDeleteBlockedDate}
+        themeColors={themeColors}
       />
     </View>
   );
@@ -3283,700 +2772,629 @@ const AvailabilityScreen = ({ navigation }) => {
 // STYLES
 // ============================================================
 
-const styles =
-  StyleSheet.create({
-    container: {
-      flex: 1,
-    },
-
-    loadingContainer: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-
-    loadingText: {
-      marginTop: spacing.md,
-      fontSize:
-        typography.fontSize.md,
-      fontFamily:
-        typography.fontFamily.regular,
-    },
-
-    // ========================================================
-    // TOAST
-    // ========================================================
-
-    toastWrapper: {
-      position: 'absolute',
-      top: Platform.OS === 'web' ? 20 : 45,
-      left: 12,
-      right: 12,
-      zIndex: 99999,
-      elevation: 99999,
-      alignItems: 'center',
-      pointerEvents: 'box-none',
-    },
-
-    toastContainer: {
-      width: '100%',
-      maxWidth: 520,
-      minHeight: 66,
-
-      flexDirection: 'row',
-      alignItems: 'center',
-
-      backgroundColor: '#FFFFFF',
-
-      borderRadius: 15,
-
-      borderLeftWidth: 4,
-
-      paddingHorizontal: 13,
-      paddingVertical: 10,
-
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 5,
-      },
-      shadowOpacity: 0.14,
-      shadowRadius: 12,
-
-      elevation: 8,
-    },
-
-    toastIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-
-      alignItems: 'center',
-      justifyContent: 'center',
-
-      marginRight: 10,
-    },
-
-    toastTextWrap: {
-      flex: 1,
-      paddingRight: 8,
-    },
-
-    toastTitle: {
-      color: '#111827',
-      fontSize: 14,
-      fontWeight: '700',
-    },
-
-    toastMessage: {
-      color: '#6B7280',
-      fontSize: 12,
-      marginTop: 3,
-      lineHeight: 17,
-    },
-
-    // ========================================================
-    // SCROLL
-    // ========================================================
-
-    scrollContent: {
-      paddingHorizontal:
-        spacing.md,
-      paddingVertical:
-        spacing.md,
-      paddingBottom:
-        spacing.xl * 2,
-    },
-
-    // ========================================================
-    // CARDS
-    // ========================================================
-
-    card: {
-      borderRadius: 16,
-      padding: spacing.md,
-      marginBottom: spacing.md,
-
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 2,
-      },
-      shadowOpacity: 0.06,
-      shadowRadius: 4,
-      elevation: 2,
-    },
-
-    rowBetween: {
-      flexDirection: 'row',
-      justifyContent:
-        'space-between',
-      alignItems: 'center',
-    },
-
-    flex1: {
-      flex: 1,
-      marginRight:
-        spacing.sm,
-    },
-
-    cardTitle: {
-      fontSize:
-        typography.fontSize.md,
-      fontFamily:
-        typography.fontFamily.semiBold,
-      marginBottom: 2,
-    },
-
-    cardSub: {
-      fontSize:
-        typography.fontSize.sm,
-      fontFamily:
-        typography.fontFamily.regular,
-      lineHeight: 19,
-    },
-
-    sectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent:
-        'space-between',
-    },
-
-    sectionTitle: {
-      fontSize:
-        typography.fontSize.md,
-      fontFamily:
-        typography.fontFamily.semiBold,
-      marginBottom:
-        spacing.sm,
-    },
-
-    // ========================================================
-    // WEEKLY SCHEDULE
-    // ========================================================
-
-    dayRow: {
-      flexDirection: 'row',
-      justifyContent:
-        'space-between',
-      alignItems: 'center',
-      paddingVertical:
-        spacing.sm,
-      borderBottomWidth: 1,
-    },
-
-    dayNameWrap: {
-      flex: 1,
-    },
-
-    dayName: {
-      fontSize:
-        typography.fontSize.md,
-      fontFamily:
-        typography.fontFamily.medium,
-      marginBottom: 3,
-    },
-
-    hoursTouchable: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-    },
-
-    dayHours: {
-      fontSize:
-        typography.fontSize.sm,
-      fontFamily:
-        typography.fontFamily.regular,
-    },
-
-    closedWrap: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-
-    dayClosed: {
-      fontSize:
-        typography.fontSize.sm,
-      fontFamily:
-        typography.fontFamily.medium,
-      color: '#e53935',
-    },
-
-    // ========================================================
-    // BLOCKED DATES
-    // ========================================================
-
-    emptyBlocked: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingVertical:
-        spacing.lg,
-    },
-
-    emptyText: {
-      fontSize:
-        typography.fontSize.sm,
-      fontFamily:
-        typography.fontFamily.regular,
-      textAlign: 'center',
-      marginTop: 6,
-    },
-
-    blockedRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical:
-        spacing.sm,
-      borderBottomWidth: 1,
-      gap: spacing.sm,
-    },
-
-    blockIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor:
-        '#E5393515',
-    },
-
-    blockedDates: {
-      fontSize:
-        typography.fontSize.sm,
-      fontFamily:
-        typography.fontFamily.medium,
-    },
-
-    blockedReason: {
-      fontSize:
-        typography.fontSize.xs,
-      fontFamily:
-        typography.fontFamily.regular,
-      marginTop: 3,
-    },
-
-    allDayLabel: {
-      fontSize: 10,
-      fontFamily:
-        typography.fontFamily.medium,
-      marginTop: 3,
-    },
-
-    deleteButton: {
-      width: 42,
-      height: 42,
-      borderRadius: 12,
-
-      alignItems: 'center',
-      justifyContent: 'center',
-
-      backgroundColor: '#E5393510',
-    },
-
-    // ========================================================
-    // MODAL
-    // ========================================================
-
-    modalOverlay: {
-      flex: 1,
-      backgroundColor:
-        'rgba(0,0,0,0.48)',
-      justifyContent: 'flex-end',
-    },
-
-    modalContent: {
-      width: '100%',
-      maxHeight: '92%',
-
-      borderTopLeftRadius: 26,
-      borderTopRightRadius: 26,
-
-      paddingHorizontal:
-        spacing.lg,
-      paddingTop:
-        spacing.lg,
-      paddingBottom:
-        spacing.xl + 10,
-    },
-
-    modalScrollContent: {
-      paddingBottom:
-        spacing.md,
-    },
-
-    modalHeader: {
-      flexDirection: 'row',
-      justifyContent:
-        'space-between',
-      alignItems: 'center',
-      marginBottom:
-        spacing.md,
-    },
-
-    modalTitleWrap: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flex: 1,
-    },
-
-    modalIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 13,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: 10,
-    },
-
-    modalTitle: {
-      fontSize:
-        typography.fontSize.lg,
-      fontFamily:
-        typography.fontFamily.bold,
-    },
-
-    modalSubtitle: {
-      fontSize: 12,
-      marginTop: 2,
-      fontFamily:
-        typography.fontFamily.regular,
-    },
-
-    inputLabel: {
-      fontSize:
-        typography.fontSize.sm,
-      fontFamily:
-        typography.fontFamily.medium,
-      marginBottom: 6,
-      marginTop: spacing.sm,
-    },
-
-    optionalText: {
-      fontSize: 11,
-      fontFamily:
-        typography.fontFamily.regular,
-      opacity: 0.7,
-    },
-
-    // ========================================================
-    // DATE / TIME BUTTON
-    // ========================================================
-
-    dateButton: {
-      minHeight: 44,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: spacing.sm,
-
-      borderWidth: 1,
-      borderRadius: 10,
-
-      paddingVertical:
-        spacing.sm,
-      paddingHorizontal:
-        spacing.md,
-    },
-
-    dateButtonText: {
-      flex: 1,
-      fontSize:
-        typography.fontSize.md,
-      fontFamily:
-        typography.fontFamily.medium,
-    },
-
-    // ========================================================
-    // TEXT INPUT
-    // ========================================================
-
-    textInput: {
-      minHeight: 90,
-
-      borderWidth: 1,
-      borderRadius: 10,
-
-      paddingVertical:
-        spacing.sm,
-      paddingHorizontal:
-        spacing.md,
-
-      fontSize:
-        typography.fontSize.md,
-      fontFamily:
-        typography.fontFamily.regular,
-    },
-
-    // ========================================================
-    // INFO
-    // ========================================================
-
-    infoBox: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 8,
-
-      borderWidth: 1,
-      borderRadius: 12,
-
-      padding: spacing.md,
-      marginTop: spacing.md,
-    },
-
-    infoText: {
-      flex: 1,
-      fontSize: 12,
-      lineHeight: 18,
-      fontFamily:
-        typography.fontFamily.regular,
-    },
-
-    // ========================================================
-    // PREVIEW
-    // ========================================================
-
-    schedulePreview: {
-      flexDirection: 'row',
-      alignItems: 'center',
-
-      borderWidth: 1,
-      borderRadius: 14,
-
-      padding: spacing.md,
-      marginTop: spacing.md,
-    },
-
-    previewTextWrap: {
-      marginLeft: spacing.sm,
-      flex: 1,
-    },
-
-    previewLabel: {
-      fontSize: 11,
-      fontFamily:
-        typography.fontFamily.regular,
-    },
-
-    previewValue: {
-      fontSize: 18,
-      fontFamily:
-        typography.fontFamily.bold,
-      marginTop: 2,
-    },
-
-    // ========================================================
-    // WARNING
-    // ========================================================
-
-    warningBox: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-
-      backgroundColor:
-        '#E5393512',
-
-      borderWidth: 1,
-      borderColor:
-        '#E5393540',
-
-      borderRadius: 10,
-
-      padding: spacing.sm,
-      marginTop: spacing.sm,
-    },
-
-    warningText: {
-      flex: 1,
-      fontSize: 12,
-      color: '#E53935',
-      fontFamily:
-        typography.fontFamily.medium,
-    },
-
-    // ========================================================
-    // ACTION BUTTONS
-    // ========================================================
-
-    modalActions: {
-      flexDirection: 'row',
-      gap: spacing.sm,
-      marginTop: spacing.lg,
-    },
-
-    modalBtn: {
-      flex: 1,
-
-      minHeight: 46,
-
-      paddingVertical:
-        spacing.md,
-
-      borderRadius: 12,
-
-      alignItems: 'center',
-      justifyContent: 'center',
-
-      flexDirection: 'row',
-      gap: 7,
-    },
-
-    cancelBtn: {
-      backgroundColor:
-        'transparent',
-      borderWidth: 1,
-    },
-
-    cancelBtnText: {
-      fontSize:
-        typography.fontSize.md,
-      fontFamily:
-        typography.fontFamily.medium,
-    },
-
-    confirmBtnText: {
-      fontSize:
-        typography.fontSize.md,
-      fontFamily:
-        typography.fontFamily.semiBold,
-      color: '#fff',
-    },
-
-    // ========================================================
-    // CONFIRM DELETE MODAL
-    // ========================================================
-
-    confirmOverlay: {
-      flex: 1,
-
-      backgroundColor:
-        'rgba(0,0,0,0.52)',
-
-      alignItems: 'center',
-      justifyContent: 'center',
-
-      paddingHorizontal: 20,
-    },
-
-    confirmModal: {
-      width: '100%',
-      maxWidth: 470,
-
-      borderRadius: 22,
-
-      padding: 22,
-
-      shadowColor: '#000',
-      shadowOffset: {
-        width: 0,
-        height: 8,
-      },
-      shadowOpacity: 0.18,
-      shadowRadius: 18,
-
-      elevation: 10,
-    },
-
-    confirmIcon: {
-      width: 58,
-      height: 58,
-      borderRadius: 29,
-
-      alignSelf: 'center',
-
-      alignItems: 'center',
-      justifyContent: 'center',
-
-      backgroundColor:
-        '#DC262615',
-
-      marginBottom: 14,
-    },
-
-    confirmTitle: {
-      fontSize: 19,
-      fontWeight: '700',
-      textAlign: 'center',
-    },
-
-    confirmMessage: {
-      fontSize: 13,
-      lineHeight: 19,
-      textAlign: 'center',
-
-      marginTop: 8,
-    },
-
-    confirmDateBox: {
-      flexDirection: 'row',
-      alignItems: 'center',
-
-      borderWidth: 1,
-      borderRadius: 13,
-
-      padding: 13,
-
-      marginTop: 18,
-    },
-
-    confirmDateText: {
-      flex: 1,
-      marginLeft: 10,
-    },
-
-    confirmDate: {
-      fontSize: 13,
-      fontWeight: '700',
-    },
-
-    confirmReason: {
-      fontSize: 12,
-      marginTop: 4,
-    },
-
-    confirmActions: {
-      flexDirection: 'row',
-      gap: 10,
-      marginTop: 20,
-    },
-
-    confirmButton: {
-      flex: 1,
-
-      minHeight: 46,
-
-      borderRadius: 12,
-
-      alignItems: 'center',
-      justifyContent: 'center',
-
-      flexDirection: 'row',
-      gap: 7,
-    },
-
-    confirmCancelButton: {
-      borderWidth: 1,
-      backgroundColor:
-        'transparent',
-    },
-
-    confirmCancelText: {
-      fontSize: 14,
-      fontWeight: '600',
-    },
-
-    confirmDeleteButton: {
-      backgroundColor: '#DC2626',
-    },
-
-    confirmDeleteText: {
-      color: '#fff',
-      fontSize: 14,
-      fontWeight: '700',
-    },
-  });
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  loadingText: {
+    marginTop: spacing.md,
+    fontSize: typography.fontSize.md,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  toastWrapper: {
+    position: 'absolute',
+    top: Platform.OS === 'web' ? 20 : 45,
+    left: 12,
+    right: 12,
+    zIndex: 99999,
+    elevation: 99999,
+    alignItems: 'center',
+  },
+
+  toastContainer: {
+    width: '100%',
+    maxWidth: 520,
+    minHeight: 66,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderLeftWidth: 4,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+
+  toastIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  toastTextWrap: {
+    flex: 1,
+    paddingRight: 8,
+  },
+
+  toastTitle: {
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  toastMessage: {
+    color: '#6B7280',
+    fontSize: 12,
+    marginTop: 3,
+    lineHeight: 17,
+  },
+
+  scrollContent: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    paddingBottom: spacing.xl * 2,
+  },
+
+  card: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.045,
+    shadowRadius: 7,
+    elevation: 2,
+  },
+
+  cardTopLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  roundIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 11,
+  },
+
+  flex1: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  cardTitle: {
+    fontSize: typography.fontSize.md,
+    fontFamily: typography.fontFamily.semiBold,
+    marginBottom: 3,
+  },
+
+  cardSub: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.regular,
+    lineHeight: 19,
+  },
+
+  statusPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 30,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginTop: 13,
+  },
+
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+
+  statusPillText: {
+    fontSize: 12,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+
+  sectionTitle: {
+    fontSize: typography.fontSize.md,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+
+  sectionSub: {
+    fontSize: 12,
+    marginTop: 3,
+    lineHeight: 17,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  scheduleList: {
+    marginTop: 4,
+  },
+
+  dayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+  },
+
+  dayAvatar: {
+    width: 35,
+    height: 35,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  dayAvatarText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  dayNameWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  dayName: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.semiBold,
+    marginBottom: 3,
+  },
+
+  hoursTouchable: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+
+  dayHours: {
+    fontSize: 12,
+    marginHorizontal: 5,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  closedWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  dayClosed: {
+    fontSize: 12,
+    color: DANGER,
+    marginLeft: 4,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  addButtonWrapper: {
+    borderRadius: 15,
+  },
+
+  addButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  emptyBlocked: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 25,
+    paddingHorizontal: 20,
+  },
+
+  emptyIcon: {
+    width: 65,
+    height: 65,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+
+  emptyTitle: {
+    fontSize: 14,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+
+  emptyText: {
+    maxWidth: 280,
+    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 5,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  blockedList: {
+    marginTop: 5,
+  },
+
+  blockedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+  },
+
+  blockIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  blockedDates: {
+    fontSize: 13,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+
+  blockedReason: {
+    fontSize: 12,
+    marginTop: 3,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  allDayBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    marginTop: 5,
+  },
+
+  allDayLabel: {
+    fontSize: 10,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+
+  deleteButtonWrapper: {
+    marginLeft: 8,
+    borderRadius: 13,
+  },
+
+  deleteButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.48)',
+    justifyContent: 'flex-end',
+  },
+
+  modalContent: {
+    width: '100%',
+    maxHeight: '92%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xl + 10,
+  },
+
+  modalScrollContent: {
+    paddingBottom: spacing.md,
+  },
+
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+
+  modalTitleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  modalIcon: {
+    width: 45,
+    height: 45,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  modalTitle: {
+    fontSize: typography.fontSize.lg,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  modalSubtitle: {
+    fontSize: 12,
+    marginTop: 3,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  inputLabel: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.medium,
+    marginBottom: 7,
+    marginTop: spacing.sm,
+  },
+
+  optionalText: {
+    fontSize: 11,
+    opacity: 0.7,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  dateButton: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 13,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+
+  dateButtonText: {
+    flex: 1,
+    fontSize: typography.fontSize.md,
+    marginLeft: 9,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  textInput: {
+    minHeight: 92,
+    borderWidth: 1,
+    borderRadius: 13,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    fontSize: typography.fontSize.md,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 13,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+
+  infoText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
+    marginLeft: 8,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  schedulePreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 15,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+
+  previewTextWrap: {
+    marginLeft: spacing.sm,
+    flex: 1,
+  },
+
+  previewLabel: {
+    fontSize: 11,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  previewValue: {
+    fontSize: 18,
+    marginTop: 3,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: `${DANGER}12`,
+    borderWidth: 1,
+    borderColor: `${DANGER}40`,
+    borderRadius: 12,
+    padding: spacing.sm,
+    marginTop: spacing.sm,
+  },
+
+  warningText: {
+    flex: 1,
+    fontSize: 12,
+    color: DANGER,
+    marginLeft: 8,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  modalActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+
+  actionFlex: {
+    flex: 1,
+  },
+
+  modalBtn: {
+    minHeight: 48,
+    paddingVertical: spacing.md,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 7,
+  },
+
+  cancelBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+  },
+
+  cancelBtnText: {
+    fontSize: typography.fontSize.md,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  confirmBtnText: {
+    fontSize: typography.fontSize.md,
+    fontFamily: typography.fontFamily.semiBold,
+    color: '#FFFFFF',
+  },
+
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.52)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+
+  confirmModal: {
+    width: '100%',
+    maxWidth: 470,
+    borderRadius: 24,
+    padding: 22,
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+
+  confirmIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+
+  confirmTitle: {
+    fontSize: 19,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+
+  confirmMessage: {
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+
+  confirmDateBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 13,
+    marginTop: 18,
+  },
+
+  confirmDateText: {
+    flex: 1,
+    marginLeft: 10,
+  },
+
+  confirmDate: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  confirmReason: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+
+  confirmActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
+  },
+
+  confirmButton: {
+    minHeight: 47,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 7,
+  },
+
+  confirmCancelButton: {
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
+
+  confirmCancelText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  confirmDeleteButton: {
+    backgroundColor: DANGER,
+  },
+
+  confirmDeleteText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+});
 
 export default AvailabilityScreen;

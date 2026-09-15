@@ -1,149 +1,366 @@
 // src/screens/therapist/ReviewsScreen.js
-import React, { useState, useEffect, useRef } from 'react';
+
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from 'react';
+
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  Animated,
+  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Animated,
-  TextInput,
   Alert,
+  Image,
+  Platform,
 } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
+import axios from 'axios';
+
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
-import axios from 'axios';
 import { API_URL } from '../../config';
+
+const PRIMARY_COLOR = colors.primary || '#168A55';
+const PRIMARY_LIGHT = colors.primaryLight || '#39B878';
+
+const getReviewerName = (review) => {
+  const reviewer = review?.reviewer || review?.client || review?.user;
+
+  return (
+    reviewer?.fullname ||
+    reviewer?.full_name ||
+    reviewer?.name ||
+    reviewer?.username ||
+    `${reviewer?.first_name || ''} ${reviewer?.last_name || ''}`.trim() ||
+    review?.reviewer_name ||
+    review?.client_name ||
+    review?.client_fullname ||
+    'Client'
+  );
+};
+
+const getReviewerPhoto = (review) => {
+  const reviewer = review?.reviewer || review?.client || review?.user;
+
+  const photo =
+    reviewer?.profile_image ||
+    reviewer?.profileImage ||
+    reviewer?.profile_photo ||
+    reviewer?.profilePhoto ||
+    reviewer?.avatar ||
+    reviewer?.avatar_url ||
+    reviewer?.avatarUrl ||
+    reviewer?.photo ||
+    reviewer?.photo_url ||
+    reviewer?.photoUrl ||
+    reviewer?.image ||
+    reviewer?.image_url ||
+    reviewer?.imageUrl ||
+    review?.client_profile_image ||
+    review?.client_avatar ||
+    review?.client_photo ||
+    review?.profile_image ||
+    review?.avatar;
+
+  if (!photo || typeof photo !== 'string') {
+    return null;
+  }
+
+  return photo;
+};
+
+const getReviewerId = (review) => {
+  const reviewer = review?.reviewer || review?.client || review?.user;
+
+  return (
+    reviewer?.id ||
+    reviewer?.user_id ||
+    review?.reviewer_id ||
+    review?.client_id ||
+    review?.user_id ||
+    null
+  );
+};
+
+const getRating = (review) => {
+  const rating = Number(
+    review?.rating ??
+      review?.note ??
+      review?.stars ??
+      0
+  );
+
+  return Math.max(0, Math.min(5, Math.round(rating)));
+};
+
+const getComment = (review) => {
+  return (
+    review?.comment ||
+    review?.content ||
+    review?.message ||
+    review?.review ||
+    'Aucun commentaire'
+  );
+};
+
+const getResponse = (review) => {
+  return (
+    review?.response_from_therapist ||
+    review?.therapist_response ||
+    review?.response ||
+    review?.reply ||
+    null
+  );
+};
+
+const getReviewDate = (review) => {
+  return (
+    review?.created_at ||
+    review?.createdAt ||
+    review?.date ||
+    review?.updated_at ||
+    null
+  );
+};
+
+const normalizeReviews = (data) => {
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (Array.isArray(data?.reviews)) {
+    return data.reviews;
+  }
+
+  if (Array.isArray(data?.items)) {
+    return data.items;
+  }
+
+  if (Array.isArray(data?.data)) {
+    return data.data;
+  }
+
+  return [];
+};
 
 const ReviewsScreen = ({ navigation }) => {
   const { colors: themeColors, isDark } = useTheme();
   const { token } = useAuth();
-  
+
   const [reviews, setReviews] = useState([]);
   const [stats, setStats] = useState({
     average: 0,
     total: 0,
-    distribution: {},
+    distribution: {
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0,
+    },
   });
+
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [respondingTo, setRespondingTo] = useState(null);
   const [responseText, setResponseText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const buttonAnimations = useRef({}).current;
+
+  const getButtonAnimation = (reviewId) => {
+    if (!buttonAnimations[reviewId]) {
+      buttonAnimations[reviewId] = new Animated.Value(1);
+    }
+
+    return buttonAnimations[reviewId];
+  };
+
+  const calculateStats = useCallback((reviewsData) => {
+    const total = reviewsData.length;
+
+    const distribution = {
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0,
+    };
+
+    if (total === 0) {
+      setStats({
+        average: 0,
+        total: 0,
+        distribution,
+      });
+
+      return;
+    }
+
+    let sum = 0;
+
+    reviewsData.forEach((review) => {
+      const rating = getRating(review);
+
+      if (rating >= 1 && rating <= 5) {
+        distribution[rating] += 1;
+        sum += rating;
+      }
+    });
+
+    setStats({
+      average: sum / total,
+      total,
+      distribution,
+    });
+  }, []);
+
+  const loadReviews = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_URL}/reviews`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const reviewsData = normalizeReviews(response.data);
+
+      setReviews(reviewsData);
+      calculateStats(reviewsData);
+    } catch (error) {
+      console.error(
+        'Erreur lors du chargement des avis :',
+        error?.response?.data || error?.message
+      );
+
+      /*
+       * Aucun avis fictif n'est ajouté.
+       * L'écran affiche un état vide si l'API ne répond pas.
+       */
+      setReviews([]);
+      calculateStats([]);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 450,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [token, calculateStats, fadeAnim]);
 
   useEffect(() => {
     loadReviews();
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
-  }, []);
-
-  const loadReviews = async () => {
-    setIsLoading(true);
-    try {
-      const response = await axios.get(`${API_URL}/reviews`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setReviews(response.data);
-      calculateStats(response.data);
-    } catch (error) {
-      console.error('Error loading reviews:', error);
-      // Données mockées
-      const mockReviews = [
-        {
-          id: 1,
-          rating: 5,
-          comment: 'Excellent massage, je me sens relaxé ! Sarah est très professionnelle.',
-          reviewer: { fullname: 'Marie L.' },
-          created_at: '2026-07-15T10:00:00',
-          response_from_therapist: null,
-        },
-        {
-          id: 2,
-          rating: 4,
-          comment: 'Très bon massage, un peu cher mais qualité au rendez-vous.',
-          reviewer: { fullname: 'Jean R.' },
-          created_at: '2026-07-14T14:30:00',
-          response_from_therapist: 'Merci Jean pour votre retour !',
-        },
-        {
-          id: 3,
-          rating: 5,
-          comment: 'Incroyable ! Je recommande vivement Sarah.',
-          reviewer: { fullname: 'Sarah M.' },
-          created_at: '2026-07-13T09:00:00',
-          response_from_therapist: null,
-        },
-        {
-          id: 4,
-          rating: 4,
-          comment: 'Massage relaxant parfait pour se détendre.',
-          reviewer: { fullname: 'Pierre D.' },
-          created_at: '2026-07-12T11:00:00',
-          response_from_therapist: null,
-        },
-      ];
-      setReviews(mockReviews);
-      calculateStats(mockReviews);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const calculateStats = (reviewsData) => {
-    const total = reviewsData.length;
-    if (total === 0) {
-      setStats({ average: 0, total: 0, distribution: {} });
-      return;
-    }
-    const sum = reviewsData.reduce((acc, r) => acc + r.rating, 0);
-    const average = sum / total;
-    const distribution = {};
-    for (let i = 1; i <= 5; i++) {
-      distribution[i] = reviewsData.filter((r) => r.rating === i).length;
-    }
-    setStats({ average, total, distribution });
-  };
+  }, [loadReviews]);
 
   const handleRespond = async (reviewId) => {
-    if (!responseText.trim()) {
-      Alert.alert('Erreur', 'Veuillez écrire une réponse');
+    const text = responseText.trim();
+
+    if (!text) {
+      Alert.alert(
+        'Réponse vide',
+        'Veuillez écrire une réponse avant de publier.'
+      );
       return;
     }
+
+    setIsSubmitting(true);
 
     try {
       await axios.put(
         `${API_URL}/reviews/${reviewId}/respond`,
-        { response: responseText.trim() },
-        { headers: { Authorization: `Bearer ${token}` } }
+        {
+          response: text,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
-      
-      Alert.alert('✅ Réponse ajoutée', 'Votre réponse a été publiée');
+
+      Alert.alert(
+        'Réponse publiée',
+        'Votre réponse a été ajoutée avec succès.'
+      );
+
       setRespondingTo(null);
       setResponseText('');
-      loadReviews();
+
+      await loadReviews();
     } catch (error) {
-      Alert.alert('Erreur', 'Impossible d\'ajouter la réponse');
+      console.error(
+        'Erreur lors de la réponse à l’avis :',
+        error?.response?.data || error?.message
+      );
+
+      Alert.alert(
+        'Erreur',
+        'Impossible d’ajouter votre réponse pour le moment.'
+      );
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleOpenResponse = (reviewId) => {
+    const animation = getButtonAnimation(reviewId);
+
+    Animated.sequence([
+      Animated.timing(animation, {
+        toValue: 0.85,
+        duration: 90,
+        useNativeDriver: true,
+      }),
+      Animated.spring(animation, {
+        toValue: 1,
+        friction: 4,
+        tension: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    setRespondingTo(reviewId);
+    setResponseText('');
+  };
+
+  const handleCancelResponse = () => {
+    setRespondingTo(null);
+    setResponseText('');
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
     await loadReviews();
-    setRefreshing(false);
   };
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('fr-FR', {
+    if (!date) {
+      return 'Date inconnue';
+    }
+
+    const parsedDate = new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return 'Date inconnue';
+    }
+
+    return parsedDate.toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -151,161 +368,633 @@ const ReviewsScreen = ({ navigation }) => {
   };
 
   const renderStars = (rating) => {
-    return '⭐'.repeat(rating) + '☆'.repeat(5 - rating);
+    const safeRating = getRating({ rating });
+
+    return (
+      <View style={styles.starsContainer}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Ionicons
+            key={star}
+            name={star <= safeRating ? 'star' : 'star-outline'}
+            size={17}
+            color={
+              star <= safeRating
+                ? '#F59E0B'
+                : isDark
+                  ? '#6B7280'
+                  : '#CBD5E1'
+            }
+            style={styles.starIcon}
+          />
+        ))}
+      </View>
+    );
   };
 
+  const renderReviewerAvatar = (review) => {
+    const reviewerName = getReviewerName(review);
+    const reviewerPhoto = getReviewerPhoto(review);
+
+    return (
+      <View
+        style={[
+          styles.reviewerAvatarFrame,
+          {
+            backgroundColor: isDark
+              ? '#26352E'
+              : '#E8F5EE',
+            borderColor: PRIMARY_COLOR,
+          },
+        ]}
+      >
+        {reviewerPhoto ? (
+          <Image
+            source={{ uri: reviewerPhoto }}
+            style={styles.reviewerAvatarImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <Text
+            style={[
+              styles.reviewerAvatarText,
+              {
+                color: PRIMARY_COLOR,
+              },
+            ]}
+          >
+            {reviewerName.charAt(0).toUpperCase()}
+          </Text>
+        )}
+      </View>
+    );
+  };
+
+  const renderReviewCard = (review, index) => {
+    const reviewId = review?.id || review?.review_id || index;
+    const reviewerName = getReviewerName(review);
+    const reviewerId = getReviewerId(review);
+    const rating = getRating(review);
+    const comment = getComment(review);
+    const response = getResponse(review);
+    const reviewDate = getReviewDate(review);
+    const buttonAnimation = getButtonAnimation(reviewId);
+
+    return (
+      <Animatable.View
+        key={String(reviewId)}
+        animation="fadeInUp"
+        delay={index * 70}
+        duration={450}
+        useNativeDriver
+      >
+        <View
+          style={[
+            styles.reviewCard,
+            {
+              backgroundColor: themeColors.surface,
+              borderColor: isDark
+                ? '#303A34'
+                : '#E7EEE9',
+            },
+          ]}
+        >
+          {/* En-tête de l'avis */}
+          <View style={styles.reviewHeader}>
+            <View style={styles.reviewerInfo}>
+              {renderReviewerAvatar(review)}
+
+              <View style={styles.reviewerDetails}>
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.reviewerName,
+                    {
+                      color: themeColors.text,
+                    },
+                  ]}
+                >
+                  {reviewerName}
+                </Text>
+
+                <View style={styles.reviewMeta}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={12}
+                    color={themeColors.textSecondary}
+                  />
+
+                  <Text
+                    style={[
+                      styles.reviewDate,
+                      {
+                        color: themeColors.textSecondary,
+                      },
+                    ]}
+                  >
+                    {formatDate(reviewDate)}
+                  </Text>
+
+                  {reviewerId && (
+                    <View
+                      style={[
+                        styles.clientBadge,
+                        {
+                          backgroundColor: isDark
+                            ? '#26352E'
+                            : '#F0F8F3',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.clientBadgeText,
+                          {
+                            color: PRIMARY_COLOR,
+                          },
+                        ]}
+                      >
+                        Client
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
+
+            {renderStars(rating)}
+          </View>
+
+          {/* Commentaire */}
+          <Text
+            style={[
+              styles.reviewComment,
+              {
+                color: themeColors.text,
+              },
+            ]}
+          >
+            {comment}
+          </Text>
+
+          {/* Réponse déjà publiée */}
+          {response ? (
+            <View
+              style={[
+                styles.responseContainer,
+                {
+                  backgroundColor: isDark
+                    ? '#1F3529'
+                    : '#EFFAF3',
+                  borderLeftColor: PRIMARY_COLOR,
+                },
+              ]}
+            >
+              <View style={styles.responseHeader}>
+                <Ionicons
+                  name="return-down-forward-outline"
+                  size={16}
+                  color={PRIMARY_COLOR}
+                />
+
+                <Text
+                  style={[
+                    styles.responseLabel,
+                    {
+                      color: PRIMARY_COLOR,
+                    },
+                  ]}
+                >
+                  Votre réponse
+                </Text>
+              </View>
+
+              <Text
+                style={[
+                  styles.responseText,
+                  {
+                    color: themeColors.text,
+                  },
+                ]}
+              >
+                {response}
+              </Text>
+            </View>
+          ) : respondingTo === reviewId ? (
+            /* Formulaire de réponse */
+            <View style={styles.responseInputContainer}>
+              <TextInput
+                style={[
+                  styles.responseInput,
+                  {
+                    color: themeColors.text,
+                    backgroundColor: isDark
+                      ? '#1D2420'
+                      : '#FAFCFB',
+                    borderColor: isDark
+                      ? '#3A4A40'
+                      : '#DCE8DF',
+                  },
+                ]}
+                placeholder="Écrire une réponse..."
+                placeholderTextColor={themeColors.textSecondary}
+                value={responseText}
+                onChangeText={setResponseText}
+                multiline
+                maxLength={500}
+                textAlignVertical="top"
+              />
+
+              <View style={styles.responseActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.cancelButton,
+                    {
+                      borderColor: isDark
+                        ? '#465149'
+                        : '#D8E2DB',
+                    },
+                  ]}
+                  onPress={handleCancelResponse}
+                  disabled={isSubmitting}
+                  activeOpacity={0.75}
+                >
+                  <Text
+                    style={[
+                      styles.cancelButtonText,
+                      {
+                        color: themeColors.textSecondary,
+                      },
+                    ]}
+                  >
+                    Annuler
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.publishButton,
+                    {
+                      backgroundColor: PRIMARY_COLOR,
+                    },
+                  ]}
+                  onPress={() => handleRespond(reviewId)}
+                  disabled={isSubmitting}
+                  activeOpacity={0.8}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator
+                      size="small"
+                      color="#FFFFFF"
+                    />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="send-outline"
+                        size={16}
+                        color="#FFFFFF"
+                      />
+
+                      <Text style={styles.publishButtonText}>
+                        Publier
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            /* Bouton Répondre animé */
+            <Animated.View
+              style={{
+                transform: [
+                  {
+                    scale: buttonAnimation,
+                  },
+                ],
+              }}
+            >
+              <TouchableOpacity
+                style={[
+                  styles.respondButton,
+                  {
+                    backgroundColor: isDark
+                      ? '#26352E'
+                      : '#EAF7EF',
+                    borderColor: isDark
+                      ? '#355442'
+                      : '#CBEBD5',
+                  },
+                ]}
+                onPress={() => handleOpenResponse(reviewId)}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={17}
+                  color={PRIMARY_COLOR}
+                />
+
+                <Text
+                  style={[
+                    styles.respondButtonText,
+                    {
+                      color: PRIMARY_COLOR,
+                    },
+                  ]}
+                >
+                  Répondre
+                </Text>
+
+                <Ionicons
+                  name="chevron-forward"
+                  size={15}
+                  color={PRIMARY_COLOR}
+                />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+        </View>
+      </Animatable.View>
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <View
+        style={[
+          styles.loadingContainer,
+          {
+            backgroundColor: themeColors.background,
+          },
+        ]}
+      >
+        <ActivityIndicator
+          size="large"
+          color={PRIMARY_COLOR}
+        />
+
+        <Text
+          style={[
+            styles.loadingText,
+            {
+              color: themeColors.textSecondary,
+            },
+          ]}
+        >
+          Chargement des avis...
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-      <Header title="Mes avis" showBack />
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: themeColors.background,
+        },
+      ]}
+    >
+      <Header
+        title="Mes avis"
+        showBack
+      />
 
       <Animated.ScrollView
-        style={[styles.scrollView, { opacity: fadeAnim }]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
-        }
-        showsVerticalScrollIndicator={false}
+        style={[
+          styles.scrollView,
+          {
+            opacity: fadeAnim,
+          },
+        ]}
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[PRIMARY_COLOR]}
+            tintColor={PRIMARY_COLOR}
+          />
+        }
       >
-        {/* Statistiques */}
-        <Animatable.View animation="fadeInDown" duration={600}>
+        {/* Carte des statistiques */}
+        <Animatable.View
+          animation="fadeInDown"
+          duration={550}
+          useNativeDriver
+        >
           <LinearGradient
-            colors={[colors.primary, colors.primaryLight]}
+            colors={[PRIMARY_COLOR, PRIMARY_LIGHT]}
             style={styles.statsCard}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.average.toFixed(1)}</Text>
-                <Text style={styles.statLabel}>Note moyenne</Text>
+            <View style={styles.statsTopRow}>
+              <View style={styles.averageContainer}>
+                <Text style={styles.averageValue}>
+                  {stats.average.toFixed(1)}
+                </Text>
+
+                <View style={styles.averageStars}>
+                  {renderStars(Math.round(stats.average))}
+                </View>
+
+                <Text style={styles.averageLabel}>
+                  Note moyenne
+                </Text>
               </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.total}</Text>
-                <Text style={styles.statLabel}>Total avis</Text>
+
+              <View style={styles.statsDivider} />
+
+              <View style={styles.totalContainer}>
+                <Text style={styles.totalValue}>
+                  {stats.total}
+                </Text>
+
+                <Ionicons
+                  name="chatbubbles-outline"
+                  size={22}
+                  color="rgba(255,255,255,0.9)"
+                />
+
+                <Text style={styles.totalLabel}>
+                  Total avis
+                </Text>
               </View>
             </View>
+
             <View style={styles.distributionContainer}>
-              {[5, 4, 3, 2, 1].map((rating) => (
-                <View key={rating} style={styles.distributionRow}>
-                  <Text style={styles.distributionLabel}>{rating}⭐</Text>
-                  <View style={styles.distributionBar}>
-                    <View
-                      style={[
-                        styles.distributionFill,
-                        {
-                          width: `${stats.total > 0 ? (stats.distribution[rating] || 0) / stats.total * 100 : 0}%`,
-                          backgroundColor: rating >= 4 ? colors.success : rating >= 3 ? colors.warning : colors.error,
-                        },
-                      ]}
+              {[5, 4, 3, 2, 1].map((rating) => {
+                const count = stats.distribution[rating] || 0;
+                const percentage =
+                  stats.total > 0
+                    ? (count / stats.total) * 100
+                    : 0;
+
+                return (
+                  <View
+                    key={rating}
+                    style={styles.distributionRow}
+                  >
+                    <Text style={styles.distributionLabel}>
+                      {rating}
+                    </Text>
+
+                    <Ionicons
+                      name="star"
+                      size={13}
+                      color="#FDE68A"
                     />
+
+                    <View style={styles.distributionBar}>
+                      <View
+                        style={[
+                          styles.distributionFill,
+                          {
+                            width: `${percentage}%`,
+                          },
+                        ]}
+                      />
+                    </View>
+
+                    <Text style={styles.distributionCount}>
+                      {count}
+                    </Text>
                   </View>
-                  <Text style={styles.distributionCount}>{stats.distribution[rating] || 0}</Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </LinearGradient>
         </Animatable.View>
 
+        {/* Titre de la liste */}
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text
+              style={[
+                styles.sectionTitle,
+                {
+                  color: themeColors.text,
+                },
+              ]}
+            >
+              Tous les avis
+            </Text>
+
+            <Text
+              style={[
+                styles.sectionSubtitle,
+                {
+                  color: themeColors.textSecondary,
+                },
+              ]}
+            >
+              Les retours de vos clients
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.countBadge,
+              {
+                backgroundColor: isDark
+                  ? '#26352E'
+                  : '#EAF7EF',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.countBadgeText,
+                {
+                  color: PRIMARY_COLOR,
+                },
+              ]}
+            >
+              {stats.total}
+            </Text>
+          </View>
+        </View>
+
         {/* Liste des avis */}
-        <Animatable.View animation="fadeInUp" delay={200} duration={600}>
-          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
-            Tous les avis
-          </Text>
-
-          {reviews.length > 0 ? (
-            reviews.map((review, index) => (
-              <View
-                key={review.id}
-                style={[styles.reviewCard, { backgroundColor: themeColors.surface }]}
-              >
-                <View style={styles.reviewHeader}>
-                  <View style={styles.reviewerInfo}>
-                    <View style={styles.reviewerAvatar}>
-                      <Text style={styles.reviewerAvatarText}>
-                        {review.reviewer?.fullname?.charAt(0) || 'C'}
-                      </Text>
-                    </View>
-                    <View>
-                      <Text style={[styles.reviewerName, { color: themeColors.text }]}>
-                        {review.reviewer?.fullname || 'Client'}
-                      </Text>
-                      <Text style={[styles.reviewDate, { color: themeColors.textSecondary }]}>
-                        {formatDate(review.created_at)}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.reviewRating}>{renderStars(review.rating)}</Text>
-                </View>
-
-                <Text style={[styles.reviewComment, { color: themeColors.text }]}>
-                  {review.comment}
-                </Text>
-
-                {review.response_from_therapist ? (
-                  <View style={[styles.responseContainer, { backgroundColor: colors.primary + '10' }]}>
-                    <Text style={[styles.responseLabel, { color: colors.primary }]}>
-                      Votre réponse :
-                    </Text>
-                    <Text style={[styles.responseText, { color: themeColors.text }]}>
-                      {review.response_from_therapist}
-                    </Text>
-                  </View>
-                ) : (
-                  respondingTo === review.id ? (
-                    <View style={styles.responseInputContainer}>
-                      <TextInput
-                        style={[styles.responseInput, { 
-                          color: themeColors.text,
-                          borderColor: '#E0E0E0',
-                        }]}
-                        placeholder="Écrire une réponse..."
-                        placeholderTextColor={themeColors.textSecondary}
-                        value={responseText}
-                        onChangeText={setResponseText}
-                        multiline
-                      />
-                      <View style={styles.responseActions}>
-                        <TouchableOpacity
-                          style={styles.responseCancel}
-                          onPress={() => {
-                            setRespondingTo(null);
-                            setResponseText('');
-                          }}
-                        >
-                          <Text style={styles.responseCancelText}>Annuler</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={styles.responseSubmit}
-                          onPress={() => handleRespond(review.id)}
-                        >
-                          <Text style={styles.responseSubmitText}>Publier</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.respondButton}
-                      onPress={() => setRespondingTo(review.id)}
-                    >
-                      <Text style={styles.respondButtonText}>Répondre</Text>
-                    </TouchableOpacity>
-                  )
-                )}
-              </View>
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="star-outline" size={64} color={themeColors.textSecondary} />
-              <Text style={[styles.emptyStateTitle, { color: themeColors.text }]}>
-                Aucun avis
-              </Text>
-              <Text style={[styles.emptyStateText, { color: themeColors.textSecondary }]}>
-                Les avis de vos clients apparaîtront ici
-              </Text>
+        {reviews.length > 0 ? (
+          reviews.map(renderReviewCard)
+        ) : (
+          <View
+            style={[
+              styles.emptyState,
+              {
+                backgroundColor: themeColors.surface,
+                borderColor: isDark
+                  ? '#303A34'
+                  : '#E7EEE9',
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.emptyIconContainer,
+                {
+                  backgroundColor: isDark
+                    ? '#26352E'
+                    : '#EAF7EF',
+                },
+              ]}
+            >
+              <Ionicons
+                name="star-outline"
+                size={42}
+                color={PRIMARY_COLOR}
+              />
             </View>
-          )}
-        </Animatable.View>
+
+            <Text
+              style={[
+                styles.emptyStateTitle,
+                {
+                  color: themeColors.text,
+                },
+              ]}
+            >
+              Aucun avis
+            </Text>
+
+            <Text
+              style={[
+                styles.emptyStateText,
+                {
+                  color: themeColors.textSecondary,
+                },
+              ]}
+            >
+              Les avis de vos clients apparaîtront ici
+              après leurs séances.
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                styles.refreshButton,
+                {
+                  backgroundColor: PRIMARY_COLOR,
+                },
+              ]}
+              onPress={onRefresh}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="refresh-outline"
+                size={17}
+                color="#FFFFFF"
+              />
+
+              <Text style={styles.refreshButtonText}>
+                Actualiser
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </Animated.ScrollView>
     </View>
   );
@@ -315,218 +1004,424 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+
+  loadingText: {
+    marginTop: spacing.md,
+    fontSize: typography.fontSize.md,
+    fontFamily: typography.fontFamily.regular,
+  },
+
   scrollView: {
     flex: 1,
   },
+
   scrollContent: {
+    width: '100%',
+    maxWidth: 1000,
+    alignSelf: 'center',
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.xl,
   },
+
   statsCard: {
-    borderRadius: 20,
+    borderRadius: 22,
     padding: spacing.lg,
     marginTop: spacing.md,
-    marginBottom: spacing.md,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    marginBottom: spacing.lg,
+    shadowColor: PRIMARY_COLOR,
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
     elevation: 5,
   },
-  statsRow: {
+
+  statsTopRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-around',
-    marginBottom: spacing.md,
   },
-  statItem: {
+
+  averageContainer: {
+    flex: 1,
     alignItems: 'center',
   },
-  statValue: {
-    color: '#fff',
-    fontSize: typography.fontSize.xxxl,
+
+  averageValue: {
+    color: '#FFFFFF',
+    fontSize: 34,
     fontFamily: typography.fontFamily.bold,
   },
-  statLabel: {
-    color: 'rgba(255,255,255,0.8)',
+
+  averageStars: {
+    marginTop: 3,
+  },
+
+  averageLabel: {
+    color: 'rgba(255,255,255,0.86)',
     fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.regular,
+    marginTop: 5,
   },
-  statDivider: {
+
+  statsDivider: {
     width: 1,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    height: 75,
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
+
+  totalContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+
+  totalValue: {
+    color: '#FFFFFF',
+    fontSize: 34,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  totalLabel: {
+    color: 'rgba(255,255,255,0.86)',
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.regular,
+    marginTop: 5,
+  },
+
   distributionContainer: {
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
+    marginTop: spacing.lg,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.2)',
+    borderTopColor: 'rgba(255,255,255,0.22)',
   },
+
   distributionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: 3,
   },
+
   distributionLabel: {
-    color: 'rgba(255,255,255,0.8)',
+    width: 18,
+    color: '#FFFFFF',
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
-    width: 40,
+    fontFamily: typography.fontFamily.semiBold,
+    textAlign: 'center',
   },
+
   distributionBar: {
     flex: 1,
-    height: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 3,
+    height: 7,
+    marginLeft: spacing.sm,
+    marginRight: spacing.sm,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    borderRadius: 5,
     overflow: 'hidden',
   },
+
   distributionFill: {
     height: '100%',
-    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
   },
+
   distributionCount: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: typography.fontSize.sm,
+    width: 28,
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: typography.fontSize.xs,
     fontFamily: typography.fontFamily.medium,
-    width: 30,
     textAlign: 'right',
   },
-  sectionTitle: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  reviewCard: {
-    borderRadius: 16,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  reviewHeader: {
+
+  sectionHeader: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
-  reviewerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+
+  sectionTitle: {
+    fontSize: typography.fontSize.xl,
+    fontFamily: typography.fontFamily.bold,
   },
-  reviewerAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.primary + '20',
+
+  sectionSubtitle: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.regular,
+    marginTop: 3,
+  },
+
+  countBadge: {
+    minWidth: 38,
+    height: 34,
+    paddingHorizontal: 10,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  reviewerAvatarText: {
-    fontSize: typography.fontSize.lg,
+
+  countBadgeText: {
+    fontSize: typography.fontSize.md,
     fontFamily: typography.fontFamily.bold,
-    color: colors.primary,
   },
+
+  reviewCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+
+  reviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+
+  reviewerInfo: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  reviewerAvatarFrame: {
+    width: 48,
+    height: 48,
+    borderRadius: 13,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+
+  reviewerAvatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 11,
+  },
+
+  reviewerAvatarText: {
+    fontSize: 21,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  reviewerDetails: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: spacing.sm,
+  },
+
   reviewerName: {
     fontSize: typography.fontSize.md,
     fontFamily: typography.fontFamily.semiBold,
   },
+
+  reviewMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: 4,
+  },
+
   reviewDate: {
     fontSize: typography.fontSize.xs,
     fontFamily: typography.fontFamily.regular,
+    marginLeft: 4,
   },
-  reviewRating: {
-    fontSize: typography.fontSize.md,
+
+  clientBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginLeft: 7,
   },
+
+  clientBadgeText: {
+    fontSize: 10,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  starsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: spacing.sm,
+  },
+
+  starIcon: {
+    marginLeft: 1,
+  },
+
   reviewComment: {
     fontSize: typography.fontSize.md,
     fontFamily: typography.fontFamily.regular,
-    lineHeight: 22,
-    marginBottom: spacing.sm,
+    lineHeight: 23,
+    marginBottom: spacing.md,
   },
+
   responseContainer: {
+    borderLeftWidth: 3,
+    borderRadius: 10,
     padding: spacing.sm,
-    borderRadius: 8,
-    marginTop: spacing.xs,
+    marginTop: 2,
   },
+
+  responseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 5,
+  },
+
   responseLabel: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.medium,
-    marginBottom: 2,
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.semiBold,
+    marginLeft: 5,
   },
+
   responseText: {
     fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.regular,
-    lineHeight: 20,
+    lineHeight: 21,
   },
+
   respondButton: {
     alignSelf: 'flex-start',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 8,
-    backgroundColor: colors.primary + '20',
-  },
-  respondButtonText: {
-    color: colors.primary,
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
-  },
-  responseInputContainer: {
-    marginTop: spacing.sm,
-  },
-  responseInput: {
+    minHeight: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 8,
-    padding: spacing.sm,
-    minHeight: 60,
+    borderRadius: 20,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+
+  respondButtonText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.semiBold,
+    marginLeft: 7,
+    marginRight: 8,
+  },
+
+  responseInputContainer: {
+    marginTop: 2,
+  },
+
+  responseInput: {
+    minHeight: 85,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     fontSize: typography.fontSize.md,
     fontFamily: typography.fontFamily.regular,
     textAlignVertical: 'top',
   },
+
   responseActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  responseCancel: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  responseCancelText: {
-    color: colors.textSecondary,
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
-  },
-  responseSubmit: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: 8,
-    backgroundColor: colors.primary,
-  },
-  responseSubmitText: {
-    color: '#fff',
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
-  },
-  emptyState: {
     alignItems: 'center',
-    padding: spacing.xl,
+    flexWrap: 'wrap',
+    marginTop: spacing.sm,
   },
+
+  cancelButton: {
+    minHeight: 38,
+    borderWidth: 1,
+    borderRadius: 19,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+
+  cancelButtonText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  publishButton: {
+    minHeight: 38,
+    borderRadius: 19,
+    paddingHorizontal: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  publishButtonText: {
+    color: '#FFFFFF',
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.semiBold,
+    marginLeft: 6,
+  },
+
+  emptyState: {
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+  },
+
+  emptyIconContainer: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+
   emptyStateTitle: {
     fontSize: typography.fontSize.lg,
     fontFamily: typography.fontFamily.bold,
-    marginTop: spacing.md,
+    marginBottom: spacing.xs,
   },
+
   emptyStateText: {
-    fontSize: typography.fontSize.md,
+    maxWidth: 320,
+    fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.regular,
     textAlign: 'center',
-    marginTop: spacing.xs,
+    lineHeight: 21,
+  },
+
+  refreshButton: {
+    minHeight: 40,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.lg,
+  },
+
+  refreshButtonText: {
+    color: '#FFFFFF',
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.semiBold,
+    marginLeft: 7,
   },
 });
 

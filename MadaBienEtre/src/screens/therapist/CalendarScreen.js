@@ -21,6 +21,7 @@ import {
   TextInput,
   Modal,
   Pressable,
+  Image,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +35,17 @@ import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 
 import bookingService from '../../services/bookingService';
+
+// ============================================================
+// COLORS
+// ============================================================
+
+const PRIMARY_GREEN = colors.primary || '#168A55';
+const SECONDARY_GREEN = '#2E9B68';
+const LIGHT_GREEN = '#E8F6EF';
+
+const TEXT_DARK = '#17231D';
+const MUTED_TEXT = '#718078';
 
 // ============================================================
 // HELPERS
@@ -69,9 +81,6 @@ const getBookingDate = (booking) => {
     return null;
   }
 
-  // Exemple :
-  // 2026-09-06T14:30:00
-  // 2026-09-06
   const stringValue = String(value);
 
   return stringValue.includes('T')
@@ -118,21 +127,46 @@ const getClientName = (booking) => {
   return (
     booking?.client_name ??
     booking?.client_fullname ??
+    booking?.client_full_name ??
     booking?.client?.fullname ??
     booking?.client?.full_name ??
     booking?.client?.name ??
-    booking?.client_name ??
     'Client'
   );
 };
 
+const getClientPhoto = (booking) => {
+  return (
+    booking?.client_photo ??
+    booking?.client_avatar ??
+    booking?.client_image ??
+    booking?.client?.photo_url ??
+    booking?.client?.avatar_url ??
+    booking?.client?.image_url ??
+    booking?.client?.photo ??
+    booking?.client?.avatar ??
+    booking?.client?.image ??
+    null
+  );
+};
+
 const getMassageName = (booking) => {
+  const massage = booking?.massage_type;
+
+  if (typeof massage === 'object' && massage !== null) {
+    return (
+      massage?.name ??
+      massage?.title ??
+      massage?.label ??
+      'Massage'
+    );
+  }
+
   return (
     booking?.massage_type_name ??
     booking?.massageTypeName ??
-    booking?.massage_type?.name ??
-    booking?.massage_type?.title ??
-    booking?.massage_type?.label ??
+    booking?.massage_name ??
+    booking?.massageName ??
     booking?.massage ??
     'Massage'
   );
@@ -144,6 +178,7 @@ const getAddress = (booking) => {
     booking?.client_location ??
     booking?.clientLocation ??
     booking?.location ??
+    booking?.client?.address ??
     'Adresse non renseignée'
   );
 };
@@ -161,9 +196,7 @@ const getPrice = (booking) => {
 
   const number = Number(value);
 
-  return Number.isFinite(number)
-    ? number
-    : 0;
+  return Number.isFinite(number) ? number : 0;
 };
 
 const formatPrice = (value) => {
@@ -182,19 +215,32 @@ const formatDateLong = (dateString) => {
   }
 
   try {
-    const date = new Date(
-      `${dateString}T00:00:00`
-    );
+    const date = new Date(`${dateString}T00:00:00`);
 
-    return date.toLocaleDateString(
-      'fr-FR',
-      {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      }
-    );
+    return date.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch (error) {
+    return dateString;
+  }
+};
+
+const formatShortDate = (dateString) => {
+  if (!dateString) {
+    return '';
+  }
+
+  try {
+    const date = new Date(`${dateString}T00:00:00`);
+
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
   } catch (error) {
     return dateString;
   }
@@ -208,55 +254,64 @@ const STATUS_CONFIG = {
   pending: {
     label: 'En attente',
     icon: 'time-outline',
-    color: '#FFA726',
+    color: '#F59E0B',
+    background: '#FFF7E6',
   },
 
   negotiating: {
     label: 'Négociation',
     icon: 'swap-horizontal-outline',
-    color: '#7E57C2',
+    color: '#7C3AED',
+    background: '#F1EAFE',
   },
 
   confirmed: {
     label: 'Confirmée',
     icon: 'checkmark-circle-outline',
-    color: '#4CAF50',
+    color: '#16A34A',
+    background: '#E8F7EE',
   },
 
   in_progress: {
     label: 'En cours',
     icon: 'play-circle-outline',
-    color: '#FF9800',
+    color: '#EA8A00',
+    background: '#FFF2DE',
   },
 
   completed: {
     label: 'Terminée',
     icon: 'checkmark-done-circle-outline',
-    color: '#2E7D32',
+    color: '#15803D',
+    background: '#E3F4E8',
   },
 
   cancelled: {
     label: 'Annulée',
     icon: 'close-circle-outline',
-    color: '#D32F2F',
+    color: '#DC2626',
+    background: '#FDECEC',
   },
 
   cancelled_by_client: {
     label: 'Annulée par client',
     icon: 'close-circle-outline',
-    color: '#D32F2F',
+    color: '#DC2626',
+    background: '#FDECEC',
   },
 
   cancelled_by_therapist: {
     label: 'Annulée par thérapeute',
     icon: 'close-circle-outline',
-    color: '#D32F2F',
+    color: '#DC2626',
+    background: '#FDECEC',
   },
 
   expired: {
     label: 'Expirée',
     icon: 'alert-circle-outline',
-    color: '#757575',
+    color: '#6B7280',
+    background: '#F1F3F5',
   },
 };
 
@@ -264,32 +319,45 @@ const getStatusConfig = (status) => {
   const normalized = normalizeStatus(status);
 
   return (
-    STATUS_CONFIG[normalized] ||
-    {
+    STATUS_CONFIG[normalized] || {
       label: normalized || 'Inconnu',
       icon: 'help-circle-outline',
-      color: '#777',
+      color: '#777777',
+      background: '#F1F3F5',
     }
   );
 };
 
 // ============================================================
-// DATE RANGE HELPERS
-// (mini-calendrier "Du / Au" — même logique que sur
-// src/screens/client/HistoryScreen.js)
+// DATE HELPERS
 // ============================================================
 
 const WEEKDAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 const MONTH_LABELS = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+  'Janvier',
+  'Février',
+  'Mars',
+  'Avril',
+  'Mai',
+  'Juin',
+  'Juillet',
+  'Août',
+  'Septembre',
+  'Octobre',
+  'Novembre',
+  'Décembre',
 ];
 
 const toDateKey = (date) => {
+  if (!date) {
+    return null;
+  }
+
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
+
   return `${year}-${month}-${day}`;
 };
 
@@ -298,13 +366,12 @@ const buildMonthGrid = (viewDate) => {
   const month = viewDate.getMonth();
 
   const firstDay = new Date(year, month, 1);
-  // JS : dimanche=0..samedi=6 -> on veut lundi en premier
   const startOffset = (firstDay.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const cells = [];
 
-  for (let i = 0; i < startOffset; i += 1) {
+  for (let index = 0; index < startOffset; index += 1) {
     cells.push(null);
   }
 
@@ -316,33 +383,32 @@ const buildMonthGrid = (viewDate) => {
 };
 
 // ============================================================
-// TOAST (notifications d'action — remplace Alert.alert pour
-// les simples notifications, fonctionne pareil sur web/Android)
+// TOAST
 // ============================================================
 
 const TOAST_CONFIG = {
   success: {
     icon: 'checkmark-circle',
-    color: '#16A34A',
+    color: '#15803D',
     background: '#DCFCE7',
   },
 
   error: {
     icon: 'close-circle',
-    color: '#DC2626',
+    color: '#B91C1C',
     background: '#FEE2E2',
   },
 
   info: {
     icon: 'information-circle',
-    color: '#2563EB',
+    color: '#1D4ED8',
     background: '#DBEAFE',
   },
 };
 
 const Toast = ({ visible, type, message, onHide }) => {
   const translateY = useMemo(
-    () => new Animated.Value(-80),
+    () => new Animated.Value(-90),
     [],
   );
 
@@ -359,8 +425,8 @@ const Toast = ({ visible, type, message, onHide }) => {
 
     const timer = setTimeout(() => {
       Animated.timing(translateY, {
-        toValue: -80,
-        duration: 200,
+        toValue: -90,
+        duration: 220,
         useNativeDriver: Platform.OS !== 'web',
       }).start(() => {
         onHide?.();
@@ -381,24 +447,33 @@ const Toast = ({ visible, type, message, onHide }) => {
       pointerEvents="box-none"
       style={[
         styles.toastOverlay,
-        { transform: [{ translateY }] },
+        {
+          transform: [{ translateY }],
+        },
       ]}
     >
       <View
         style={[
           styles.toastCard,
-          { backgroundColor: config.background },
+          {
+            backgroundColor: config.background,
+          },
         ]}
       >
         <Ionicons
           name={config.icon}
-          size={20}
+          size={21}
           color={config.color}
         />
 
         <Text
           numberOfLines={2}
-          style={[styles.toastText, { color: config.color }]}
+          style={[
+            styles.toastText,
+            {
+              color: config.color,
+            },
+          ]}
         >
           {message}
         </Text>
@@ -409,12 +484,6 @@ const Toast = ({ visible, type, message, onHide }) => {
 
 // ============================================================
 // DATE RANGE MODAL
-//
-// Bottom sheet avec deux champs "Du"/"Au" + un mini calendrier
-// mensuel pour filtrer la liste complète par période. Rien
-// n'est appliqué tant que l'utilisateur n'appuie pas sur
-// "Appliquer". Ouverte depuis l'icône calendrier à droite de la
-// barre de recherche.
 // ============================================================
 
 const DateRangeModal = ({
@@ -427,9 +496,6 @@ const DateRangeModal = ({
   onReset,
   onApply,
 }) => {
-  // ⚠️ Android : la hauteur de la barre de navigation gestuelle
-  // varie selon les téléphones. On l'ajoute au padding bas du
-  // sheet pour que "Appliquer" reste toujours visible/cliquable.
   const insets = useSafeAreaInsets();
 
   const [viewDate, setViewDate] = useState(
@@ -449,30 +515,39 @@ const DateRangeModal = ({
 
   const goPrevMonth = useCallback(() => {
     setViewDate(
-      (prev) =>
-        new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
+      (previous) =>
+        new Date(
+          previous.getFullYear(),
+          previous.getMonth() - 1,
+          1,
+        ),
     );
   }, []);
 
   const goNextMonth = useCallback(() => {
     setViewDate(
-      (prev) =>
-        new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
+      (previous) =>
+        new Date(
+          previous.getFullYear(),
+          previous.getMonth() + 1,
+          1,
+        ),
     );
   }, []);
 
   const todayKey = toDateKey(new Date());
-  const startKey = range?.start ? toDateKey(range.start) : null;
-  const endKey = range?.end ? toDateKey(range.end) : null;
+  const startKey = range?.start
+    ? toDateKey(range.start)
+    : null;
+  const endKey = range?.end
+    ? toDateKey(range.end)
+    : null;
 
   return (
     <Modal
       visible={visible}
       transparent
       animationType="slide"
-      // ⚠️ Android : sans ça, le bottom-sheet peut se retrouver
-      // partiellement masqué/derrière la barre de statut ou la
-      // barre de navigation système sur certains téléphones.
       statusBarTranslucent={Platform.OS === 'android'}
       onRequestClose={onClose}
     >
@@ -484,41 +559,57 @@ const DateRangeModal = ({
           style={[
             styles.calendarSheet,
             {
-              backgroundColor: themeColors.card ?? themeColors.surface,
+              backgroundColor:
+                themeColors.card || themeColors.surface,
               paddingBottom:
                 20 +
-                (Platform.OS === 'android' ? insets.bottom : 0),
+                (Platform.OS === 'android'
+                  ? insets.bottom
+                  : 0),
             },
           ]}
           onPress={() => {}}
         >
           <View style={styles.actionSheetHandle} />
 
-          <Text
-            style={[
-              styles.calendarModalTitle,
-              { color: themeColors.text },
-            ]}
-          >
-            Filtrer par période
-          </Text>
+          <View style={styles.modalTitleRow}>
+            <View
+              style={[
+                styles.modalTitleIcon,
+                {
+                  backgroundColor: `${PRIMARY_GREEN}18`,
+                },
+              ]}
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color={PRIMARY_GREEN}
+              />
+            </View>
 
-          {/* ======================================================
-              "DU" / "AU" — deux champs qui affichent la plage
-              choisie, comme deux inputs de date. Le champ actif
-              (celui qui va recevoir le prochain jour touché dans
-              le calendrier) est mis en surbrillance.
-              ====================================================== */}
+            <Text
+              style={[
+                styles.calendarModalTitle,
+                {
+                  color: themeColors.text,
+                },
+              ]}
+            >
+              Filtrer par période
+            </Text>
+          </View>
+
           <View style={styles.rangeFieldsRow}>
             <View
               style={[
                 styles.rangeField,
                 {
                   borderColor: !endKey
-                    ? colors.primary
+                    ? PRIMARY_GREEN
                     : themeColors.border,
                   backgroundColor: !endKey
-                    ? `${colors.primary}10`
+                    ? `${PRIMARY_GREEN}10`
                     : 'transparent',
                 },
               ]}
@@ -526,7 +617,9 @@ const DateRangeModal = ({
               <Text
                 style={[
                   styles.rangeFieldLabel,
-                  { color: themeColors.textSecondary },
+                  {
+                    color: themeColors.textSecondary,
+                  },
                 ]}
               >
                 Du
@@ -536,11 +629,13 @@ const DateRangeModal = ({
                 numberOfLines={1}
                 style={[
                   styles.rangeFieldValue,
-                  { color: themeColors.text },
+                  {
+                    color: themeColors.text,
+                  },
                 ]}
               >
                 {range?.start
-                  ? formatDateLong(toDateKey(range.start)).slice(0, 16)
+                  ? formatShortDate(toDateKey(range.start))
                   : 'Choisir'}
               </Text>
             </View>
@@ -549,7 +644,6 @@ const DateRangeModal = ({
               name="arrow-forward"
               size={16}
               color={themeColors.textSecondary}
-              style={styles.rangeFieldArrow}
             />
 
             <View
@@ -558,11 +652,11 @@ const DateRangeModal = ({
                 {
                   borderColor:
                     !!range?.start && !endKey
-                      ? colors.primary
+                      ? PRIMARY_GREEN
                       : themeColors.border,
                   backgroundColor:
                     !!range?.start && !endKey
-                      ? `${colors.primary}10`
+                      ? `${PRIMARY_GREEN}10`
                       : 'transparent',
                 },
               ]}
@@ -570,7 +664,9 @@ const DateRangeModal = ({
               <Text
                 style={[
                   styles.rangeFieldLabel,
-                  { color: themeColors.textSecondary },
+                  {
+                    color: themeColors.textSecondary,
+                  },
                 ]}
               >
                 Au
@@ -580,11 +676,13 @@ const DateRangeModal = ({
                 numberOfLines={1}
                 style={[
                   styles.rangeFieldValue,
-                  { color: themeColors.text },
+                  {
+                    color: themeColors.text,
+                  },
                 ]}
               >
                 {range?.end
-                  ? formatDateLong(toDateKey(range.end)).slice(0, 16)
+                  ? formatShortDate(toDateKey(range.end))
                   : 'Choisir'}
               </Text>
             </View>
@@ -592,12 +690,18 @@ const DateRangeModal = ({
 
           <View style={styles.calendarHeaderRow}>
             <TouchableOpacity
+              style={styles.monthArrowButton}
               onPress={goPrevMonth}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              hitSlop={{
+                top: 8,
+                bottom: 8,
+                left: 8,
+                right: 8,
+              }}
             >
               <Ionicons
                 name="chevron-back"
-                size={20}
+                size={19}
                 color={themeColors.text}
               />
             </TouchableOpacity>
@@ -605,7 +709,9 @@ const DateRangeModal = ({
             <Text
               style={[
                 styles.calendarHeaderTitle,
-                { color: themeColors.text },
+                {
+                  color: themeColors.text,
+                },
               ]}
             >
               {MONTH_LABELS[viewDate.getMonth()]}{' '}
@@ -613,12 +719,18 @@ const DateRangeModal = ({
             </Text>
 
             <TouchableOpacity
+              style={styles.monthArrowButton}
               onPress={goNextMonth}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              hitSlop={{
+                top: 8,
+                bottom: 8,
+                left: 8,
+                right: 8,
+              }}
             >
               <Ionicons
                 name="chevron-forward"
-                size={20}
+                size={19}
                 color={themeColors.text}
               />
             </TouchableOpacity>
@@ -630,7 +742,9 @@ const DateRangeModal = ({
                 key={`${label}-${index}`}
                 style={[
                   styles.calendarWeekLabel,
-                  { color: themeColors.textSecondary },
+                  {
+                    color: themeColors.textSecondary,
+                  },
                 ]}
               >
                 {label}
@@ -666,37 +780,37 @@ const DateRangeModal = ({
               return (
                 <TouchableOpacity
                   key={key}
+                  activeOpacity={0.75}
+                  onPress={() => onSelectDate(cellDate)}
                   style={[
                     styles.calendarCell,
                     isInRange && {
-                      backgroundColor: `${colors.primary}18`,
+                      backgroundColor: `${PRIMARY_GREEN}18`,
                     },
                     isStart &&
                       !!endKey && {
-                        backgroundColor: `${colors.primary}18`,
-                        borderTopLeftRadius: 16,
-                        borderBottomLeftRadius: 16,
+                        backgroundColor: `${PRIMARY_GREEN}18`,
+                        borderTopLeftRadius: 18,
+                        borderBottomLeftRadius: 18,
                       },
                     isEnd &&
                       !!startKey && {
-                        backgroundColor: `${colors.primary}18`,
-                        borderTopRightRadius: 16,
-                        borderBottomRightRadius: 16,
+                        backgroundColor: `${PRIMARY_GREEN}18`,
+                        borderTopRightRadius: 18,
+                        borderBottomRightRadius: 18,
                       },
                   ]}
-                  activeOpacity={0.7}
-                  onPress={() => onSelectDate(cellDate)}
                 >
                   <View
                     style={[
                       styles.calendarDayCircle,
                       isEdge && {
-                        backgroundColor: colors.primary,
+                        backgroundColor: PRIMARY_GREEN,
                       },
                       !isEdge &&
                         isToday && {
                           borderWidth: 1.5,
-                          borderColor: colors.primary,
+                          borderColor: PRIMARY_GREEN,
                         },
                     ]}
                   >
@@ -714,12 +828,17 @@ const DateRangeModal = ({
                     </Text>
                   </View>
 
-                  {hasBooking && !isEdge && (
+                  {hasBooking && (
                     <View
                       style={[
                         styles.calendarDayDot,
                         {
-                          backgroundColor: colors.primary,
+                          backgroundColor: isEdge
+                            ? '#FFFFFF'
+                            : PRIMARY_GREEN,
+                          width: isEdge ? 5 : 6,
+                          height: isEdge ? 5 : 6,
+                          borderRadius: isEdge ? 2.5 : 3,
                         },
                       ]}
                     />
@@ -729,17 +848,41 @@ const DateRangeModal = ({
             })}
           </View>
 
+          <View style={styles.calendarLegendInfo}>
+            <View
+              style={[
+                styles.calendarLegendDot,
+                {
+                  backgroundColor: PRIMARY_GREEN,
+                },
+              ]}
+            />
+
+            <Text
+              style={[
+                styles.calendarHint,
+                {
+                  color: themeColors.textSecondary,
+                },
+              ]}
+            >
+              Les points indiquent les dates avec réservation.
+            </Text>
+          </View>
+
           <Text
             style={[
-              styles.calendarHint,
-              { color: themeColors.textSecondary },
+              styles.calendarSelectionHint,
+              {
+                color: themeColors.textSecondary,
+              },
             ]}
           >
             {!range?.start
               ? 'Touchez un jour pour définir le début de la période.'
               : !range?.end
               ? 'Touchez un second jour pour définir la fin de la période.'
-              : 'Période sélectionnée. Appuyez sur "Appliquer".'}
+              : 'Période sélectionnée. Appuyez sur Appliquer.'}
           </Text>
 
           <View style={styles.calendarActions}>
@@ -749,13 +892,17 @@ const DateRangeModal = ({
               style={[
                 styles.confirmButton,
                 styles.confirmButtonGhost,
-                { borderColor: themeColors.border },
+                {
+                  borderColor: themeColors.border,
+                },
               ]}
             >
               <Text
                 style={[
                   styles.confirmButtonGhostText,
-                  { color: themeColors.text },
+                  {
+                    color: themeColors.text,
+                  },
                 ]}
               >
                 Réinitialiser
@@ -770,7 +917,7 @@ const DateRangeModal = ({
                 styles.confirmButton,
                 {
                   backgroundColor: range?.start
-                    ? colors.primary
+                    ? PRIMARY_GREEN
                     : themeColors.border,
                 },
               ]}
@@ -787,11 +934,7 @@ const DateRangeModal = ({
 };
 
 // ============================================================
-// BOOKING MENU SHEET (menu ⋮ d'une réservation)
-//
-// Regroupe TOUTES les actions d'une réservation (Voir les
-// détails, Commencer le massage, Terminer le massage) au lieu
-// de boutons séparés éparpillés dans la carte.
+// BOOKING MENU SHEET
 // ============================================================
 
 const BookingMenuSheet = ({
@@ -824,34 +967,112 @@ const BookingMenuSheet = ({
           style={[
             styles.actionSheet,
             {
-              backgroundColor: themeColors.card ?? themeColors.surface,
+              backgroundColor:
+                themeColors.card || themeColors.surface,
               paddingBottom:
                 20 +
-                (Platform.OS === 'android' ? insets.bottom : 0),
+                (Platform.OS === 'android'
+                  ? insets.bottom
+                  : 0),
             },
           ]}
           onPress={() => {}}
         >
           <View style={styles.actionSheetHandle} />
 
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.actionSheetTitle,
-              { color: themeColors.text },
-            ]}
-          >
-            {booking ? getClientName(booking) : 'Réservation'}
-          </Text>
+          <View style={styles.menuClientHeader}>
+            <View
+              style={[
+                styles.menuClientAvatar,
+                {
+                  backgroundColor: `${PRIMARY_GREEN}18`,
+                },
+              ]}
+            >
+              <Ionicons
+                name="person-outline"
+                size={21}
+                color={PRIMARY_GREEN}
+              />
+            </View>
 
-          <Text
+            <View style={styles.menuClientInfo}>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.actionSheetTitle,
+                  {
+                    color: themeColors.text,
+                  },
+                ]}
+              >
+                {booking
+                  ? getClientName(booking)
+                  : 'Réservation'}
+              </Text>
+
+              <Text
+                style={[
+                  styles.actionSheetSubtitle,
+                  {
+                    color: statusConfig.color,
+                  },
+                ]}
+              >
+                {statusConfig.label}
+              </Text>
+            </View>
+          </View>
+
+          <View
             style={[
-              styles.actionSheetSubtitle,
-              { color: statusConfig.color },
+              styles.menuBookingSummary,
+              {
+                backgroundColor: themeColors.background,
+                borderColor: themeColors.border,
+              },
             ]}
           >
-            {statusConfig.label}
-          </Text>
+            <View style={styles.menuSummaryItem}>
+              <Ionicons
+                name="calendar-outline"
+                size={16}
+                color={themeColors.textSecondary}
+              />
+
+              <Text
+                style={[
+                  styles.menuSummaryText,
+                  {
+                    color: themeColors.text,
+                  },
+                ]}
+              >
+                {getBookingDate(booking)
+                  ? formatShortDate(getBookingDate(booking))
+                  : 'Date inconnue'}
+              </Text>
+            </View>
+
+            <View style={styles.menuSummaryItem}>
+              <Ionicons
+                name="time-outline"
+                size={16}
+                color={themeColors.textSecondary}
+              />
+
+              <Text
+                style={[
+                  styles.menuSummaryText,
+                  {
+                    color: themeColors.text,
+                  },
+                ]}
+              >
+                {getBookingTime(booking)}
+              </Text>
+            </View>
+          </View>
 
           <TouchableOpacity
             activeOpacity={0.8}
@@ -861,24 +1082,34 @@ const BookingMenuSheet = ({
             <View
               style={[
                 styles.actionSheetIcon,
-                { backgroundColor: `${colors.primary}15` },
+                {
+                  backgroundColor: `${PRIMARY_GREEN}15`,
+                },
               ]}
             >
               <Ionicons
                 name="eye-outline"
-                size={18}
-                color={colors.primary}
+                size={19}
+                color={PRIMARY_GREEN}
               />
             </View>
 
             <Text
               style={[
                 styles.actionSheetRowText,
-                { color: themeColors.text },
+                {
+                  color: themeColors.text,
+                },
               ]}
             >
               Voir les détails
             </Text>
+
+            <Ionicons
+              name="chevron-forward"
+              size={17}
+              color={themeColors.textSecondary}
+            />
           </TouchableOpacity>
 
           {status === 'confirmed' && (
@@ -890,12 +1121,14 @@ const BookingMenuSheet = ({
               <View
                 style={[
                   styles.actionSheetIcon,
-                  { backgroundColor: '#4CAF5018' },
+                  {
+                    backgroundColor: '#4CAF5018',
+                  },
                 ]}
               >
                 <Ionicons
                   name="play-circle-outline"
-                  size={18}
+                  size={19}
                   color="#4CAF50"
                 />
               </View>
@@ -903,11 +1136,19 @@ const BookingMenuSheet = ({
               <Text
                 style={[
                   styles.actionSheetRowText,
-                  { color: themeColors.text },
+                  {
+                    color: themeColors.text,
+                  },
                 ]}
               >
                 Commencer le massage
               </Text>
+
+              <Ionicons
+                name="chevron-forward"
+                size={17}
+                color={themeColors.textSecondary}
+              />
             </TouchableOpacity>
           )}
 
@@ -920,12 +1161,14 @@ const BookingMenuSheet = ({
               <View
                 style={[
                   styles.actionSheetIcon,
-                  { backgroundColor: '#2E7D3218' },
+                  {
+                    backgroundColor: '#2E7D3218',
+                  },
                 ]}
               >
                 <Ionicons
                   name="checkmark-done-circle-outline"
-                  size={18}
+                  size={19}
                   color="#2E7D32"
                 />
               </View>
@@ -933,23 +1176,38 @@ const BookingMenuSheet = ({
               <Text
                 style={[
                   styles.actionSheetRowText,
-                  { color: themeColors.text },
+                  {
+                    color: themeColors.text,
+                  },
                 ]}
               >
                 Terminer le massage
               </Text>
+
+              <Ionicons
+                name="chevron-forward"
+                size={17}
+                color={themeColors.textSecondary}
+              />
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
             activeOpacity={0.8}
             onPress={onClose}
-            style={styles.actionSheetCloseButton}
+            style={[
+              styles.actionSheetCloseButton,
+              {
+                borderColor: themeColors.border,
+              },
+            ]}
           >
             <Text
               style={[
                 styles.actionSheetCloseText,
-                { color: themeColors.textSecondary },
+                {
+                  color: themeColors.textSecondary,
+                },
               ]}
             >
               Fermer
@@ -962,7 +1220,7 @@ const BookingMenuSheet = ({
 };
 
 // ============================================================
-// LEGEND COMPONENT
+// LEGEND
 // ============================================================
 
 const Legend = ({
@@ -971,9 +1229,7 @@ const Legend = ({
   themeColors,
 }) => {
   return (
-    <View
-      style={styles.legendItem}
-    >
+    <View style={styles.legendItem}>
       <View
         style={[
           styles.legendDot,
@@ -987,8 +1243,7 @@ const Legend = ({
         style={[
           styles.legendText,
           {
-            color:
-              themeColors.textSecondary,
+            color: themeColors.textSecondary,
           },
         ]}
       >
@@ -999,58 +1254,37 @@ const Legend = ({
 };
 
 // ============================================================
-// MAIN
+// MAIN SCREEN
 // ============================================================
 
 const CalendarScreen = ({ navigation }) => {
-  const { colors: themeColors, isDark } =
-    useTheme();
+  const { colors: themeColors } = useTheme();
 
-  const [isLoading, setIsLoading] =
-    useState(true);
-
-  const [isRefreshing, setIsRefreshing] =
-    useState(false);
-
-  const [bookings, setBookings] =
-    useState([]);
-
-  const [errorMessage, setErrorMessage] =
-    useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [bookings, setBookings] = useState([]);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const fadeAnim = useRef(
-    new Animated.Value(0)
+    new Animated.Value(0),
   ).current;
-
-  // ==========================================================
-  // RECHERCHE + FILTRE PAR PÉRIODE
-  // ==========================================================
 
   const [searchQuery, setSearchQuery] = useState('');
 
-  // - draftRange : ce que l'utilisateur est en train de choisir
-  //   dans la modale (pas encore appliqué à la liste)
-  // - appliedRange : la période réellement utilisée pour filtrer
-  //   la liste (mise à jour uniquement au clic sur "Appliquer")
-  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [calendarVisible, setCalendarVisible] =
+    useState(false);
+
   const [draftRange, setDraftRange] = useState({
     start: null,
     end: null,
   });
+
   const [appliedRange, setAppliedRange] = useState({
     start: null,
     end: null,
   });
 
-  // ==========================================================
-  // MENU ⋮ D'UNE RÉSERVATION
-  // ==========================================================
-
   const [menuTarget, setMenuTarget] = useState(null);
-
-  // ==========================================================
-  // TOAST
-  // ==========================================================
 
   const [toast, setToast] = useState({
     visible: false,
@@ -1058,22 +1292,30 @@ const CalendarScreen = ({ navigation }) => {
     message: '',
   });
 
-  const showToast = useCallback((message, type = 'success') => {
-    setToast({ visible: true, type, message });
-  }, []);
+  const showToast = useCallback(
+    (message, type = 'success') => {
+      setToast({
+        visible: true,
+        type,
+        message,
+      });
+    },
+    [],
+  );
 
   const hideToast = useCallback(() => {
-    setToast((previous) => ({ ...previous, visible: false }));
+    setToast((previous) => ({
+      ...previous,
+      visible: false,
+    }));
   }, []);
 
   // ==========================================================
-  // LOAD REAL DATA FROM BACKEND
+  // LOAD BOOKINGS
   // ==========================================================
 
   const loadBookings = useCallback(
-    async ({
-      refreshing = false,
-    } = {}) => {
+    async ({ refreshing = false } = {}) => {
       if (refreshing) {
         setIsRefreshing(true);
       } else {
@@ -1083,93 +1325,53 @@ const CalendarScreen = ({ navigation }) => {
       setErrorMessage('');
 
       try {
-        console.log(
-          '📥 [CALENDAR] Chargement des réservations depuis le backend...'
-        );
-
-        /*
-         * IMPORTANT :
-         *
-         * On n'utilise plus :
-         *
-         * axios.get(`${API_URL}/bookings`)
-         *
-         * On utilise bookingService.getBookings()
-         *
-         * api.js gère alors le token / base URL.
-         */
-
         const result =
           await bookingService.getBookings();
-
-        console.log(
-          '📦 [CALENDAR] Backend result:',
-          result
-        );
 
         if (!result?.success) {
           throw new Error(
             result?.error ||
-              'Impossible de récupérer les réservations.'
+              'Impossible de récupérer les réservations.',
           );
         }
 
-        const realBookings =
-          Array.isArray(result?.data)
-            ? result.data
-            : [];
+        const realBookings = Array.isArray(result?.data)
+          ? result.data
+          : [];
 
-        /*
-         * Les données ici viennent directement
-         * du backend et sont déjà normalisées
-         * par bookingService.normalizeBooking().
-         */
+        const validBookings = realBookings
+          .filter(
+            (booking) =>
+              getBookingId(booking) !== null &&
+              getBookingDate(booking),
+          )
+          .sort((a, b) => {
+            const dateA = `${getBookingDate(a)} ${getBookingTime(a)}`;
+            const dateB = `${getBookingDate(b)} ${getBookingTime(b)}`;
 
-        const validBookings =
-          realBookings
-            .filter(
-              (booking) =>
-                getBookingId(booking) !== null &&
-                getBookingDate(booking)
-            )
-            .sort((a, b) => {
-              const dateA =
-                `${getBookingDate(a)} ${getBookingTime(a)}`;
-
-              const dateB =
-                `${getBookingDate(b)} ${getBookingTime(b)}`;
-
-              return dateA.localeCompare(dateB);
-            });
-
-        console.log(
-          `✅ [CALENDAR] ${validBookings.length} réservation(s) réelle(s) reçue(s)`
-        );
+            return dateA.localeCompare(dateB);
+          });
 
         setBookings(validBookings);
       } catch (error) {
         console.error(
-          '❌ [CALENDAR] Erreur:',
-          error
+          '[CALENDAR] Erreur de chargement :',
+          error,
         );
 
         setBookings([]);
 
         setErrorMessage(
           error?.message ||
-            'Impossible de charger les réservations.'
+            'Impossible de charger les réservations.',
         );
       } finally {
         setIsLoading(false);
         setIsRefreshing(false);
       }
     },
-    []
+    [],
   );
-
-  // ==========================================================
-  // INITIAL LOAD
-  // ==========================================================
 
   useEffect(() => {
     loadBookings();
@@ -1177,47 +1379,38 @@ const CalendarScreen = ({ navigation }) => {
     Animated.timing(fadeAnim, {
       toValue: 1,
       duration: 700,
-
-      // IMPORTANT pour Web :
-      // useNativeDriver n'est pas supporté sur Web.
-      useNativeDriver:
-        Platform.OS !== 'web',
+      useNativeDriver: Platform.OS !== 'web',
     }).start();
-  }, []);
-
-  // ==========================================================
-  // RELOAD WHEN SCREEN GETS FOCUS
-  // ==========================================================
+  }, [fadeAnim, loadBookings]);
 
   useFocusEffect(
     useCallback(() => {
       loadBookings({
         refreshing: false,
       });
-    }, [loadBookings])
+    }, [loadBookings]),
   );
 
   // ==========================================================
-  // DATES AVEC AU MOINS UNE RÉSERVATION
-  // (pour le petit point sous les jours du mini-calendrier)
+  // BOOKING DATES
   // ==========================================================
 
   const bookingDateSet = useMemo(() => {
-    const set = new Set();
+    const dateSet = new Set();
 
     bookings.forEach((booking) => {
       const date = getBookingDate(booking);
 
       if (date) {
-        set.add(date);
+        dateSet.add(date);
       }
     });
 
-    return set;
+    return dateSet;
   }, [bookings]);
 
   // ==========================================================
-  // LISTE FILTRÉE (recherche texte + période)
+  // FILTERED BOOKINGS
   // ==========================================================
 
   const filteredBookings = useMemo(() => {
@@ -1227,22 +1420,39 @@ const CalendarScreen = ({ navigation }) => {
 
     if (query) {
       result = result.filter((booking) => {
-        const client = getClientName(booking).toLowerCase();
-        const massage = getMassageName(booking).toLowerCase();
-        const address = getAddress(booking).toLowerCase();
+        const client = String(
+          getClientName(booking),
+        ).toLowerCase();
+
+        const massage = String(
+          getMassageName(booking),
+        ).toLowerCase();
+
+        const address = String(
+          getAddress(booking),
+        ).toLowerCase();
+
+        const date = String(
+          getBookingDate(booking) || '',
+        ).toLowerCase();
+
+        const time = String(
+          getBookingTime(booking) || '',
+        ).toLowerCase();
 
         return (
           client.includes(query) ||
           massage.includes(query) ||
-          address.includes(query)
+          address.includes(query) ||
+          date.includes(query) ||
+          time.includes(query)
         );
       });
     }
 
     if (appliedRange.start) {
       const startKey = toDateKey(appliedRange.start);
-      // Si "Au" n'a jamais été choisi, on filtre uniquement le
-      // jour de début (comportement d'un jour unique).
+
       const endKey = appliedRange.end
         ? toDateKey(appliedRange.end)
         : startKey;
@@ -1266,31 +1476,50 @@ const CalendarScreen = ({ navigation }) => {
     return result;
   }, [bookings, searchQuery, appliedRange]);
 
-  // ----------------------------------------------------------
-  // Sélection dans le calendrier : le 1er jour touché devient
-  // "Du", le 2ème "Au" (en s'ajustant automatiquement si
-  // l'utilisateur touche un jour antérieur au "Du" déjà choisi).
-  // Rien n'est appliqué à la liste tant que l'utilisateur n'a
-  // pas appuyé sur "Appliquer".
-  // ----------------------------------------------------------
+  // ==========================================================
+  // DATE RANGE ACTIONS
+  // ==========================================================
 
-  const handleSelectCalendarDate = useCallback((date) => {
-    setDraftRange((prev) => {
-      if (!prev.start || (prev.start && prev.end)) {
-        return { start: date, end: null };
-      }
+  const handleSelectCalendarDate = useCallback(
+    (date) => {
+      setDraftRange((previous) => {
+        if (!previous.start || previous.end) {
+          return {
+            start: date,
+            end: null,
+          };
+        }
 
-      if (toDateKey(date) < toDateKey(prev.start)) {
-        return { start: date, end: null };
-      }
+        if (
+          toDateKey(date) <
+          toDateKey(previous.start)
+        ) {
+          return {
+            start: date,
+            end: null,
+          };
+        }
 
-      return { start: prev.start, end: date };
-    });
-  }, []);
+        return {
+          start: previous.start,
+          end: date,
+        };
+      });
+    },
+    [],
+  );
 
   const handleResetCalendarDate = useCallback(() => {
-    setDraftRange({ start: null, end: null });
-    setAppliedRange({ start: null, end: null });
+    setDraftRange({
+      start: null,
+      end: null,
+    });
+
+    setAppliedRange({
+      start: null,
+      end: null,
+    });
+
     setCalendarVisible(false);
   }, []);
 
@@ -1309,48 +1538,50 @@ const CalendarScreen = ({ navigation }) => {
   }, []);
 
   const clearAppliedRange = useCallback(() => {
-    setAppliedRange({ start: null, end: null });
-    setDraftRange({ start: null, end: null });
+    setAppliedRange({
+      start: null,
+      end: null,
+    });
+
+    setDraftRange({
+      start: null,
+      end: null,
+    });
   }, []);
 
-  // ==========================================================
-  // REFRESH
-  // ==========================================================
-
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     loadBookings({
       refreshing: true,
     });
-  };
+  }, [loadBookings]);
 
   // ==========================================================
-  // NAVIGATE BOOKING DETAIL
+  // OPEN BOOKING
   // ==========================================================
 
-  const openBooking = (booking) => {
-    const bookingId =
-      getBookingId(booking);
+  const openBooking = useCallback(
+    (booking) => {
+      const bookingId = getBookingId(booking);
 
-    if (!bookingId) {
-      Alert.alert(
-        'Erreur',
-        'Identifiant de réservation introuvable.'
-      );
+      if (!bookingId) {
+        Alert.alert(
+          'Erreur',
+          'Identifiant de réservation introuvable.',
+        );
 
-      return;
-    }
+        return;
+      }
 
-    navigation.navigate(
-      'BookingDetail',
-      {
+      navigation.navigate('BookingDetail', {
         bookingId,
         booking,
-      }
-    );
-  };
+      });
+    },
+    [navigation],
+  );
 
   // ==========================================================
-  // MENU ⋮
+  // MENU ACTIONS
   // ==========================================================
 
   const handleMenuPress = useCallback((booking) => {
@@ -1362,531 +1593,477 @@ const CalendarScreen = ({ navigation }) => {
   }, []);
 
   const handleViewDetailsFromMenu = useCallback(() => {
-    if (menuTarget) {
-      openBooking(menuTarget);
-    }
+    const target = menuTarget;
 
     setMenuTarget(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [menuTarget]);
+
+    if (target) {
+      openBooking(target);
+    }
+  }, [menuTarget, openBooking]);
 
   // ==========================================================
   // START MASSAGE
   // ==========================================================
 
-  const handleStartMassage = (
-    booking
-  ) => {
-    const bookingId =
-      getBookingId(booking);
+  const handleStartMassage = useCallback(
+    (booking) => {
+      const bookingId = getBookingId(booking);
 
-    if (!bookingId) {
-      showToast(
-        'Identifiant de réservation introuvable.',
-        'error'
-      );
-
-      return;
-    }
-
-    const status =
-      normalizeStatus(
-        booking?.status
-      );
-
-    if (status !== 'confirmed') {
-      showToast(
-        `Cette réservation est actuellement "${getStatusConfig(status).label}".`,
-        'error'
-      );
-
-      return;
-    }
-
-    const execute = async () => {
-      try {
-        setIsLoading(true);
-
-        console.log(
-          `▶️ [CALENDAR] Démarrage du massage #${bookingId}`
+      if (!bookingId) {
+        showToast(
+          'Identifiant de réservation introuvable.',
+          'error',
         );
 
-        /*
-         * BACKEND RÉEL :
-         *
-         * PUT /bookings/start/{booking_id}
-         *
-         * via bookingService.startBooking()
-         */
+        return;
+      }
 
-        const result =
-          await bookingService.startBooking(
-            bookingId
+      const status = normalizeStatus(booking?.status);
+
+      if (status !== 'confirmed') {
+        showToast(
+          `Cette réservation est actuellement "${getStatusConfig(status).label}".`,
+          'error',
+        );
+
+        return;
+      }
+
+      const execute = async () => {
+        try {
+          setIsLoading(true);
+
+          const result =
+            await bookingService.startBooking(
+              bookingId,
+            );
+
+          if (!result?.success) {
+            throw new Error(
+              result?.error ||
+                'Impossible de démarrer le massage.',
+            );
+          }
+
+          showToast(
+            'La réservation est maintenant en cours.',
+            'success',
           );
 
-        if (!result?.success) {
-          throw new Error(
-            result?.error ||
-              'Impossible de démarrer le massage.'
+          await loadBookings();
+        } catch (error) {
+          showToast(
+            error?.message ||
+              'Impossible de démarrer le massage.',
+            'error',
           );
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      if (Platform.OS === 'web') {
+        const confirmed = window.confirm(
+          'Voulez-vous commencer le massage ?',
+        );
+
+        if (confirmed) {
+          execute();
         }
 
-        console.log(
-          '✅ [CALENDAR] Massage démarré:',
-          result?.data
-        );
-
-        showToast(
-          'La réservation est maintenant en cours.',
-          'success'
-        );
-
-        await loadBookings();
-      } catch (error) {
-        console.error(
-          '❌ [CALENDAR] startBooking:',
-          error
-        );
-
-        showToast(
-          error?.message ||
-            'Impossible de démarrer le massage.',
-          'error'
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      const confirmed =
-        window.confirm(
-          'Voulez-vous commencer le massage ?'
-        );
-
-      if (confirmed) {
-        execute();
+        return;
       }
 
-      return;
-    }
-
-    Alert.alert(
-      'Commencer le massage',
-      'Voulez-vous commencer le massage maintenant ?',
-      [
-        {
-          text: 'Annuler',
-          style: 'cancel',
-        },
-        {
-          text: 'Commencer',
-          onPress: execute,
-        },
-      ]
-    );
-  };
+      Alert.alert(
+        'Commencer le massage',
+        'Voulez-vous commencer le massage maintenant ?',
+        [
+          {
+            text: 'Annuler',
+            style: 'cancel',
+          },
+          {
+            text: 'Commencer',
+            onPress: execute,
+          },
+        ],
+      );
+    },
+    [loadBookings, showToast],
+  );
 
   const handleStartFromMenu = useCallback(() => {
     const target = menuTarget;
+
     setMenuTarget(null);
 
     if (target) {
       handleStartMassage(target);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [menuTarget]);
+  }, [handleStartMassage, menuTarget]);
 
   // ==========================================================
   // COMPLETE MASSAGE
   // ==========================================================
 
-  const handleCompleteMassage = (
-    booking
-  ) => {
-    const bookingId =
-      getBookingId(booking);
+  const handleCompleteMassage = useCallback(
+    (booking) => {
+      const bookingId = getBookingId(booking);
 
-    if (!bookingId) {
-      showToast(
-        'Identifiant de réservation introuvable.',
-        'error'
-      );
-
-      return;
-    }
-
-    const status =
-      normalizeStatus(
-        booking?.status
-      );
-
-    if (status !== 'in_progress') {
-      showToast(
-        `Cette réservation est actuellement "${getStatusConfig(status).label}".`,
-        'error'
-      );
-
-      return;
-    }
-
-    const execute = async () => {
-      try {
-        setIsLoading(true);
-
-        console.log(
-          `✓ [CALENDAR] Fin du massage #${bookingId}`
+      if (!bookingId) {
+        showToast(
+          'Identifiant de réservation introuvable.',
+          'error',
         );
 
-        /*
-         * BACKEND RÉEL :
-         *
-         * PUT /bookings/complete/{booking_id}
-         *
-         * via bookingService.completeBooking()
-         */
+        return;
+      }
 
-        const result =
-          await bookingService.completeBooking(
-            bookingId
+      const status = normalizeStatus(booking?.status);
+
+      if (status !== 'in_progress') {
+        showToast(
+          `Cette réservation est actuellement "${getStatusConfig(status).label}".`,
+          'error',
+        );
+
+        return;
+      }
+
+      const execute = async () => {
+        try {
+          setIsLoading(true);
+
+          const result =
+            await bookingService.completeBooking(
+              bookingId,
+            );
+
+          if (!result?.success) {
+            throw new Error(
+              result?.error ||
+                'Impossible de terminer le massage.',
+            );
+          }
+
+          showToast(
+            'La réservation est maintenant terminée.',
+            'success',
           );
 
-        if (!result?.success) {
-          throw new Error(
-            result?.error ||
-              'Impossible de terminer le massage.'
+          await loadBookings();
+        } catch (error) {
+          showToast(
+            error?.message ||
+              'Impossible de terminer le massage.',
+            'error',
           );
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      if (Platform.OS === 'web') {
+        const confirmed = window.confirm(
+          'Voulez-vous terminer le massage ?',
+        );
+
+        if (confirmed) {
+          execute();
         }
 
-        console.log(
-          '✅ [CALENDAR] Massage terminé:',
-          result?.data
-        );
-
-        showToast(
-          'La réservation est maintenant terminée.',
-          'success'
-        );
-
-        await loadBookings();
-      } catch (error) {
-        console.error(
-          '❌ [CALENDAR] completeBooking:',
-          error
-        );
-
-        showToast(
-          error?.message ||
-            'Impossible de terminer le massage.',
-          'error'
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      const confirmed =
-        window.confirm(
-          'Voulez-vous terminer le massage ?'
-        );
-
-      if (confirmed) {
-        execute();
+        return;
       }
 
-      return;
-    }
-
-    Alert.alert(
-      'Terminer le massage',
-      'Voulez-vous confirmer que le massage est terminé ?',
-      [
-        {
-          text: 'Annuler',
-          style: 'cancel',
-        },
-        {
-          text: 'Terminer',
-          style: 'default',
-          onPress: execute,
-        },
-      ]
-    );
-  };
+      Alert.alert(
+        'Terminer le massage',
+        'Voulez-vous confirmer que le massage est terminé ?',
+        [
+          {
+            text: 'Annuler',
+            style: 'cancel',
+          },
+          {
+            text: 'Terminer',
+            onPress: execute,
+          },
+        ],
+      );
+    },
+    [loadBookings, showToast],
+  );
 
   const handleCompleteFromMenu = useCallback(() => {
     const target = menuTarget;
+
     setMenuTarget(null);
 
     if (target) {
       handleCompleteMassage(target);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [menuTarget]);
+  }, [handleCompleteMassage, menuTarget]);
 
   // ==========================================================
   // BOOKING CARD
   // ==========================================================
 
-  const renderBooking = (
-    booking,
-    index
-  ) => {
-    const bookingId =
-      getBookingId(booking);
+  const renderBooking = useCallback(
+    (booking, index) => {
+      const bookingId = getBookingId(booking);
+      const status = normalizeStatus(booking?.status);
+      const statusConfig = getStatusConfig(status);
 
-    const status =
-      normalizeStatus(
-        booking?.status
-      );
+      const clientName = getClientName(booking);
+      const clientPhoto = getClientPhoto(booking);
+      const massageName = getMassageName(booking);
+      const time = getBookingTime(booking);
+      const date = getBookingDate(booking);
+      const address = getAddress(booking);
+      const price = getPrice(booking);
 
-    const statusConfig =
-      getStatusConfig(status);
-
-    const clientName =
-      getClientName(booking);
-
-    const massageName =
-      getMassageName(booking);
-
-    const time =
-      getBookingTime(booking);
-
-    const address =
-      getAddress(booking);
-
-    const price =
-      getPrice(booking);
-
-    return (
-      <Animatable.View
-        key={String(bookingId)}
-        animation="fadeInUp"
-        delay={Math.min(index, 8) * 60}
-        duration={400}
-      >
-        <View
-          style={[
-            styles.bookingItem,
-            {
-              backgroundColor:
-                themeColors.background,
-              borderColor:
-                themeColors.border,
-            },
-          ]}
+      return (
+        <Animatable.View
+          key={String(bookingId)}
+          animation="fadeInUp"
+          delay={Math.min(index, 8) * 55}
+          duration={420}
         >
-          {/* TIME */}
           <View
             style={[
-              styles.timeBox,
+              styles.bookingItem,
               {
                 backgroundColor:
-                  `${statusConfig.color}18`,
+                  themeColors.surface ||
+                  themeColors.background,
+                borderColor: themeColors.border,
               },
             ]}
           >
-            <Ionicons
-              name="time-outline"
-              size={18}
-              color={
-                statusConfig.color
-              }
-            />
-
-            <Text
+            <View
               style={[
-                styles.timeText,
+                styles.bookingTopLine,
                 {
-                  color:
-                    themeColors.text,
+                  backgroundColor: statusConfig.color,
                 },
               ]}
-            >
-              {time}
-            </Text>
-          </View>
+            />
 
-          {/* MAIN INFO */}
-          <TouchableOpacity
-            activeOpacity={0.75}
-            style={styles.bookingMain}
-            onPress={() =>
-              openBooking(booking)
-            }
-          >
-            <View
-              style={
-                styles.clientRow
-              }
-            >
+            <View style={styles.bookingContent}>
               <View
                 style={[
-                  styles.clientAvatar,
+                  styles.timeBox,
                   {
-                    backgroundColor:
-                      colors.primary +
-                      '18',
+                    backgroundColor: statusConfig.background,
                   },
                 ]}
               >
                 <Ionicons
-                  name="person-outline"
+                  name="time-outline"
                   size={18}
-                  color={
-                    colors.primary
-                  }
+                  color={statusConfig.color}
                 />
-              </View>
 
-              <View
-                style={
-                  styles.clientTextBox
-                }
-              >
                 <Text
-                  numberOfLines={1}
                   style={[
-                    styles.clientName,
+                    styles.timeText,
                     {
-                      color:
-                        themeColors.text,
+                      color: themeColors.text,
                     },
                   ]}
                 >
-                  {clientName}
+                  {time}
                 </Text>
+              </View>
 
-                <Text
-                  numberOfLines={1}
+              <TouchableOpacity
+                activeOpacity={0.78}
+                style={styles.bookingMain}
+                onPress={() => openBooking(booking)}
+              >
+                <View style={styles.clientRow}>
+                  <View
+                    style={[
+                      styles.clientAvatarFrame,
+                      {
+                        borderColor: `${PRIMARY_GREEN}55`,
+                        backgroundColor:
+                          themeColors.background,
+                      },
+                    ]}
+                  >
+                    {clientPhoto ? (
+                      <Image
+                        source={{ uri: clientPhoto }}
+                        style={styles.clientPhoto}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Ionicons
+                        name="person-outline"
+                        size={20}
+                        color={PRIMARY_GREEN}
+                      />
+                    )}
+                  </View>
+
+                  <View style={styles.clientTextBox}>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.clientName,
+                        {
+                          color: themeColors.text,
+                        },
+                      ]}
+                    >
+                      {clientName}
+                    </Text>
+
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.massageName,
+                        {
+                          color: themeColors.textSecondary,
+                        },
+                      ]}
+                    >
+                      {massageName}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.bookingMetaGrid}>
+                  <View style={styles.detailRow}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={14}
+                      color={themeColors.textSecondary}
+                    />
+
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.detailText,
+                        {
+                          color: themeColors.textSecondary,
+                        },
+                      ]}
+                    >
+                      {date
+                        ? formatShortDate(date)
+                        : 'Date inconnue'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailRow}>
+                    <Ionicons
+                      name="location-outline"
+                      size={14}
+                      color={themeColors.textSecondary}
+                    />
+
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.detailText,
+                        {
+                          color: themeColors.textSecondary,
+                        },
+                      ]}
+                    >
+                      {address}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.priceRow}>
+                  <Ionicons
+                    name="cash-outline"
+                    size={14}
+                    color={PRIMARY_GREEN}
+                  />
+
+                  <Text
+                    style={[
+                      styles.priceText,
+                      {
+                        color: PRIMARY_GREEN,
+                      },
+                    ]}
+                  >
+                    {formatPrice(price)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              <View style={styles.rightColumn}>
+                <View
                   style={[
-                    styles.massageName,
+                    styles.statusBadge,
                     {
-                      color:
-                        themeColors.textSecondary,
+                      backgroundColor:
+                        statusConfig.background,
                     },
                   ]}
                 >
-                  {massageName}
-                </Text>
+                  <Ionicons
+                    name={statusConfig.icon}
+                    size={13}
+                    color={statusConfig.color}
+                  />
+
+                  <Text
+                    style={[
+                      styles.statusText,
+                      {
+                        color: statusConfig.color,
+                      },
+                    ]}
+                  >
+                    {statusConfig.label}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  hitSlop={{
+                    top: 10,
+                    bottom: 10,
+                    left: 10,
+                    right: 10,
+                  }}
+                  onPress={() => handleMenuPress(booking)}
+                  style={[
+                    styles.menuButton,
+                    {
+                      backgroundColor:
+                        themeColors.background,
+                      borderColor: `${PRIMARY_GREEN}45`,
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Ouvrir le menu de la réservation"
+                >
+                  <Ionicons
+                    name="ellipsis-vertical"
+                    size={19}
+                    color={PRIMARY_GREEN}
+                  />
+                </TouchableOpacity>
               </View>
             </View>
-
-            <View
-              style={
-                styles.detailRow
-              }
-            >
-              <Ionicons
-                name="location-outline"
-                size={14}
-                color={
-                  themeColors.textSecondary
-                }
-              />
-
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.detailText,
-                  {
-                    color:
-                      themeColors.textSecondary,
-                  },
-                ]}
-              >
-                {address}
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.priceRow
-              }
-            >
-              <Ionicons
-                name="cash-outline"
-                size={14}
-                color={
-                  themeColors.textSecondary
-                }
-              />
-
-              <Text
-                style={[
-                  styles.priceText,
-                  {
-                    color:
-                      themeColors.text,
-                  },
-                ]}
-              >
-                {formatPrice(price)}
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* RIGHT SIDE */}
-          <View
-            style={
-              styles.rightColumn
-            }
-          >
-            <View
-              style={[
-                styles.statusBadge,
-                {
-                  backgroundColor:
-                    `${statusConfig.color}18`,
-                },
-              ]}
-            >
-              <Ionicons
-                name={
-                  statusConfig.icon
-                }
-                size={13}
-                color={
-                  statusConfig.color
-                }
-              />
-
-              <Text
-                style={[
-                  styles.statusText,
-                  {
-                    color:
-                      statusConfig.color,
-                  },
-                ]}
-              >
-                {statusConfig.label}
-              </Text>
-            </View>
-
-            {/* ✅ Menu ⋮ (remplace le bouton "Détails" + les
-                boutons d'action pleine largeur : toutes les
-                actions de cette réservation vivent maintenant
-                ici — fond blanc, points verts alignés
-                verticalement. */}
-            <TouchableOpacity
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              onPress={() => handleMenuPress(booking)}
-              style={styles.menuButton}
-            >
-              <Ionicons
-                name="ellipsis-vertical"
-                size={17}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
           </View>
-        </View>
-      </Animatable.View>
-    );
-  };
+        </Animatable.View>
+      );
+    },
+    [
+      handleMenuPress,
+      openBooking,
+      themeColors,
+    ],
+  );
 
   // ==========================================================
   // LOADING
@@ -1898,22 +2075,36 @@ const CalendarScreen = ({ navigation }) => {
         style={[
           styles.loadingContainer,
           {
-            backgroundColor:
-              themeColors.background,
+            backgroundColor: themeColors.background,
           },
         ]}
       >
+        <View
+          style={[
+            styles.loadingIcon,
+            {
+              backgroundColor: `${PRIMARY_GREEN}15`,
+            },
+          ]}
+        >
+          <Ionicons
+            name="calendar-outline"
+            size={34}
+            color={PRIMARY_GREEN}
+          />
+        </View>
+
         <ActivityIndicator
-          size="large"
-          color={colors.primary}
+          size="small"
+          color={PRIMARY_GREEN}
+          style={styles.loadingIndicator}
         />
 
         <Text
           style={[
             styles.loadingText,
             {
-              color:
-                themeColors.textSecondary,
+              color: themeColors.textSecondary,
             },
           ]}
         >
@@ -1926,17 +2117,12 @@ const CalendarScreen = ({ navigation }) => {
   const hasActiveFilters =
     !!searchQuery.trim() || !!appliedRange.start;
 
-  // ==========================================================
-  // RENDER
-  // ==========================================================
-
   return (
     <View
       style={[
         styles.container,
         {
-          backgroundColor:
-            themeColors.background,
+          backgroundColor: themeColors.background,
         },
       ]}
     >
@@ -1945,33 +2131,91 @@ const CalendarScreen = ({ navigation }) => {
         showBack
       />
 
-      {/* ==================================================
-          BARRE DE RECHERCHE + ICÔNE CALENDRIER
-      ================================================== */}
+      <View style={styles.pageIntro}>
+        <View>
+          <Text
+            style={[
+              styles.pageTitle,
+              {
+                color: themeColors.text,
+              },
+            ]}
+          >
+            Mes rendez-vous
+          </Text>
+
+          <Text
+            style={[
+              styles.pageSubtitle,
+              {
+                color: themeColors.textSecondary,
+              },
+            ]}
+          >
+            Retrouvez toutes vos réservations par date.
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.pageCountBadge,
+            {
+              backgroundColor: `${PRIMARY_GREEN}16`,
+            },
+          ]}
+        >
+          <Ionicons
+            name="calendar-number-outline"
+            size={16}
+            color={PRIMARY_GREEN}
+          />
+
+          <Text
+            style={[
+              styles.pageCountText,
+              {
+                color: PRIMARY_GREEN,
+              },
+            ]}
+          >
+            {filteredBookings.length}
+          </Text>
+        </View>
+      </View>
+
+      {/* ======================================================
+          SEARCH BAR
+      ====================================================== */}
 
       <View style={styles.searchRow}>
         <View
           style={[
             styles.searchBarContainer,
             {
-              backgroundColor: themeColors.surface,
+              backgroundColor:
+                themeColors.surface ||
+                themeColors.card,
               borderColor: themeColors.border,
             },
           ]}
         >
           <Ionicons
             name="search-outline"
-            size={18}
+            size={19}
             color={themeColors.textSecondary}
           />
 
           <TextInput
             style={[
               styles.searchInput,
-              { color: themeColors.text },
+              {
+                color: themeColors.text,
+              },
             ]}
             placeholder="Rechercher un client, un massage..."
-            placeholderTextColor={themeColors.textSecondary}
+            placeholderTextColor={
+              themeColors.textSecondary
+            }
             value={searchQuery}
             onChangeText={setSearchQuery}
             returnKeyType="search"
@@ -1979,12 +2223,18 @@ const CalendarScreen = ({ navigation }) => {
 
           {!!searchQuery && (
             <TouchableOpacity
+              activeOpacity={0.7}
               onPress={() => setSearchQuery('')}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              hitSlop={{
+                top: 8,
+                bottom: 8,
+                left: 8,
+                right: 8,
+              }}
             >
               <Ionicons
                 name="close-circle"
-                size={18}
+                size={19}
                 color={themeColors.textSecondary}
               />
             </TouchableOpacity>
@@ -2003,8 +2253,8 @@ const CalendarScreen = ({ navigation }) => {
           accessibilityLabel="Filtrer par période"
         >
           <Ionicons
-            name="calendar"
-            size={19}
+            name="calendar-outline"
+            size={20}
             color="#FFFFFF"
           />
         </TouchableOpacity>
@@ -2016,41 +2266,52 @@ const CalendarScreen = ({ navigation }) => {
             style={[
               styles.dateFilterChip,
               {
-                backgroundColor: `${colors.primary}15`,
-                borderColor: colors.primary,
+                backgroundColor: `${PRIMARY_GREEN}12`,
+                borderColor: `${PRIMARY_GREEN}55`,
               },
             ]}
           >
             <Ionicons
               name="calendar-outline"
-              size={13}
-              color={colors.primary}
+              size={14}
+              color={PRIMARY_GREEN}
             />
 
             <Text
               style={[
                 styles.dateFilterChipText,
-                { color: colors.primary },
+                {
+                  color: PRIMARY_GREEN,
+                },
               ]}
             >
               {appliedRange.end &&
               toDateKey(appliedRange.end) !==
                 toDateKey(appliedRange.start)
-                ? `${toDateKey(appliedRange.start)} → ${toDateKey(
-                    appliedRange.end,
+                ? `${formatShortDate(
+                    toDateKey(appliedRange.start),
+                  )} → ${formatShortDate(
+                    toDateKey(appliedRange.end),
                   )}`
-                : toDateKey(appliedRange.start)}
+                : formatShortDate(
+                    toDateKey(appliedRange.start),
+                  )}
             </Text>
 
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={clearAppliedRange}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              hitSlop={{
+                top: 6,
+                bottom: 6,
+                left: 6,
+                right: 6,
+              }}
             >
               <Ionicons
                 name="close"
-                size={13}
-                color={colors.primary}
+                size={15}
+                color={PRIMARY_GREEN}
               />
             </TouchableOpacity>
           </View>
@@ -2064,60 +2325,45 @@ const CalendarScreen = ({ navigation }) => {
             opacity: fadeAnim,
           },
         ]}
-        showsVerticalScrollIndicator={
-          false
-        }
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={
-              isRefreshing
-            }
-            onRefresh={
-              handleRefresh
-            }
-            tintColor={
-              colors.primary
-            }
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={PRIMARY_GREEN}
           />
         }
-        contentContainerStyle={
-          styles.scrollContent
-        }
+        contentContainerStyle={styles.scrollContent}
       >
         {/* ==================================================
             ERROR
         ================================================== */}
 
-        {errorMessage ? (
+        {!!errorMessage && (
           <Animatable.View
             animation="fadeIn"
             style={[
               styles.errorCard,
               {
-                backgroundColor:
-                  '#D32F2F12',
-                borderColor:
-                  '#D32F2F35',
+                backgroundColor: '#D32F2F12',
+                borderColor: '#D32F2F35',
               },
             ]}
           >
-            <Ionicons
-              name="alert-circle-outline"
-              size={22}
-              color="#D32F2F"
-            />
+            <View style={styles.errorIconBox}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={23}
+                color="#D32F2F"
+              />
+            </View>
 
-            <View
-              style={
-                styles.errorContent
-              }
-            >
+            <View style={styles.errorContent}>
               <Text
                 style={[
                   styles.errorTitle,
                   {
-                    color:
-                      themeColors.text,
+                    color: themeColors.text,
                   },
                 ]}
               >
@@ -2128,8 +2374,7 @@ const CalendarScreen = ({ navigation }) => {
                 style={[
                   styles.errorText,
                   {
-                    color:
-                      themeColors.textSecondary,
+                    color: themeColors.textSecondary,
                   },
                 ]}
               >
@@ -2140,20 +2385,22 @@ const CalendarScreen = ({ navigation }) => {
                 style={[
                   styles.retryButton,
                   {
-                    borderColor:
-                      colors.primary,
+                    borderColor: PRIMARY_GREEN,
                   },
                 ]}
-                onPress={() =>
-                  loadBookings()
-                }
+                onPress={() => loadBookings()}
               >
+                <Ionicons
+                  name="refresh-outline"
+                  size={15}
+                  color={PRIMARY_GREEN}
+                />
+
                 <Text
                   style={[
                     styles.retryText,
                     {
-                      color:
-                        colors.primary,
+                      color: PRIMARY_GREEN,
                     },
                   ]}
                 >
@@ -2162,10 +2409,10 @@ const CalendarScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </Animatable.View>
-        ) : null}
+        )}
 
         {/* ==================================================
-            SUMMARY
+            SUMMARY CARD
         ================================================== */}
 
         <Animatable.View
@@ -2177,99 +2424,92 @@ const CalendarScreen = ({ navigation }) => {
               styles.summaryCard,
               {
                 backgroundColor:
-                  themeColors.surface,
+                  themeColors.surface ||
+                  themeColors.card,
+                borderColor: themeColors.border,
               },
             ]}
           >
-            <View
-              style={
-                styles.summaryHeader
-              }
-            >
-              <View>
-                <Text
+            <View style={styles.summaryHeader}>
+              <View style={styles.summaryTitleBox}>
+                <View
                   style={[
-                    styles.summaryTitle,
+                    styles.summaryIcon,
                     {
-                      color:
-                        themeColors.text,
+                      backgroundColor: `${PRIMARY_GREEN}15`,
                     },
                   ]}
                 >
-                  Mes réservations
-                </Text>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={20}
+                    color={PRIMARY_GREEN}
+                  />
+                </View>
 
-                <Text
-                  style={[
-                    styles.summarySubtitle,
-                    {
-                      color:
-                        themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  Données réelles du serveur
-                </Text>
+                <View>
+                  <Text
+                    style={[
+                      styles.summaryTitle,
+                      {
+                        color: themeColors.text,
+                      },
+                    ]}
+                  >
+                    Planning des réservations
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.summarySubtitle,
+                      {
+                        color: themeColors.textSecondary,
+                      },
+                    ]}
+                  >
+                    Données réelles du serveur
+                  </Text>
+                </View>
               </View>
 
               <View
                 style={[
                   styles.totalBadge,
                   {
-                    backgroundColor:
-                      colors.primary +
-                      '18',
+                    backgroundColor: PRIMARY_GREEN,
                   },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.totalBadgeText,
-                    {
-                      color:
-                        colors.primary,
-                    },
-                  ]}
-                >
+                <Text style={styles.totalBadgeText}>
                   {filteredBookings.length}
                 </Text>
               </View>
             </View>
 
-            <View
-              style={
-                styles.legendRow
-              }
-            >
+            <View style={styles.legendRow}>
               <Legend
-                color="#4CAF50"
+                color="#16A34A"
                 label="Confirmée"
-                themeColors={
-                  themeColors
-                }
+                themeColors={themeColors}
               />
 
               <Legend
-                color="#FF9800"
+                color="#EA8A00"
                 label="En cours"
-                themeColors={
-                  themeColors
-                }
+                themeColors={themeColors}
               />
 
               <Legend
-                color="#2E7D32"
+                color="#15803D"
                 label="Terminée"
-                themeColors={
-                  themeColors
-                }
+                themeColors={themeColors}
               />
             </View>
           </View>
         </Animatable.View>
 
         {/* ==================================================
-            LISTE COMPLÈTE (filtrée par recherche + période)
+            BOOKINGS LIST
         ================================================== */}
 
         {filteredBookings.length > 0 &&
@@ -2282,17 +2522,14 @@ const CalendarScreen = ({ navigation }) => {
                 style={[
                   styles.emptyIcon,
                   {
-                    backgroundColor:
-                      themeColors.background,
+                    backgroundColor: `${PRIMARY_GREEN}12`,
                   },
                 ]}
               >
                 <Ionicons
                   name="search-outline"
-                  size={38}
-                  color={
-                    themeColors.textSecondary
-                  }
+                  size={36}
+                  color={PRIMARY_GREEN}
                 />
               </View>
 
@@ -2300,8 +2537,7 @@ const CalendarScreen = ({ navigation }) => {
                 style={[
                   styles.emptyStateTitle,
                   {
-                    color:
-                      themeColors.text,
+                    color: themeColors.text,
                   },
                 ]}
               >
@@ -2312,20 +2548,19 @@ const CalendarScreen = ({ navigation }) => {
                 style={[
                   styles.emptyStateText,
                   {
-                    color:
-                      themeColors.textSecondary,
+                    color: themeColors.textSecondary,
                   },
                 ]}
               >
                 {hasActiveFilters
-                  ? "Aucune réservation ne correspond à votre recherche ou à la période choisie."
+                  ? 'Aucune réservation ne correspond à votre recherche ou à la période choisie.'
                   : "Il n'y a aucune réservation pour le moment."}
               </Text>
             </View>
           )}
 
         {/* ==================================================
-            NO BOOKINGS AT ALL
+            NO BOOKINGS
         ================================================== */}
 
         {bookings.length === 0 &&
@@ -2335,24 +2570,32 @@ const CalendarScreen = ({ navigation }) => {
                 styles.globalEmptyCard,
                 {
                   backgroundColor:
-                    themeColors.surface,
+                    themeColors.surface ||
+                    themeColors.card,
+                  borderColor: themeColors.border,
                 },
               ]}
             >
-              <Ionicons
-                name="calendar-clear-outline"
-                size={50}
-                color={
-                  themeColors.textSecondary
-                }
-              />
+              <View
+                style={[
+                  styles.globalEmptyIcon,
+                  {
+                    backgroundColor: `${PRIMARY_GREEN}12`,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="calendar-clear-outline"
+                  size={43}
+                  color={PRIMARY_GREEN}
+                />
+              </View>
 
               <Text
                 style={[
                   styles.globalEmptyTitle,
                   {
-                    color:
-                      themeColors.text,
+                    color: themeColors.text,
                   },
                 ]}
               >
@@ -2363,8 +2606,7 @@ const CalendarScreen = ({ navigation }) => {
                 style={[
                   styles.globalEmptyText,
                   {
-                    color:
-                      themeColors.textSecondary,
+                    color: themeColors.textSecondary,
                   },
                 ]}
               >
@@ -2374,10 +2616,6 @@ const CalendarScreen = ({ navigation }) => {
             </View>
           )}
       </Animated.ScrollView>
-
-      {/* ==================================================
-          MODALE DE FILTRE PAR PÉRIODE
-      ================================================== */}
 
       <DateRangeModal
         visible={calendarVisible}
@@ -2390,10 +2628,6 @@ const CalendarScreen = ({ navigation }) => {
         onApply={handleApplyCalendarDate}
       />
 
-      {/* ==================================================
-          MENU ⋮ D'UNE RÉSERVATION
-      ================================================== */}
-
       <BookingMenuSheet
         visible={!!menuTarget}
         booking={menuTarget}
@@ -2403,11 +2637,6 @@ const CalendarScreen = ({ navigation }) => {
         onStart={handleStartFromMenu}
         onComplete={handleCompleteFromMenu}
       />
-
-      {/* ==================================================
-          TOAST — s'affiche sous le header, quel que soit
-          l'endroit de l'écran où l'action a été lancée.
-      ================================================== */}
 
       <Toast
         visible={toast.visible}
@@ -2435,11 +2664,22 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
 
+  loadingIcon: {
+    width: 76,
+    height: 76,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  loadingIndicator: {
+    marginTop: 18,
+  },
+
   loadingText: {
-    marginTop: spacing.md,
-    fontSize: typography.fontSize.md,
-    fontFamily:
-      typography.fontFamily.regular,
+    marginTop: 10,
+    fontSize: 13,
+    fontFamily: typography.fontFamily.regular,
   },
 
   scrollView: {
@@ -2452,68 +2692,120 @@ const styles = StyleSheet.create({
   },
 
   // ========================================================
-  // SEARCH + CALENDAR ICON
+  // PAGE INTRO
+  // ========================================================
+
+  pageIntro: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+
+  pageTitle: {
+    fontSize: 21,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  pageSubtitle: {
+    marginTop: 4,
+    fontSize: 12,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  pageCountBadge: {
+    minWidth: 42,
+    height: 42,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 9,
+  },
+
+  pageCountText: {
+    marginLeft: 4,
+    fontSize: 15,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  // ========================================================
+  // SEARCH
   // ========================================================
 
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: 4,
+    paddingTop: 8,
+    paddingBottom: 6,
   },
 
   searchBarContainer: {
     flex: 1,
+    minWidth: 0,
+    height: 46,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    height: 44,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: 1.5,
+    paddingHorizontal: 13,
+    borderRadius: 15,
+    borderWidth: 1,
   },
 
   searchInput: {
     flex: 1,
-    fontSize: 13.5,
-    fontFamily: typography.fontFamily.regular,
+    minWidth: 0,
+    marginLeft: 9,
+    fontSize: 13,
     paddingVertical: 0,
+    fontFamily: typography.fontFamily.regular,
   },
 
   calendarIconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 46,
+    height: 46,
+    marginLeft: 10,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: PRIMARY_GREEN,
+    shadowColor: PRIMARY_GREEN,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 7,
+    elevation: 3,
   },
 
   calendarIconButtonActive: {
-    backgroundColor: '#2E7D32',
+    backgroundColor: '#126B42',
   },
 
   dateFilterChipRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.md,
-    marginTop: 8,
+    marginTop: 5,
     marginBottom: 2,
   },
 
   dateFilterChip: {
+    maxWidth: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    borderRadius: 12,
     borderWidth: 1,
   },
 
   dateFilterChipText: {
-    fontSize: 12,
+    flexShrink: 1,
+    marginHorizontal: 7,
+    fontSize: 11.5,
     fontFamily: typography.fontFamily.medium,
   },
 
@@ -2524,43 +2816,52 @@ const styles = StyleSheet.create({
   errorCard: {
     flexDirection: 'row',
     borderWidth: 1,
-    borderRadius: 14,
-    padding: spacing.md,
+    borderRadius: 16,
+    padding: 14,
     marginTop: spacing.md,
+  },
+
+  errorIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   errorContent: {
     flex: 1,
-    marginLeft: spacing.sm,
+    minWidth: 0,
+    marginLeft: 7,
   },
 
   errorTitle: {
     fontSize: 14,
-    fontFamily:
-      typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold,
   },
 
   errorText: {
     fontSize: 12,
     lineHeight: 18,
     marginTop: 4,
-    fontFamily:
-      typography.fontFamily.regular,
+    fontFamily: typography.fontFamily.regular,
   },
 
   retryButton: {
     alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 7,
     marginTop: 10,
   },
 
   retryText: {
+    marginLeft: 5,
     fontSize: 12,
-    fontFamily:
-      typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium,
   },
 
   // ========================================================
@@ -2568,18 +2869,18 @@ const styles = StyleSheet.create({
   // ========================================================
 
   summaryCard: {
-    borderRadius: 16,
-    padding: spacing.md,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 15,
     marginTop: spacing.md,
     marginBottom: spacing.md,
-
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 3,
     },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowOpacity: 0.055,
+    shadowRadius: 8,
     elevation: 2,
   },
 
@@ -2589,46 +2890,62 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
+  summaryTitleBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    minWidth: 0,
+  },
+
+  summaryIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
   summaryTitle: {
-    fontSize:
-      typography.fontSize.lg,
-    fontFamily:
-      typography.fontFamily.bold,
+    fontSize: 15,
+    fontFamily: typography.fontFamily.bold,
   },
 
   summarySubtitle: {
     marginTop: 3,
-    fontSize:
-      typography.fontSize.xs,
-    fontFamily:
-      typography.fontFamily.regular,
+    fontSize: 11,
+    fontFamily: typography.fontFamily.regular,
   },
 
   totalBadge: {
-    minWidth: 40,
-    height: 40,
-    borderRadius: 20,
+    minWidth: 38,
+    height: 38,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 8,
   },
 
   totalBadgeText: {
-    fontSize: 16,
-    fontFamily:
-      typography.fontFamily.bold,
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontFamily: typography.fontFamily.bold,
   },
 
   legendRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: spacing.md,
+    marginTop: 15,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF2EF',
   },
 
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
-    marginBottom: 5,
+    marginRight: 17,
+    marginBottom: 4,
   },
 
   legendDot: {
@@ -2640,37 +2957,53 @@ const styles = StyleSheet.create({
 
   legendText: {
     fontSize: 11,
-    fontFamily:
-      typography.fontFamily.regular,
+    fontFamily: typography.fontFamily.regular,
   },
 
   // ========================================================
-  // BOOKING ITEM
+  // BOOKING CARD
   // ========================================================
 
   bookingItem: {
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderRadius: 17,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.045,
+    shadowRadius: 7,
+    elevation: 2,
+  },
+
+  bookingTopLine: {
+    height: 3,
+    width: '100%',
+  },
+
+  bookingContent: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    borderWidth: 1,
-    borderRadius: 13,
-    padding: 10,
-    marginBottom: 8,
+    padding: 11,
   },
 
   timeBox: {
     width: 58,
-    minHeight: 58,
-    borderRadius: 10,
+    minHeight: 62,
+    borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 9,
+    marginRight: 10,
   },
 
   timeText: {
     fontSize: 12,
-    fontFamily:
-      typography.fontFamily.bold,
-    marginTop: 3,
+    marginTop: 4,
+    fontFamily: typography.fontFamily.bold,
   },
 
   bookingMain: {
@@ -2683,13 +3016,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  clientAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  clientAvatarFrame: {
+    width: 43,
+    height: 43,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 9,
+  },
+
+  clientPhoto: {
+    width: '100%',
+    height: '100%',
   },
 
   clientTextBox: {
@@ -2698,138 +3038,143 @@ const styles = StyleSheet.create({
   },
 
   clientName: {
-    fontSize: 13,
-    fontFamily:
-      typography.fontFamily.semiBold,
+    fontSize: 13.5,
+    fontFamily: typography.fontFamily.semiBold,
   },
 
   massageName: {
-    fontSize: 11,
-    marginTop: 2,
-    fontFamily:
-      typography.fontFamily.regular,
+    fontSize: 11.5,
+    marginTop: 3,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  bookingMetaGrid: {
+    marginTop: 9,
   },
 
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 7,
+    minWidth: 0,
+    marginTop: 4,
   },
 
   detailText: {
     flex: 1,
-    marginLeft: 4,
-    fontSize: 10,
-    fontFamily:
-      typography.fontFamily.regular,
+    minWidth: 0,
+    marginLeft: 5,
+    fontSize: 10.5,
+    fontFamily: typography.fontFamily.regular,
   },
 
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 5,
+    marginTop: 7,
   },
 
   priceText: {
-    marginLeft: 4,
-    fontSize: 11,
-    fontFamily:
-      typography.fontFamily.semiBold,
+    marginLeft: 5,
+    fontSize: 11.5,
+    fontFamily: typography.fontFamily.semiBold,
   },
 
   rightColumn: {
     alignItems: 'flex-end',
     justifyContent: 'space-between',
-    marginLeft: 7,
-    minHeight: 58,
+    minHeight: 62,
+    marginLeft: 8,
   },
 
   statusBadge: {
+    maxWidth: 110,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 7,
-    paddingVertical: 5,
-    borderRadius: 8,
+    paddingVertical: 6,
+    borderRadius: 9,
   },
 
   statusText: {
-    marginLeft: 3,
-    fontSize: 9,
-    fontFamily:
-      typography.fontFamily.medium,
+    flexShrink: 1,
+    marginLeft: 4,
+    fontSize: 9.5,
+    fontFamily: typography.fontFamily.medium,
   },
 
-  // ✅ Menu ⋮ : fond BLANC, points VERTS (colors.primary),
-  // alignés verticalement, avec une fine bordure pour rester
-  // visible même sur un fond clair.
   menuButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: `${colors.primary}30`,
+    marginTop: 13,
   },
 
   // ========================================================
-  // EMPTY
+  // EMPTY STATES
   // ========================================================
 
   emptyState: {
     alignItems: 'center',
-    paddingVertical: spacing.xl,
+    paddingHorizontal: 20,
+    paddingVertical: 44,
   },
 
   emptyIcon: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 74,
+    height: 74,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   emptyStateTitle: {
-    marginTop: spacing.sm,
-    fontSize: 14,
-    fontFamily:
-      typography.fontFamily.semiBold,
+    marginTop: 14,
+    fontSize: 15,
+    fontFamily: typography.fontFamily.semiBold,
   },
 
   emptyStateText: {
-    marginTop: 4,
+    maxWidth: 360,
+    marginTop: 6,
     fontSize: 12,
+    lineHeight: 18,
     textAlign: 'center',
-    fontFamily:
-      typography.fontFamily.regular,
+    fontFamily: typography.fontFamily.regular,
   },
-
-  // ========================================================
-  // GLOBAL EMPTY
-  // ========================================================
 
   globalEmptyCard: {
     alignItems: 'center',
-    borderRadius: 16,
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingVertical: 34,
+    paddingHorizontal: 22,
+    marginTop: spacing.md,
+  },
+
+  globalEmptyIcon: {
+    width: 82,
+    height: 82,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   globalEmptyTitle: {
     fontSize: 16,
-    marginTop: spacing.sm,
-    fontFamily:
-      typography.fontFamily.semiBold,
+    marginTop: 14,
+    fontFamily: typography.fontFamily.semiBold,
   },
 
   globalEmptyText: {
+    maxWidth: 320,
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',
-    marginTop: 5,
-    fontFamily:
-      typography.fontFamily.regular,
+    marginTop: 6,
+    fontFamily: typography.fontFamily.regular,
   },
 
   // ========================================================
@@ -2838,7 +3183,7 @@ const styles = StyleSheet.create({
 
   toastOverlay: {
     position: 'absolute',
-    top: Platform.OS === 'android' ? 14 : 55,
+    top: Platform.OS === 'android' ? 14 : 58,
     left: 14,
     right: 14,
     zIndex: 9999,
@@ -2848,162 +3193,91 @@ const styles = StyleSheet.create({
 
   toastCard: {
     width: '100%',
-    maxWidth: 520,
+    maxWidth: 540,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 15,
+    paddingHorizontal: 15,
+    paddingVertical: 13,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.13,
     shadowRadius: 12,
     elevation: 8,
   },
 
   toastText: {
     flex: 1,
+    marginLeft: 10,
     fontSize: 12.5,
     lineHeight: 17,
     fontFamily: typography.fontFamily.medium,
   },
 
   // ========================================================
-  // MODAL BACKDROP (commun DateRangeModal / BookingMenuSheet)
+  // MODALS
   // ========================================================
 
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15,23,20,0.45)',
+    backgroundColor: 'rgba(15,23,20,0.48)',
     justifyContent: 'flex-end',
-  },
-
-  confirmButton: {
-    flex: 1,
-    minHeight: 46,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  confirmButtonGhost: {
-    borderWidth: 1,
-    backgroundColor: 'transparent',
-  },
-
-  confirmButtonGhostText: {
-    fontSize: 13.5,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  confirmButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13.5,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  // ========================================================
-  // ACTION SHEET (menu ⋮)
-  // ========================================================
-
-  actionSheet: {
-    width: '100%',
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    // paddingBottom réel calculé dans le composant (insets.bottom
-    // + marge) pour tenir compte de la barre de navigation Android.
   },
 
   actionSheetHandle: {
     alignSelf: 'center',
-    width: 40,
+    width: 42,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(148,163,184,0.5)',
-    marginBottom: 14,
+    backgroundColor: 'rgba(148,163,184,0.55)',
+    marginBottom: 17,
   },
 
-  actionSheetTitle: {
-    fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  actionSheetSubtitle: {
-    marginTop: 2,
-    marginBottom: 12,
-    fontSize: 11.5,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  actionSheetRow: {
+  modalTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
+    justifyContent: 'center',
+    marginBottom: 17,
   },
 
-  actionSheetIcon: {
+  modalTitleIcon: {
     width: 36,
     height: 36,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-
-  actionSheetRowText: {
-    fontSize: 13.5,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  actionSheetCloseButton: {
-    marginTop: 8,
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-
-  actionSheetCloseText: {
-    fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  // ========================================================
-  // CALENDAR FILTER MODAL
-  // ========================================================
-
-  calendarSheet: {
-    width: '100%',
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: 18,
-    paddingTop: 10,
-    // paddingBottom réel calculé dans le composant (insets.bottom
-    // + marge) pour tenir compte de la barre de navigation Android.
+    marginRight: 9,
   },
 
   calendarModalTitle: {
     fontSize: 16,
-    textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 14,
     fontFamily: typography.fontFamily.bold,
+  },
+
+  calendarSheet: {
+    width: '100%',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    paddingHorizontal: 18,
+    paddingTop: 10,
   },
 
   rangeFieldsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
+    marginBottom: 17,
   },
 
   rangeField: {
     flex: 1,
+    minWidth: 0,
     borderWidth: 1.5,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    borderRadius: 13,
+    paddingVertical: 9,
+    paddingHorizontal: 11,
   },
 
   rangeFieldLabel: {
@@ -3012,29 +3286,26 @@ const styles = StyleSheet.create({
   },
 
   rangeFieldValue: {
-    marginTop: 2,
-    fontSize: 13,
+    marginTop: 3,
+    fontSize: 12.5,
     fontFamily: typography.fontFamily.semiBold,
-  },
-
-  rangeFieldArrow: {
-    marginTop: 10,
-  },
-
-  calendarHint: {
-    marginTop: 10,
-    fontSize: 11.5,
-    textAlign: 'center',
-    fontFamily: typography.fontFamily.regular,
   },
 
   calendarHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 6,
-    marginBottom: 14,
-    paddingHorizontal: 4,
+    marginBottom: 13,
+    paddingHorizontal: 2,
+  },
+
+  monthArrowButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F6F4',
   },
 
   calendarHeaderTitle: {
@@ -3044,7 +3315,7 @@ const styles = StyleSheet.create({
 
   calendarWeekRow: {
     flexDirection: 'row',
-    marginBottom: 6,
+    marginBottom: 5,
   },
 
   calendarWeekLabel: {
@@ -3082,15 +3353,166 @@ const styles = StyleSheet.create({
   calendarDayDot: {
     position: 'absolute',
     bottom: 4,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+  },
+
+  calendarLegendInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+
+  calendarLegendDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+
+  calendarHint: {
+    fontSize: 11,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  calendarSelectionHint: {
+    marginTop: 9,
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: 'center',
+    fontFamily: typography.fontFamily.regular,
   },
 
   calendarActions: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 18,
+    marginTop: 17,
+  },
+
+  confirmButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  confirmButtonGhost: {
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+    marginRight: 10,
+  },
+
+  confirmButtonGhostText: {
+    fontSize: 13,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  confirmButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  // ========================================================
+  // BOOKING MENU
+  // ========================================================
+
+  actionSheet: {
+    width: '100%',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    paddingHorizontal: 18,
+    paddingTop: 10,
+  },
+
+  menuClientHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+
+  menuClientAvatar: {
+    width: 45,
+    height: 45,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  menuClientInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  actionSheetTitle: {
+    fontSize: 16,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  actionSheetSubtitle: {
+    marginTop: 3,
+    fontSize: 11.5,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+
+  menuBookingSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 13,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+  },
+
+  menuSummaryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+
+  menuSummaryText: {
+    marginLeft: 6,
+    fontSize: 11.5,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  actionSheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF2EF',
+  },
+
+  actionSheetIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+
+  actionSheetRowText: {
+    flex: 1,
+    fontSize: 13.5,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  actionSheetCloseButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 45,
+    borderWidth: 1,
+    borderRadius: 13,
+    marginTop: 15,
+  },
+
+  actionSheetCloseText: {
+    fontSize: 13,
+    fontFamily: typography.fontFamily.bold,
   },
 });
 
