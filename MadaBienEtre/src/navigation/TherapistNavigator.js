@@ -58,6 +58,19 @@ import NegotiationScreen from '../screens/therapist/NegotiationScreen';
 import NavigationScreen from '../screens/therapist/NavigationScreen';
 import TrackingScreen from '../screens/therapist/TrackingScreen';
 
+// ------------------------------------------------------------
+// IMPORTANT :
+// ChatScreen sy SOSScreen dia tsy navoahana teto taloha —
+// izay no antony nanindronan'ny bouton "Message direct" sy
+// "SOS" tao amin'ny BookingDetailScreen tany amin'ny page
+// diso (na tsy nisy fiovana mihitsy). Nampidirina eto miaraka
+// amin'ny anarana "TherapistChat" / "TherapistSOS" mba tsy
+// hifangaro mihitsy amin'ny route mety hisy mitovy anarana
+// (Chat / SOS) ao amin'ny ClientNavigator.
+// ------------------------------------------------------------
+import ChatScreen from '../screens/therapist/ChatScreen';
+import SOSScreen from '../screens/therapist/SOSScreen';
+
 import WithdrawScreen from '../screens/therapist/WithdrawScreen';
 import AvailabilityScreen from '../screens/therapist/AvailabilityScreen';
 import ReviewsScreen from '../screens/therapist/ReviewsScreen';
@@ -67,7 +80,7 @@ import UploadDocumentsScreen from '../screens/therapist/UploadDocumentsScreen';
 // BOOKING DETAIL
 // ============================================================
 
-import BookingDetailScreen from '../screens/client/BookingDetailScreen';
+import BookingDetailScreen from '../screens/therapist/BookingDetailScreen';
 
 // ============================================================
 // NAVIGATORS
@@ -260,6 +273,34 @@ const RequestsStack = () => {
       <Stack.Screen
         name="Tracking"
         component={TrackingScreen}
+      />
+
+      {/* ======================================================
+          MESSAGE DIRECT (CHAT THÉRAPEUTE)
+
+          IMPORTANT :
+          Nom UNIQUE "TherapistChat" mba tsy hifangaro
+          amin'ny route "Chat" izay mety ho ao amin'ny
+          ClientNavigator.
+      ====================================================== */}
+
+      <Stack.Screen
+        name="TherapistChat"
+        component={ChatScreen}
+      />
+
+      {/* ======================================================
+          SOS THÉRAPEUTE
+
+          IMPORTANT :
+          Nom UNIQUE "TherapistSOS" mba tsy hifangaro
+          amin'ny route "SOS" izay ao amin'ny
+          ClientNavigator (root path client).
+      ====================================================== */}
+
+      <Stack.Screen
+        name="TherapistSOS"
+        component={SOSScreen}
       />
 
     </Stack.Navigator>
