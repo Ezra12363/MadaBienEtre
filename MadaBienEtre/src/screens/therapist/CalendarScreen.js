@@ -135,6 +135,39 @@ const getClientName = (booking) => {
   );
 };
 
+const getClientEmail = (booking) => {
+  return (
+    booking?.client_email ??
+    booking?.client?.email ??
+    booking?.user?.email ??
+    booking?.customer_email ??
+    'Email non renseigné'
+  );
+};
+
+const getMassageDuration = (booking) => {
+  const value =
+    booking?.duration_minutes ??
+    booking?.duration ??
+    booking?.massage_duration ??
+    booking?.massageDuration ??
+    booking?.duration_min ??
+    booking?.massage_type?.duration_minutes ??
+    booking?.massage_type?.duration ??
+    booking?.massage?.duration_minutes ??
+    booking?.massage?.duration ??
+    null;
+
+  if (value === null || value === undefined || value === '') {
+    return 'Durée non renseignée';
+  }
+
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue)
+    ? `${numericValue} min`
+    : String(value);
+};
+
 const getClientPhoto = (booking) => {
   return (
     booking?.client_photo ??
@@ -1815,8 +1848,10 @@ const CalendarScreen = ({ navigation }) => {
       const statusConfig = getStatusConfig(status);
 
       const clientName = getClientName(booking);
+      const clientEmail = getClientEmail(booking);
       const clientPhoto = getClientPhoto(booking);
       const massageName = getMassageName(booking);
+      const massageDuration = getMassageDuration(booking);
       const time = getBookingTime(booking);
       const date = getBookingDate(booking);
       const address = getAddress(booking);
@@ -1923,14 +1958,54 @@ const CalendarScreen = ({ navigation }) => {
                     <Text
                       numberOfLines={1}
                       style={[
-                        styles.massageName,
+                        styles.clientEmail,
                         {
                           color: themeColors.textSecondary,
                         },
                       ]}
                     >
-                      {massageName}
+                      {clientEmail}
                     </Text>
+
+                    <View style={styles.massageInfoRow}>
+                      <Ionicons
+                        name="hand-left-outline"
+                        size={12}
+                        color={PRIMARY_GREEN}
+                      />
+
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.massageName,
+                          {
+                            color: themeColors.textSecondary,
+                          },
+                        ]}
+                      >
+                        {massageName}
+                      </Text>
+
+                      <View style={styles.infoSeparator} />
+
+                      <Ionicons
+                        name="time-outline"
+                        size={12}
+                        color={PRIMARY_GREEN}
+                      />
+
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.massageDuration,
+                          {
+                            color: themeColors.textSecondary,
+                          },
+                        ]}
+                      >
+                        {massageDuration}
+                      </Text>
+                    </View>
                   </View>
                 </View>
 
@@ -2026,32 +2101,27 @@ const CalendarScreen = ({ navigation }) => {
                   </Text>
                 </View>
 
-                <TouchableOpacity
-                  activeOpacity={0.75}
-                  hitSlop={{
-                    top: 10,
-                    bottom: 10,
-                    left: 10,
-                    right: 10,
-                  }}
-                  onPress={() => handleMenuPress(booking)}
-                  style={[
-                    styles.menuButton,
-                    {
-                      backgroundColor:
-                        themeColors.background,
-                      borderColor: `${PRIMARY_GREEN}45`,
-                    },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Ouvrir le menu de la réservation"
-                >
-                  <Ionicons
-                    name="ellipsis-vertical"
-                    size={19}
-                    color={PRIMARY_GREEN}
-                  />
-                </TouchableOpacity>
+                <View style={styles.menuButtonBottom}>
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    hitSlop={{
+                      top: 10,
+                      bottom: 10,
+                      left: 10,
+                      right: 10,
+                    }}
+                    onPress={() => handleMenuPress(booking)}
+                    style={styles.menuButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Ouvrir le menu de la réservation"
+                  >
+                    <Ionicons
+                      name="ellipsis-vertical"
+                      size={19}
+                      color={PRIMARY_GREEN}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           </View>
@@ -3042,6 +3112,34 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.semiBold,
   },
 
+  clientEmail: {
+    fontSize: 10.5,
+    marginTop: 2,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  massageInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+    marginTop: 5,
+  },
+
+  infoSeparator: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#AAB7AF',
+    marginHorizontal: 6,
+  },
+
+  massageDuration: {
+    flexShrink: 1,
+    marginLeft: 4,
+    fontSize: 10.5,
+    fontFamily: typography.fontFamily.regular,
+  },
+
   massageName: {
     fontSize: 11.5,
     marginTop: 3,
@@ -3086,6 +3184,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
+  menuButtonBottom: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    marginTop: 8,
+  },
+
   statusBadge: {
     maxWidth: 110,
     flexDirection: 'row',
@@ -3103,13 +3208,23 @@ const styles = StyleSheet.create({
   },
 
   menuButton: {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
     borderRadius: 11,
-    borderWidth: 1,
+    borderWidth: 0,
+    borderColor: 'transparent',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 13,
+    marginTop: 0,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
 
   // ========================================================

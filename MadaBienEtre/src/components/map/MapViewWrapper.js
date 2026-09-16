@@ -23,6 +23,7 @@ import {
   MARKER_COLORS,
   MAP_TYPES,
 } from '../../config/googleMaps';
+import { getRouteArrowPoints } from '../../services/routing';
 
 let RNMapView = null;
 let RNMarker = null;
@@ -141,6 +142,14 @@ const DEFAULT_MARKER_COLORS = {
   default: '#EA4335',     // rouge Google par défaut
 };
 
+// ============================================================
+// ✅ COULEUR PAR DÉFAUT DU TRACÉ D'ITINÉRAIRE ("route")
+// Rouge bien visible — c'est la ligne + les flèches qui montrent
+// la distance/direction entre le thérapeute et l'adresse du
+// client (indrindra amin'ny web, io no "faritra menamena").
+// ============================================================
+const DEFAULT_ROUTE_COLOR = '#EF4444';
+
 /**
  * ✅ Détermine la couleur d'un marqueur selon son "état" (statut,
  * disponibilité, couleur forcée). Ordre de priorité :
@@ -226,6 +235,9 @@ const MapViewWrapper = forwardRef(({
   markers = [],
   userLocation = null,
   route = null,
+  routeColor,
+  routeWidth = 5,
+  showRouteArrows = true,
   showUserLocation = true,
   trackUserLocation = true,
   mapType: controlledMapType,
@@ -416,6 +428,85 @@ const MapViewWrapper = forwardRef(({
       }
     });
   }, [markers, isLoading]);
+
+  // ============================================================
+  // ✅ TRACÉ DE L'ITINÉRAIRE SUR LE WEB — "faritra menamena"
+  // ============================================================
+  // AVANT : la prop `route` n'était jamais dessinée sur le web
+  // (aucun code ne la consommait), donc aucune ligne ni aucune
+  // flèche n'apparaissait entre le thérapeute et l'adresse du
+  // client. FIXÉ : on dessine désormais
+  //   1) un "halo" blanc épais sous la ligne (pour bien la
+  //      détacher du fond de carte, satellite compris) ;
+  //   2) la ligne rouge (ou `routeColor`) par-dessus ;
+  //   3) des flèches (icons Google) répétées tout au long du
+  //      trajet, orientées automatiquement dans le sens du
+  //      déplacement — mitodika mankany amin'ny client foana.
+  // ============================================================
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !webMapRef.current || !window.google) return;
+    const google = window.google;
+    const map = webMapRef.current;
+
+    // Nettoie l'ancien tracé avant d'en dessiner un nouveau
+    if (webPolylineRef.current) {
+      webPolylineRef.current.outline?.setMap(null);
+      webPolylineRef.current.line?.setMap(null);
+      webPolylineRef.current = null;
+    }
+
+    if (!route || route.length < 2) return;
+
+    const path = route.map((p) => ({ lat: p.latitude, lng: p.longitude }));
+    const color = routeColor || DEFAULT_ROUTE_COLOR;
+
+    // 1) Halo blanc — rend la ligne rouge lisible sur tout fond
+    const outline = new google.maps.Polyline({
+      map,
+      path,
+      strokeColor: '#FFFFFF',
+      strokeOpacity: 0.95,
+      strokeWeight: routeWidth + 5,
+      zIndex: 10,
+      clickable: false,
+    });
+
+    // 2) Ligne rouge + 3) flèches de direction (icons répétés)
+    const line = new google.maps.Polyline({
+      map,
+      path,
+      strokeColor: color,
+      strokeOpacity: 1,
+      strokeWeight: routeWidth,
+      zIndex: 11,
+      clickable: false,
+      icons: showRouteArrows
+        ? [
+            {
+              icon: {
+                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                scale: 3.4,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 1.5,
+                fillColor: color,
+                fillOpacity: 1,
+              },
+              offset: '0%',
+              // ✅ Une flèche tous les 90px le long de la ligne —
+              // bien visible sans surcharger le trajet.
+              repeat: '90px',
+            },
+          ]
+        : [],
+    });
+
+    webPolylineRef.current = { outline, line };
+
+    return () => {
+      outline.setMap(null);
+      line.setMap(null);
+    };
+  }, [route, routeColor, routeWidth, showRouteArrows, isLoading]);
 
   // ✅ Position utilisateur sur le web
   useEffect(() => {
@@ -653,6 +744,41 @@ const MapViewWrapper = forwardRef(({
             />
           ))}
 
+          {/* ✅ TRACÉ DE L'ITINÉRAIRE (natif) — ligne rouge (ou
+              `routeColor`) + flèches de direction régulièrement
+              espacées, mitodika mankany amin'ny client. */}
+          {route && route.length > 1 && (
+            <>
+              <RNPolyline
+                coordinates={route}
+                strokeColor={routeColor || DEFAULT_ROUTE_COLOR}
+                strokeWidth={routeWidth}
+                zIndex={5}
+                geodesic
+              />
+              {showRouteArrows &&
+                getRouteArrowPoints(route, 6).map((arrow, idx) => (
+                  <RNMarker
+                    key={`route-arrow-${idx}`}
+                    coordinate={{ latitude: arrow.latitude, longitude: arrow.longitude }}
+                    anchor={{ x: 0.5, y: 0.5 }}
+                    rotation={arrow.bearing}
+                    flat
+                    tracksViewChanges={false}
+                    zIndex={6}
+                  >
+                    <View style={styles.routeArrowWrap}>
+                      <Ionicons
+                        name="caret-up"
+                        size={20}
+                        color={routeColor || DEFAULT_ROUTE_COLOR}
+                      />
+                    </View>
+                  </RNMarker>
+                ))}
+            </>
+          )}
+
           {children}
         </RNMapView>
 
@@ -699,6 +825,7 @@ const styles = StyleSheet.create({
     position: 'relative' 
   },
   map: { flex: 1, width: '100%', height: '100%' },
+  routeArrowWrap: { alignItems: 'center', justifyContent: 'center' },
   loadingOverlay: { 
     position: 'absolute', 
     top: 0, 

@@ -1,3 +1,29 @@
+// ============================================================
+// src/screens/therapist/NavigationScreen.js
+//
+// VERSION THÉRAPEUTE - NAVIGATION VERS LE CLIENT
+//
+// ✅ Adapté à l'API RÉELLE de MapViewWrapper (composants/map) :
+// - Les marqueurs (thérapeute + client) sont passés via la prop
+//   `markers` (tableau), PAS via des <Marker> en enfants JSX.
+//   Sur le web, MapViewWrapper exporte `Marker`/`Polyline` comme
+//   de simples <View> inertes (react-native-maps n'existe pas
+//   côté web) : les utiliser en enfants JSX ne faisait donc
+//   RIEN de visible sur le web.
+// - Le tracé de l'itinéraire est passé via la prop `route`
+//   (liste de {latitude, longitude}), désormais câblée dans
+//   MapViewWrapper aussi bien en natif qu'en web.
+// - `showMapTypeControl` reste actif (comportement par défaut
+//   du wrapper) : le bouton satellite/plan maison s'affiche en
+//   HAUT-GAUCHE sur web comme sur mobile. Nos propres éléments
+//   (bouton recentrer, carte adresse) restent donc du côté
+//   DROIT de l'écran pour ne jamais le recouvrir.
+//
+// Charte graphique alignée sur les autres écrans thérapeute :
+// Header commun, cards bordées + ombre légère, bouton principal
+// en dégradé colors.primary.
+// ============================================================
+
 import React, {
   useCallback,
   useEffect,
@@ -15,10 +41,6 @@ import {
   Alert,
   Linking,
   Platform,
-  ScrollView,
-  Dimensions,
-  Animated,
-  Image,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -26,231 +48,130 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 
 import { useTheme } from '../../context/ThemeContext';
-import { typography } from '../../theme';
+import { colors, spacing, typography } from '../../theme';
 
-import MapView, {
-  Marker,
-  Polyline,
-} from '../../components/map/MapViewWrapper';
+import Header from '../../components/common/Header';
+import MapView from '../../components/map/MapViewWrapper';
 
 import {
   calculateRoute,
   haversineDistance,
   formatDistance,
+  formatDuration,
 } from '../../services/routing';
 
-// ==========================================================
+// ============================================================
 // CONSTANTES
-// ==========================================================
+// ============================================================
 
-const DEFAULT_REGION = {
-  latitude: -18.8792,
-  longitude: 47.5079,
-};
+const DEFAULT_REGION = { latitude: -18.8792, longitude: 47.5079 };
 
-const BLUE = '#1976D2';
-const RED = '#D32F2F';
-const DEFAULT_GREEN = '#168A55';
+// Convention carte standard (reconnaissable internationalement) :
+// bleu = position du thérapeute, rouge = destination du client.
+const START_COLOR = '#1976D2';
+const END_COLOR = '#D32F2F';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-const SHEET_MAX_HEIGHT = Math.min(
-  Math.round(SCREEN_HEIGHT * 0.48),
-  450
-);
-
-const SHEET_MIN_HEIGHT = 82;
-
-// ==========================================================
+// ============================================================
 // HELPERS
-// ==========================================================
+// ============================================================
 
 const toNumber = (value) => {
-  const numberValue = Number(value);
-
-  return Number.isFinite(numberValue)
-    ? numberValue
-    : null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
 };
 
-const bearing = (a, b) => {
-  const lat1 = (a.latitude * Math.PI) / 180;
-  const lat2 = (b.latitude * Math.PI) / 180;
+// ============================================================
+// SCREEN
+// ============================================================
 
-  const dLng =
-    ((b.longitude - a.longitude) * Math.PI) / 180;
-
-  const y = Math.sin(dLng) * Math.cos(lat2);
-
-  const x =
-    Math.cos(lat1) * Math.sin(lat2) -
-    Math.sin(lat1) *
-      Math.cos(lat2) *
-      Math.cos(dLng);
-
-  return (Math.atan2(y, x) * 180) / Math.PI;
-};
-
-const makeDirectionMarkers = (points = []) => {
-  if (points.length < 2) {
-    return [];
-  }
-
-  const step = Math.max(
-    1,
-    Math.floor(points.length / 8)
-  );
-
-  const result = [];
-
-  for (
-    let index = 0;
-    index < points.length - 1;
-    index += step
-  ) {
-    result.push({
-      coordinate: points[index],
-      angle: bearing(
-        points[index],
-        points[
-          Math.min(index + 1, points.length - 1)
-        ]
-      ),
-    });
-  }
-
-  return result;
-};
-
-// ==========================================================
-// NAVIGATION SCREEN
-// ==========================================================
-
-export default function NavigationScreen({
-  navigation,
-  route,
-}) {
-  const params = route?.params || {};
+export default function NavigationScreen({ navigation, route: navRoute }) {
+  const params = navRoute?.params || {};
 
   const bookingId = params.bookingId;
 
-  // Adresse récupérée une seule fois
   const clientAddress =
-    params.clientAddress ||
-    params.address ||
-    'Adresse du client';
+    params.clientAddress || params.address || 'Adresse du client';
 
-  const clientLatitude = toNumber(
-    params.clientLatitude ?? params.latitude
-  );
+  const clientLatitude = toNumber(params.clientLatitude ?? params.latitude);
+  const clientLongitude = toNumber(params.clientLongitude ?? params.longitude);
 
-  const clientLongitude = toNumber(
-    params.clientLongitude ?? params.longitude
-  );
-
-  const { colors: themeColors, isDark } = useTheme();
-
-  // ========================================================
-  // COULEURS THEME
-  // ========================================================
-
-  const PRIMARY =
-    themeColors?.primary ||
-    themeColors?.main ||
-    themeColors?.success ||
-    DEFAULT_GREEN;
-
-  const HEADER_GREEN = PRIMARY;
-
-  // ========================================================
-  // REFS
-  // ========================================================
-
+  const { colors: themeColors } = useTheme();
   const mapRef = useRef(null);
 
-  // ========================================================
-  // STATES
-  // ========================================================
-
-  const [therapistPosition, setTherapistPosition] =
-    useState(null);
-
-  const [routeCoordinates, setRouteCoordinates] =
-    useState([]);
-
+  const [therapistPosition, setTherapistPosition] = useState(null);
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
   const [routeInfo, setRouteInfo] = useState(null);
-
   const [loading, setLoading] = useState(true);
-
-  const [routeLoading, setRouteLoading] =
-    useState(false);
-
+  const [routeLoading, setRouteLoading] = useState(false);
   const [gpsError, setGpsError] = useState('');
 
-  const [sheetOpen, setSheetOpen] = useState(true);
-
-  const sheetAnimation = useRef(
-    new Animated.Value(1)
-  ).current;
-
-  // ========================================================
-  // POSITION CLIENT
-  // ========================================================
+  // ==========================================================
+  // POSITIONS
+  // ==========================================================
 
   const clientPosition = useMemo(
     () => ({
-      latitude:
-        clientLatitude ?? DEFAULT_REGION.latitude,
-      longitude:
-        clientLongitude ?? DEFAULT_REGION.longitude,
+      latitude: clientLatitude ?? DEFAULT_REGION.latitude,
+      longitude: clientLongitude ?? DEFAULT_REGION.longitude,
     }),
     [clientLatitude, clientLongitude]
   );
 
-  // ========================================================
-  // DISTANCE
-  // ========================================================
-
-  const straightDistance = useMemo(() => {
-    if (!therapistPosition) {
-      return null;
-    }
-
-    return haversineDistance(
-      therapistPosition.latitude,
-      therapistPosition.longitude,
-      clientPosition.latitude,
-      clientPosition.longitude
-    );
-  }, [therapistPosition, clientPosition]);
-
-  // ========================================================
-  // MARQUEURS DIRECTION
-  // ========================================================
-
-  const directionMarkers = useMemo(
-    () => makeDirectionMarkers(routeCoordinates),
-    [routeCoordinates]
+  const straightDistance = useMemo(
+    () =>
+      therapistPosition
+        ? haversineDistance(
+            therapistPosition.latitude,
+            therapistPosition.longitude,
+            clientPosition.latitude,
+            clientPosition.longitude
+          )
+        : null,
+    [therapistPosition, clientPosition]
   );
 
-  // ========================================================
+  // ✅ Marqueurs (thérapeute + client) — tableau consommé par
+  // MapViewWrapper aussi bien en natif qu'en web (`markers` prop).
+  const mapMarkers = useMemo(() => {
+    const list = [
+      {
+        id: 'client',
+        coordinate: clientPosition,
+        title: 'Arrivée — client',
+        description: clientAddress,
+        pinColor: END_COLOR,
+      },
+    ];
+
+    if (therapistPosition) {
+      list.unshift({
+        id: 'therapist',
+        coordinate: therapistPosition,
+        title: 'Départ — vous',
+        description: 'Position actuelle',
+        pinColor: START_COLOR,
+      });
+    }
+
+    return list;
+  }, [therapistPosition, clientPosition, clientAddress]);
+
+  // ==========================================================
   // GPS
-  // ========================================================
+  // ==========================================================
 
   const loadCurrentPosition = useCallback(async () => {
     try {
-      const permission =
-        await Location.requestForegroundPermissionsAsync();
+      const permission = await Location.requestForegroundPermissionsAsync();
 
       if (permission.status !== 'granted') {
         setGpsError('Permission GPS refusée');
         return null;
       }
 
-      const current =
-        await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.High,
-        });
+      const current = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
 
       const position = {
         latitude: current.coords.latitude,
@@ -262,28 +183,19 @@ export default function NavigationScreen({
 
       return position;
     } catch (error) {
-      console.warn(
-        '[Navigation] GPS:',
-        error?.message
-      );
-
-      setGpsError(
-        'Position actuelle indisponible'
-      );
-
+      console.warn('[Navigation] GPS:', error?.message);
+      setGpsError('Position actuelle indisponible');
       return null;
     }
   }, []);
 
-  // ========================================================
-  // CALCUL ITINERAIRE
-  // ========================================================
+  // ==========================================================
+  // ROUTE
+  // ==========================================================
 
   const loadRoute = useCallback(
     async (origin) => {
-      if (!origin) {
-        return;
-      }
+      if (!origin) return;
 
       setRouteLoading(true);
 
@@ -297,33 +209,15 @@ export default function NavigationScreen({
         );
 
         if (result) {
-          setRouteCoordinates(
-            result.coordinates || [
-              origin,
-              clientPosition,
-            ]
-          );
-
+          setRouteCoordinates(result.coordinates || [origin, clientPosition]);
           setRouteInfo(result);
         } else {
-          setRouteCoordinates([
-            origin,
-            clientPosition,
-          ]);
-
+          setRouteCoordinates([origin, clientPosition]);
           setRouteInfo(null);
         }
       } catch (error) {
-        console.warn(
-          '[Navigation] Route:',
-          error?.message
-        );
-
-        setRouteCoordinates([
-          origin,
-          clientPosition,
-        ]);
-
+        console.warn('[Navigation] Route:', error?.message);
+        setRouteCoordinates([origin, clientPosition]);
         setRouteInfo(null);
       } finally {
         setRouteLoading(false);
@@ -332,112 +226,67 @@ export default function NavigationScreen({
     [clientPosition]
   );
 
-  // ========================================================
-  // INITIALISATION
-  // ========================================================
-
   useEffect(() => {
     let active = true;
 
-    const initializeNavigation = async () => {
+    (async () => {
       const position = await loadCurrentPosition();
-
-      if (active && position) {
-        await loadRoute(position);
-      }
-
-      if (active) {
-        setLoading(false);
-      }
-    };
-
-    initializeNavigation();
+      if (active && position) await loadRoute(position);
+      if (active) setLoading(false);
+    })();
 
     return () => {
       active = false;
     };
   }, [loadCurrentPosition, loadRoute]);
 
-  // ========================================================
+  // ==========================================================
   // CENTRER LA CARTE
-  // ========================================================
+  // ==========================================================
 
   const centerMap = useCallback(() => {
     const points =
       routeCoordinates.length > 1
         ? routeCoordinates
-        : [
-            therapistPosition,
-            clientPosition,
-          ].filter(Boolean);
+        : [therapistPosition, clientPosition].filter(Boolean);
 
     if (points.length > 1) {
       mapRef.current?.fitToCoordinates(points, {
-        edgePadding: {
-          top: 145,
-          right: 35,
-          bottom: sheetOpen
-            ? SHEET_MAX_HEIGHT + 35
-            : SHEET_MIN_HEIGHT + 35,
-          left: 35,
-        },
+        edgePadding: { top: 70, right: 40, bottom: 40, left: 40 },
         animated: true,
       });
     } else if (clientPosition) {
-      mapRef.current?.animateToRegion(
-        {
-          ...clientPosition,
-          latitudeDelta: 0.015,
-          longitudeDelta: 0.015,
-        },
-        500
-      );
+      mapRef.current?.animateToRegion({
+        ...clientPosition,
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.015,
+      });
     }
-  }, [
-    routeCoordinates,
-    therapistPosition,
-    clientPosition,
-    sheetOpen,
-  ]);
+  }, [routeCoordinates, therapistPosition, clientPosition]);
 
   useEffect(() => {
     if (!loading) {
-      const timer = setTimeout(() => {
-        centerMap();
-      }, 700);
-
+      const timer = setTimeout(centerMap, 700);
       return () => clearTimeout(timer);
     }
-
     return undefined;
   }, [loading, centerMap]);
 
-  // ========================================================
-  // RAFRAICHIR GPS
-  // ========================================================
+  // ==========================================================
+  // ACTIONS
+  // ==========================================================
 
   const refreshGps = async () => {
     const position = await loadCurrentPosition();
-
-    if (position) {
-      await loadRoute(position);
-    }
+    if (position) await loadRoute(position);
   };
-
-  // ========================================================
-  // OUVRIR GOOGLE MAPS
-  // ========================================================
 
   const openDirections = async () => {
     const origin = therapistPosition
       ? `&origin=${therapistPosition.latitude},${therapistPosition.longitude}`
       : '';
 
-    const url =
-      `https://www.google.com/maps/dir/?api=1` +
-      `${origin}` +
-      `&destination=${clientPosition.latitude},${clientPosition.longitude}` +
-      `&travelmode=driving`;
+    const url = `https://www.google.com/maps/dir/?api=1${origin}&destination=${clientPosition.latitude},${clientPosition.longitude}&travelmode=driving`;
 
     try {
       if (Platform.OS === 'web') {
@@ -446,1044 +295,451 @@ export default function NavigationScreen({
         await Linking.openURL(url);
       }
     } catch {
-      Alert.alert(
-        'Erreur',
-        'Impossible d’ouvrir Google Maps.'
-      );
+      Alert.alert('Erreur', "Impossible d'ouvrir Google Maps.");
     }
   };
 
-  // ========================================================
-  // TOGGLE BOTTOM SHEET
-  // ========================================================
-
-  const toggleSheet = () => {
-    const nextState = !sheetOpen;
-
-    setSheetOpen(nextState);
-
-    Animated.spring(sheetAnimation, {
-      toValue: nextState ? 1 : 0,
-      useNativeDriver: false,
-      damping: 22,
-      stiffness: 180,
-      mass: 0.8,
-    }).start();
-
-    setTimeout(() => {
-      centerMap();
-    }, 300);
-  };
-
-  const sheetTranslateY =
-    sheetAnimation.interpolate({
-      inputRange: [0, 1],
-      outputRange: [
-        SHEET_MAX_HEIGHT - SHEET_MIN_HEIGHT,
-        0,
-      ],
-    });
-
-  const locateButtonBottom = sheetOpen
-    ? SHEET_MAX_HEIGHT + 14
-    : SHEET_MIN_HEIGHT + 14;
-
-  // ========================================================
+  // ==========================================================
   // LOADING
-  // ========================================================
+  // ==========================================================
 
   if (loading) {
     return (
       <View
-        style={[
-          styles.loading,
-          {
-            backgroundColor:
-              themeColors.background,
-          },
-        ]}
+        style={[styles.container, { backgroundColor: themeColors.background }]}
       >
-        <ActivityIndicator
-          size="large"
-          color={PRIMARY}
-        />
+        <Header title="Navigation vers le client" showBack />
 
-        <Text
-          style={[
-            styles.loadingText,
-            {
-              color:
-                themeColors.textSecondary,
-            },
-          ]}
-        >
-          Calcul de la position et du trajet…
-        </Text>
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color={colors.primary} />
+
+          <Text
+            style={[styles.loadingText, { color: themeColors.textSecondary }]}
+          >
+            Calcul de la position et du trajet...
+          </Text>
+        </View>
       </View>
     );
   }
 
-  // ========================================================
+  // ==========================================================
   // RENDER
-  // ========================================================
+  // ==========================================================
 
   return (
-    <View style={styles.root}>
+    <View
+      style={[styles.container, { backgroundColor: themeColors.background }]}
+    >
+      <Header title="Navigation vers le client" showBack />
 
-      {/* =====================================================
-          CARTE PLEIN ÉCRAN
-      ====================================================== */}
+      {/* ==================================================
+          CARTE — occupe tout l'espace restant.
+          `showMapTypeControl` (par défaut) affiche le bouton
+          satellite/plan maison en HAUT-GAUCHE : nos propres
+          éléments (recentrer, adresse) restent donc à DROITE.
+      ================================================== */}
 
-      <MapView
-        ref={mapRef}
-        style={StyleSheet.absoluteFillObject}
-        initialRegion={{
-          latitude:
-            therapistPosition?.latitude ??
-            clientPosition.latitude,
-          longitude:
-            therapistPosition?.longitude ??
-            clientPosition.longitude,
-          latitudeDelta: 0.025,
-          longitudeDelta: 0.025,
-        }}
-        userLocation={therapistPosition}
-        showUserLocation={false}
-        trackUserLocation={false}
-        showMapTypeControl
-      >
-        {therapistPosition && (
-          <Marker
-            coordinate={therapistPosition}
-            title="Départ — thérapeute"
-            description="Position actuelle"
-            pinColor={BLUE}
-          />
-        )}
-
-        <Marker
-          coordinate={clientPosition}
-          title="Arrivée — client"
-          description={clientAddress}
-          pinColor={RED}
+      <View style={styles.mapArea}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          initialRegion={{
+            latitude: therapistPosition?.latitude ?? clientPosition.latitude,
+            longitude: therapistPosition?.longitude ?? clientPosition.longitude,
+            latitudeDelta: 0.025,
+            longitudeDelta: 0.025,
+          }}
+          markers={mapMarkers}
+          route={routeCoordinates.length > 1 ? routeCoordinates : null}
+          routeColor={END_COLOR}
+          routeWidth={5}
+          showUserLocation={false}
+          trackUserLocation={false}
+          showMapTypeControl
         />
 
-        {routeCoordinates.length > 1 && (
-          <Polyline
-            coordinates={routeCoordinates}
-            strokeColor={RED}
-            strokeWidth={5}
-            lineDashPattern={undefined}
-          />
-        )}
-
-        {directionMarkers.map((item, index) => (
-          <Marker
-            key={`direction-${index}`}
-            coordinate={item.coordinate}
-            title="Direction à suivre"
-          >
-            <View
-              style={[
-                styles.arrowMarker,
-                {
-                  transform: [
-                    {
-                      rotate: `${item.angle}deg`,
-                    },
-                  ],
-                },
-              ]}
-            >
-              <Ionicons
-                name="arrow-up"
-                size={18}
-                color="#FFFFFF"
-              />
-            </View>
-          </Marker>
-        ))}
-      </MapView>
-
-      {/* =====================================================
-          HEADER FIXE — VERT + LOGO BLANC
-      ====================================================== */}
-
-      <View
-        style={[
-          styles.fixedHeader,
-          {
-            backgroundColor: HEADER_GREEN,
-          },
-        ]}
-        pointerEvents="box-none"
-      >
-        <View style={styles.fixedHeaderRow}>
-
-          {/* Bouton retour */}
-
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="arrow-back"
-              size={22}
-              color="#FFFFFF"
-            />
-          </TouchableOpacity>
-
-          {/* Titre centré avec logo blanc */}
-
-          <View
-            style={styles.headerBrandCenter}
-            pointerEvents="none"
-          >
-            <View style={styles.brandRow}>
-
-              <Image
-                source={require('../../../assets/logo.png')}
-                style={styles.headerLogo}
-                resizeMode="contain"
-              />
-
-              <Text
-                style={styles.headerBrandText}
-                numberOfLines={1}
-              >
-                Navigation vers le client
-              </Text>
-
-            </View>
-
-            <Text
-              style={styles.fixedHeaderSubtitle}
-              numberOfLines={1}
-            >
-              Itinéraire en cours
-            </Text>
-          </View>
-
-          {/* Bouton recentrage */}
-
-          <TouchableOpacity
-            style={styles.headerMapButton}
-            onPress={centerMap}
-            activeOpacity={0.8}
-          >
-            <Ionicons
-              name="locate-outline"
-              size={21}
-              color="#FFFFFF"
-            />
-          </TouchableOpacity>
-
-        </View>
-      </View>
-
-      {/* =====================================================
-          BOUTON RECENTRER — VERT
-      ====================================================== */}
-
-      <TouchableOpacity
-        style={[
-          styles.locateButton,
-          {
-            bottom: locateButtonBottom,
-            backgroundColor: PRIMARY,
-          },
-        ]}
-        onPress={centerMap}
-        activeOpacity={0.85}
-      >
-        <Ionicons
-          name="locate"
-          size={22}
-          color="#FFFFFF"
-        />
-      </TouchableOpacity>
-
-      {/* =====================================================
-          MESSAGE GPS
-      ====================================================== */}
-
-      {gpsError ? (
-        <View
+        {/* Recentrer — bouton flottant discret, seul en haut à droite */}
+        <TouchableOpacity
           style={[
-            styles.warningFloating,
+            styles.locateButton,
             {
-              bottom: locateButtonBottom,
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.border || '#E5E5E5',
             },
           ]}
+          onPress={centerMap}
+          activeOpacity={0.85}
         >
-          <Ionicons
-            name="warning-outline"
-            size={15}
-            color="#92400E"
-          />
+          <Ionicons name="locate" size={20} color={colors.primary} />
+        </TouchableOpacity>
 
-          <Text style={styles.warningText}>
-            {gpsError}
-          </Text>
+        {/* Bloc ancré en BAS DROITE de la carte uniquement :
+            le côté gauche reste totalement libre (contrôle
+            natif "satellite" en haut-gauche, zoom Google Maps
+            déplacé en bas-gauche côté web). Alerte GPS (si
+            besoin) puis, juste au-dessus du bandeau du trajet,
+            le badge adresse. */}
+        <View style={styles.mapBottomOverlay} pointerEvents="box-none">
+          {gpsError ? (
+            <View style={styles.gpsWarning}>
+              <Ionicons name="warning-outline" size={14} color="#92400E" />
+              <Text style={styles.gpsWarningText}>{gpsError}</Text>
+              <TouchableOpacity onPress={refreshGps}>
+                <Text style={styles.gpsWarningRetry}>Réessayer</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
-          <TouchableOpacity onPress={refreshGps}>
-            <Text style={styles.retry}>
-              Réessayer
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
-
-      {/* =====================================================
-          BOTTOM SHEET
-      ====================================================== */}
-
-      <Animated.View
-        style={[
-          styles.sheet,
-          {
-            backgroundColor:
-              themeColors.surface,
-            height: SHEET_MAX_HEIGHT,
-            transform: [
+          <View
+            style={[
+              styles.addressBadge,
               {
-                translateY: sheetTranslateY,
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.border || '#E5E5E5',
               },
-            ],
-          },
-        ]}
-      >
-
-        {/* En-tête du panneau : adresse UNE SEULE FOIS */}
-
-        <TouchableOpacity
-          style={styles.sheetHeader}
-          onPress={toggleSheet}
-          activeOpacity={0.92}
-        >
-          <View style={styles.sheetHandle} />
-
-          <View style={styles.sheetHeaderContent}>
-
+            ]}
+          >
             <View
               style={[
-                styles.sheetHeaderIcon,
-                {
-                  backgroundColor: isDark
-                    ? 'rgba(211,47,47,0.18)'
-                    : '#FDECEC',
-                },
+                styles.addressIcon,
+                { backgroundColor: `${END_COLOR}15` },
               ]}
             >
-              <Ionicons
-                name="location"
-                size={17}
-                color={RED}
-              />
+              <Ionicons name="location" size={16} color={END_COLOR} />
             </View>
 
-            <View style={styles.sheetHeaderTextBox}>
-
+            <View style={styles.addressTextWrap}>
               <Text
                 style={[
-                  styles.sheetHeaderTitle,
-                  {
-                    color: themeColors.text,
-                  },
+                  styles.addressLabel,
+                  { color: themeColors.textSecondary },
                 ]}
-                numberOfLines={1}
+              >
+                Adresse du client
+              </Text>
+
+              <Text
+                style={[styles.addressValue, { color: themeColors.text }]}
+                numberOfLines={2}
               >
                 {clientAddress}
               </Text>
 
-              <Text
-                style={[
-                  styles.sheetHeaderSubtitle,
-                  {
-                    color:
-                      themeColors.textSecondary,
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                {routeInfo?.distanceText ||
-                  formatDistance(straightDistance) ||
-                  'Distance inconnue'}
-                {' • '}
-                {routeInfo?.durationText ||
-                  'Durée estimée'}
-              </Text>
-
+              {bookingId ? (
+                <Text
+                  style={[
+                    styles.addressBookingId,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  Réservation #{bookingId}
+                </Text>
+              ) : null}
             </View>
+          </View>
+        </View>
+      </View>
 
-            {/* Bouton toggle vert */}
+      {/* ==================================================
+          BANDEAU BAS — SÉPARÉ de la carte (pas en overlay).
+          Regroupe légende, distance/durée et l'action
+          principale.
+      ================================================== */}
 
-            <View
+      <View
+        style={[
+          styles.bottomSheet,
+          {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.border || '#E5E5E5',
+          },
+        ]}
+      >
+        <View style={styles.legendRow}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: START_COLOR }]} />
+            <Text
+              style={[styles.legendText, { color: themeColors.textSecondary }]}
+            >
+              Vous
+            </Text>
+          </View>
+
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: END_COLOR }]} />
+            <Text
+              style={[styles.legendText, { color: themeColors.textSecondary }]}
+            >
+              Client
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.routeInfoRow,
+            { borderTopColor: themeColors.border || '#E5E5E5' },
+          ]}
+        >
+          <View style={styles.routeInfoItem}>
+            <Ionicons name="navigate-outline" size={18} color={END_COLOR} />
+            <Text
               style={[
-                styles.sheetToggleButton,
-                {
-                  backgroundColor: PRIMARY,
-                },
+                styles.routeInfoLabel,
+                { color: themeColors.textSecondary },
               ]}
             >
-              <Ionicons
-                name={
-                  sheetOpen
-                    ? 'chevron-down'
-                    : 'chevron-up'
-                }
-                size={21}
-                color="#FFFFFF"
-              />
-            </View>
-
+              Distance
+            </Text>
+            <Text style={[styles.routeInfoValue, { color: themeColors.text }]}>
+              {routeInfo?.distanceText || formatDistance(straightDistance)}
+            </Text>
           </View>
-        </TouchableOpacity>
-
-        {/* ===================================================
-            CONTENU SCROLLABLE
-        ==================================================== */}
-
-        <ScrollView
-          style={styles.sheetScroll}
-          contentContainerStyle={styles.sheetContent}
-          showsVerticalScrollIndicator={false}
-          bounces={Platform.OS !== 'web'}
-          scrollEnabled={sheetOpen}
-        >
-
-          {/* =================================================
-              LÉGENDE
-          ================================================= */}
 
           <View
             style={[
-              styles.legendCard,
-              {
-                backgroundColor: isDark
-                  ? '#202D25'
-                  : '#F8FAF8',
-                borderColor: themeColors.border,
-              },
+              styles.routeInfoDivider,
+              { backgroundColor: themeColors.border || '#E5E5E5' },
             ]}
-          >
-            <View style={styles.legendLine}>
-              <View
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor: BLUE,
-                  },
-                ]}
-              />
+          />
 
-              <Text
-                style={[
-                  styles.legendText,
-                  {
-                    color:
-                      themeColors.textSecondary,
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                Départ : position du thérapeute
-              </Text>
-            </View>
-
-            <View style={styles.legendLine}>
-              <View
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor: RED,
-                  },
-                ]}
-              />
-
-              <Text
-                style={[
-                  styles.legendText,
-                  {
-                    color:
-                      themeColors.textSecondary,
-                  },
-                ]}
-                numberOfLines={1}
-              >
-                Arrivée : adresse du client
-              </Text>
-            </View>
-          </View>
-
-          {/* =================================================
-              DISTANCE ET DURÉE
-          ================================================= */}
-
-          <View style={styles.statsRow}>
-
-            <View
+          <View style={styles.routeInfoItem}>
+            <Ionicons name="time-outline" size={18} color={colors.primary} />
+            <Text
               style={[
-                styles.statCard,
-                {
-                  backgroundColor: isDark
-                    ? 'rgba(211,47,47,0.13)'
-                    : '#FFF1F1',
-                  borderColor: isDark
-                    ? '#5A3030'
-                    : '#F8D4D4',
-                },
+                styles.routeInfoLabel,
+                { color: themeColors.textSecondary },
               ]}
             >
-              <View style={styles.statTitleRow}>
-                <Ionicons
-                  name="navigate-outline"
-                  size={16}
-                  color={RED}
-                />
-
-                <Text style={styles.statLabel}>
-                  Distance
-                </Text>
-              </View>
-
-              <Text style={styles.statValueDistance}>
-                {routeInfo?.distanceText ||
-                  formatDistance(straightDistance) ||
-                  '—'}
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.statCard,
-                {
-                  backgroundColor: isDark
-                    ? 'rgba(25,118,210,0.13)'
-                    : '#EFF6FF',
-                  borderColor: isDark
-                    ? '#294C70'
-                    : '#D4E5FA',
-                },
-              ]}
-            >
-              <View style={styles.statTitleRow}>
-                <Ionicons
-                  name="time-outline"
-                  size={16}
-                  color={BLUE}
-                />
-
-                <Text style={styles.statLabel}>
-                  Durée
-                </Text>
-              </View>
-
-              <View style={styles.durationRow}>
-                <Text
-                  style={[
-                    styles.statValueDuration,
-                    {
-                      color: themeColors.text,
-                    },
-                  ]}
-                >
-                  {routeInfo?.durationText || '—'}
-                </Text>
-
-                {routeLoading ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={PRIMARY}
-                  />
-                ) : null}
-              </View>
-            </View>
-
-          </View>
-
-          {/* =================================================
-              BOUTON PRINCIPAL — VERT
-          ================================================= */}
-
-          <TouchableOpacity
-            style={[
-              styles.startButton,
-              {
-                backgroundColor: PRIMARY,
-              },
-            ]}
-            onPress={openDirections}
-            activeOpacity={0.9}
-          >
-            <LinearGradient
-              colors={[PRIMARY, PRIMARY]}
-              style={styles.gradient}
-            >
-              <Ionicons
-                name="navigate"
-                size={19}
-                color="#FFFFFF"
-              />
-
-              <Text style={styles.startText}>
-                Démarrer l’itinéraire
-              </Text>
-            </LinearGradient>
-          </TouchableOpacity>
-
-          {/* =================================================
-              BOUTON RÉDUIRE — VERT
-          ================================================= */}
-
-          <TouchableOpacity
-            style={[
-              styles.closeSheetButton,
-              {
-                backgroundColor: PRIMARY,
-                borderColor: PRIMARY,
-              },
-            ]}
-            onPress={toggleSheet}
-            activeOpacity={0.85}
-          >
-            <Ionicons
-              name="chevron-down"
-              size={17}
-              color="#FFFFFF"
-            />
-
-            <Text style={styles.closeSheetText}>
-              Réduire le panneau
+              Durée
             </Text>
-          </TouchableOpacity>
 
-        </ScrollView>
-      </Animated.View>
+            {routeLoading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Text
+                style={[styles.routeInfoValue, { color: themeColors.text }]}
+              >
+                {routeInfo?.durationText || '—'}
+              </Text>
+            )}
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.startButton}
+          onPress={openDirections}
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={[colors.primary, `${colors.primary}CC`]}
+            style={styles.startButtonGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          >
+            <Ionicons name="navigate" size={20} color="#FFFFFF" />
+            <Text style={styles.startButtonText}>Démarrer l'itinéraire</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
-// ==========================================================
+// ============================================================
 // STYLES
-// ==========================================================
+// ============================================================
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
+  container: { flex: 1 },
 
-  loading: {
+  centerState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
   },
 
   loadingText: {
-    marginTop: 12,
-    fontSize: typography.fontSize.md,
+    marginTop: spacing.md,
+    textAlign: 'center',
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.regular,
   },
 
-  // ========================================================
-  // HEADER FIXE VERT
-  // ========================================================
+  // ==========================================================
+  // CARTE
+  // ==========================================================
 
-  fixedHeader: {
+  mapArea: { flex: 1, position: 'relative' },
+
+  map: { flex: 1 },
+
+  mapBottomOverlay: {
+    // ✅ FIXÉ : avant, ce bloc était collé à droite avec une largeur
+    // fixe de 76% ("width: '76%'" + "right" seulement), ce qui
+    // laissait un grand vide à gauche et coupait le texte de
+    // l'adresse. Désormais ancré à la fois à `left` ET `right` :
+    // il occupe toute la largeur disponible (havia ka hatramin'ny
+    // havanana), tout en restant sous le bouton "recentrer" et le
+    // contrôle satellite (haut-gauche), qui restent au-dessus.
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height:
-      Platform.OS === 'ios'
-        ? 116
-        : Platform.OS === 'web'
-        ? 92
-        : 104,
-    paddingTop:
-      Platform.OS === 'ios'
-        ? 48
-        : Platform.OS === 'web'
-        ? 20
-        : 34,
-    zIndex: 40,
-    elevation: 40,
-    shadowColor: '#000000',
+    left: spacing.sm,
+    right: spacing.sm,
+    bottom: 0,
+    gap: spacing.sm,
+  },
+
+  addressBadge: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: spacing.sm,
+    gap: spacing.sm,
+    // Ombre plus marquée + fond opaque pour rester lisible
+    // même sur un fond de carte chargé (mode satellite),
+    // sur web comme sur mobile.
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.18,
-    shadowRadius: 6,
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-  },
-
-  fixedHeaderRow: {
-    width: '100%',
-    height: 58,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    position: 'relative',
-  },
-
-  backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    zIndex: 3,
-  },
-
-  // Centre absolu du header
-  headerBrandCenter: {
-    position: 'absolute',
-    left: 58,
-    right: 58,
-    top: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  headerLogo: {
-    width: 32,
-    height: 32,
-    marginRight: 8,
-  },
-
-  headerBrandText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '900',
-    letterSpacing: 0.1,
-    textAlign: 'center',
-  },
-
-  fixedHeaderSubtitle: {
-    color: 'rgba(255,255,255,0.88)',
-    fontSize: 10,
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: 3,
-  },
-
-  headerMapButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(0,0,0,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-    marginLeft: 'auto',
-    zIndex: 3,
-  },
-
-  // ========================================================
-  // MARQUEURS
-  // ========================================================
-
-  arrowMarker: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: BLUE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    elevation: 4,
-  },
-
-  // ========================================================
-  // BOUTON LOCALISER VERT
-  // ========================================================
-
-  locateButton: {
-    position: 'absolute',
-    right: 15,
-    width: 45,
-    height: 45,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 8,
-    shadowColor: '#000000',
-    shadowOpacity: 0.22,
-    shadowRadius: 7,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    zIndex: 25,
-  },
-
-  // ========================================================
-  // WARNING GPS
-  // ========================================================
-
-  warningFloating: {
-    position: 'absolute',
-    left: 15,
-    right: 72,
-    backgroundColor: '#FEF3C7',
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000000',
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    zIndex: 25,
-  },
-
-  warningText: {
-    flex: 1,
-    color: '#92400E',
-    fontSize: 11,
-    marginLeft: 5,
-  },
-
-  retry: {
-    color: BLUE,
-    fontSize: 11,
-    fontWeight: '800',
-    marginLeft: 5,
-  },
-
-  // ========================================================
-  // BOTTOM SHEET
-  // ========================================================
-
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderTopLeftRadius: 23,
-    borderTopRightRadius: 23,
-    overflow: 'hidden',
-    elevation: 20,
-    shadowColor: '#000000',
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    shadowOffset: {
-      width: 0,
-      height: -5,
-    },
-    zIndex: 20,
-  },
-
-  sheetHeader: {
-    height: 82,
-    paddingTop: 8,
-    paddingHorizontal: 13,
-    justifyContent: 'flex-start',
-  },
-
-  sheetHandle: {
-    alignSelf: 'center',
-    width: 43,
-    height: 5,
-    borderRadius: 5,
-    backgroundColor: 'rgba(120,120,120,0.45)',
-    marginBottom: 9,
-  },
-
-  sheetHeaderContent: {
-    minHeight: 52,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  sheetHeaderIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 9,
-  },
-
-  sheetHeaderTextBox: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  sheetHeaderTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-  },
-
-  sheetHeaderSubtitle: {
-    fontSize: 10,
-    marginTop: 3,
-  },
-
-  // Toggle vert
-  sheetToggleButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 7,
-  },
-
-  sheetScroll: {
-    flex: 1,
-  },
-
-  sheetContent: {
-    paddingHorizontal: 13,
-    paddingTop: 3,
-    paddingBottom: 25,
-  },
-
-  // ========================================================
-  // LÉGENDE
-  // ========================================================
-
-  legendCard: {
-    width: '100%',
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-    marginTop: 0,
-    gap: 6,
-  },
-
-  legendLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-
-  legendText: {
-    flex: 1,
-    fontSize: 10.5,
-  },
-
-  // ========================================================
-  // DISTANCE ET DURÉE
-  // ========================================================
-
-  statsRow: {
-    width: '100%',
-    flexDirection: 'row',
-    gap: 9,
-    marginTop: 9,
-  },
-
-  statCard: {
-    flex: 1,
-    minWidth: 0,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 9,
-  },
-
-  statTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-
-  statLabel: {
-    color: '#6B7280',
-    fontSize: 9,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0.3,
-  },
-
-  statValueDistance: {
-    color: RED,
-    fontSize: 17,
-    fontWeight: '900',
-    marginTop: 6,
-  },
-
-  durationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-  },
-
-  statValueDuration: {
-    fontSize: 15,
-    fontWeight: '900',
-  },
-
-  // ========================================================
-  // BOUTON DÉMARRER VERT
-  // ========================================================
-
-  startButton: {
-    width: '100%',
-    marginTop: 12,
-    borderRadius: 13,
-    overflow: 'hidden',
+    shadowRadius: 8,
     elevation: 5,
   },
 
-  gradient: {
-    minHeight: 49,
-    width: '100%',
+  addressIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  addressTextWrap: { flex: 1, minWidth: 0 },
+
+  addressLabel: { fontSize: 10, marginBottom: 2 },
+
+  addressValue: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.semiBold,
+    lineHeight: 18,
+  },
+
+  addressBookingId: { fontSize: 10, marginTop: 3 },
+
+  locateButton: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
+    zIndex: 2,
+  },
+
+  gpsWarning: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 10,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+
+  gpsWarningText: { flex: 1, color: '#92400E', fontSize: 11 },
+
+  gpsWarningRetry: {
+    color: START_COLOR,
+    fontSize: 11,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  // ==========================================================
+  // BANDEAU BAS — séparé de la carte
+  // ==========================================================
+
+  bottomSheet: {
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    padding: spacing.md,
+    paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+
+  legendRow: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+
+  legendText: { fontSize: typography.fontSize.xs },
+
+  routeInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    paddingTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+
+  routeInfoItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  routeInfoDivider: { width: 1, height: 24, marginHorizontal: spacing.sm },
+
+  routeInfoLabel: { fontSize: typography.fontSize.xs },
+
+  routeInfoValue: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  startButton: {
+    minHeight: 50,
+    borderRadius: 13,
+    overflow: 'hidden',
+  },
+
+  startButtonGradient: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
 
-  startText: {
+  startButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '900',
-  },
-
-  // ========================================================
-  // BOUTON RÉDUIRE VERT
-  // ========================================================
-
-  closeSheetButton: {
-    minHeight: 38,
-    width: '100%',
-    borderRadius: 12,
-    borderWidth: 1,
-    marginTop: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-
-  closeSheetText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.bold,
   },
 });

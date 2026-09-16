@@ -112,6 +112,140 @@ export const calculateDistance = async (lat1, lng1, lat2, lng2, mode = 'driving'
 };
 
 /**
+ * ✅ Attend que le SDK JavaScript Google Maps (chargé par
+ * MapViewWrapper via <script src=".../maps/api/js...">) soit prêt,
+ * avec un `DirectionsService` disponible.
+ * @param {number} timeoutMs
+ * @returns {Promise<boolean>}
+ */
+const waitForGoogleMapsJS = (timeoutMs = 8000) => {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined') {
+      resolve(false);
+      return;
+    }
+    if (window.google?.maps?.DirectionsService) {
+      resolve(true);
+      return;
+    }
+    const start = Date.now();
+    const check = setInterval(() => {
+      if (window.google?.maps?.DirectionsService) {
+        clearInterval(check);
+        resolve(true);
+      } else if (Date.now() - start > timeoutMs) {
+        clearInterval(check);
+        resolve(false);
+      }
+    }, 200);
+  });
+};
+
+/**
+ * ✅ TRAJET RÉEL SUR LE WEB — via le SDK JavaScript Google Maps
+ * (`window.google.maps.DirectionsService`), et non via l'API REST
+ * "Directions" appelée en axios.
+ *
+ * Pourquoi : l'API REST Google Directions n'autorise PAS les
+ * requêtes CORS depuis un navigateur — chaque appel axios échouait
+ * donc silencieusement en "Network Error" sur le web, et le code
+ * retombait systématiquement sur la ligne droite (Haversine) entre
+ * le thérapeute et le client, au lieu de suivre les vraies rues.
+ * Le SDK JavaScript, lui, n'est pas concerné par cette limite (ce
+ * n'est pas un fetch/XHR classique) : il renvoie le tracé réel,
+ * avec tous les points de la route (overview_path), exactement
+ * comme sur Google Maps.
+ * @returns {Promise<object|null>}
+ */
+const calculateRouteViaDirectionsService = (originLat, originLng, destinationLat, destinationLng, mode, alternatives) => {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !window.google?.maps?.DirectionsService) {
+      resolve(null);
+      return;
+    }
+
+    const google = window.google;
+    const travelModeMap = {
+      driving: google.maps.TravelMode.DRIVING,
+      walking: google.maps.TravelMode.WALKING,
+      bicycling: google.maps.TravelMode.BICYCLING,
+      transit: google.maps.TravelMode.TRANSIT,
+    };
+
+    const directionsService = new google.maps.DirectionsService();
+
+    directionsService.route(
+      {
+        origin: { lat: originLat, lng: originLng },
+        destination: { lat: destinationLat, lng: destinationLng },
+        travelMode: travelModeMap[mode] || google.maps.TravelMode.DRIVING,
+        provideRouteAlternatives: !!alternatives,
+        unitSystem: google.maps.UnitSystem.METRIC,
+      },
+      (result, status) => {
+        if (status !== 'OK' || !result?.routes?.length) {
+          console.warn('⚠️ DirectionsService (web) status:', status);
+          resolve(null);
+          return;
+        }
+
+        const route = result.routes[0];
+        const leg = route.legs?.[0];
+
+        if (!leg?.distance || !leg?.duration) {
+          resolve(null);
+          return;
+        }
+
+        // ✅ `overview_path` = TOUS les points de la vraie route
+        // (suit les rues), déjà décodés par le SDK — pas besoin de
+        // `decodePolyline` ici.
+        const coordinates = (route.overview_path || []).map((p) => ({
+          latitude: p.lat(),
+          longitude: p.lng(),
+        }));
+
+        resolve({
+          coordinates: coordinates.length > 0
+            ? coordinates
+            : [
+                { latitude: originLat, longitude: originLng },
+                { latitude: destinationLat, longitude: destinationLng },
+              ],
+          distance: leg.distance.value / 1000,
+          distanceText: leg.distance.text,
+          duration: leg.duration.value / 60,
+          durationText: leg.duration.text,
+          steps: (leg.steps || []).map((step) => ({
+            instruction: step.instructions || '',
+            distance: step.distance?.text || '',
+            duration: step.duration?.text || '',
+            latitude: step.start_location?.lat(),
+            longitude: step.start_location?.lng(),
+          })),
+          polyline: route.overview_polyline || '',
+          summary: route.summary || '',
+          bounds: route.bounds
+            ? {
+                northeast: {
+                  lat: route.bounds.getNorthEast().lat(),
+                  lng: route.bounds.getNorthEast().lng(),
+                },
+                southwest: {
+                  lat: route.bounds.getSouthWest().lat(),
+                  lng: route.bounds.getSouthWest().lng(),
+                },
+              }
+            : null,
+          waypoints: route.waypoint_order || [],
+          isFallback: false,
+        });
+      }
+    );
+  });
+};
+
+/**
  * ✅ Calculer un itineraire complet (Google Directions API) — "Calcul trajet"
  * @param {number} lat1 - Latitude depart
  * @param {number} lng1 - Longitude depart
@@ -184,6 +318,33 @@ export const calculateRoute = async (
       isFallback: true,
     };
   };
+
+  // ✅ SUR LE WEB : on essaie D'ABORD le vrai tracé via le SDK
+  // JavaScript (DirectionsService) — c'est lui qui fait suivre la
+  // ligne rouge aux vraies rues, contrairement à l'appel REST
+  // ci-dessous qui échoue à cause de CORS dans un navigateur.
+  if (Platform.OS === 'web') {
+    const jsApiReady = await waitForGoogleMapsJS();
+
+    if (jsApiReady) {
+      const jsRoute = await calculateRouteViaDirectionsService(
+        originLat,
+        originLng,
+        destinationLat,
+        destinationLng,
+        mode,
+        alternatives
+      );
+
+      if (jsRoute && jsRoute.coordinates?.length > 1) {
+        return jsRoute;
+      }
+
+      console.warn('⚠️ DirectionsService (web) sans résultat exploitable, tentative REST...');
+    } else {
+      console.warn('⚠️ Google Maps JS pas encore chargé (web), tentative REST...');
+    }
+  }
 
   // Si aucune clé Google n'est disponible, inutile de provoquer une erreur
   // réseau : on utilise directement le calcul local.
@@ -388,6 +549,57 @@ export const formatDistance = (distance) => {
 };
 
 /**
+ * ✅ Calculer le "bearing" (cap / direction en degrés, 0 = Nord,
+ * 90 = Est, ...) entre deux points GPS. Ampiasaina hampitodika ny
+ * icône fleche (arrow) amin'ny lalana, mba hisehoany tsara ny
+ * "direction" mankany amin'ny client.
+ * @param {number} lat1
+ * @param {number} lng1
+ * @param {number} lat2
+ * @param {number} lng2
+ * @returns {number} cap en degrés (0-360)
+ */
+export const computeBearing = (lat1, lng1, lat2, lng2) => {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const toDeg = (rad) => (rad * 180) / Math.PI;
+  const dLng = toRad(lng2 - lng1);
+  const y = Math.sin(dLng) * Math.cos(toRad(lat2));
+  const x =
+    Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+    Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
+  const brng = toDeg(Math.atan2(y, x));
+  return (brng + 360) % 360;
+};
+
+/**
+ * ✅ Extraire, le long d'un tracé (liste de coordonnées), quelques
+ * points régulièrement espacés avec leur "bearing" (cap), pour
+ * afficher des flèches de direction sur la carte NATIVE (iOS/Android)
+ * — mitodika mankany amin'ny client foana ireo fleche ireo.
+ * (Sur le web, Google Maps gère nativement les flèches via les
+ * "icons" d'un Polyline — voir MapViewWrapper.)
+ * @param {Array<{latitude:number, longitude:number}>} coordinates
+ * @param {number} maxArrows - nombre maximum de flèches à générer
+ * @returns {Array<{latitude:number, longitude:number, bearing:number}>}
+ */
+export const getRouteArrowPoints = (coordinates = [], maxArrows = 6) => {
+  if (!Array.isArray(coordinates) || coordinates.length < 2) return [];
+  const step = Math.max(1, Math.floor(coordinates.length / (maxArrows + 1)));
+  const arrows = [];
+  for (let i = step; i < coordinates.length - 1; i += step) {
+    const from = coordinates[i - 1];
+    const to = coordinates[i + 1] || coordinates[i];
+    const bearing = computeBearing(from.latitude, from.longitude, to.latitude, to.longitude);
+    arrows.push({
+      latitude: coordinates[i].latitude,
+      longitude: coordinates[i].longitude,
+      bearing,
+    });
+  }
+  return arrows;
+};
+
+/**
  * ✅ Formatter la durée
  * @param {number} minutes - Durée en minutes
  * @returns {string}
@@ -413,4 +625,6 @@ export default {
   estimateDuration,
   formatDistance,
   formatDuration,
+  computeBearing,
+  getRouteArrowPoints,
 };

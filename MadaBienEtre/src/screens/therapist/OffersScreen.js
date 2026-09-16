@@ -62,6 +62,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -69,13 +70,13 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
 
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -85,6 +86,12 @@ import {
 
 import bookingService from '../../services/bookingService';
 import offerService from '../../services/offerService';
+
+// NOTE: ajio araka ny toerana marina misy an'i Header.js ao
+// amin'ny projet raha tsy mitovy amin'ity chemin ity (jereo
+// koa ny chemin nampiasain'ny bookingService etsy ambony mba
+// hamantarana ny "profondeur" marina).
+import Header from '../../components/common/Header';
 
 // ============================================================
 // ANDROID STATUS BAR
@@ -141,102 +148,14 @@ const COLORS = {
 const AUTO_REFRESH_MS = 15000;
 
 // ============================================================
-// SCREEN HEADER (bouton retour + titre "Réservations" au
-// centre) — tsy hilentika ao ambanin'ny status bar Android.
+// SCREEN HEADER
+//
+// Ny header local fotsy (ScreenHeader) dia nesorina: ny
+// header "Header" iraisana (maitso, sorata/bouton fotsy,
+// bouton retour eo ankavia, logo + "Réservation" eo afovoany)
+// no ampiasaina eto, mba hitovy tsara amin'ny thème.
+// Jereo eto ambany ny fiantsoana <Header ... /> (WEB + MOBILE).
 // ============================================================
-
-function ScreenHeader({ title, onBack }) {
-  return (
-    <View
-      style={[
-        screenHeaderStyles.container,
-        {
-          paddingTop:
-            ANDROID_STATUS_BAR_HEIGHT + 12,
-        },
-      ]}
-    >
-      <StatusBar
-        barStyle="dark-content"
-        backgroundColor={COLORS.white}
-        translucent={false}
-      />
-
-      <TouchableOpacity
-        onPress={onBack}
-        activeOpacity={0.75}
-        hitSlop={{
-          top: 10,
-          bottom: 10,
-          left: 10,
-          right: 10,
-        }}
-        style={screenHeaderStyles.backButton}
-      >
-        <Ionicons
-          name="arrow-back"
-          size={22}
-          color={COLORS.black}
-        />
-      </TouchableOpacity>
-
-      <View style={screenHeaderStyles.titleWrap}>
-        <Text
-          style={screenHeaderStyles.titleText}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
-      </View>
-
-      {/* Espace fantôme à droite pour garder le titre
-          parfaitement centré. */}
-      <View style={screenHeaderStyles.rightSpace} />
-    </View>
-  );
-}
-
-const screenHeaderStyles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingBottom: 14,
-    backgroundColor: COLORS.white,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-  },
-
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F3F4F3',
-  },
-
-  titleWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  titleText: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: COLORS.black,
-    letterSpacing: 0.3,
-  },
-
-  rightSpace: {
-    width: 40,
-    height: 40,
-  },
-});
 
 // ============================================================
 // TOAST (notification légère en haut de l'écran)
@@ -1329,6 +1248,15 @@ export default function OffersScreen({
   const isMobile =
     !isWeb || width < 850;
 
+  // ✅ Insets réels de l'appareil (encoche, barre de statut,
+  // barre de navigation / geste Android). Utilisé pour que les
+  // bottom sheets (modale actions, modale dates) ne soient
+  // JAMAIS masquées par la barre de navigation Android.
+  const insets = useSafeAreaInsets();
+  const sheetBottomPadding =
+    Math.max(insets.bottom, Platform.OS === 'android' ? 16 : 0) + 18;
+
+
   const [bookings, setBookings] =
     useState([]);
 
@@ -1364,6 +1292,18 @@ export default function OffersScreen({
     useState(null);
 
   const [confirmModal, setConfirmModal] = useState(null);
+
+  // Barre de recherche (client, téléphone, email, adresse)
+  const [searchQuery, setSearchQuery] =
+    useState('');
+
+  // Modale "Du / Au" mipoitra hatrany ambany
+  const [showDateModal, setShowDateModal] =
+    useState(false);
+
+  // Booking izay misokatra ny "actions bottom sheet" azy
+  const [actionSheetBooking, setActionSheetBooking] =
+    useState(null);
 
   // ==========================================================
   // LOAD BOOKINGS
@@ -1886,6 +1826,32 @@ export default function OffersScreen({
             }
           }
 
+          // --------------------------
+          // RECHERCHE (client / téléphone / email / adresse)
+          // --------------------------
+
+          const query =
+            searchQuery.trim().toLowerCase();
+
+          if (query) {
+            const haystack = [
+              getClientName(booking),
+              getPhone(booking),
+              getEmail(booking),
+              getAddress(booking),
+              booking?.id != null
+                ? `#${booking.id}`
+                : '',
+            ]
+              .filter(Boolean)
+              .join(' ')
+              .toLowerCase();
+
+            if (!haystack.includes(query)) {
+              return false;
+            }
+          }
+
           return true;
         }
       );
@@ -1894,6 +1860,7 @@ export default function OffersScreen({
       bookings,
       dateFrom,
       dateTo,
+      searchQuery,
     ]);
 
 
@@ -2434,787 +2401,225 @@ export default function OffersScreen({
   const renderMobileCard =
     useCallback(
       ({ item }) => {
-        const booking =
-          item;
+        const booking = item;
 
-        const status =
-          normalizeStatus(
-            booking
-          );
+        const status = normalizeStatus(booking);
+        const statusUI = getStatusUI(booking);
+        const confirmed = status === 'confirmed';
+        const busy = busyId === booking.id;
 
-        const statusUI =
-          getStatusUI(
-            booking
-          );
+        const price = getPrice(booking);
+        const distance = getDistance(booking);
+        const eta = getEta(booking);
+        const date = getScheduledDate(booking);
+        const expiresAt = getExpiresAt(booking);
+        const expired = isOfferExpired(booking);
 
-        const confirmed =
-          status ===
-          'confirmed';
+        const actionState = getActionState(booking);
 
-        const busy =
-          busyId ===
-          booking.id;
+        const showExpiry =
+          !!expiresAt &&
+          (status === 'pending' || status === 'negotiating');
 
-        const price =
-          getPrice(
-            booking
-          );
-
-        const distance =
-          getDistance(
-            booking
-          );
-
-        const eta =
-          getEta(
-            booking
-          );
-
-        const date =
-          getScheduledDate(
-            booking
-          );
-
-        const requestedAt =
-          getRequestedAt(
-            booking
-          );
-
-        const expiresAt =
-          getExpiresAt(
-            booking
-          );
-
-        const expired =
-          isOfferExpired(
-            booking
-          );
-
-        const actionState =
-          getActionState(booking);
-
-        const showNegotiation =
-          actionState.showNegotiation;
-
-        const showAcceptReject =
-          actionState.showAcceptReject;
+        // ====================================================
+        // ✅ CARTE COMPACTE — refonte complète :
+        // - uniquement les infos importantes, regroupées sur une
+        //   même ligne quand c'est possible (massage/durée/
+        //   distance sur 1 ligne, date/prix sur 1 ligne) ;
+        // - AUCUN bouton d'action dans la carte (accepter/
+        //   refuser/négocier/détails) — tout est dans la modale
+        //   "actions" (voir renderActionsSheet) ;
+        // - un seul bouton toggle, blanc, sans bordure, avec
+        //   l'icône 3 points VERTICAUX ("ellipsis-vertical"),
+        //   qui ouvre cette modale.
+        // ====================================================
 
         return (
           <View
             style={[
               styles.mobileCard,
-              hoveredId ===
-                booking.id &&
-                styles.cardHover,
+              hoveredId === booking.id && styles.cardHover,
             ]}
-            onMouseEnter={() =>
-              isWeb && setHoveredId(booking.id)
-            }
-            onMouseLeave={() =>
-              isWeb && setHoveredId(null)
-            }
+            onMouseEnter={() => isWeb && setHoveredId(booking.id)}
+            onMouseLeave={() => isWeb && setHoveredId(null)}
           >
-            {/* HEADER */}
-
-            <View
-              style={
-                styles.mobileHeader
-              }
-            >
+            {/* ============ HEADER : avatar + nom + statut + kebab ============ */}
+            <View style={styles.mobileHeader}>
               <ClientAvatar
-                photoUrl={getClientPhoto(
-                  booking
-                )}
-                name={getClientName(
-                  booking
-                )}
-                size={58}
-                isOnline={getClientOnline(
-                  booking
-                )}
+                photoUrl={getClientPhoto(booking)}
+                name={getClientName(booking)}
+                size={40}
+                isOnline={getClientOnline(booking)}
               />
 
-              <View
-                style={
-                  styles.clientInfo
-                }
-              >
-                <View
-                  style={
-                    styles.clientNameRow
-                  }
-                >
-                  <Text
-                    style={
-                      styles.clientName
-                    }
-                    numberOfLines={
-                      1
-                    }
-                  >
-                    {getClientName(
-                      booking
-                    )}
+              <View style={styles.clientInfo}>
+                <View style={styles.clientNameRow}>
+                  <Text style={styles.clientName} numberOfLines={1}>
+                    {getClientName(booking)}
                   </Text>
 
                   <View
                     style={[
-                      styles.presenceBadge,
-                      getClientOnline(
-                        booking
-                      )
-                        ? styles.presenceBadgeOnline
-                        : styles.presenceBadgeOffline,
+                      styles.statusBadge,
+                      { backgroundColor: statusUI.background },
                     ]}
                   >
+                    <Ionicons
+                      name={statusUI.icon}
+                      size={11}
+                      color={statusUI.color}
+                    />
                     <Text
-                      style={[
-                        styles.presenceBadgeText,
-                        getClientOnline(
-                          booking
-                        )
-                          ? styles.presenceBadgeTextOnline
-                          : styles.presenceBadgeTextOffline,
-                      ]}
+                      style={[styles.statusText, { color: statusUI.color }]}
+                      numberOfLines={1}
                     >
-                      {getClientOnline(
-                        booking
-                      )
-                        ? 'En ligne'
-                        : 'Hors ligne'}
+                      {statusUI.label}
                     </Text>
                   </View>
                 </View>
 
-                <Text
-                  style={
-                    styles.bookingId
-                  }
-                >
-                  Réservation #
-                  {booking.id}
+                {/* ✅ Une seule ligne compacte : #réservation + téléphone
+                    (regroupe ce qui prenait 2-3 lignes séparées avant) */}
+                <Text style={styles.metaLine} numberOfLines={1}>
+                  Réservation #{booking.id}
+                  {getPhone(booking) ? `  ·  ${getPhone(booking)}` : ''}
                 </Text>
 
-                {getPhone(
-                  booking
-                ) ? (
-                  <View
-                    style={
-                      styles.contactLine
-                    }
+                {/* Expiration — affichée uniquement si pertinente
+                    (offre en attente / en négociation) */}
+                {showExpiry ? (
+                  <Text
+                    style={[
+                      styles.expiryLine,
+                      expired && styles.expiryLineUrgent,
+                    ]}
+                    numberOfLines={1}
                   >
-                    <Ionicons
-                      name="call-outline"
-                      size={11}
-                      color={
-                        COLORS.textSecondary
-                      }
-                    />
-
-                    <Text
-                      style={
-                        styles.phone
-                      }
-                      numberOfLines={
-                        1
-                      }
-                    >
-                      {getPhone(
-                        booking
-                      )}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {getEmail(
-                  booking
-                ) ? (
-                  <View
-                    style={
-                      styles.contactLine
-                    }
-                  >
-                    <Ionicons
-                      name="mail-outline"
-                      size={11}
-                      color={
-                        COLORS.textSecondary
-                      }
-                    />
-
-                    <Text
-                      style={
-                        styles.phone
-                      }
-                      numberOfLines={
-                        1
-                      }
-                    >
-                      {getEmail(
-                        booking
-                      )}
-                    </Text>
-                  </View>
+                    {expired ? 'Expirée le ' : 'Expire le '}
+                    {formatDate(expiresAt)}
+                  </Text>
                 ) : null}
               </View>
 
-              <View
-                style={[
-                  styles.statusBadge,
-                  {
-                    backgroundColor:
-                      statusUI.background,
-                  },
-                ]}
+              {/* ✅ BOUTON TOGGLE UNIQUE — blanc, sans bordure, 3 points
+                  verticaux. C'est le seul élément "actionnable" de la
+                  carte : il ouvre la bottom sheet avec toutes les
+                  actions (accepter / négocier / refuser / détails). */}
+              <Pressable
+                style={styles.kebabButton}
+                onPress={(event) => {
+                  event?.stopPropagation?.();
+                  setActionSheetBooking(booking);
+                }}
+                disabled={busy}
+                hitSlop={10}
+                android_ripple={{ color: '#E7EAE8', borderless: true }}
+                accessibilityRole="button"
+                accessibilityLabel="Voir les actions"
               >
-                <Ionicons
-                  name={
-                    statusUI.icon
-                  }
-                  size={14}
-                  color={
-                    statusUI.color
-                  }
-                />
-
-                <Text
-                  style={[
-                    styles.statusText,
-                    {
-                      color:
-                        statusUI.color,
-                    },
-                  ]}
-                >
-                  {
-                    statusUI.label
-                  }
-                </Text>
-              </View>
+                {busy ? (
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                ) : (
+                  <Ionicons
+                    name="ellipsis-vertical"
+                    size={18}
+                    color={COLORS.text}
+                  />
+                )}
+              </Pressable>
             </View>
 
-            {/* MASSAGE */}
-
-            <View
-              style={
-                styles.infoRow
-              }
-            >
-              <View
-                style={
-                  styles.iconCircle
-                }
-              >
+            {/* ============ MASSAGE · DURÉE · DISTANCE — même ligne ============ */}
+            <View style={styles.compactInfoRow}>
+              <View style={styles.compactInfoItem}>
                 <Ionicons
                   name="body-outline"
-                  size={16}
-                  color={
-                    COLORS.primary
-                  }
+                  size={13}
+                  color={COLORS.primary}
                 />
-              </View>
-
-              <View
-                style={
-                  styles.infoContent
-                }
-              >
-                <Text
-                  style={
-                    styles.infoLabel
-                  }
-                >
-                  Massage
-                </Text>
-
-                <Text
-                  style={
-                    styles.infoValue
-                  }
-                  numberOfLines={
-                    1
-                  }
-                >
-                  {getMassageName(
-                    booking
-                  )}
-
-                  {getCategory(
-                    booking
-                  )
-                    ? ` · ${getCategory(
-                        booking
-                      )}`
-                    : ''}
+                <Text style={styles.compactInfoText} numberOfLines={1}>
+                  {getMassageName(booking)}
                 </Text>
               </View>
-            </View>
 
-            {/* DURATION */}
+              <View style={styles.compactInfoDivider} />
 
-            <View
-              style={
-                styles.infoRow
-              }
-            >
-              <View
-                style={
-                  styles.iconCircle
-                }
-              >
+              <View style={styles.compactInfoItem}>
                 <Ionicons
                   name="time-outline"
-                  size={16}
-                  color={
-                    COLORS.primary
-                  }
+                  size={13}
+                  color={COLORS.primary}
                 />
-              </View>
-
-              <View
-                style={
-                  styles.infoContent
-                }
-              >
-                <Text
-                  style={
-                    styles.infoLabel
-                  }
-                >
-                  Durée
-                </Text>
-
-                <Text
-                  style={
-                    styles.infoValue
-                  }
-                >
-                  {getDuration(
-                    booking
-                  )}{' '}
-                  min
+                <Text style={styles.compactInfoText} numberOfLines={1}>
+                  {getDuration(booking)} min
                 </Text>
               </View>
+
+              {distance !== null ? (
+                <>
+                  <View style={styles.compactInfoDivider} />
+                  <View style={styles.compactInfoItem}>
+                    <Ionicons
+                      name="navigate-outline"
+                      size={13}
+                      color={COLORS.primary}
+                    />
+                    <Text style={styles.compactInfoText} numberOfLines={1}>
+                      {distance.toFixed(1)} km
+                      {eta !== null ? ` · ${Math.round(eta)} min` : ''}
+                    </Text>
+                  </View>
+                </>
+              ) : null}
             </View>
 
-            {/* DISTANCE */}
-
-            {distance !==
-            null ? (
-              <View
-                style={
-                  styles.infoRow
-                }
-              >
-                <View
-                  style={
-                    styles.iconCircle
-                  }
-                >
-                  <Ionicons
-                    name="navigate-outline"
-                    size={16}
-                    color={
-                      COLORS.primary
-                    }
-                  />
-                </View>
-
-                <View
-                  style={
-                    styles.infoContent
-                  }
-                >
-                  <Text
-                    style={
-                      styles.infoLabel
-                    }
-                  >
-                    Distance
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.infoValue
-                    }
-                  >
-                    {distance.toFixed(
-                      1
-                    )}{' '}
-                    km
-                    {eta !==
-                    null
-                      ? ` · ${Math.round(
-                          eta
-                        )} min`
-                      : ''}
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-
-            {/* ADDRESS */}
-
-            <View
-              style={
-                styles.addressRow
-              }
-            >
+            {/* ============ ADRESSE — 1 ligne ============ */}
+            <View style={styles.addressRow}>
               <Ionicons
                 name="location-outline"
-                size={17}
-                color={
-                  COLORS.primary
-                }
+                size={14}
+                color={COLORS.primary}
               />
-
-              <Text
-                style={
-                  styles.address
-                }
-                numberOfLines={
-                  2
-                }
-              >
-                {getAddress(
-                  booking
-                )}
+              <Text style={styles.address} numberOfLines={1}>
+                {getAddress(booking)}
               </Text>
             </View>
 
-            {/* DATE */}
+            {/* ============ DATE + PRIX — même ligne ============ */}
+            <View style={styles.footerRow}>
+              <View style={styles.footerDateBlock}>
+                {date ? (
+                  <View style={styles.dateRow}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={13}
+                      color={COLORS.textSecondary}
+                    />
+                    <Text style={styles.dateText} numberOfLines={1}>
+                      {formatDate(date)}
+                    </Text>
+                  </View>
+                ) : null}
 
-            {date ? (
-              <View
-                style={
-                  styles.dateRow
-                }
-              >
-                <Ionicons
-                  name="calendar-outline"
-                  size={15}
-                  color={
-                    COLORS.textSecondary
-                  }
-                />
-
-                <Text
-                  style={
-                    styles.dateText
-                  }
-                >
-                  {formatDate(
-                    date
-                  )}
-                </Text>
-              </View>
-            ) : null}
-
-            {/* DEMANDE CLIENT / EXPIRATION */}
-
-            <View
-              style={
-                styles.timelineBox
-              }
-            >
-              {requestedAt ? (
-                <View
-                  style={
-                    styles.dateRow
-                  }
-                >
-                  <Ionicons
-                    name="paper-plane-outline"
-                    size={14}
-                    color={
-                      COLORS.textSecondary
-                    }
-                  />
-
-                  <Text
-                    style={
-                      styles.dateText
-                    }
-                  >
-                    Demande envoyée le{' '}
-                    {formatDate(
-                      requestedAt
-                    )}
-                  </Text>
-                </View>
-              ) : null}
-
-              {expiresAt ? (
-                <View
-                  style={
-                    styles.dateRow
-                  }
-                >
-                  <Ionicons
-                    name="hourglass-outline"
-                    size={14}
-                    color={
-                      expired
-                        ? COLORS.red
-                        : COLORS.orange
-                    }
-                  />
-
-                  <Text
-                    style={[
-                      styles.dateText,
-                      expired && {
-                        color:
-                          COLORS.red,
-                        fontWeight:
-                          '700',
-                      },
-                    ]}
-                  >
-                    {expired
-                      ? 'Demande expirée le '
-                      : 'Expire le '}
-                    {formatDate(
-                      expiresAt
-                    )}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-
-            {/* PRICE */}
-
-            <View
-              style={
-                styles.priceSection
-              }
-            >
-              <View>
-                <Text
-                  style={
-                    styles.priceLabel
-                  }
-                >
-                  Prix proposé
-                </Text>
-
-                <Text
-                  style={
-                    styles.price
-                  }
-                >
-                  {formatPrice(
-                    price
-                  )}
-                </Text>
+                <Text style={styles.price}>{formatPrice(price)}</Text>
               </View>
 
               {confirmed ? (
-                <View
-                  style={
-                    styles.confirmedBadge
-                  }
-                >
+                <View style={styles.confirmedBadge}>
                   <Ionicons
                     name="checkmark-circle"
-                    size={16}
-                    color={
-                      COLORS.primary
-                    }
+                    size={14}
+                    color={COLORS.primary}
                   />
-
-                  <Text
-                    style={
-                      styles.confirmedText
-                    }
-                  >
-                    Confirmée
-                  </Text>
+                  <Text style={styles.confirmedText}>Confirmée</Text>
                 </View>
               ) : null}
             </View>
-
-            {/* DETAIL */}
-            <Pressable
-              style={styles.detailButton}
-              onPress={() => openBooking(booking)}
-              android_ripple={{ color: '#DCEFE3' }}
-            >
-              <Ionicons
-                name="eye-outline"
-                size={15}
-                color={COLORS.textSecondary}
-              />
-              <Text style={styles.detailButtonText}>
-                Voir les détails
-              </Text>
-            </Pressable>
-
-            {/* ACTIONS */}
-
-            {(showNegotiation || showAcceptReject) ? (
-              <View
-                style={
-                  styles.actionsRow
-                }
-              >
-                {/* ACCEPT */}
-                {showAcceptReject && (
-                <Pressable
-                  style={[
-                    styles.actionButton,
-                    styles.acceptButton,
-                    busy &&
-                      styles.disabled,
-                  ]}
-                  onPress={event => {
-                    event?.stopPropagation?.();
-
-                    handleAccept(
-                      booking
-                    );
-                  }}
-                  disabled={busy}
-                >
-                  {busy ? (
-                    <ActivityIndicator
-                      size="small"
-                      color={
-                        COLORS.white
-                      }
-                    />
-                  ) : (
-                    <>
-                      <Ionicons
-                        name="checkmark"
-                        size={18}
-                        color={
-                          COLORS.white
-                        }
-                      />
-
-                      <Text
-                        style={
-                          styles.acceptButtonText
-                        }
-                      >
-                        Accepter
-                      </Text>
-                    </>
-                  )}
-                </Pressable>
-                )}
-
-                {/* NEGOTIATION */}
-                {showNegotiation && (
-                <Pressable
-                  style={[
-                    styles.actionButton,
-                    styles.negotiationButton,
-                  ]}
-                  onPress={event => {
-                    event?.stopPropagation?.();
-
-                    handleNegotiation(
-                      booking
-                    );
-                  }}
-                >
-                  <Ionicons
-                    name="swap-horizontal"
-                    size={18}
-                    color={
-                      COLORS.primary
-                    }
-                  />
-
-                  <Text
-                    style={
-                      styles.negotiationText
-                    }
-                  >
-                    Négociation
-                  </Text>
-                </Pressable>
-                )}
-
-                {/* REJECT */}
-                {showAcceptReject && (
-                <Pressable
-                  style={[
-                    styles.actionButton,
-                    styles.rejectButton,
-                    busy &&
-                      styles.disabled,
-                  ]}
-                  onPress={event => {
-                    event?.stopPropagation?.();
-
-                    handleReject(
-                      booking
-                    );
-                  }}
-                  disabled={busy}
-                >
-                  <Ionicons
-                    name="close"
-                    size={18}
-                    color={
-                      COLORS.red
-                    }
-                  />
-
-                  <Text
-                    style={
-                      styles.rejectText
-                    }
-                  >
-                    Refuser
-                  </Text>
-                </Pressable>
-                )}
-              </View>
-            ) : (
-              <View
-                style={[
-                  styles.confirmedRow,
-                  {
-                    backgroundColor:
-                      statusUI.background,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={
-                    statusUI.icon
-                  }
-                  size={18}
-                  color={
-                    statusUI.color
-                  }
-                />
-
-                <Text
-                  style={[
-                    styles.confirmedRowText,
-                    {
-                      color:
-                        statusUI.color,
-                    },
-                  ]}
-                >
-                  {statusUI.label}
-                </Text>
-              </View>
-            )}
           </View>
         );
       },
       [
         busyId,
-        handleAccept,
-        handleNegotiation,
-        handleReject,
         hoveredId,
       ]
     );
@@ -3850,147 +3255,61 @@ export default function OffersScreen({
               </View>
             </View>
 
-            {/* ACTIONS */}
+            {/* ACTIONS — bouton toggle unique par ligne,
+                ouvre le "bottom sheet" des actions */}
 
             <View
               style={
                 styles.colActions
               }
             >
-              {(showNegotiation || showAcceptReject) ? (
-                <View
-                  style={
-                    styles.tableActions
-                  }
-                >
-                  {/* ACCEPT */}
-                  {showAcceptReject && (
-                  <Pressable
-                    style={[
-                      styles.tableAction,
-                      styles.tableAccept,
-                      busy &&
-                        styles.disabled,
-                    ]}
-                    onPress={event => {
-                      event?.stopPropagation?.();
+              <Pressable
+                style={[
+                  styles.tableToggle,
+                  (showNegotiation || showAcceptReject)
+                    ? styles.tableToggleActive
+                    : {
+                        backgroundColor:
+                          statusUI.background,
+                        borderColor:
+                          statusUI.background,
+                      },
+                  busy && styles.disabled,
+                ]}
+                onPress={event => {
+                  event?.stopPropagation?.();
 
-                      handleAccept(
-                        booking
-                      );
-                    }}
-                    disabled={busy}
-                  >
-                    {busy ? (
-                      <ActivityIndicator
-                        size="small"
-                        color={
-                          COLORS.white
-                        }
-                      />
-                    ) : (
-                      <Ionicons
-                        name="checkmark"
-                        size={17}
-                        color={
-                          COLORS.white
-                        }
-                      />
-                    )}
-                  </Pressable>
-                  )}
-
-                  {/* NEGOTIATION */}
-                  {showNegotiation && (
-                  <Pressable
-                    style={[
-                      styles.tableAction,
-                      styles.tableNegotiation,
-                    ]}
-                    onPress={event => {
-                      event?.stopPropagation?.();
-
-                      handleNegotiation(
-                        booking
-                      );
-                    }}
-                  >
-                    <Ionicons
-                      name="swap-horizontal"
-                      size={17}
-                      color={
-                        COLORS.primary
-                      }
-                    />
-                  </Pressable>
-                  )}
-
-                  {/* REJECT */}
-                  {showAcceptReject && (
-                  <Pressable
-                    style={[
-                      styles.tableAction,
-                      styles.tableReject,
-                      busy &&
-                        styles.disabled,
-                    ]}
-                    onPress={event => {
-                      event?.stopPropagation?.();
-
-                      handleReject(
-                        booking
-                      );
-                    }}
-                    disabled={busy}
-                  >
-                    <Ionicons
-                      name="close"
-                      size={18}
-                      color={
-                        COLORS.red
-                      }
-                    />
-                  </Pressable>
-                  )}
-                </View>
-              ) : (
-                <View
-                  style={
-                    styles.doneWeb
-                  }
-                >
+                  setActionSheetBooking(booking);
+                }}
+                disabled={busy}
+              >
+                {busy ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={COLORS.primary}
+                  />
+                ) : (
                   <Ionicons
                     name={
-                      statusUI.icon
+                      (showNegotiation || showAcceptReject)
+                        ? 'options-outline'
+                        : statusUI.icon
                     }
-                    size={16}
+                    size={17}
                     color={
-                      statusUI.color
+                      (showNegotiation || showAcceptReject)
+                        ? COLORS.primary
+                        : statusUI.color
                     }
                   />
-
-                  <Text
-                    style={[
-                      styles.doneWebText,
-                      {
-                        color:
-                          statusUI.color,
-                      },
-                    ]}
-                  >
-                    {statusUI.label}
-                  </Text>
-                </View>
-              )}
+                )}
+              </Pressable>
             </View>
           </Pressable>
         );
       },
       [
         busyId,
-        handleAccept,
-        handleNegotiation,
-        handleReject,
         hoveredId,
         openBooking,
       ]
@@ -4007,345 +3326,101 @@ export default function OffersScreen({
           styles.topContainer
         }
       >
-        {/* FILTRE PAR PLAGE DE DATES (sans titre/sous-titre) */}
+        {/* BARRE DE RECHERCHE + ICONE CALENDRIER
+            (le filtre "Du / Au" est caché dans une modale
+            qui remonte depuis le bas, ouverte par l'icône) */}
 
-        <View style={styles.dateFilterSection}>
-          {(dateFrom || dateTo) ? (
-            <View style={styles.dateFilterHeader}>
+        <View style={styles.searchRow}>
+          <View style={styles.searchInputWrap}>
+            <Ionicons
+              name="search-outline"
+              size={17}
+              color={COLORS.textLight}
+            />
+
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Rechercher un client, une adresse..."
+              placeholderTextColor={COLORS.textLight}
+              style={styles.searchInput}
+              returnKeyType="search"
+            />
+
+            {searchQuery ? (
               <Pressable
-                onPress={() => {
-                  setDateFrom(null);
-                  setDateTo(null);
-                  setShowFromPicker(false);
-                  setShowToPicker(false);
-                }}
-                style={styles.clearDateButton}
+                onPress={() => setSearchQuery('')}
                 hitSlop={8}
               >
                 <Ionicons
-                  name="close-circle-outline"
+                  name="close-circle"
                   size={16}
-                  color={COLORS.red}
+                  color={COLORS.textLight}
                 />
-                <Text style={styles.clearDateText}>
-                  Effacer
-                </Text>
               </Pressable>
-            </View>
-          ) : null}
-
-          <View style={styles.dateFieldsRow}>
-            {/* DATE DEBUT */}
-            <View style={styles.dateFieldWrap}>
-              <Text style={styles.dateFieldLabel}>
-                Du
-              </Text>
-
-              {isWeb ? (
-                <View style={styles.webDateInputWrap}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={16}
-                    color={COLORS.primary}
-                  />
-                  <input
-                    type="date"
-                    value={
-                      dateFrom
-                        ? formatDateOnly(dateFrom)
-                        : ''
-                    }
-                    max={
-                      dateTo
-                        ? formatDateOnly(dateTo)
-                        : undefined
-                    }
-                    onChange={event => {
-                      const value =
-                        event.target.value;
-
-                      if (!value) {
-                        setDateFrom(null);
-                        return;
-                      }
-
-                      const parts =
-                        value
-                          .split('-')
-                          .map(Number);
-
-                      const selected =
-                        new Date(
-                          parts[0],
-                          parts[1] - 1,
-                          parts[2]
-                        );
-
-                      setDateFrom(selected);
-
-                      if (
-                        dateTo &&
-                        formatDateOnly(selected) >
-                          formatDateOnly(dateTo)
-                      ) {
-                        setDateTo(selected);
-                      }
-                    }}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      height: 40,
-                      border: 'none',
-                      outline: 'none',
-                      background: 'transparent',
-                      color: COLORS.text,
-                      fontSize: 13,
-                    }}
-                  />
-                </View>
-              ) : (
-                <>
-                  <Pressable
-                    style={styles.nativeDateButton}
-                    onPress={() => {
-                      setShowToPicker(false);
-                      setShowFromPicker(true);
-                    }}
-                  >
-                    <Ionicons
-                      name="calendar-outline"
-                      size={16}
-                      color={COLORS.primary}
-                    />
-                    <Text
-                      style={[
-                        styles.nativeDateText,
-                        !dateFrom &&
-                          styles.nativeDatePlaceholder,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {formatDateLabel(dateFrom)}
-                    </Text>
-                  </Pressable>
-
-                  {showFromPicker ? (
-                    <DateTimePicker
-                      value={
-                        dateFrom ||
-                        new Date()
-                      }
-                      mode="date"
-                      display="default"
-                      onChange={(
-                        event,
-                        selectedDate
-                      ) => {
-                        setShowFromPicker(false);
-
-                        if (
-                          event?.type ===
-                          'dismissed'
-                        ) {
-                          return;
-                        }
-
-                        if (
-                          selectedDate
-                        ) {
-                          setDateFrom(
-                            selectedDate
-                          );
-
-                          if (
-                            dateTo &&
-                            selectedDate.getTime() >
-                              dateTo.getTime()
-                          ) {
-                            setDateTo(
-                              selectedDate
-                            );
-                          }
-                        }
-                      }}
-                    />
-                  ) : null}
-                </>
-              )}
-            </View>
-
-            <View style={styles.dateArrow}>
-              <Ionicons
-                name="arrow-forward"
-                size={16}
-                color={COLORS.textLight}
-              />
-            </View>
-
-            {/* DATE FIN */}
-            <View style={styles.dateFieldWrap}>
-              <Text style={styles.dateFieldLabel}>
-                Au
-              </Text>
-
-              {isWeb ? (
-                <View style={styles.webDateInputWrap}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={16}
-                    color={COLORS.primary}
-                  />
-                  <input
-                    type="date"
-                    value={
-                      dateTo
-                        ? formatDateOnly(dateTo)
-                        : ''
-                    }
-                    min={
-                      dateFrom
-                        ? formatDateOnly(dateFrom)
-                        : undefined
-                    }
-                    onChange={event => {
-                      const value =
-                        event.target.value;
-
-                      if (!value) {
-                        setDateTo(null);
-                        return;
-                      }
-
-                      const parts =
-                        value
-                          .split('-')
-                          .map(Number);
-
-                      const selected =
-                        new Date(
-                          parts[0],
-                          parts[1] - 1,
-                          parts[2]
-                        );
-
-                      setDateTo(selected);
-
-                      if (
-                        dateFrom &&
-                        selected.getTime() <
-                          dateFrom.getTime()
-                      ) {
-                        setDateFrom(selected);
-                      }
-                    }}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      height: 40,
-                      border: 'none',
-                      outline: 'none',
-                      background: 'transparent',
-                      color: COLORS.text,
-                      fontSize: 13,
-                    }}
-                  />
-                </View>
-              ) : (
-                <>
-                  <Pressable
-                    style={styles.nativeDateButton}
-                    onPress={() => {
-                      setShowFromPicker(false);
-                      setShowToPicker(true);
-                    }}
-                  >
-                    <Ionicons
-                      name="calendar-outline"
-                      size={16}
-                      color={COLORS.primary}
-                    />
-                    <Text
-                      style={[
-                        styles.nativeDateText,
-                        !dateTo &&
-                          styles.nativeDatePlaceholder,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {formatDateLabel(dateTo)}
-                    </Text>
-                  </Pressable>
-
-                  {showToPicker ? (
-                    <DateTimePicker
-                      value={
-                        dateTo ||
-                        dateFrom ||
-                        new Date()
-                      }
-                      mode="date"
-                      display="default"
-                      minimumDate={
-                        dateFrom ||
-                        undefined
-                      }
-                      onChange={(
-                        event,
-                        selectedDate
-                      ) => {
-                        setShowToPicker(false);
-
-                        if (
-                          event?.type ===
-                          'dismissed'
-                        ) {
-                          return;
-                        }
-
-                        if (
-                          selectedDate
-                        ) {
-                          setDateTo(
-                            selectedDate
-                          );
-
-                          if (
-                            dateFrom &&
-                            selectedDate.getTime() <
-                              dateFrom.getTime()
-                          ) {
-                            setDateFrom(
-                              selectedDate
-                            );
-                          }
-                        }
-                      }}
-                    />
-                  ) : null}
-                </>
-              )}
-            </View>
+            ) : null}
           </View>
 
-          {(dateFrom || dateTo) ? (
-            <View style={styles.dateFilterSummary}>
-              <Ionicons
-                name="funnel-outline"
-                size={14}
-                color={COLORS.primary}
-              />
-              <Text style={styles.dateFilterSummaryText}>
-                {dateFrom
-                  ? formatDateLabel(dateFrom)
-                  : 'Toutes les dates'}
-                {'  →  '}
-                {dateTo
-                  ? formatDateLabel(dateTo)
-                  : 'Toutes les dates'}
-              </Text>
-            </View>
-          ) : null}
+          <Pressable
+            onPress={() => setShowDateModal(true)}
+            style={[
+              styles.calendarFilterButton,
+              (dateFrom || dateTo) &&
+                styles.calendarFilterButtonActive,
+            ]}
+          >
+            <Ionicons
+              name="calendar-outline"
+              size={19}
+              color={
+                (dateFrom || dateTo)
+                  ? COLORS.white
+                  : COLORS.primary
+              }
+            />
+
+            {(dateFrom || dateTo) ? (
+              <View style={styles.calendarFilterDot} />
+            ) : null}
+          </Pressable>
         </View>
+
+        {(dateFrom || dateTo) ? (
+          <Pressable
+            style={styles.dateFilterSummary}
+            onPress={() => setShowDateModal(true)}
+          >
+            <Ionicons
+              name="funnel-outline"
+              size={14}
+              color={COLORS.primary}
+            />
+
+            <Text style={styles.dateFilterSummaryText}>
+              {dateFrom
+                ? formatDateLabel(dateFrom)
+                : 'Toutes les dates'}
+              {'  →  '}
+              {dateTo
+                ? formatDateLabel(dateTo)
+                : 'Toutes les dates'}
+            </Text>
+
+            <Pressable
+              onPress={() => {
+                setDateFrom(null);
+                setDateTo(null);
+              }}
+              hitSlop={8}
+            >
+              <Ionicons
+                name="close-circle-outline"
+                size={16}
+                color={COLORS.red}
+              />
+            </Pressable>
+          </Pressable>
+        ) : null}
 
         {/* TABS */}
 
@@ -4488,6 +3563,577 @@ export default function OffersScreen({
         </ScrollView>
       </View>
     );
+
+  // ==========================================================
+  // MODALE DATE "DU / AU" — mipoitra hatrany ambany
+  // ==========================================================
+
+  const renderDateModal =
+    () => (
+      <Modal
+        visible={showDateModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDateModal(false)}
+      >
+        <View style={styles.sheetOverlay}>
+          <Pressable
+            style={styles.sheetBackdrop}
+            onPress={() => setShowDateModal(false)}
+          />
+
+          <View
+            style={[
+              styles.dateSheet,
+              { paddingBottom: sheetBottomPadding },
+            ]}
+          >
+            <View style={styles.sheetHandle} />
+
+            <View style={styles.sheetHeaderRow}>
+              <Text style={styles.sheetTitle}>
+                Filtrer par date
+              </Text>
+
+              <Pressable
+                onPress={() => setShowDateModal(false)}
+                hitSlop={8}
+              >
+                <Ionicons
+                  name="close"
+                  size={22}
+                  color={COLORS.textSecondary}
+                />
+              </Pressable>
+            </View>
+
+            <View style={styles.dateFieldsRow}>
+              {/* DATE DEBUT */}
+              <View style={styles.dateFieldWrap}>
+                <Text style={styles.dateFieldLabel}>
+                  Du
+                </Text>
+
+                {isWeb ? (
+                  <View style={styles.webDateInputWrap}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={16}
+                      color={COLORS.primary}
+                    />
+                    <input
+                      type="date"
+                      value={
+                        dateFrom
+                          ? formatDateOnly(dateFrom)
+                          : ''
+                      }
+                      max={
+                        dateTo
+                          ? formatDateOnly(dateTo)
+                          : undefined
+                      }
+                      onChange={event => {
+                        const value =
+                          event.target.value;
+
+                        if (!value) {
+                          setDateFrom(null);
+                          return;
+                        }
+
+                        const parts =
+                          value
+                            .split('-')
+                            .map(Number);
+
+                        const selected =
+                          new Date(
+                            parts[0],
+                            parts[1] - 1,
+                            parts[2]
+                          );
+
+                        setDateFrom(selected);
+
+                        if (
+                          dateTo &&
+                          formatDateOnly(selected) >
+                            formatDateOnly(dateTo)
+                        ) {
+                          setDateTo(selected);
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        height: 40,
+                        border: 'none',
+                        outline: 'none',
+                        background: 'transparent',
+                        color: COLORS.text,
+                        fontSize: 13,
+                      }}
+                    />
+                  </View>
+                ) : (
+                  <>
+                    <Pressable
+                      style={styles.nativeDateButton}
+                      onPress={() => {
+                        setShowToPicker(false);
+                        setShowFromPicker(true);
+                      }}
+                    >
+                      <Ionicons
+                        name="calendar-outline"
+                        size={16}
+                        color={COLORS.primary}
+                      />
+                      <Text
+                        style={[
+                          styles.nativeDateText,
+                          !dateFrom &&
+                            styles.nativeDatePlaceholder,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {formatDateLabel(dateFrom)}
+                      </Text>
+                    </Pressable>
+
+                    {showFromPicker ? (
+                      <DateTimePicker
+                        value={
+                          dateFrom ||
+                          new Date()
+                        }
+                        mode="date"
+                        display="default"
+                        onChange={(
+                          event,
+                          selectedDate
+                        ) => {
+                          setShowFromPicker(false);
+
+                          if (
+                            event?.type ===
+                            'dismissed'
+                          ) {
+                            return;
+                          }
+
+                          if (
+                            selectedDate
+                          ) {
+                            setDateFrom(
+                              selectedDate
+                            );
+
+                            if (
+                              dateTo &&
+                              selectedDate.getTime() >
+                                dateTo.getTime()
+                            ) {
+                              setDateTo(
+                                selectedDate
+                              );
+                            }
+                          }
+                        }}
+                      />
+                    ) : null}
+                  </>
+                )}
+              </View>
+
+              <View style={styles.dateArrow}>
+                <Ionicons
+                  name="arrow-forward"
+                  size={16}
+                  color={COLORS.textLight}
+                />
+              </View>
+
+              {/* DATE FIN */}
+              <View style={styles.dateFieldWrap}>
+                <Text style={styles.dateFieldLabel}>
+                  Au
+                </Text>
+
+                {isWeb ? (
+                  <View style={styles.webDateInputWrap}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={16}
+                      color={COLORS.primary}
+                    />
+                    <input
+                      type="date"
+                      value={
+                        dateTo
+                          ? formatDateOnly(dateTo)
+                          : ''
+                      }
+                      min={
+                        dateFrom
+                          ? formatDateOnly(dateFrom)
+                          : undefined
+                      }
+                      onChange={event => {
+                        const value =
+                          event.target.value;
+
+                        if (!value) {
+                          setDateTo(null);
+                          return;
+                        }
+
+                        const parts =
+                          value
+                            .split('-')
+                            .map(Number);
+
+                        const selected =
+                          new Date(
+                            parts[0],
+                            parts[1] - 1,
+                            parts[2]
+                          );
+
+                        setDateTo(selected);
+
+                        if (
+                          dateFrom &&
+                          selected.getTime() <
+                            dateFrom.getTime()
+                        ) {
+                          setDateFrom(selected);
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        height: 40,
+                        border: 'none',
+                        outline: 'none',
+                        background: 'transparent',
+                        color: COLORS.text,
+                        fontSize: 13,
+                      }}
+                    />
+                  </View>
+                ) : (
+                  <>
+                    <Pressable
+                      style={styles.nativeDateButton}
+                      onPress={() => {
+                        setShowFromPicker(false);
+                        setShowToPicker(true);
+                      }}
+                    >
+                      <Ionicons
+                        name="calendar-outline"
+                        size={16}
+                        color={COLORS.primary}
+                      />
+                      <Text
+                        style={[
+                          styles.nativeDateText,
+                          !dateTo &&
+                            styles.nativeDatePlaceholder,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {formatDateLabel(dateTo)}
+                      </Text>
+                    </Pressable>
+
+                    {showToPicker ? (
+                      <DateTimePicker
+                        value={
+                          dateTo ||
+                          dateFrom ||
+                          new Date()
+                        }
+                        mode="date"
+                        display="default"
+                        minimumDate={
+                          dateFrom ||
+                          undefined
+                        }
+                        onChange={(
+                          event,
+                          selectedDate
+                        ) => {
+                          setShowToPicker(false);
+
+                          if (
+                            event?.type ===
+                            'dismissed'
+                          ) {
+                            return;
+                          }
+
+                          if (
+                            selectedDate
+                          ) {
+                            setDateTo(
+                              selectedDate
+                            );
+
+                            if (
+                              dateFrom &&
+                              selectedDate.getTime() <
+                                dateFrom.getTime()
+                            ) {
+                              setDateFrom(
+                                selectedDate
+                              );
+                            }
+                          }
+                        }}
+                      />
+                    ) : null}
+                  </>
+                )}
+              </View>
+            </View>
+
+            <View style={styles.dateSheetButtonsRow}>
+              <Pressable
+                style={styles.dateSheetClearButton}
+                onPress={() => {
+                  setDateFrom(null);
+                  setDateTo(null);
+                  setShowFromPicker(false);
+                  setShowToPicker(false);
+                }}
+              >
+                <Ionicons
+                  name="close-circle-outline"
+                  size={16}
+                  color={COLORS.red}
+                />
+                <Text style={styles.dateSheetClearText}>
+                  Effacer
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.dateSheetApplyButton}
+                onPress={() => setShowDateModal(false)}
+              >
+                <Ionicons
+                  name="checkmark"
+                  size={16}
+                  color={COLORS.white}
+                />
+                <Text style={styles.dateSheetApplyText}>
+                  Appliquer
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+
+  // ==========================================================
+  // ACTIONS BOTTOM SHEET (accepter / négocier / refuser)
+  // — remplace les 3 boutons inline, mipoitra hatrany ambany
+  // rehefa tsindriana ny bouton toggle amin'ny carte/tableau
+  // ==========================================================
+
+  const renderActionsSheet =
+    () => {
+      if (!actionSheetBooking) {
+        return null;
+      }
+
+      const booking = actionSheetBooking;
+
+      const statusUI = getStatusUI(booking);
+
+      const actionState = getActionState(booking);
+
+      const busy = busyId === booking.id;
+
+      const hasActions =
+        actionState.showNegotiation ||
+        actionState.showAcceptReject;
+
+      return (
+        <Modal
+          visible={!!actionSheetBooking}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setActionSheetBooking(null)}
+        >
+          <View style={styles.sheetOverlay}>
+            <Pressable
+              style={styles.sheetBackdrop}
+              onPress={() => setActionSheetBooking(null)}
+            />
+
+            <View
+              style={[
+                styles.actionsSheet,
+                { paddingBottom: sheetBottomPadding },
+              ]}
+            >
+              <View style={styles.sheetHandle} />
+
+              <View style={styles.sheetHeaderRow}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text
+                    style={styles.sheetTitle}
+                    numberOfLines={1}
+                  >
+                    {getClientName(booking)}
+                  </Text>
+                  <Text style={styles.actionsSheetSubtitle}>
+                    Réservation #{booking.id}
+                  </Text>
+                </View>
+
+                <Pressable
+                  onPress={() => setActionSheetBooking(null)}
+                  hitSlop={8}
+                >
+                  <Ionicons
+                    name="close"
+                    size={22}
+                    color={COLORS.textSecondary}
+                  />
+                </Pressable>
+              </View>
+
+              {hasActions ? (
+                <View style={styles.actionsRow}>
+                  {actionState.showAcceptReject && (
+                    <Pressable
+                      style={[
+                        styles.actionButton,
+                        styles.acceptButton,
+                        busy && styles.disabled,
+                      ]}
+                      disabled={busy}
+                      onPress={() => {
+                        setActionSheetBooking(null);
+                        handleAccept(booking);
+                      }}
+                    >
+                      {busy ? (
+                        <ActivityIndicator
+                          size="small"
+                          color={COLORS.white}
+                        />
+                      ) : (
+                        <>
+                          <Ionicons
+                            name="checkmark"
+                            size={18}
+                            color={COLORS.white}
+                          />
+                          <Text style={styles.acceptButtonText}>
+                            Accepter
+                          </Text>
+                        </>
+                      )}
+                    </Pressable>
+                  )}
+
+                  {actionState.showNegotiation && (
+                    <Pressable
+                      style={[
+                        styles.actionButton,
+                        styles.negotiationButton,
+                      ]}
+                      onPress={() => {
+                        setActionSheetBooking(null);
+                        handleNegotiation(booking);
+                      }}
+                    >
+                      <Ionicons
+                        name="swap-horizontal"
+                        size={18}
+                        color={COLORS.primary}
+                      />
+                      <Text style={styles.negotiationText}>
+                        Négociation
+                      </Text>
+                    </Pressable>
+                  )}
+
+                  {actionState.showAcceptReject && (
+                    <Pressable
+                      style={[
+                        styles.actionButton,
+                        styles.rejectButton,
+                        busy && styles.disabled,
+                      ]}
+                      disabled={busy}
+                      onPress={() => {
+                        setActionSheetBooking(null);
+                        handleReject(booking);
+                      }}
+                    >
+                      <Ionicons
+                        name="close"
+                        size={18}
+                        color={COLORS.red}
+                      />
+                      <Text style={styles.rejectText}>
+                        Refuser
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              ) : (
+                <View
+                  style={[
+                    styles.confirmedRow,
+                    { backgroundColor: statusUI.background },
+                  ]}
+                >
+                  <Ionicons
+                    name={statusUI.icon}
+                    size={18}
+                    color={statusUI.color}
+                  />
+                  <Text
+                    style={[
+                      styles.confirmedRowText,
+                      { color: statusUI.color },
+                    ]}
+                  >
+                    {statusUI.label}
+                  </Text>
+                </View>
+              )}
+
+              <Pressable
+                style={styles.actionsSheetDetail}
+                onPress={() => {
+                  setActionSheetBooking(null);
+                  openBooking(booking);
+                }}
+              >
+                <Ionicons
+                  name="eye-outline"
+                  size={15}
+                  color={COLORS.textSecondary}
+                />
+                <Text style={styles.actionsSheetDetailText}>
+                  Voir les détails
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+      );
+    };
 
   // ==========================================================
   // EMPTY
@@ -4642,15 +4288,33 @@ export default function OffersScreen({
         style={
           styles.safeArea
         }
+        // ✅ Le "top" est géré PAR le Header lui-même (fond vert +
+        // paddingTop selon la plateforme) : si on laisse aussi le
+        // SafeAreaView réserver le "top", on obtient une bande
+        // grise (styles.safeArea) au-dessus du header vert, sous
+        // la barre de statut/batterie Android. En excluant "top"
+        // ici, le header vert s'étend bien jusqu'en haut de l'écran.
+        edges={['left', 'right', 'bottom']}
       >
         <View
           style={
             styles.screen
           }
         >
-          <ScreenHeader
-            title="Réservations"
-            onBack={() =>
+          {/* ✅ Barre de statut Android transparente/translucide :
+              le header vert (voir Header.js) dessine SOUS l'heure/
+              batterie au lieu de laisser une bande noire séparée
+              au-dessus du header. */}
+          <StatusBar
+            translucent
+            backgroundColor="transparent"
+            barStyle="light-content"
+          />
+
+          <Header
+            title="Réservation"
+            showBack
+            onBackPress={() =>
               navigation.goBack()
             }
           />
@@ -4666,6 +4330,10 @@ export default function OffersScreen({
             onCancel={() => setConfirmModal(null)}
             onConfirm={confirmModal?.onConfirm}
           />
+
+          {renderDateModal()}
+
+          {renderActionsSheet()}
 
           {renderTop()}
 
@@ -4757,20 +4425,42 @@ export default function OffersScreen({
       style={
         styles.safeArea
       }
+      edges={['left', 'right', 'bottom']}
     >
       <View
         style={
           styles.screen
         }
       >
-        <ScreenHeader
-          title="Réservations"
-          onBack={() =>
+        <StatusBar
+          translucent
+          backgroundColor="transparent"
+          barStyle="light-content"
+        />
+
+        <Header
+          title="Réservation"
+          showBack
+          onBackPress={() =>
             navigation.goBack()
           }
         />
 
         <Toast toast={toast} />
+
+        <ConfirmationModal
+          visible={!!confirmModal}
+          title={confirmModal?.title}
+          message={confirmModal?.message}
+          confirmLabel={confirmModal?.confirmLabel}
+          destructive={confirmModal?.destructive}
+          onCancel={() => setConfirmModal(null)}
+          onConfirm={confirmModal?.onConfirm}
+        />
+
+        {renderDateModal()}
+
+        {renderActionsSheet()}
 
         {renderTop()}
 
@@ -4917,70 +4607,251 @@ const styles =
     },
 
     // ========================================================
-    // DATE FILTER
+    // SEARCH + CALENDAR FILTER BUTTON
     // ========================================================
 
-    dateFilterSection: {
-      width: '100%',
-      marginBottom: 10,
-      padding: 11,
-      borderRadius: 14,
+    searchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 8,
+    },
+
+    searchInputWrap: {
+      flex: 1,
+      minHeight: 42,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: COLORS.border,
-      backgroundColor: COLORS.white,
-    },
-
-    dateFilterHeader: {
+      backgroundColor: COLORS.background,
+      paddingHorizontal: 12,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'flex-end',
-      marginBottom: 9,
+      gap: 7,
     },
 
-    dateFilterTitleWrap: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    searchInput: {
       flex: 1,
       minWidth: 0,
+      height: 40,
+      fontSize: 13,
+      color: COLORS.text,
+      ...Platform.select({
+        web: { outlineStyle: 'none' },
+        default: {},
+      }),
     },
 
-    dateFilterIcon: {
-      width: 32,
-      height: 32,
-      borderRadius: 10,
+    calendarFilterButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: COLORS.border,
       backgroundColor: COLORS.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 8,
     },
 
-    dateFilterTitle: {
-      fontSize: 12,
+    calendarFilterButtonActive: {
+      backgroundColor: COLORS.primary,
+      borderColor: COLORS.primary,
+    },
+
+    calendarFilterDot: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: COLORS.white,
+      borderWidth: 1,
+      borderColor: COLORS.primary,
+    },
+
+    dateFilterSummary: {
+      marginBottom: 10,
+      minHeight: 32,
+      paddingHorizontal: 10,
+      borderRadius: 9,
+      backgroundColor: COLORS.primarySoft,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+
+    dateFilterSummaryText: {
+      flex: 1,
+      fontSize: 9,
+      fontWeight: '700',
+      color: COLORS.primaryDark,
+    },
+
+    // ========================================================
+    // BOTTOM SHEETS (modale date + modale actions)
+    // — mipoitra hatrany ambany
+    // ========================================================
+
+    sheetOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+    },
+
+    sheetBackdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.42)',
+    },
+
+    sheetHandle: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: COLORS.divider,
+      marginBottom: 12,
+    },
+
+    sheetHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 14,
+    },
+
+    sheetTitle: {
+      fontSize: 15,
       fontWeight: '900',
       color: COLORS.black,
     },
 
-    dateFilterSubtitle: {
-      marginTop: 1,
-      fontSize: 9,
-      color: COLORS.textSecondary,
+    dateSheet: {
+      backgroundColor: COLORS.white,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingHorizontal: 18,
+      paddingTop: 12,
+      paddingBottom: 24,
     },
 
-    clearDateButton: {
-      minHeight: 30,
-      paddingHorizontal: 8,
-      borderRadius: 9,
+    dateSheetButtonsRow: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 18,
+    },
+
+    dateSheetClearButton: {
+      flex: 1,
+      minHeight: 42,
+      borderRadius: 10,
       backgroundColor: COLORS.redSoft,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
+      gap: 6,
     },
 
-    clearDateText: {
-      fontSize: 9,
+    dateSheetClearText: {
+      fontSize: 12,
       fontWeight: '800',
       color: COLORS.red,
+    },
+
+    dateSheetApplyButton: {
+      flex: 1,
+      minHeight: 42,
+      borderRadius: 10,
+      backgroundColor: COLORS.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+    },
+
+    dateSheetApplyText: {
+      fontSize: 12,
+      fontWeight: '800',
+      color: COLORS.white,
+    },
+
+    actionsSheet: {
+      backgroundColor: COLORS.white,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingHorizontal: 18,
+      paddingTop: 12,
+      paddingBottom: 28,
+    },
+
+    actionsSheetSubtitle: {
+      marginTop: 2,
+      fontSize: 11,
+      color: COLORS.textLight,
+    },
+
+    actionsSheetDetail: {
+      marginTop: 14,
+      minHeight: 40,
+      borderRadius: 9,
+      borderWidth: 1,
+      borderColor: COLORS.border,
+      backgroundColor: '#FAFBFA',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+    },
+
+    actionsSheetDetailText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: COLORS.textSecondary,
+    },
+
+    // ========================================================
+    // BOUTON TOGGLE UNIQUE — carte mobile
+    // Blanc, SANS bordure, icône 3 points verticaux
+    // (remplace l'ancien bouton pleine largeur + les 3 boutons
+    // d'action qui étaient directement dans la carte)
+    // ========================================================
+
+    kebabButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: COLORS.white,
+      marginLeft: 6,
+      flexShrink: 0,
+      // Pas de bordure — juste une ombre légère pour le détacher
+      // du fond de la carte.
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 3,
+      shadowOffset: { width: 0, height: 1 },
+      elevation: 1,
+    },
+
+    // ========================================================
+    // TOGGLE BUTTON — ligne du tableau web
+    // ========================================================
+
+    tableToggle: {
+      width: 34,
+      height: 34,
+      borderRadius: 9,
+      alignSelf: 'center',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: COLORS.border,
+      backgroundColor: COLORS.primarySoft,
+    },
+
+    tableToggleActive: {
+      backgroundColor: COLORS.primarySoft,
+      borderColor: COLORS.primary,
     },
 
     dateFieldsRow: {
@@ -5044,24 +4915,6 @@ const styles =
       alignItems: 'center',
       justifyContent: 'center',
       paddingBottom: 11,
-    },
-
-    dateFilterSummary: {
-      marginTop: 8,
-      minHeight: 30,
-      paddingHorizontal: 9,
-      borderRadius: 9,
-      backgroundColor: COLORS.primarySoft,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-    },
-
-    dateFilterSummaryText: {
-      flex: 1,
-      fontSize: 9,
-      fontWeight: '700',
-      color: COLORS.primaryDark,
     },
 
     // ========================================================
@@ -5272,15 +5125,15 @@ const styles =
       width: '100%',
       backgroundColor:
         COLORS.card,
-      borderRadius: 18,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor:
         '#E7EAE8',
-      padding: 13,
-      marginBottom: 10,
+      padding: 10,
+      marginBottom: 8,
       shadowColor: '#000',
       shadowOpacity: 0.05,
-      shadowRadius: 5,
+      shadowRadius: 4,
       shadowOffset: {
         width: 0,
         height: 2,
@@ -5296,12 +5149,10 @@ const styles =
     },
 
     mobileHeader: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      marginBottom: 10,
-      paddingBottom: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 7,
+      paddingBottom: 7,
       borderBottomWidth: 1,
       borderBottomColor:
         '#F0F2F1',
@@ -5387,53 +5238,25 @@ const styles =
       flexShrink: 1,
     },
 
-    presenceBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      borderRadius: 10,
-    },
-
-    presenceBadgeOnline: {
-      backgroundColor: COLORS.blueSoft,
-    },
-
-    presenceBadgeOffline: {
-      backgroundColor: COLORS.background,
-    },
-
-    presenceBadgeText: {
+    // ✅ Ligne compacte : "Réservation #123  ·  0341234567"
+    // (remplace bookingId + phone + email affichés sur 3 lignes)
+    metaLine: {
+      marginTop: 2,
       fontSize: 10,
-      fontWeight: '700',
-    },
-
-    presenceBadgeTextOnline: {
-      color: COLORS.blue,
-    },
-
-    presenceBadgeTextOffline: {
       color: COLORS.textLight,
     },
 
-    bookingId: {
+    // ✅ Expiration de l'offre — 1 ligne, affichée seulement si
+    // pertinente (pending / negotiating).
+    expiryLine: {
       marginTop: 2,
       fontSize: 10,
-      color:
-        COLORS.textLight,
+      fontWeight: '700',
+      color: COLORS.orange,
     },
 
-    phone: {
-      marginTop: 1,
-      fontSize: 10,
-      color:
-        COLORS.textSecondary,
-      flexShrink: 1,
-    },
-
-    contactLine: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      marginTop: 3,
+    expiryLineUrgent: {
+      color: COLORS.red,
     },
 
     webContactLine: {
@@ -5443,171 +5266,125 @@ const styles =
       marginBottom: 2,
     },
 
-    timelineBox: {
-      marginTop: 8,
-      paddingTop: 8,
-      borderTopWidth: 1,
-      borderTopColor:
-        COLORS.divider,
-      gap: 4,
-    },
-
     statusBadge: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      gap: 4,
-      paddingHorizontal: 8,
-      paddingVertical: 5,
-      borderRadius: 12,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: 6,
+      paddingVertical: 3,
+      borderRadius: 8,
+      flexShrink: 0,
     },
 
     statusText: {
-      fontSize: 10,
+      fontSize: 9,
       fontWeight: '800',
     },
 
-    infoRow: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      marginBottom: 7,
-      minHeight: 34,
+    // ========================================================
+    // ✅ LIGNE D'INFOS REGROUPÉES : Massage · Durée · Distance
+    // (remplace 3 blocs "infoRow" empilés par une seule ligne)
+    // ========================================================
+
+    compactInfoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 7,
+      marginBottom: 6,
     },
 
-    iconCircle: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor:
-        COLORS.primarySoft,
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-      marginRight: 9,
+    compactInfoItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      flexShrink: 1,
+      minWidth: 0,
     },
 
-    infoContent: {
-      flex: 1,
+    compactInfoDivider: {
+      width: 1,
+      height: 11,
+      backgroundColor: COLORS.divider,
     },
 
-    infoLabel: {
-      fontSize: 9,
-      color:
-        COLORS.textLight,
-      marginBottom: 1,
-    },
-
-    infoValue: {
-      fontSize: 12,
+    compactInfoText: {
+      fontSize: 11,
       fontWeight: '700',
-      color:
-        COLORS.text,
+      color: COLORS.text,
+      flexShrink: 1,
     },
 
     addressRow: {
-      flexDirection:
-        'row',
-      alignItems:
-        'flex-start',
-      gap: 6,
-      paddingVertical: 7,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingVertical: 5,
       borderTopWidth: 1,
-      borderTopColor:
-        COLORS.divider,
+      borderTopColor: COLORS.divider,
     },
 
     address: {
       flex: 1,
       fontSize: 11,
-      lineHeight: 16,
-      color:
-        COLORS.textSecondary,
+      lineHeight: 15,
+      color: COLORS.textSecondary,
     },
 
     dateRow: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      gap: 6,
-      marginTop: 3,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
     },
 
     dateText: {
       fontSize: 10,
-      color:
-        COLORS.textSecondary,
+      color: COLORS.textSecondary,
     },
 
-    priceSection: {
-      marginTop: 10,
-      paddingTop: 10,
+    // ========================================================
+    // ✅ LIGNE FINALE : Date + Prix à gauche, statut "Confirmée"
+    // à droite (remplace l'ancien bloc "priceSection" isolé)
+    // ========================================================
+
+    footerRow: {
+      marginTop: 6,
+      paddingTop: 7,
       borderTopWidth: 1,
-      borderTopColor:
-        COLORS.divider,
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      justifyContent:
-        'space-between',
+      borderTopColor: COLORS.divider,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
     },
 
-    priceLabel: {
-      fontSize: 9,
-      color:
-        COLORS.textLight,
+    footerDateBlock: {
+      flex: 1,
+      minWidth: 0,
+      gap: 2,
     },
 
     price: {
-      marginTop: 2,
-      fontSize: 19,
+      fontSize: 16,
       fontWeight: '900',
-      color:
-        COLORS.primary,
+      color: COLORS.primary,
     },
 
     confirmedBadge: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: 5,
       paddingHorizontal: 9,
       paddingVertical: 6,
       borderRadius: 10,
-      backgroundColor:
-        COLORS.primarySoft,
+      backgroundColor: COLORS.primarySoft,
+      flexShrink: 0,
     },
 
     confirmedText: {
       fontSize: 10,
       fontWeight: '800',
-      color:
-        COLORS.primary,
-    },
-
-    detailButton: {
-      marginTop: 9,
-      minHeight: 34,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: COLORS.border,
-      backgroundColor: '#FAFBFA',
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 5,
-    },
-
-    detailButtonText: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: COLORS.textSecondary,
+      color: COLORS.primary,
     },
 
     actionsRow: {
@@ -5933,65 +5710,6 @@ const styles =
     tableStatusText: {
       fontSize: 9,
       fontWeight: '800',
-    },
-
-    tableActions: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-      gap: 5,
-    },
-
-    tableAction: {
-      width: 30,
-      height: 30,
-      borderRadius: 7,
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-      borderWidth: 1,
-    },
-
-    tableAccept: {
-      backgroundColor:
-        COLORS.primary,
-      borderColor:
-        COLORS.primary,
-    },
-
-    tableNegotiation: {
-      backgroundColor:
-        COLORS.primarySoft,
-      borderColor:
-        COLORS.primary,
-    },
-
-    tableReject: {
-      backgroundColor:
-        COLORS.redSoft,
-      borderColor:
-        '#F0CACA',
-    },
-
-    doneWeb: {
-      flexDirection:
-        'row',
-      alignItems:
-        'center',
-      justifyContent:
-        'center',
-      gap: 4,
-    },
-
-    doneWebText: {
-      fontSize: 9,
-      fontWeight: '800',
-      color:
-        COLORS.primary,
     },
 
     pressed: {
