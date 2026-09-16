@@ -1621,7 +1621,7 @@ const HomeScreen = ({ navigation }) => {
         </Reveal>
 
         {/* ====================================================
-            RECOMMANDATION IA
+            ASSISTANT IA — RECOMMANDATION PERSONNALISÉE
         ==================================================== */}
 
         <Reveal
@@ -1641,6 +1641,7 @@ const HomeScreen = ({ navigation }) => {
             }
             style={[
               styles.aiCard,
+              styles.aiCardFeatured,
               {
                 borderColor: isDark
                   ? '#24553B'
@@ -1661,12 +1662,23 @@ const HomeScreen = ({ navigation }) => {
               <View style={styles.aiIconContainer}>
                 <MaterialCommunityIcons
                   name="robot-outline"
-                  size={29}
+                  size={34}
                   color={SUCCESS}
                 />
               </View>
 
               <View style={styles.aiContent}>
+                <View style={styles.aiEyebrowRow}>
+                  <Ionicons
+                    name="sparkles"
+                    size={12}
+                    color={SUCCESS}
+                  />
+                  <Text style={styles.aiEyebrowText}>
+                    SERVICE INTELLIGENT
+                  </Text>
+                </View>
+
                 <View style={styles.aiTitleRow}>
                   <Text
                     style={[
@@ -1678,7 +1690,7 @@ const HomeScreen = ({ navigation }) => {
                       },
                     ]}
                   >
-                    Recommandation IA
+                    Assistant IA bien-être
                   </Text>
 
                   <View style={styles.aiBadge}>
@@ -1699,9 +1711,9 @@ const HomeScreen = ({ navigation }) => {
                     },
                   ]}
                 >
-                  Laissez notre intelligence artificielle
-                  trouver le massage et le thérapeute qui
-                  vous correspondent.
+                  Décrivez vos besoins et notre assistant IA vous
+                  propose un massage et un thérapeute adaptés,
+                  selon vos préférences et votre localisation.
                 </Text>
 
                 <View style={styles.aiFeatures}>
@@ -1746,7 +1758,7 @@ const HomeScreen = ({ navigation }) => {
               <View style={styles.aiArrow}>
                 <Ionicons
                   name="arrow-forward"
-                  size={18}
+                  size={20}
                   color="#FFFFFF"
                 />
               </View>
@@ -2725,22 +2737,44 @@ const styles = StyleSheet.create({
   ========================================================== */
 
   aiCard: {
-    borderRadius: 22,
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
   },
 
+  aiCardFeatured: {
+    shadowColor: PRIMARY,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+
+  aiEyebrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+
+  aiEyebrowText: {
+    marginLeft: 5,
+    fontSize: 8,
+    letterSpacing: 1,
+    color: SUCCESS,
+    fontFamily: typography.fontFamily.bold,
+  },
+
   aiGradient: {
-    minHeight: 142,
+    minHeight: 178,
     padding: 15,
     flexDirection: 'row',
     alignItems: 'center',
   },
 
   aiIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 58,
+    height: 58,
+    borderRadius: 19,
     backgroundColor: 'rgba(0,200,83,0.12)',
     alignItems: 'center',
     justifyContent: 'center',

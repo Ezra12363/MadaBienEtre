@@ -1131,6 +1131,7 @@ const CalendarFilterModal = ({
         <Pressable
           style={[
             styles.calendarSheet,
+            Platform.OS === 'web' && styles.calendarSheetWeb,
             {
               backgroundColor: themeColors.card,
               paddingBottom:
@@ -2531,26 +2532,6 @@ const HistoryScreen = ({ navigation }) => {
       <Header
         title="Mes réservations"
         showBack
-        rightComponent={
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={openCalendarModal}
-            style={[
-              styles.headerCalendarButton,
-              !!appliedRange.start &&
-                styles.headerCalendarButtonActive,
-            ]}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel="Filtrer par période"
-          >
-            <Ionicons
-              name="calendar"
-              size={19}
-              color="#FFFFFF"
-            />
-          </TouchableOpacity>
-        }
       />
 
       <View style={styles.content}>
@@ -2580,22 +2561,46 @@ const HistoryScreen = ({ navigation }) => {
             </Text>
           </View>
 
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={handleCreateBooking}
-            style={[
-              styles.newBookingButton,
-              {
-                backgroundColor: themeColors.primary,
-              },
-            ]}
-          >
+          <View style={styles.pageHeaderActions}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={openCalendarModal}
+              style={[
+                styles.headerCalendarButton,
+                {
+                  backgroundColor: `${themeColors.primary}12`,
+                  borderColor: `${themeColors.primary}35`,
+                },
+                !!appliedRange.start && styles.headerCalendarButtonActive,
+              ]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Filtrer par période"
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={20}
+                color={themeColors.primary}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={handleCreateBooking}
+              style={[
+                styles.newBookingButton,
+                {
+                  backgroundColor: themeColors.primary,
+                },
+              ]}
+            >
             <Ionicons
               name="add"
               size={21}
               color="#FFFFFF"
             />
           </TouchableOpacity>
+          </View>
         </View>
 
         {/* FILTERS */}
@@ -2833,6 +2838,14 @@ const styles = StyleSheet.create({
     paddingBottom: 11,
   },
 
+  pageHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginLeft: 12,
+  },
+
   pageTitle: {
     fontSize: 23,
     lineHeight: 29,
@@ -2855,19 +2868,17 @@ const styles = StyleSheet.create({
   },
 
   headerCalendarButton: {
-    width: 38,
-    height: 38,
+    width: 42,
+    height: 42,
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.18)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
   },
 
   headerCalendarButtonActive: {
-    backgroundColor: 'rgba(255,255,255,0.35)',
-    borderColor: '#FFFFFF',
+    backgroundColor: '#DCFCE7',
+    borderColor: '#168A55',
   },
 
   dateFilterChipRow: {
@@ -3361,6 +3372,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(15,23,20,0.45)',
     justifyContent: 'flex-end',
+    alignItems: 'center',
   },
 
   // ==========================================================
@@ -3504,12 +3516,20 @@ const styles = StyleSheet.create({
 
   calendarSheet: {
     width: '100%',
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingHorizontal: 18,
+    maxWidth: 620,
+    alignSelf: 'center',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
     paddingTop: 10,
     // paddingBottom réel calculé dans le composant (insets.bottom
     // + marge) pour tenir compte de la barre de navigation Android.
+  },
+
+  calendarSheetWeb: {
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    marginBottom: 18,
   },
 
   calendarModalTitle: {
@@ -3521,9 +3541,10 @@ const styles = StyleSheet.create({
   },
 
   rangeFieldsRow: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     marginBottom: 16,
   },
 
@@ -3558,6 +3579,7 @@ const styles = StyleSheet.create({
   },
 
   calendarHeaderRow: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -3572,6 +3594,7 @@ const styles = StyleSheet.create({
   },
 
   calendarWeekRow: {
+    width: '100%',
     flexDirection: 'row',
     marginBottom: 6,
   },
@@ -3584,13 +3607,16 @@ const styles = StyleSheet.create({
   },
 
   calendarGrid: {
+    width: '100%',
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignSelf: 'stretch',
   },
 
   calendarCell: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
+    flex: 1,
+    minWidth: `${100 / 7}%`,
+    height: 48,
     alignItems: 'center',
     justifyContent: 'center',
   },

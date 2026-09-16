@@ -21,6 +21,7 @@ import {
   TextInput,
   Modal,
   Pressable,
+  ScrollView,
   Image,
 } from 'react-native';
 
@@ -605,6 +606,13 @@ const DateRangeModal = ({
         >
           <View style={styles.actionSheetHandle} />
 
+          <ScrollView
+            style={styles.calendarModalScroll}
+            contentContainerStyle={styles.calendarModalScrollContent}
+            showsVerticalScrollIndicator={Platform.OS === 'web'}
+            bounces={Platform.OS !== 'web'}
+            keyboardShouldPersistTaps="handled"
+          >
           <View style={styles.modalTitleRow}>
             <View
               style={[
@@ -960,6 +968,7 @@ const DateRangeModal = ({
               </Text>
             </TouchableOpacity>
           </View>
+          </ScrollView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -993,7 +1002,7 @@ const BookingMenuSheet = ({
       onRequestClose={onClose}
     >
       <Pressable
-        style={styles.modalBackdrop}
+        style={styles.menuModalBackdrop}
         onPress={onClose}
       >
         <Pressable
@@ -1286,6 +1295,65 @@ const Legend = ({
   );
 };
 
+
+// ============================================================
+// CONFIRMATION MODAL
+// ============================================================
+const ConfirmationModal = ({ visible, type, booking, themeColors, onCancel, onConfirm }) => {
+  const isStart = type === 'start';
+  const title = isStart ? 'Commencer le massage ?' : 'Terminer le massage ?';
+  const message = isStart
+    ? 'Voulez-vous commencer maintenant cette réservation ?'
+    : 'Voulez-vous confirmer que le massage est terminé ?';
+  const actionLabel = isStart ? 'Commencer' : 'Terminer';
+  const actionColor = isStart ? PRIMARY_GREEN : '#2E7D32';
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={styles.confirmationBackdrop}>
+        <View style={[styles.confirmationCard, { backgroundColor: themeColors.card || themeColors.surface }]}>
+          <View style={[styles.confirmationIcon, { backgroundColor: `${actionColor}18` }]}>
+            <Ionicons
+              name={isStart ? 'play-circle-outline' : 'checkmark-done-circle-outline'}
+              size={34}
+              color={actionColor}
+            />
+          </View>
+
+          <Text style={[styles.confirmationTitle, { color: themeColors.text }]}>
+            {title}
+          </Text>
+
+          <Text style={[styles.confirmationMessage, { color: themeColors.textSecondary }]}>
+            {message}
+          </Text>
+
+          {!!booking && (
+            <View style={[styles.confirmationBookingInfo, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
+              <Text numberOfLines={1} style={[styles.confirmationClient, { color: themeColors.text }]}>
+                {getClientName(booking)}
+              </Text>
+              <Text numberOfLines={1} style={[styles.confirmationDetails, { color: themeColors.textSecondary }]}>
+                {getMassageName(booking)} · {getBookingDate(booking) ? formatShortDate(getBookingDate(booking)) : 'Date inconnue'} · {getBookingTime(booking)}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.confirmationActions}>
+            <TouchableOpacity activeOpacity={0.8} onPress={onCancel} style={[styles.confirmationCancelButton, { borderColor: themeColors.border }]}>
+              <Text style={[styles.confirmationCancelText, { color: themeColors.textSecondary }]}>Annuler</Text>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.85} onPress={onConfirm} style={[styles.confirmationConfirmButton, { backgroundColor: actionColor }]}>
+              <Ionicons name={isStart ? 'play' : 'checkmark'} size={16} color="#FFFFFF" />
+              <Text style={styles.confirmationConfirmText}>{actionLabel}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 // ============================================================
 // MAIN SCREEN
 // ============================================================
@@ -1318,6 +1386,12 @@ const CalendarScreen = ({ navigation }) => {
   });
 
   const [menuTarget, setMenuTarget] = useState(null);
+
+  const [confirmation, setConfirmation] = useState({
+    visible: false,
+    type: 'start',
+    booking: null,
+  });
 
   const [toast, setToast] = useState({
     visible: false,
@@ -1593,7 +1667,7 @@ const CalendarScreen = ({ navigation }) => {
   // ==========================================================
 
   const openBooking = useCallback(
-    (booking) => {
+    (booking, skipConfirmation = false) => {
       const bookingId = getBookingId(booking);
 
       if (!bookingId) {
@@ -1640,7 +1714,7 @@ const CalendarScreen = ({ navigation }) => {
   // ==========================================================
 
   const handleStartMassage = useCallback(
-    (booking) => {
+    (booking, skipConfirmation = false) => {
       const bookingId = getBookingId(booking);
 
       if (!bookingId) {
@@ -1696,32 +1770,12 @@ const CalendarScreen = ({ navigation }) => {
         }
       };
 
-      if (Platform.OS === 'web') {
-        const confirmed = window.confirm(
-          'Voulez-vous commencer le massage ?',
-        );
-
-        if (confirmed) {
-          execute();
-        }
-
+      if (!skipConfirmation) {
+        setConfirmation({ visible: true, type: 'start', booking });
         return;
       }
 
-      Alert.alert(
-        'Commencer le massage',
-        'Voulez-vous commencer le massage maintenant ?',
-        [
-          {
-            text: 'Annuler',
-            style: 'cancel',
-          },
-          {
-            text: 'Commencer',
-            onPress: execute,
-          },
-        ],
-      );
+      execute();
     },
     [loadBookings, showToast],
   );
@@ -1732,7 +1786,7 @@ const CalendarScreen = ({ navigation }) => {
     setMenuTarget(null);
 
     if (target) {
-      handleStartMassage(target);
+      handleStartMassage(target, true);
     }
   }, [handleStartMassage, menuTarget]);
 
@@ -1741,7 +1795,7 @@ const CalendarScreen = ({ navigation }) => {
   // ==========================================================
 
   const handleCompleteMassage = useCallback(
-    (booking) => {
+    (booking, skipConfirmation = false) => {
       const bookingId = getBookingId(booking);
 
       if (!bookingId) {
@@ -1797,32 +1851,12 @@ const CalendarScreen = ({ navigation }) => {
         }
       };
 
-      if (Platform.OS === 'web') {
-        const confirmed = window.confirm(
-          'Voulez-vous terminer le massage ?',
-        );
-
-        if (confirmed) {
-          execute();
-        }
-
+      if (!skipConfirmation) {
+        setConfirmation({ visible: true, type: 'complete', booking });
         return;
       }
 
-      Alert.alert(
-        'Terminer le massage',
-        'Voulez-vous confirmer que le massage est terminé ?',
-        [
-          {
-            text: 'Annuler',
-            style: 'cancel',
-          },
-          {
-            text: 'Terminer',
-            onPress: execute,
-          },
-        ],
-      );
+      execute();
     },
     [loadBookings, showToast],
   );
@@ -1833,7 +1867,7 @@ const CalendarScreen = ({ navigation }) => {
     setMenuTarget(null);
 
     if (target) {
-      handleCompleteMassage(target);
+      handleCompleteMassage(target, true);
     }
   }, [handleCompleteMassage, menuTarget]);
 
@@ -2708,6 +2742,24 @@ const CalendarScreen = ({ navigation }) => {
         onComplete={handleCompleteFromMenu}
       />
 
+      <ConfirmationModal
+        visible={confirmation.visible}
+        type={confirmation.type}
+        booking={confirmation.booking}
+        themeColors={themeColors}
+        onCancel={() => setConfirmation({ visible: false, type: 'start', booking: null })}
+        onConfirm={() => {
+          const target = confirmation.booking;
+          const type = confirmation.type;
+          setConfirmation({ visible: false, type: 'start', booking: null });
+          if (type === 'start') {
+            handleStartMassage(target, true);
+          } else {
+            handleCompleteMassage(target, true);
+          }
+        }}
+      />
+
       <Toast
         visible={toast.visible}
         type={toast.type}
@@ -2797,7 +2849,7 @@ const styles = StyleSheet.create({
 
   pageCountText: {
     marginLeft: 4,
-    fontSize: 15,
+    fontSize: 11.5,
     fontFamily: typography.fontFamily.bold,
   },
 
@@ -2983,7 +3035,7 @@ const styles = StyleSheet.create({
 
   summarySubtitle: {
     marginTop: 3,
-    fontSize: 11,
+    fontSize: 9.5,
     fontFamily: typography.fontFamily.regular,
   },
 
@@ -3094,7 +3146,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 9,
+    marginRight: 7,
   },
 
   clientPhoto: {
@@ -3188,7 +3240,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'flex-end',
     alignItems: 'flex-end',
-    marginTop: 8,
+    marginTop: 5,
   },
 
   statusBadge: {
@@ -3208,23 +3260,23 @@ const styles = StyleSheet.create({
   },
 
   menuButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     borderWidth: 0,
     borderColor: 'transparent',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 0,
-    shadowColor: '#000',
+    shadowColor: 'transparent',
     shadowOffset: {
       width: 0,
-      height: 1,
+      height: 0,
     },
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
 
   // ========================================================
@@ -3339,7 +3391,21 @@ const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(15,23,20,0.48)',
+    justifyContent: Platform.OS === 'web' ? 'center' : 'flex-end',
+    alignItems: Platform.OS === 'web' ? 'center' : 'stretch',
+    paddingHorizontal: Platform.OS === 'web' ? 20 : 0,
+    paddingVertical: Platform.OS === 'web' ? 20 : 0,
+  },
+
+  // Menu trois points : toujours ancré en bas de l’écran.
+  menuModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,20,0.48)',
     justifyContent: 'flex-end',
+    alignItems: Platform.OS === 'web' ? 'center' : 'stretch',
+    paddingHorizontal: 0,
+    paddingTop: 20,
+    paddingBottom: 0,
   },
 
   actionSheetHandle: {
@@ -3355,54 +3421,72 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 17,
+    marginBottom: 12,
   },
 
   modalTitleIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 9,
   },
 
   calendarModalTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: typography.fontFamily.bold,
   },
 
   calendarSheet: {
     width: '100%',
+    maxWidth: Platform.OS === 'web' ? 560 : undefined,
+    maxHeight: Platform.OS === 'web' ? '94%' : '92%',
+    minHeight: Platform.OS === 'web' ? 420 : undefined,
+    borderRadius: 25,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    paddingHorizontal: 18,
-    paddingTop: 10,
+    paddingHorizontal: Platform.OS === 'web' ? 20 : 14,
+    paddingTop: 8,
+    overflow: 'hidden',
+    alignSelf: Platform.OS === 'web' ? 'center' : 'stretch',
+  },
+
+  calendarModalScroll: {
+    width: '100%',
+    flexGrow: 1,
+    flexShrink: 1,
+    minHeight: 0,
+  },
+
+  calendarModalScrollContent: {
+    flexGrow: 1,
+    paddingBottom: 4,
   },
 
   rangeFieldsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 17,
+    marginBottom: 12,
   },
 
   rangeField: {
     flex: 1,
     minWidth: 0,
     borderWidth: 1.5,
-    borderRadius: 13,
-    paddingVertical: 9,
-    paddingHorizontal: 11,
+    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 9,
   },
 
   rangeFieldLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: typography.fontFamily.medium,
   },
 
   rangeFieldValue: {
     marginTop: 3,
-    fontSize: 12.5,
+    fontSize: 11,
     fontFamily: typography.fontFamily.semiBold,
   },
 
@@ -3410,14 +3494,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 13,
+    marginBottom: 9,
     paddingHorizontal: 2,
   },
 
   monthArrowButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F3F6F4',
@@ -3430,13 +3514,13 @@ const styles = StyleSheet.create({
 
   calendarWeekRow: {
     flexDirection: 'row',
-    marginBottom: 5,
+    marginBottom: 3,
   },
 
   calendarWeekLabel: {
     flex: 1,
     textAlign: 'center',
-    fontSize: 11,
+    fontSize: 9.5,
     fontFamily: typography.fontFamily.medium,
   },
 
@@ -3447,27 +3531,28 @@ const styles = StyleSheet.create({
 
   calendarCell: {
     width: `${100 / 7}%`,
+    minWidth: 0,
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   calendarDayCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 27,
+    height: 27,
+    borderRadius: 13.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   calendarDayText: {
-    fontSize: 13,
+    fontSize: 11,
     fontFamily: typography.fontFamily.medium,
   },
 
   calendarDayDot: {
     position: 'absolute',
-    bottom: 4,
+    bottom: 2,
   },
 
   calendarLegendInfo: {
@@ -3490,22 +3575,22 @@ const styles = StyleSheet.create({
   },
 
   calendarSelectionHint: {
-    marginTop: 9,
-    fontSize: 11,
-    lineHeight: 16,
+    marginTop: 6,
+    fontSize: 9.5,
+    lineHeight: 14,
     textAlign: 'center',
     fontFamily: typography.fontFamily.regular,
   },
 
   calendarActions: {
     flexDirection: 'row',
-    marginTop: 17,
+    marginTop: 12,
   },
 
   confirmButton: {
     flex: 1,
-    minHeight: 46,
-    borderRadius: 13,
+    minHeight: 40,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -3527,16 +3612,123 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.bold,
   },
 
+  confirmationBackdrop: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(10, 20, 15, 0.58)',
+  },
+
+  confirmationCard: {
+    width: '100%',
+    maxWidth: 410,
+    borderRadius: 24,
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+  },
+
+  confirmationIcon: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+
+  confirmationTitle: {
+    fontSize: 19,
+    fontFamily: typography.fontFamily.bold,
+    textAlign: 'center',
+  },
+
+  confirmationMessage: {
+    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  confirmationBookingInfo: {
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    marginTop: 16,
+  },
+
+  confirmationClient: {
+    fontSize: 13,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  confirmationDetails: {
+    marginTop: 3,
+    fontSize: 11,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  confirmationActions: {
+    width: '100%',
+    flexDirection: 'row',
+    marginTop: 20,
+  },
+
+  confirmationCancelButton: {
+    flex: 1,
+    minHeight: 44,
+    borderWidth: 1,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+
+  confirmationCancelText: {
+    fontSize: 13,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  confirmationConfirmButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+
+  confirmationConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontFamily: typography.fontFamily.bold,
+  },
+
   // ========================================================
   // BOOKING MENU
   // ========================================================
 
   actionSheet: {
     width: '100%',
+    maxWidth: Platform.OS === 'web' ? '100%' : undefined,
     borderTopLeftRadius: 25,
     borderTopRightRadius: 25,
-    paddingHorizontal: 18,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    paddingHorizontal: Platform.OS === 'web' ? 28 : 18,
     paddingTop: 10,
+    alignSelf: Platform.OS === 'web' ? 'center' : 'stretch',
   },
 
   menuClientHeader: {
