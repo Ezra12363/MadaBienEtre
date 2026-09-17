@@ -35,6 +35,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   View,
   Text,
+  ScrollView,
+  useWindowDimensions,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
@@ -305,6 +307,8 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
   const { bookingId } = navRoute.params;
   const { colors: themeColors } = useTheme();
   const { token } = useAuth();
+  const { width: screenWidth } = useWindowDimensions();
+  const isSmallScreen = screenWidth < 600;
 
   const [booking, setBooking] = useState(null);
   const [therapistProfile, setTherapistProfile] = useState(null);
@@ -695,6 +699,14 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <Header title="Suivi en direct" showBack />
 
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={Platform.OS === 'web'}
+        keyboardShouldPersistTaps="handled"
+        nestedScrollEnabled
+      >
+
       {/* ==================================================
           CARTE — MapViewWrapper (Google Maps JS sur le web,
           react-native-maps sur mobile). Plus de "placeholder"
@@ -877,6 +889,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
           </View>
         </Animatable.View>
       )}
+      </ScrollView>
     </View>
   );
 };
@@ -922,9 +935,16 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.semiBold,
   },
 
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 28,
+  },
   mapContainer: {
-    height: 380,
-    marginHorizontal: spacing.md,
+    height: Platform.OS === 'web' ? 430 : 320,
+    marginHorizontal: Platform.OS === 'web' ? spacing.lg : spacing.md,
     marginTop: spacing.md,
     borderRadius: 16,
     overflow: 'hidden',
@@ -1022,11 +1042,13 @@ const styles = StyleSheet.create({
 
   therapistActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
     marginTop: spacing.md,
   },
   secondaryAction: {
     flex: 1,
+    minWidth: 130,
     minHeight: 44,
     borderRadius: 10,
     borderWidth: 1,
