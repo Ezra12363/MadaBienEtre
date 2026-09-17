@@ -1085,14 +1085,16 @@ const BookingDetailScreen = ({
       return;
     }
 
-    navigation.navigate('Demandes', {
-      screen: 'Navigation',
-      params: {
-        bookingId: currentBookingId,
-        clientAddress: address,
-        clientLatitude: Number(latitude),
-        clientLongitude: Number(longitude),
-      },
+    // ✅ FIX : "Navigation" dia écran root ankehitriny (tsy ao
+    // anaty stack "Demandes" intsony), ka navigate() mivantana
+    // toy izao dia "bubble up" hatrany amin'ny root stack, ka:
+    //  - tsy mamadika ny tab actif (mijanona amin'ny "Calendrier"),
+    //  - ny "retour" dia miverina eto amin'ity BookingDetail ity.
+    navigation.navigate('Navigation', {
+      bookingId: currentBookingId,
+      clientAddress: address,
+      clientLatitude: Number(latitude),
+      clientLongitude: Number(longitude),
     });
   };
 
@@ -1113,31 +1115,25 @@ const BookingDetailScreen = ({
   };
 
   const goToTracking = () => {
-    navigation.navigate('Demandes', {
-      screen: 'Tracking',
-      params: {
-        bookingId: currentBookingId,
-      },
+    // ✅ FIX : idem, "Tracking" dia écran root ankehitriny.
+    navigation.navigate('Tracking', {
+      bookingId: currentBookingId,
     });
   };
 
   const goToChat = () => {
-    navigation.navigate('Demandes', {
-      screen: 'TherapistChat',
-      params: {
-        bookingId: currentBookingId,
-        clientId,
-        clientName,
-      },
+    // ✅ FIX : "TherapistChat" dia écran root ankehitriny.
+    navigation.navigate('TherapistChat', {
+      bookingId: currentBookingId,
+      clientId,
+      clientName,
     });
   };
 
   const goToSOS = () => {
-    navigation.navigate('Demandes', {
-      screen: 'TherapistSOS',
-      params: {
-        bookingId: currentBookingId,
-      },
+    // ✅ FIX : "TherapistSOS" dia écran root ankehitriny.
+    navigation.navigate('TherapistSOS', {
+      bookingId: currentBookingId,
     });
   };
 

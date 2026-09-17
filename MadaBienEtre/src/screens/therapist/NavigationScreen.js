@@ -51,6 +51,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { spacing, typography } from '../../theme';
 
 import Header from '../../components/common/Header';
+import TherapistBottomMenu from '../../components/common/TherapistBottomMenu';
 import MapView from '../../components/map/MapViewWrapper';
 
 import {
@@ -96,6 +97,13 @@ export default function NavigationScreen({ navigation, route: navRoute }) {
 
   const clientLatitude = toNumber(params.clientLatitude ?? params.latitude);
   const clientLongitude = toNumber(params.clientLongitude ?? params.longitude);
+
+  // ✅ Tab tokony hijanona voamariky ao amin'ny menu ambany.
+  // "Calendrier" no default satria BookingDetailScreen (izay
+  // tao amin'ny tab "Calendrier") no antsoina matetika ity
+  // écran ity, fa azo ovaina amin'ny alalan'ny paramètre
+  // "activeTab" raha misy antokony hafa.
+  const activeTab = params.activeTab || 'Calendrier';
 
   const { colors: themeColors } = useTheme();
   const mapRef = useRef(null);
@@ -338,6 +346,8 @@ export default function NavigationScreen({ navigation, route: navRoute }) {
             Calcul de la position et du trajet...
           </Text>
         </View>
+
+        <TherapistBottomMenu navigation={navigation} activeTab={activeTab} />
       </View>
     );
   }
@@ -587,6 +597,8 @@ export default function NavigationScreen({ navigation, route: navRoute }) {
           </TouchableOpacity>
         </View>
       </View>
+
+      <TherapistBottomMenu navigation={navigation} activeTab={activeTab} />
     </View>
   );
 }

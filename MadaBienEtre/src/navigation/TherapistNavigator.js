@@ -258,50 +258,30 @@ const RequestsStack = () => {
       />
 
       {/* ======================================================
-          NAVIGATION
+          ⚠️ IMPORTANT — FIX NAVIGATION / TRACKING / CHAT / SOS
+          ======================================================
+          Navigation, Tracking, TherapistChat sy TherapistSOS dia
+          NESORINA teto (tao amin'ny stack "Demandes") satria
+          ampiasain'ny BookingDetailScreen (izay ao amin'ny tab
+          "Calendrier") ireo — raha mijanona ao anaty stack
+          "Demandes" ireo écran ireo dia:
+            1) mamadika automatique ny tab actif ho "Demandes"
+               (satria ilay écran dia tao anaty stack "Demandes"),
+            2) rehefa "retour" avy any dia tsy miverina amin'ny
+               BookingDetail intsony fa mijanona/mikisaka ao
+               anaty stack "Demandes",
+            3) rehefa tsindriana indray ny tab "Demandes" dia ilay
+               écran farany navigué (Navigation/Tracking) no
+               miseho fa tsy OffersScreen.
+
+          Noho izany dia napetraka ao amin'ny STACK ROOT (jereo
+          ny "TherapistNavigator" ambany, ivelan'ny Tab.Navigator)
+          ireo écran ireo, mba ho azo antenaina avy amin'ny tab
+          rehetra (navigate() dia "bubble up" hatrany amin'ny
+          navigator root raha tsy hita ao amin'ny stack lokaly),
+          nefa tsy manova ny tab actif ary ny "retour" dia
+          miverina marina amin'ny écran nahatongavana.
       ====================================================== */}
-
-      <Stack.Screen
-        name="Navigation"
-        component={NavigationScreen}
-      />
-
-      {/* ======================================================
-          TRACKING
-      ====================================================== */}
-
-      <Stack.Screen
-        name="Tracking"
-        component={TrackingScreen}
-      />
-
-      {/* ======================================================
-          MESSAGE DIRECT (CHAT THÉRAPEUTE)
-
-          IMPORTANT :
-          Nom UNIQUE "TherapistChat" mba tsy hifangaro
-          amin'ny route "Chat" izay mety ho ao amin'ny
-          ClientNavigator.
-      ====================================================== */}
-
-      <Stack.Screen
-        name="TherapistChat"
-        component={ChatScreen}
-      />
-
-      {/* ======================================================
-          SOS THÉRAPEUTE
-
-          IMPORTANT :
-          Nom UNIQUE "TherapistSOS" mba tsy hifangaro
-          amin'ny route "SOS" izay ao amin'ny
-          ClientNavigator (root path client).
-      ====================================================== */}
-
-      <Stack.Screen
-        name="TherapistSOS"
-        component={SOSScreen}
-      />
 
     </Stack.Navigator>
   );
@@ -890,7 +870,7 @@ const TherapistTabBar = ({
 // THERAPIST NAVIGATOR
 // ============================================================
 
-const TherapistNavigator = () => {
+const TherapistTabsScreen = () => {
 
   const {
     colors: themeColors,
@@ -1352,5 +1332,58 @@ const styles =
     },
 
   });
+
+// ============================================================
+// ROOT STACK — Tabs + écrans "cross-tab"
+//
+// FIX : Navigation, Tracking, TherapistChat, TherapistSOS dia
+// tonga eto (ivelan'ny Tab.Navigator) mba azo antsoina avy
+// amin'ny tab na stack rehetra (Calendrier, Demandes, sns.)
+// nefa:
+//   - tsy mamadika ny tab actif eo amin'ny tab bar,
+//   - ny bouton "retour" (Header.js -> navigation.goBack())
+//     dia miverina marina any amin'ny écran nahatongavana
+//     (ohatra: BookingDetailScreen), fa tsy any amin'ny
+//     page d'accueil,
+//   - rehefa tsindriana indray ny tab "Demandes" dia
+//     OffersScreen foana no miseho, satria ny stack "Demandes"
+//     tsy voakasik'ireo écran ireo intsony.
+// ============================================================
+
+const TherapistNavigator = () => {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: 'slide_from_right',
+      }}
+    >
+      <Stack.Screen
+        name="TherapistTabs"
+        component={TherapistTabsScreen}
+      />
+
+      <Stack.Screen
+        name="Navigation"
+        component={NavigationScreen}
+      />
+
+      <Stack.Screen
+        name="Tracking"
+        component={TrackingScreen}
+      />
+
+      <Stack.Screen
+        name="TherapistChat"
+        component={ChatScreen}
+      />
+
+      <Stack.Screen
+        name="TherapistSOS"
+        component={SOSScreen}
+      />
+    </Stack.Navigator>
+  );
+};
 
 export default TherapistNavigator;

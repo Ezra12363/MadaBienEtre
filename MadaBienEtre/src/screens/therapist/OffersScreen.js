@@ -2513,7 +2513,7 @@ export default function OffersScreen({
                 }}
                 disabled={busy}
                 hitSlop={10}
-                android_ripple={{ color: '#E7EAE8', borderless: true }}
+                android_ripple={{ color: '#ECECEC', borderless: true, radius: 20 }}
                 accessibilityRole="button"
                 accessibilityLabel="Voir les actions"
               >
@@ -2522,8 +2522,8 @@ export default function OffersScreen({
                 ) : (
                   <Ionicons
                     name="ellipsis-vertical"
-                    size={18}
-                    color={COLORS.text}
+                    size={20}
+                    color={COLORS.black}
                   />
                 )}
               </Pressable>
@@ -4821,16 +4821,14 @@ const styles =
       borderRadius: 17,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: COLORS.white,
+      // ✅ Aucun fond, aucune bordure, aucune ombre : le bouton
+      // toggle dia "transparent" tanteraka, ny icône 3 points
+      // (ellipsis-vertical) irery ihany no miseho eo ambonin'ny
+      // carte.
+      backgroundColor: 'transparent',
       marginLeft: 6,
       flexShrink: 0,
-      // Pas de bordure — juste une ombre légère pour le détacher
-      // du fond de la carte.
-      shadowColor: '#000',
-      shadowOpacity: 0.08,
-      shadowRadius: 3,
-      shadowOffset: { width: 0, height: 1 },
-      elevation: 1,
+      borderWidth: 0,
     },
 
     // ========================================================
