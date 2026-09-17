@@ -52,7 +52,7 @@ import axios from 'axios';
 
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { colors, spacing, typography } from '../../theme';
+import { spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import SOSButton from '../../components/sos/SOSButton';
 
@@ -70,6 +70,7 @@ import MapView, { Marker, PROVIDER_GOOGLE } from '../../components/map/MapViewWr
 // ============================================================
 
 const ROUTE_COLOR = '#E53935'; // rouge, comme demandé
+const PRIMARY = '#2E7D32'; // vert, cohérent avec le thème de la page Welcome
 const REFRESH_INTERVAL_MS = 12000; // rafraîchissement position + itinéraire
 const ARRIVED_THRESHOLD_KM = 0.12; // ~120 m => considéré "arrivé"
 
@@ -220,7 +221,7 @@ const getStatusInfo = (status) => {
     arrived: {
       label: 'Le thérapeute est arrivé',
       icon: 'checkmark-circle-outline',
-      color: '#2E7D32',
+      color: PRIMARY,
     },
     in_progress: {
       label: 'Massage en cours',
@@ -266,7 +267,7 @@ const TherapistPhoto = ({ photoUrl, name, online, size = 62 }) => {
 
 const photoStyles = StyleSheet.create({
   image: {
-    backgroundColor: `${colors.primary}15`,
+    backgroundColor: `${PRIMARY}15`,
     borderWidth: 2,
     borderColor: '#FFFFFF',
     ...Platform.select({
@@ -275,7 +276,7 @@ const photoStyles = StyleSheet.create({
     }),
   },
   fallback: {
-    backgroundColor: `${colors.primary}20`,
+    backgroundColor: `${PRIMARY}20`,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -285,7 +286,7 @@ const photoStyles = StyleSheet.create({
       default: { elevation: 3 },
     }),
   },
-  fallbackText: { color: colors.primary, fontWeight: '900' },
+  fallbackText: { color: PRIMARY, fontWeight: '900' },
   onlineDot: {
     position: 'absolute',
     bottom: -2,
@@ -307,8 +308,14 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
   const { bookingId } = navRoute.params;
   const { colors: themeColors } = useTheme();
   const { token } = useAuth();
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const isSmallScreen = screenWidth < 600;
+  const isTabletWidth = screenWidth >= 768;
+  const isDesktopWidth = screenWidth >= 1100;
+
+  const mapHeight = Platform.OS === 'web'
+    ? Math.min(screenHeight * (isDesktopWidth ? 0.78 : 0.65), isDesktopWidth ? 780 : 620)
+    : Math.min(screenHeight * 0.58, 560);
 
   const [booking, setBooking] = useState(null);
   const [therapistProfile, setTherapistProfile] = useState(null);
@@ -631,7 +638,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
         coordinate: destination,
         title: 'Adresse de la demande',
         description: address,
-        pinColor: colors.primary,
+        pinColor: PRIMARY,
       });
     }
 
@@ -657,7 +664,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
       <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
         <Header title="Suivi en direct" showBack />
         <View style={styles.centerFlex}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={PRIMARY} />
           <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
             Chargement du suivi...
           </Text>
@@ -671,7 +678,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
       <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
         <Header title="Suivi en direct" showBack />
         <View style={styles.centerFlex}>
-          <Ionicons name="cloud-offline-outline" size={48} color={colors.primary} />
+          <Ionicons name="cloud-offline-outline" size={48} color={PRIMARY} />
           <Text style={[styles.errorTitle, { color: themeColors.text }]}>
             Impossible de charger le suivi
           </Text>
@@ -713,7 +720,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
           sur le web : la vraie carte s'affiche partout.
       ================================================== */}
 
-      <View style={styles.mapContainer}>
+      <View style={[styles.mapContainer, { height: mapHeight }]}>
         <MapView
           ref={mapRef}
           style={styles.map}
@@ -782,7 +789,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
           {(routeInfo?.distanceText || distanceKm !== null) && (
             <View style={styles.statusMetaRow}>
               <View style={styles.statusMetaBadge}>
-                <Ionicons name="navigate-outline" size={13} color={colors.primary} />
+                <Ionicons name="navigate-outline" size={13} color={PRIMARY} />
                 <Text style={styles.statusMetaText}>
                   {routeInfo?.distanceText || `${distanceKm.toFixed(1)} km`}
                 </Text>
@@ -790,7 +797,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
 
               {routeInfo?.durationText && (
                 <View style={styles.statusMetaBadge}>
-                  <Ionicons name="time-outline" size={13} color={colors.primary} />
+                  <Ionicons name="time-outline" size={13} color={PRIMARY} />
                   <Text style={styles.statusMetaText}>
                     Arrivée estimée : {routeInfo.durationText}
                   </Text>
@@ -833,7 +840,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
 
                   {therapistExperience !== null && therapistExperience !== undefined && (
                     <View style={styles.metaBadge}>
-                      <Ionicons name="ribbon-outline" size={11} color={colors.primary} />
+                      <Ionicons name="ribbon-outline" size={11} color={PRIMARY} />
                       <Text style={styles.metaBadgeText}>
                         {therapistExperience} an{Number(therapistExperience) > 1 ? 's' : ''}
                       </Text>
@@ -867,8 +874,8 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
                 onPress={handleContact}
                 activeOpacity={0.85}
               >
-                <Ionicons name="chatbubble-outline" size={18} color={colors.primary} />
-                <Text style={[styles.secondaryActionText, { color: colors.primary }]}>
+                <Ionicons name="chatbubble-outline" size={18} color={PRIMARY} />
+                <Text style={[styles.secondaryActionText, { color: PRIMARY }]}>
                   Contacter
                 </Text>
               </TouchableOpacity>
@@ -924,7 +931,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: 12,
-    backgroundColor: colors.primary,
+    backgroundColor: PRIMARY,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
@@ -943,7 +950,6 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   mapContainer: {
-    height: Platform.OS === 'web' ? 430 : 320,
     marginHorizontal: Platform.OS === 'web' ? spacing.lg : spacing.md,
     marginTop: spacing.md,
     borderRadius: 16,
@@ -1003,9 +1009,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 8,
-    backgroundColor: `${colors.primary}12`,
+    backgroundColor: `${PRIMARY}12`,
   },
-  statusMetaText: { fontSize: 11, fontWeight: '700', color: colors.primary },
+  statusMetaText: { fontSize: 11, fontWeight: '700', color: PRIMARY },
 
   therapistCard: {
     marginHorizontal: spacing.md,
@@ -1035,9 +1041,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: `${colors.primary}0D`,
+    backgroundColor: `${PRIMARY}0D`,
   },
-  metaBadgeText: { fontSize: 10.5, fontWeight: '700', color: colors.primary },
+  metaBadgeText: { fontSize: 10.5, fontWeight: '700', color: PRIMARY },
   dot: { width: 7, height: 7, borderRadius: 3.5 },
 
   therapistActions: {
@@ -1052,13 +1058,13 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: PRIMARY,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
     gap: 6,
   },
-  callAction: { backgroundColor: colors.primary, borderColor: colors.primary },
+  callAction: { backgroundColor: PRIMARY, borderColor: PRIMARY },
   secondaryActionText: {
     fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.semiBold,

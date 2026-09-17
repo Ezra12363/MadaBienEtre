@@ -30,7 +30,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../../context/ThemeContext";
-import { colors, typography } from "../../theme";
+import { typography } from "../../theme";
 import Header from "../../components/common/Header";
 import massageTypeService from "../../services/massageTypeService";
 import therapistService from "../../services/therapistService";
@@ -54,8 +54,8 @@ const { width, height } = Dimensions.get("window");
    CONSTANTES
 ============================================================ */
 
-const PRIMARY = colors.primary || "#0D2B7E";
-const SECONDARY = colors.secondary || "#1A4FB5";
+const PRIMARY = "#2E7D32";
+const SECONDARY = "#1F6B38";
 const SUCCESS = "#00C853";
 const WARNING = "#FF9800";
 const DANGER = "#E53935";
@@ -206,11 +206,11 @@ const Toast = ({ visible, message, type, onHide }) => {
         };
       default:
         return {
-          bg: "#E0E7FF",
-          border: "#A5B4FC",
+          bg: `${PRIMARY}15`,
+          border: `${PRIMARY}40`,
           icon: "information-circle",
-          iconColor: "#4F46E5",
-          textColor: "#3730A3",
+          iconColor: PRIMARY,
+          textColor: "#164B2A",
         };
     }
   };
@@ -2014,7 +2014,13 @@ const SearchMassageScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             </View>
           ) : showMap ? (
-            <View style={styles.mapContainer}>
+            <View
+              style={[
+                styles.mapContainer,
+                isTabletWidth && styles.mapContainerTablet,
+                isDesktopWidth && styles.mapContainerDesktop,
+              ]}
+            >
               <MapViewWrapper
                 ref={mapRef}
                 key={mapKey}
@@ -2490,7 +2496,7 @@ const styles = StyleSheet.create({
   heroIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center", marginRight: 11 },
   heroText: { flex: 1 },
   heroTitle: { color: "#FFFFFF", fontSize: 19, lineHeight: 24, fontFamily: typography.fontFamily.bold },
-  heroTitleAccent: { color: "#BBD2FF" },
+  heroTitleAccent: { color: "#DCEFE0" },
   heroSubtitle: { color: "rgba(255,255,255,0.72)", fontSize: 9.5, lineHeight: 14, marginTop: 3, fontFamily: typography.fontFamily.regular },
   searchBox: { height: 50, borderRadius: 16, flexDirection: "row", alignItems: "center", paddingHorizontal: 5 },
   searchIcon: { width: 38, height: 38, borderRadius: 12, alignItems: "center", justifyContent: "center" },
@@ -2582,7 +2588,9 @@ const styles = StyleSheet.create({
   bookButton: { minWidth: 116, height: 36, paddingHorizontal: 10, borderRadius: 11, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 5 },
   bookButtonText: { fontSize: 9, fontFamily: typography.fontFamily.semiBold },
 
-  mapContainer: { marginHorizontal: 16, height: Math.min(height * 0.53, 520), minHeight: 410, borderRadius: 23, overflow: "hidden", position: "relative", backgroundColor: "#E5E7EB" },
+  mapContainer: { marginHorizontal: 16, height: Math.min(height * 0.68, 640), minHeight: 480, borderRadius: 23, overflow: "hidden", position: "relative", backgroundColor: "#E5E7EB" },
+  mapContainerTablet: { height: Math.min(height * 0.75, 720), minHeight: 540 },
+  mapContainerDesktop: { height: Math.min(height * 0.82, 840), minHeight: 620, marginHorizontal: 24 },
   map: { flex: 1 },
   mapTopBadge: { position: "absolute", top: 12, left: 12, minHeight: 35, paddingHorizontal: 9, borderRadius: 11, flexDirection: "row", alignItems: "center" },
   mapTopIcon: { width: 24, height: 24, borderRadius: 8, backgroundColor: `${PRIMARY}12`, alignItems: "center", justifyContent: "center", marginRight: 5 },

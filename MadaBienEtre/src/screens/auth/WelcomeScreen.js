@@ -1583,8 +1583,8 @@ export default function WelcomeScreen({ navigation }) {
       edges={['top']}
     >
       <StatusBar
-        barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={COLORS.background}
+        barStyle="light-content"
+        backgroundColor={COLORS.primary}
         translucent={false}
       />
 
@@ -1629,7 +1629,7 @@ const createStyles = (COLORS) => StyleSheet.create({
 
   safeArea: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.primary,
   },
 
   screen: {
@@ -1686,11 +1686,14 @@ const createStyles = (COLORS) => StyleSheet.create({
     width: '100%',
     backgroundColor: COLORS.primary,
 
+    borderTopWidth: 0,
+    borderTopColor: COLORS.primaryDark,
+
     borderBottomWidth: 0,
     borderBottomColor: COLORS.primaryDark,
 
     zIndex: 100,
-    elevation: 8,
+    elevation: 0,
 
     ...Platform.select({
       web: {

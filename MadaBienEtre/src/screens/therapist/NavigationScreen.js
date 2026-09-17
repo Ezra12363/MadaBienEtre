@@ -21,7 +21,7 @@
 //
 // Charte graphique alignée sur les autres écrans thérapeute :
 // Header commun, cards bordées + ombre légère, bouton principal
-// en dégradé colors.primary.
+// en dégradé PRIMARY.
 // ============================================================
 
 import React, {
@@ -48,7 +48,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, typography } from '../../theme';
+import { spacing, typography } from '../../theme';
 
 import Header from '../../components/common/Header';
 import MapView from '../../components/map/MapViewWrapper';
@@ -65,6 +65,8 @@ import {
 // ============================================================
 
 const DEFAULT_REGION = { latitude: -18.8792, longitude: 47.5079 };
+
+const PRIMARY = '#2E7D32'; // vert, cohérent avec le thème de la page Welcome
 
 // Convention carte standard (reconnaissable internationalement) :
 // bleu = position du thérapeute, rouge = destination du client.
@@ -104,6 +106,23 @@ export default function NavigationScreen({ navigation, route: navRoute }) {
   const [loading, setLoading] = useState(true);
   const [routeLoading, setRouteLoading] = useState(false);
   const [gpsError, setGpsError] = useState('');
+
+  // ✅ CORRECTIF ANDROID : taille exacte (en pixels) de la zone
+  // carte, mesurée via `onLayout`. Sur Android, react-native-maps
+  // ne se redimensionne pas toujours correctement quand il est
+  // seulement en `flex:1` à l'intérieur d'un parent positionné en
+  // absolu (`StyleSheet.absoluteFillObject`) — la carte peut alors
+  // ne remplir qu'une partie de l'écran et laisser un grand espace
+  // vide en dessous. En donnant une largeur/hauteur EXPLICITES
+  // (mesurées), la carte occupe systématiquement tout l'espace
+  // disponible, sur Android comme sur le web.
+  const [screenSize, setScreenSize] = useState(null);
+
+  // ✅ Hauteur réelle du bandeau bas flottant, mesurée dynamiquement,
+  // pour placer le badge adresse juste au-dessus de lui — quel que
+  // soit l'appareil — au lieu d'une valeur fixe ("bottom: 230") qui
+  // pouvait laisser un vide ou se chevaucher.
+  const [bottomSheetHeight, setBottomSheetHeight] = useState(210);
 
   // ==========================================================
   // POSITIONS
@@ -311,7 +330,7 @@ export default function NavigationScreen({ navigation, route: navRoute }) {
         <Header title="Navigation vers le client" showBack />
 
         <View style={styles.centerState}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={PRIMARY} />
 
           <Text
             style={[styles.loadingText, { color: themeColors.textSecondary }]}
@@ -334,30 +353,47 @@ export default function NavigationScreen({ navigation, route: navRoute }) {
       <Header title="Navigation vers le client" showBack />
 
       {/* ==================================================
-          CARTE — occupe tout l'espace restant.
+          CARTE — occupe tout l'écran restant. Le bandeau bas
+          flotte désormais au-dessus, pour une carte agrandie.
           `showMapTypeControl` (par défaut) affiche le bouton
           satellite/plan maison en HAUT-GAUCHE : nos propres
           éléments (recentrer, adresse) restent donc à DROITE.
       ================================================== */}
 
-      <View style={styles.mapArea}>
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          initialRegion={{
-            latitude: therapistPosition?.latitude ?? clientPosition.latitude,
-            longitude: therapistPosition?.longitude ?? clientPosition.longitude,
-            latitudeDelta: 0.025,
-            longitudeDelta: 0.025,
-          }}
-          markers={mapMarkers}
-          route={routeCoordinates.length > 1 ? routeCoordinates : null}
-          routeColor={END_COLOR}
-          routeWidth={5}
-          showUserLocation={false}
-          trackUserLocation={false}
-          showMapTypeControl
-        />
+      <View
+        style={styles.screenArea}
+        onLayout={(e) => setScreenSize(e.nativeEvent.layout)}
+      >
+        <View
+          style={[
+            styles.mapArea,
+            // ✅ Dimensions explicites (voir commentaire plus haut) —
+            // tant que la mesure n'est pas encore arrivée, on garde
+            // le repli `absoluteFillObject` défini dans les styles.
+            screenSize && {
+              width: screenSize.width,
+              height: screenSize.height,
+            },
+          ]}
+        >
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            initialRegion={{
+              latitude: therapistPosition?.latitude ?? clientPosition.latitude,
+              longitude: therapistPosition?.longitude ?? clientPosition.longitude,
+              latitudeDelta: 0.025,
+              longitudeDelta: 0.025,
+            }}
+            markers={mapMarkers}
+            route={routeCoordinates.length > 1 ? routeCoordinates : null}
+            routeColor={END_COLOR}
+            routeWidth={5}
+            showUserLocation={false}
+            trackUserLocation={false}
+            showMapTypeControl
+          />
+        </View>
 
         {/* Recentrer — bouton flottant discret, seul en haut à droite */}
         <TouchableOpacity
@@ -371,7 +407,7 @@ export default function NavigationScreen({ navigation, route: navRoute }) {
           onPress={centerMap}
           activeOpacity={0.85}
         >
-          <Ionicons name="locate" size={20} color={colors.primary} />
+          <Ionicons name="locate" size={20} color={PRIMARY} />
         </TouchableOpacity>
 
         {/* Bloc ancré en BAS DROITE de la carte uniquement :
@@ -380,7 +416,13 @@ export default function NavigationScreen({ navigation, route: navRoute }) {
             déplacé en bas-gauche côté web). Alerte GPS (si
             besoin) puis, juste au-dessus du bandeau du trajet,
             le badge adresse. */}
-        <View style={styles.mapBottomOverlay} pointerEvents="box-none">
+        <View
+          style={[
+            styles.mapBottomOverlay,
+            { bottom: bottomSheetHeight + spacing.sm },
+          ]}
+          pointerEvents="box-none"
+        >
           {gpsError ? (
             <View style={styles.gpsWarning}>
               <Ionicons name="warning-outline" size={14} color="#92400E" />
@@ -439,109 +481,111 @@ export default function NavigationScreen({ navigation, route: navRoute }) {
             </View>
           </View>
         </View>
-      </View>
 
-      {/* ==================================================
-          BANDEAU BAS — SÉPARÉ de la carte (pas en overlay).
-          Regroupe légende, distance/durée et l'action
-          principale.
-      ================================================== */}
-
-      <View
-        style={[
-          styles.bottomSheet,
-          {
-            backgroundColor: themeColors.surface,
-            borderColor: themeColors.border || '#E5E5E5',
-          },
-        ]}
-      >
-        <View style={styles.legendRow}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: START_COLOR }]} />
-            <Text
-              style={[styles.legendText, { color: themeColors.textSecondary }]}
-            >
-              Vous
-            </Text>
-          </View>
-
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: END_COLOR }]} />
-            <Text
-              style={[styles.legendText, { color: themeColors.textSecondary }]}
-            >
-              Client
-            </Text>
-          </View>
-        </View>
+        {/* ==================================================
+            BANDEAU BAS — flotte désormais au-dessus de la carte
+            (au lieu d'un bloc séparé qui réduisait la carte).
+            Regroupe légende, distance/durée et l'action
+            principale.
+        ================================================== */}
 
         <View
+          onLayout={(e) => setBottomSheetHeight(e.nativeEvent.layout.height)}
           style={[
-            styles.routeInfoRow,
-            { borderTopColor: themeColors.border || '#E5E5E5' },
+            styles.bottomSheetFloating,
+            {
+              backgroundColor: themeColors.surface,
+              borderColor: themeColors.border || '#E5E5E5',
+            },
           ]}
         >
-          <View style={styles.routeInfoItem}>
-            <Ionicons name="navigate-outline" size={18} color={END_COLOR} />
-            <Text
-              style={[
-                styles.routeInfoLabel,
-                { color: themeColors.textSecondary },
-              ]}
-            >
-              Distance
-            </Text>
-            <Text style={[styles.routeInfoValue, { color: themeColors.text }]}>
-              {routeInfo?.distanceText || formatDistance(straightDistance)}
-            </Text>
+          <View style={styles.legendRow}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: START_COLOR }]} />
+              <Text
+                style={[styles.legendText, { color: themeColors.textSecondary }]}
+              >
+                Vous
+              </Text>
+            </View>
+
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: END_COLOR }]} />
+              <Text
+                style={[styles.legendText, { color: themeColors.textSecondary }]}
+              >
+                Client
+              </Text>
+            </View>
           </View>
 
           <View
             style={[
-              styles.routeInfoDivider,
-              { backgroundColor: themeColors.border || '#E5E5E5' },
+              styles.routeInfoRow,
+              { borderTopColor: themeColors.border || '#E5E5E5' },
             ]}
-          />
-
-          <View style={styles.routeInfoItem}>
-            <Ionicons name="time-outline" size={18} color={colors.primary} />
-            <Text
-              style={[
-                styles.routeInfoLabel,
-                { color: themeColors.textSecondary },
-              ]}
-            >
-              Durée
-            </Text>
-
-            {routeLoading ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Text
-                style={[styles.routeInfoValue, { color: themeColors.text }]}
-              >
-                {routeInfo?.durationText || '—'}
-              </Text>
-            )}
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={styles.startButton}
-          onPress={openDirections}
-          activeOpacity={0.85}
-        >
-          <LinearGradient
-            colors={[colors.primary, `${colors.primary}CC`]}
-            style={styles.startButtonGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
           >
-            <Ionicons name="navigate" size={20} color="#FFFFFF" />
-            <Text style={styles.startButtonText}>Démarrer l'itinéraire</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            <View style={styles.routeInfoItem}>
+              <Ionicons name="navigate-outline" size={18} color={END_COLOR} />
+              <Text
+                style={[
+                  styles.routeInfoLabel,
+                  { color: themeColors.textSecondary },
+                ]}
+              >
+                Distance
+              </Text>
+              <Text style={[styles.routeInfoValue, { color: themeColors.text }]}>
+                {routeInfo?.distanceText || formatDistance(straightDistance)}
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.routeInfoDivider,
+                { backgroundColor: themeColors.border || '#E5E5E5' },
+              ]}
+            />
+
+            <View style={styles.routeInfoItem}>
+              <Ionicons name="time-outline" size={18} color={PRIMARY} />
+              <Text
+                style={[
+                  styles.routeInfoLabel,
+                  { color: themeColors.textSecondary },
+                ]}
+              >
+                Durée
+              </Text>
+
+              {routeLoading ? (
+                <ActivityIndicator size="small" color={PRIMARY} />
+              ) : (
+                <Text
+                  style={[styles.routeInfoValue, { color: themeColors.text }]}
+                >
+                  {routeInfo?.durationText || '—'}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.startButton}
+            onPress={openDirections}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={[PRIMARY, `${PRIMARY}CC`]}
+              style={styles.startButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <Ionicons name="navigate" size={20} color="#FFFFFF" />
+              <Text style={styles.startButtonText}>Démarrer l'itinéraire</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -569,10 +613,13 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // CARTE
+  // CARTE — occupe désormais tout l'écran (le bandeau bas
+  // flotte par-dessus au lieu de réduire son espace).
   // ==========================================================
 
-  mapArea: { flex: 1, position: 'relative' },
+  screenArea: { flex: 1, position: 'relative' },
+
+  mapArea: { ...StyleSheet.absoluteFillObject },
 
   map: { flex: 1 },
 
@@ -584,10 +631,12 @@ const styles = StyleSheet.create({
     // il occupe toute la largeur disponible (havia ka hatramin'ny
     // havanana), tout en restant sous le bouton "recentrer" et le
     // contrôle satellite (haut-gauche), qui restent au-dessus.
+    // Le `bottom` est relevé pour ne jamais passer sous le
+    // bandeau flottant (bottomSheetFloating).
     position: 'absolute',
     left: spacing.sm,
     right: spacing.sm,
-    bottom: 0,
+    bottom: 230,
     gap: spacing.sm,
   },
 
@@ -670,20 +719,22 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // BANDEAU BAS — séparé de la carte
+  // BANDEAU BAS — flotte au-dessus de la carte agrandie
   // ==========================================================
 
-  bottomSheet: {
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
+  bottomSheetFloating: {
+    position: 'absolute',
+    left: spacing.sm,
+    right: spacing.sm,
+    bottom: spacing.sm,
+    borderRadius: 22,
     borderWidth: 1,
-    borderBottomWidth: 0,
     padding: spacing.md,
     paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
     elevation: 6,
   },
 
