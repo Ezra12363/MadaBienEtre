@@ -1948,6 +1948,11 @@ export default function OffersScreen({
               ),
 
             booking,
+
+            // ✅ FIX : Negotiation dia écran root izao — ity
+            // activeTab ity no mampijoro ny menu ambany eo amin'ny
+            // "Demandes" rehefa avy amin'ity OffersScreen ity.
+            activeTab: 'Demandes',
           }
         );
       },

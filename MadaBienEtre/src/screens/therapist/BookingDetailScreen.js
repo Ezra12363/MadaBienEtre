@@ -1099,18 +1099,21 @@ const BookingDetailScreen = ({
   };
 
   const goToNegotiation = () => {
-    navigation.navigate('Demandes', {
-      screen: 'Negotiation',
-      params: {
-        bookingId: currentBookingId,
-        booking,
-        currentPrice:
-          booking?.final_price ??
-          booking?.price ??
-          booking?.client_price_proposed ??
-          0,
-        clientName,
-      },
+    // ✅ FIX : "Negotiation" dia écran root ankehitriny (tsy ao
+    // anaty stack "Demandes" intsony), ka navigate() mivantana
+    // toy izao dia "bubble up" hatrany amin'ny root stack, ka:
+    //  - tsy mamadika ny tab actif (mijanona amin'ny "Calendrier"),
+    //  - ny "retour" dia miverina eto amin'ity BookingDetail ity.
+    navigation.navigate('Negotiation', {
+      bookingId: currentBookingId,
+      booking,
+      currentPrice:
+        booking?.final_price ??
+        booking?.price ??
+        booking?.client_price_proposed ??
+        0,
+      clientName,
+      activeTab: 'Calendrier',
     });
   };
 

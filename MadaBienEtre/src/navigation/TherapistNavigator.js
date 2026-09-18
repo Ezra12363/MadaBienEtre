@@ -249,22 +249,14 @@ const RequestsStack = () => {
       />
 
       {/* ======================================================
-          NÉGOCIATION
-      ====================================================== */}
-
-      <Stack.Screen
-        name="Negotiation"
-        component={NegotiationScreen}
-      />
-
-      {/* ======================================================
-          ⚠️ IMPORTANT — FIX NAVIGATION / TRACKING / CHAT / SOS
+          ⚠️ IMPORTANT — FIX NAVIGATION / TRACKING / NEGOTIATION /
+          CHAT / SOS
           ======================================================
-          Navigation, Tracking, TherapistChat sy TherapistSOS dia
-          NESORINA teto (tao amin'ny stack "Demandes") satria
-          ampiasain'ny BookingDetailScreen (izay ao amin'ny tab
-          "Calendrier") ireo — raha mijanona ao anaty stack
-          "Demandes" ireo écran ireo dia:
+          Navigation, Tracking, Negotiation, TherapistChat sy
+          TherapistSOS dia NESORINA teto (tao amin'ny stack
+          "Demandes") satria ampiasain'ny BookingDetailScreen
+          (izay ao amin'ny tab "Calendrier") koa ireo — raha
+          mijanona ao anaty stack "Demandes" ireo écran ireo dia:
             1) mamadika automatique ny tab actif ho "Demandes"
                (satria ilay écran dia tao anaty stack "Demandes"),
             2) rehefa "retour" avy any dia tsy miverina amin'ny
@@ -1371,6 +1363,15 @@ const TherapistNavigator = () => {
       <Stack.Screen
         name="Tracking"
         component={TrackingScreen}
+      />
+
+      {/* ✅ FIX : Negotiation dia écran ROOT izao (nesorina tao
+          amin'ny stack "Demandes"), toy ny Navigation sy Tracking —
+          mba tsy hamadika ny tab actif rehefa antsoina avy amin'ny
+          tab "Calendrier" (BookingDetailScreen). */}
+      <Stack.Screen
+        name="Negotiation"
+        component={NegotiationScreen}
       />
 
       <Stack.Screen

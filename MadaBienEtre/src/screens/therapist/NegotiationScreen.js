@@ -32,6 +32,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing } from '../../theme';
 
+import Header from '../../components/common/Header';
+import TherapistBottomMenu from '../../components/common/TherapistBottomMenu';
+
 // ============================================================
 // ANDROID STATUS BAR
 //
@@ -48,103 +51,9 @@ const ANDROID_STATUS_BAR_HEIGHT =
     : 0;
 
 // ============================================================
-// SCREEN HEADER (bouton retour + titre au centre)
+// (header remplacé par le composant commun `Header` — voir
+// import ci-dessus)
 // ============================================================
-
-const ScreenHeader = ({
-  title,
-  onBack,
-  themeColors,
-}) => (
-  <View
-    style={[
-      screenHeaderStyles.container,
-      {
-        backgroundColor: '#FFFFFF',
-        paddingTop:
-          ANDROID_STATUS_BAR_HEIGHT + 12,
-      },
-    ]}
-  >
-    <StatusBar
-      barStyle="dark-content"
-      backgroundColor="#FFFFFF"
-      translucent={false}
-    />
-
-    <TouchableOpacity
-      onPress={onBack}
-      activeOpacity={0.75}
-      hitSlop={{
-        top: 10,
-        bottom: 10,
-        left: 10,
-        right: 10,
-      }}
-      style={screenHeaderStyles.backButton}
-    >
-      <Ionicons
-        name="arrow-back"
-        size={22}
-        color="#111111"
-      />
-    </TouchableOpacity>
-
-    <View style={screenHeaderStyles.titleWrap}>
-      <Text
-        style={screenHeaderStyles.titleText}
-        numberOfLines={1}
-      >
-        {title}
-      </Text>
-    </View>
-
-    {/* Espace fantôme à droite pour garder le titre bien
-        centré (même largeur que le bouton retour). */}
-    <View style={screenHeaderStyles.rightSpace} />
-  </View>
-);
-
-const screenHeaderStyles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingBottom: 14,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 6,
-  },
-
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F3F4F3',
-  },
-
-  titleWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  titleText: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: '#111111',
-    letterSpacing: 0.3,
-  },
-
-  rightSpace: {
-    width: 40,
-    height: 40,
-  },
-});
 
 // ============================================================
 // CLIENT AVATAR (photo de profil ou initiale)
@@ -154,7 +63,6 @@ const ClientAvatar = ({
   photoUrl,
   name,
   size = 58,
-  isOnline = false,
 }) => {
   const [failed, setFailed] = useState(false);
 
@@ -193,13 +101,6 @@ const ClientAvatar = ({
         </View>
       )}
 
-      <View
-        style={[
-          clientAvatarStyles.onlineDot,
-          { backgroundColor: isOnline ? '#22C55E' : '#9CA3AF' },
-        ]}
-        accessibilityLabel={isOnline ? 'Client en ligne' : 'Client hors ligne'}
-      />
     </View>
   );
 };
@@ -208,12 +109,12 @@ const clientAvatarStyles = StyleSheet.create({
   wrapper: {
     position: 'relative',
     borderWidth: 2,
-    borderColor: '#D7E5DB',
+    borderColor: `${colors.primary}33`,
     backgroundColor: '#FFFFFF',
   },
 
   image: {
-    backgroundColor: '#E5F1E9',
+    backgroundColor: `${colors.primary}14`,
     borderWidth: 0,
   },
 
@@ -228,16 +129,6 @@ const clientAvatarStyles = StyleSheet.create({
     fontWeight: '900',
   },
 
-  onlineDot: {
-    position: 'absolute',
-    right: -3,
-    bottom: -3,
-    width: 15,
-    height: 15,
-    borderRadius: 8,
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-  },
 });
 
 import offerService from '../../services/offerService';
@@ -269,7 +160,7 @@ function ConfirmationModal({
           <Ionicons
             name={destructive ? 'warning-outline' : 'help-circle-outline'}
             size={25}
-            color={destructive ? '#D93636' : '#2E8B57'}
+            color={destructive ? '#D93636' : colors.primary}
           />
         </View>
         <Text style={confirmationStyles.title}>{title}</Text>
@@ -321,7 +212,7 @@ const confirmationStyles = StyleSheet.create({
   },
   iconCircle: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: '#EEF7F0',
+    backgroundColor: `${colors.primary}14`,
     alignItems: 'center', justifyContent: 'center',
     alignSelf: 'center', marginBottom: 12,
   },
@@ -342,7 +233,7 @@ const confirmationStyles = StyleSheet.create({
   },
   confirmButton: {
     flex: 1, minHeight: 46, borderRadius: 11,
-    backgroundColor: '#2E8B57',
+    backgroundColor: colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
   confirmDanger: { backgroundColor: '#D93636' },
@@ -575,9 +466,9 @@ const BOOKING_STATUS_LABELS = {
 const BOOKING_STATUS_COLORS = {
   pending: '#F5B642',
   negotiating: '#2D9CDB',
-  confirmed: '#43A047',
+  confirmed: colors.primary,
   in_progress: '#7B61FF',
-  completed: '#2E7D32',
+  completed: colors.primary,
   cancelled_by_client: '#E53935',
   cancelled_by_therapist: '#E53935',
   expired: '#9E9E9E',
@@ -621,6 +512,12 @@ const NegotiationScreen = ({
   route,
 }) => {
   const params = route?.params || {};
+
+  // ✅ FIX : "Negotiation" dia écran root izao (ivelan'ny
+  // Tab.Navigator), ka tsy miseho ho azy intsony ny tab bar —
+  // TherapistBottomMenu manokana no mampiseho azy eto, mijoro
+  // eo amin'ilay tab niaingana (Calendrier na Demandes).
+  const activeTab = params.activeTab || 'Demandes';
 
   // ==========================================================
   // BOOKING
@@ -1966,10 +1863,9 @@ const NegotiationScreen = ({
           },
         ]}
       >
-        <ScreenHeader
-          title="Réservation"
-          onBack={() => navigation.goBack()}
-          themeColors={themeColors}
+        <Header
+          title="Réservation"          showBack
+          onBackPress={() => navigation.goBack()}
         />
 
         <View
@@ -2006,6 +1902,8 @@ const NegotiationScreen = ({
             est manquant.
           </Text>
         </View>
+
+        <TherapistBottomMenu navigation={navigation} activeTab={activeTab} />
       </SafeAreaView>
     );
   }
@@ -2025,10 +1923,9 @@ const NegotiationScreen = ({
           },
         ]}
       >
-        <ScreenHeader
-          title="Réservation"
-          onBack={() => navigation.goBack()}
-          themeColors={themeColors}
+        <Header
+          title="Réservation"          showBack
+          onBackPress={() => navigation.goBack()}
         />
 
         <View
@@ -2051,6 +1948,8 @@ const NegotiationScreen = ({
             Chargement de la négociation...
           </Text>
         </View>
+
+        <TherapistBottomMenu navigation={navigation} activeTab={activeTab} />
       </SafeAreaView>
     );
   }
@@ -2069,10 +1968,10 @@ const NegotiationScreen = ({
         },
       ]}
     >
-      <ScreenHeader
-        title="Réservation"
-        onBack={() => navigation.goBack()}
-        themeColors={themeColors}
+      <Header
+        title="Négociation"
+showBack
+        onBackPress={() => navigation.goBack()}
       />
 
       {toast ? (
@@ -2148,7 +2047,6 @@ const NegotiationScreen = ({
               photoUrl={clientPhoto}
               name={clientName}
               size={58}
-              isOnline={isClientOnline}
             />
 
             <View
@@ -2808,8 +2706,8 @@ const NegotiationScreen = ({
                   colors={
                     canAccept
                       ? [
-                          '#43A047',
-                          '#66BB6A',
+                          colors.primary,
+                          `${colors.primary}CC`,
                         ]
                       : [
                           '#AFAFAF',
@@ -3183,7 +3081,7 @@ const NegotiationScreen = ({
                               backgroundColor:
                                 isClient
                                   ? '#FFF0F0'
-                                  : '#EAF6EF',
+                                  : `${colors.primary}14`,
                             },
                           ]}
                         >
@@ -3275,7 +3173,7 @@ const NegotiationScreen = ({
                             {
                               backgroundColor:
                                 isActive
-                                  ? '#EAF6EF'
+                                  ? `${colors.primary}14`
                                   : '#F2F2F2',
                             },
                           ]}
@@ -3381,6 +3279,8 @@ const NegotiationScreen = ({
           />
         </Animated.ScrollView>
       </KeyboardAvoidingView>
+
+      <TherapistBottomMenu navigation={navigation} activeTab={activeTab} />
     </SafeAreaView>
   );
 };
@@ -3490,7 +3390,7 @@ const styles =
       paddingVertical: 5,
       borderRadius: 8,
       backgroundColor:
-        '#EAF6EF',
+        `${colors.primary}14`,
     },
 
     bookingBadgeText: {
@@ -3737,7 +3637,7 @@ const styles =
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor:
-        '#EAF6EF',
+        `${colors.primary}14`,
     },
 
     historyItem: {
@@ -3905,7 +3805,7 @@ const styles =
     },
 
     toastSuccess: {
-      backgroundColor: '#2E8B57',
+      backgroundColor: colors.primary,
     },
 
     toastError: {

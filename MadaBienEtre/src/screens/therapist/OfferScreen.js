@@ -9,6 +9,7 @@ import React, {
 
 import {
   ActivityIndicator,
+  Image,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -28,6 +29,8 @@ import {
 
 import bookingService from '../../services/bookingService';
 import offerService from '../../services/offerService';
+
+import Header from '../../components/common/Header';
 
 // ============================================================
 // COLORS
@@ -163,6 +166,80 @@ const formatRemaining = (
     2,
     '0'
   )}`;
+};
+
+// ✅ NORME INTERNATIONALE — numéro de téléphone au format
+// international E.164 lisible : "+261 34 12 345 67" au lieu
+// d'un numéro local brut ("034 12 345 67" / "0341234567").
+const formatPhoneInternational = (raw) => {
+  if (!raw) {
+    return 'Non renseigné';
+  }
+
+  const digits = String(raw).replace(/\D/g, '');
+
+  if (!digits) {
+    return String(raw);
+  }
+
+  const national = digits.startsWith('261')
+    ? digits.slice(3)
+    : digits.startsWith('0')
+    ? digits.slice(1)
+    : digits;
+
+  if (national.length !== 9) {
+    // Format inattendu : on préfère afficher la valeur telle
+    // quelle plutôt que de la déformer avec un découpage faux.
+    return String(raw);
+  }
+
+  const p1 = national.slice(0, 2);
+  const p2 = national.slice(2, 4);
+  const p3 = national.slice(4, 7);
+  const p4 = national.slice(7, 9);
+
+  return `+261 ${p1} ${p2} ${p3} ${p4}`;
+};
+
+// Durée lisible ("1 h 30" plutôt que "90 min") — plus proche
+// des conventions internationales d'affichage de durée.
+const formatDurationHuman = (minutes) => {
+  const total = Number(minutes);
+
+  if (!Number.isFinite(total) || total <= 0) {
+    return '-';
+  }
+
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+
+  if (h === 0) return `${m} min`;
+  if (m === 0) return `${h} h`;
+  return `${h} h ${m}`;
+};
+
+// ✅ AFFICHAGE — le champ brut venant du backend ("male",
+// "female", "any", "indifferent", ...) ne doit jamais être
+// affiché tel quel : on le traduit toujours en libellé lisible.
+const genderLabel = (value) => {
+  const key = String(value || '').trim().toLowerCase();
+
+  const labels = {
+    male: 'Homme',
+    homme: 'Homme',
+    m: 'Homme',
+    female: 'Femme',
+    femme: 'Femme',
+    f: 'Femme',
+    any: 'Peu importe',
+    indifferent: 'Peu importe',
+    indifférent: 'Peu importe',
+    no_preference: 'Peu importe',
+    '': 'Non précisé',
+  };
+
+  return labels[key] || 'Non précisé';
 };
 
 const statusLabel = (
@@ -645,6 +722,10 @@ export default function OfferScreen({
   const gender =
     booking?.preferred_gender ??
     'Non précisé';
+
+  // ✅ Toujours le libellé lisible ("Homme"/"Femme"/"Peu importe")
+  // pour l'affichage — jamais le code brut ("male"/"female").
+  const genderDisplay = genderLabel(gender);
 
   const instructions =
     booking?.special_instructions ||
@@ -1335,81 +1416,28 @@ export default function OfferScreen({
         </View>
       ) : null}
 
-      <View
-        style={
-          styles.header
+      {/* ✅ Header commun (mitovy amin'ny écran hafa rehetra —
+          jereo Header.js) fa tsy header manokana intsony. */}
+      <Header
+        title="Détails et négociation"
+        subtitle={`Réservation #${booking?.id || bookingId}`}
+        showBack
+        onBackPress={() => navigation?.goBack?.()}
+        rightComponent={
+          <TouchableOpacity
+            onPress={() => loadData(true)}
+            disabled={refreshing}
+            style={styles.refreshButton}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            {refreshing ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons name="refresh" size={21} color="#FFFFFF" />
+            )}
+          </TouchableOpacity>
         }
-      >
-        <TouchableOpacity
-          onPress={() =>
-            navigation?.goBack?.()
-          }
-          style={
-            styles.backButton
-          }
-        >
-          <Ionicons
-            name="arrow-back"
-            size={22}
-            color={
-              COLORS.primary
-            }
-          />
-        </TouchableOpacity>
-
-        <View
-          style={
-            styles.headerTitleBox
-          }
-        >
-          <Text
-            style={
-              styles.headerTitle
-            }
-          >
-            Réservation #
-            {booking?.id ||
-              bookingId}
-          </Text>
-
-          <Text
-            style={
-              styles.headerSubtitle
-            }
-          >
-            Détails et négociation
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          onPress={() =>
-            loadData(true)
-          }
-          disabled={
-            refreshing
-          }
-          style={
-            styles.refreshButton
-          }
-        >
-          {refreshing ? (
-            <ActivityIndicator
-              size="small"
-              color={
-                COLORS.primary
-              }
-            />
-          ) : (
-            <Ionicons
-              name="refresh"
-              size={21}
-              color={
-                COLORS.primary
-              }
-            />
-          )}
-        </TouchableOpacity>
-      </View>
+      />
 
       <KeyboardAvoidingView
         style={
@@ -1564,16 +1592,37 @@ export default function OfferScreen({
             >
               <View
                 style={
-                  styles.profileAvatar
+                  styles.profileAvatarFrame
                 }
               >
-                <Ionicons
-                  name="person"
-                  size={26}
-                  color={
-                    COLORS.primary
-                  }
-                />
+                {client?.avatar_url ||
+                client?.avatar ||
+                client?.photo_url ||
+                client?.photo ||
+                client?.profile_photo_url ? (
+                  <Image
+                    source={{
+                      uri:
+                        client?.avatar_url ||
+                        client?.avatar ||
+                        client?.photo_url ||
+                        client?.photo ||
+                        client?.profile_photo_url,
+                    }}
+                    style={
+                      styles.profileAvatarImage
+                    }
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Ionicons
+                    name="person"
+                    size={28}
+                    color={
+                      COLORS.primary
+                    }
+                  />
+                )}
               </View>
 
               <View
@@ -1781,7 +1830,7 @@ export default function OfferScreen({
               icon="male-female"
               label="Genre préféré"
               value={
-                gender
+                genderDisplay
               }
             />
 
@@ -2152,80 +2201,6 @@ export default function OfferScreen({
             )}
           </Section>
 
-          {/* =================================================
-              SUMMARY
-          ================================================= */}
-
-          <Section
-            title="Résumé"
-          >
-            <View
-              style={
-                styles.summaryGrid
-              }
-            >
-              <SummaryBox
-                icon="person-outline"
-                label="Client"
-                value={
-                  clientName
-                }
-              />
-
-              <SummaryBox
-                icon="heart-outline"
-                label="Massage"
-                value={
-                  massageName
-                }
-              />
-
-              <SummaryBox
-                icon="cash-outline"
-                label="Prix"
-                value={
-                  money(
-                    finalPrice ??
-                    clientPrice
-                  )
-                }
-              />
-
-              <SummaryBox
-                icon="time-outline"
-                label="Durée"
-                value={`${duration} min`}
-              />
-
-              <SummaryBox
-                icon="navigate-outline"
-                label="Distance"
-                value={
-                  distance !==
-                    null &&
-                  distance !==
-                    undefined
-                    ? `${Number(
-                        distance
-                      ).toFixed(
-                        1
-                      )} km`
-                    : '-'
-                }
-              />
-
-              <SummaryBox
-                icon="chatbubbles-outline"
-                label="Offres"
-                value={
-                  String(
-                    offersCount
-                  )
-                }
-              />
-            </View>
-          </Section>
-
           <View
             style={{
               height: 40,
@@ -2330,49 +2305,6 @@ function InfoRow({
 }
 
 // ============================================================
-// SUMMARY BOX
-// ============================================================
-
-function SummaryBox({
-  icon,
-  label,
-  value,
-}) {
-  return (
-    <View
-      style={
-        styles.summaryBox
-      }
-    >
-      <Ionicons
-        name={icon}
-        size={20}
-        color={
-          COLORS.primary
-        }
-      />
-
-      <Text
-        style={
-          styles.summaryLabel
-        }
-      >
-        {label}
-      </Text>
-
-      <Text
-        numberOfLines={2}
-        style={
-          styles.summaryValue
-        }
-      >
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-// ============================================================
 // STYLES
 // ============================================================
 
@@ -2403,7 +2335,7 @@ const styles =
       marginTop: 12,
       color:
         COLORS.gray500,
-      fontSize: 13,
+      fontSize: 11,
     },
 
     // --------------------------------------------------------
@@ -2489,15 +2421,18 @@ const styles =
     },
 
     refreshButton: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
       alignItems:
         'center',
       justifyContent:
         'center',
       backgroundColor:
-        '#EEF3FF',
+        'rgba(255,255,255,0.16)',
+      borderWidth: 1,
+      borderColor:
+        'rgba(255,255,255,0.3)',
     },
 
     headerTitleBox: {
@@ -2506,7 +2441,7 @@ const styles =
     },
 
     headerTitle: {
-      fontSize: 18,
+      fontSize: 15,
       fontWeight:
         '900',
       color:
@@ -2515,7 +2450,7 @@ const styles =
 
     headerSubtitle: {
       marginTop: 2,
-      fontSize: 12,
+      fontSize: 11,
       color:
         COLORS.gray500,
     },
@@ -2602,7 +2537,7 @@ const styles =
 
     statusValue: {
       marginTop: 3,
-      fontSize: 18,
+      fontSize: 15,
       fontWeight:
         '900',
     },
@@ -2633,7 +2568,7 @@ const styles =
     timer: {
       marginLeft: 6,
       marginTop: 1,
-      fontSize: 15,
+      fontSize: 13,
       fontWeight:
         '900',
       color:
@@ -2661,7 +2596,7 @@ const styles =
     },
 
     sectionTitle: {
-      fontSize: 16,
+      fontSize: 13,
       fontWeight:
         '900',
       color:
@@ -2681,16 +2616,25 @@ const styles =
       marginBottom: 12,
     },
 
-    profileAvatar: {
-      width: 54,
-      height: 54,
-      borderRadius: 27,
+    profileAvatarFrame: {
+      width: 64,
+      height: 64,
+      borderRadius: 16,
+      overflow: 'hidden',
       alignItems:
         'center',
       justifyContent:
         'center',
       backgroundColor:
         '#E8EEFF',
+      borderWidth: 1,
+      borderColor:
+        COLORS.gray200,
+    },
+
+    profileAvatarImage: {
+      width: '100%',
+      height: '100%',
     },
 
     profileInfo: {
@@ -2699,7 +2643,7 @@ const styles =
     },
 
     profileName: {
-      fontSize: 18,
+      fontSize: 15,
       fontWeight:
         '900',
       color:
@@ -2708,7 +2652,7 @@ const styles =
 
     profileId: {
       marginTop: 3,
-      fontSize: 11,
+      fontSize: 10,
       color:
         COLORS.gray500,
     },
@@ -2753,7 +2697,7 @@ const styles =
 
     infoValue: {
       marginTop: 4,
-      fontSize: 13,
+      fontSize: 11,
       lineHeight: 19,
       fontWeight:
         '600',
@@ -2762,7 +2706,7 @@ const styles =
     },
 
     priceValue: {
-      fontSize: 16,
+      fontSize: 13,
       fontWeight:
         '900',
       color:
@@ -2770,7 +2714,7 @@ const styles =
     },
 
     finalPrice: {
-      fontSize: 16,
+      fontSize: 13,
       fontWeight:
         '900',
       color:
@@ -2819,7 +2763,7 @@ const styles =
     },
 
     serviceName: {
-      fontSize: 18,
+      fontSize: 15,
       fontWeight:
         '900',
       color:
@@ -2828,7 +2772,7 @@ const styles =
 
     serviceCategory: {
       marginTop: 4,
-      fontSize: 11,
+      fontSize: 10,
       color:
         COLORS.gray500,
     },
@@ -2851,7 +2795,7 @@ const styles =
     instructionsText: {
       flex: 1,
       marginLeft: 10,
-      fontSize: 13,
+      fontSize: 11,
       lineHeight: 20,
       color:
         COLORS.gray700,
@@ -2887,7 +2831,7 @@ const styles =
 
     myOfferPrice: {
       marginTop: 4,
-      fontSize: 23,
+      fontSize: 20,
       fontWeight:
         '900',
       color:
@@ -2896,7 +2840,7 @@ const styles =
 
     myOfferMessage: {
       marginTop: 10,
-      fontSize: 13,
+      fontSize: 11,
       lineHeight: 19,
       color:
         COLORS.gray700,
@@ -2907,7 +2851,7 @@ const styles =
     // --------------------------------------------------------
 
     helper: {
-      fontSize: 12,
+      fontSize: 11,
       lineHeight: 18,
       color:
         COLORS.gray500,
@@ -2927,7 +2871,7 @@ const styles =
         COLORS.white,
       color:
         COLORS.gray900,
-      fontSize: 14,
+      fontSize: 12,
     },
 
     messageInput: {
@@ -2966,7 +2910,7 @@ const styles =
       marginLeft: 8,
       color:
         COLORS.white,
-      fontSize: 14,
+      fontSize: 12,
       fontWeight:
         '900',
     },
@@ -2987,7 +2931,7 @@ const styles =
 
     noOffersTitle: {
       marginTop: 9,
-      fontSize: 16,
+      fontSize: 13,
       fontWeight:
         '900',
       color:
@@ -2998,7 +2942,7 @@ const styles =
       marginTop: 5,
       textAlign:
         'center',
-      fontSize: 12,
+      fontSize: 11,
       lineHeight: 18,
       color:
         COLORS.gray500,
@@ -3051,7 +2995,7 @@ const styles =
     },
 
     offerUserName: {
-      fontSize: 14,
+      fontSize: 12,
       fontWeight:
         '900',
       color:
@@ -3093,7 +3037,7 @@ const styles =
 
     offerPrice: {
       marginTop: 3,
-      fontSize: 21,
+      fontSize: 18,
       fontWeight:
         '900',
       color:
@@ -3113,7 +3057,7 @@ const styles =
     offerMessage: {
       flex: 1,
       marginLeft: 8,
-      fontSize: 12,
+      fontSize: 11,
       lineHeight: 18,
       color:
         COLORS.gray700,
@@ -3163,53 +3107,9 @@ const styles =
       marginLeft: 7,
       color:
         COLORS.primary,
-      fontSize: 12,
+      fontSize: 11,
       fontWeight:
         '800',
     },
 
-    // --------------------------------------------------------
-    // SUMMARY
-    // --------------------------------------------------------
-
-    summaryGrid: {
-      flexDirection:
-        'row',
-      flexWrap:
-        'wrap',
-      justifyContent:
-        'space-between',
-    },
-
-    summaryBox: {
-      width: '48%',
-      minHeight: 105,
-      padding: 12,
-      marginBottom: 10,
-      borderRadius: 13,
-      backgroundColor:
-        COLORS.gray50,
-      borderWidth: 1,
-      borderColor:
-        COLORS.gray200,
-    },
-
-    summaryLabel: {
-      marginTop: 7,
-      fontSize: 10,
-      color:
-        COLORS.gray500,
-      fontWeight:
-        '700',
-    },
-
-    summaryValue: {
-      marginTop: 4,
-      fontSize: 13,
-      lineHeight: 18,
-      color:
-        COLORS.gray900,
-      fontWeight:
-        '900',
-    },
   });

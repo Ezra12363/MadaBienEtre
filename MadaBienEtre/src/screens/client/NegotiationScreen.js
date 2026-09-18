@@ -2316,7 +2316,7 @@ const NegotiationScreen = ({
                 styles.profileRow
               }
             >
-              {/* PROFIL AVATAR ROND */}
+              {/* PROFIL AVATAR CARRÉ */}
 
               <View
                 style={
@@ -2347,7 +2347,9 @@ const NegotiationScreen = ({
                   </View>
                 )}
 
-                {/* BADGE STATUT EN LIGNE (intégré au cadre) */}
+                {/* ✅ POINT INDICATEUR DE STATUT (En ligne /
+                    Hors ligne), affiché directement sur le
+                    cadre du profil du thérapeute. */}
 
                 {typeof therapistProfile.isOnline ===
                   'boolean' && (
@@ -2397,64 +2399,70 @@ const NegotiationScreen = ({
                   }
                 </Text>
 
-                {/* TELEPHONE */}
+                {/* ✅ TELEPHONE + EMAIL SUR UNE SEULE LIGNE */}
 
                 <View
                   style={
-                    styles.contactRow
+                    styles.contactRowCombined
                   }
                 >
-                  <Ionicons
-                    name="call-outline"
-                    size={14}
-                    color={
-                      GREEN
+                  <View
+                    style={
+                      styles.contactItem
+                    }
+                  >
+                    <Ionicons
+                      name="call-outline"
+                      size={13}
+                      color={GREEN}
+                    />
+
+                    <Text
+                      style={[
+                        styles.contactTextInline,
+                        {
+                          color:
+                            themeColors.textSecondary,
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {therapistProfile.phone ||
+                        'Non renseigné'}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={
+                      styles.contactDivider
                     }
                   />
 
-                  <Text
-                    style={[
-                      styles.contactText,
-                      {
-                        color:
-                          themeColors.textSecondary,
-                      },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {therapistProfile.phone ||
-                      'Téléphone non renseigné'}
-                  </Text>
-                </View>
-
-                {/* EMAIL */}
-
-                <View
-                  style={
-                    styles.contactRow
-                  }
-                >
-                  <Ionicons
-                    name="mail-outline"
-                    size={14}
-                    color={
-                      GREEN
+                  <View
+                    style={
+                      styles.contactItem
                     }
-                  />
-
-                  <Text
-                    style={[
-                      styles.contactText,
-                      {
-                        color:
-                          themeColors.textSecondary,
-                      },
-                    ]}
-                    numberOfLines={1}
                   >
-                    {therapistProfile.email ||
-                      'Email non renseigné'}
-                  </Text>
+                    <Ionicons
+                      name="mail-outline"
+                      size={13}
+                      color={GREEN}
+                    />
+
+                    <Text
+                      style={[
+                        styles.contactTextInline,
+                        {
+                          color:
+                            themeColors.textSecondary,
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {therapistProfile.email ||
+                        'Non renseigné'}
+                    </Text>
+                  </View>
                 </View>
 
                 {/* DISPONIBILITE (masqué si statut inconnu) */}
@@ -4216,9 +4224,9 @@ const styles = StyleSheet.create({
   profileSquare: {
     width: 68,
     height: 68,
-    // ✅ Carré avec bordures légèrement arrondies (demande
-    // explicite), au lieu d'un cercle plein (borderRadius
-    // égal à la moitié de la largeur).
+    // Carré avec bordures légèrement arrondies, au lieu d'un
+    // cercle plein (borderRadius égal à la moitié de la
+    // largeur).
     borderRadius: 16,
     borderWidth: 2,
     borderColor: GREEN_BORDER,
@@ -4272,17 +4280,33 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
 
-  contactRow: {
+  // ✅ Téléphone + email regroupés sur une seule ligne.
+  contactRowCombined: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     marginTop: 3,
     minWidth: 0,
   },
 
-  contactText: {
-    flex: 1,
+  contactItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    maxWidth: '100%',
+  },
+
+  contactTextInline: {
     fontSize: 9,
-    marginLeft: 6,
+    marginLeft: 4,
+    flexShrink: 1,
+  },
+
+  contactDivider: {
+    width: 1,
+    height: 10,
+    backgroundColor: '#D1D5DB',
+    marginHorizontal: 7,
   },
 
   onlineStatus: {
