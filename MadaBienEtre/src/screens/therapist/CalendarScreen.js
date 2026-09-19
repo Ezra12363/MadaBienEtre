@@ -2183,23 +2183,8 @@ const CalendarScreen = ({ navigation }) => {
           },
         ]}
       >
-        <View
-          style={[
-            styles.loadingIcon,
-            {
-              backgroundColor: `${PRIMARY_GREEN}15`,
-            },
-          ]}
-        >
-          <Ionicons
-            name="calendar-outline"
-            size={34}
-            color={PRIMARY_GREEN}
-          />
-        </View>
-
         <ActivityIndicator
-          size="small"
+          size="large"
           color={PRIMARY_GREEN}
           style={styles.loadingIndicator}
         />
@@ -2777,6 +2762,19 @@ const CalendarScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+
+    // Sur le web, un simple "flex: 1" ne borne pas toujours la
+    // hauteur jusqu'à la racine du document : sans hauteur
+    // explicite, la page s'étire au lieu de défiler. On fixe
+    // donc une hauteur de viewport et on laisse le ScrollView
+    // (scrollView ci-dessous) gérer le défilement interne.
+    ...Platform.select({
+      web: {
+        height: '100vh',
+        overflow: 'hidden',
+      },
+      default: {},
+    }),
   },
 
   loadingContainer: {
@@ -2806,6 +2804,17 @@ const styles = StyleSheet.create({
 
   scrollView: {
     flex: 1,
+
+    ...Platform.select({
+      web: {
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        // Permet le défilement avec la molette de la souris /
+        // le trackpad sur le web.
+        WebkitOverflowScrolling: 'touch',
+      },
+      default: {},
+    }),
   },
 
   scrollContent: {

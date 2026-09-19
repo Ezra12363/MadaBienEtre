@@ -17,7 +17,6 @@ import {
   Platform,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   Image,
   ScrollView,
@@ -200,8 +199,23 @@ const DashboardScreen = ({ navigation }) => {
   // CHARGEMENT DES DONNÉES
   // ==========================================================
 
-  const loadDashboardData = useCallback(async () => {
-    setIsLoading(true);
+  /*
+   * isRefresh = true  -> appel déclenché par le pull-to-refresh
+   *                      (RefreshControl) : on NE touche PAS à
+   *                      isLoading, donc l'écran plein écran avec
+   *                      le logo (voir plus bas) ne se réaffiche
+   *                      pas ; seul le spinner natif du
+   *                      RefreshControl tourne, sans logo.
+   * isRefresh = false -> chargement initial (premier montage) :
+   *                      isLoading passe à true, ce qui affiche
+   *                      l'écran logo + spinner ci-dessous.
+   */
+  const loadDashboardData = useCallback(async (options = {}) => {
+    const { isRefresh = false } = options;
+
+    if (!isRefresh) {
+      setIsLoading(true);
+    }
 
     try {
       await new Promise((resolve) => {
@@ -244,7 +258,9 @@ const DashboardScreen = ({ navigation }) => {
     } catch (error) {
       console.error('Erreur dashboard :', error);
     } finally {
-      setIsLoading(false);
+      if (!isRefresh) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -256,7 +272,7 @@ const DashboardScreen = ({ navigation }) => {
     setRefreshing(true);
 
     try {
-      await loadDashboardData();
+      await loadDashboardData({ isRefresh: true });
     } finally {
       setRefreshing(false);
     }
@@ -708,31 +724,6 @@ const DashboardScreen = ({ navigation }) => {
           },
         ]}
       >
-        <View
-          style={[
-            styles.loadingLogoContainer,
-            {
-              backgroundColor: '#FFFFFF',
-              borderColor: hexToRgba(
-                primaryColor,
-                0.2
-              ),
-            },
-          ]}
-        >
-          <Image
-            source={require('../../../assets/logo.png')}
-            style={styles.loadingLogo}
-            resizeMode="contain"
-          />
-        </View>
-
-        <ActivityIndicator
-          size="large"
-          color={primaryColor}
-          style={styles.loadingIndicator}
-        />
-
         <Text
           style={[
             styles.loadingText,

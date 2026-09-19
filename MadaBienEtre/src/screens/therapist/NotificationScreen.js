@@ -1416,17 +1416,16 @@ const NotificationScreen = ({
           'negotiation'
         ) {
 
+          /* Negotiation est un écran ROOT (hors Tab.Navigator,
+             voir TherapistNavigator.js) depuis la correction du
+             bug de changement d'onglet — on ne le cible donc
+             plus via le stack imbriqué "Demandes". */
           navigation.navigate(
-            'Demandes',
+            'Negotiation',
             {
-              screen:
-                'Negotiation',
-
-              params: {
-                bookingId,
-                offerId,
-                notification,
-              },
+              bookingId,
+              offerId,
+              notification,
             }
           );
 
@@ -1462,33 +1461,19 @@ const NotificationScreen = ({
 
 
         /* ------------------------------------------------------
-           BOOKING
+           BOOKING — et repli pour TOUT type de notification liée
+           à une réservation (paiement, système, SOS, type non
+           reconnu, etc.)
+           ------------------------------------------------------
+           Dès qu'un bookingId est identifiable dans la
+           notification, on ouvre directement la page
+           src/screens/therapist/BookingDetailScreen.js (écran
+           "BookingDetail" du stack "Calendrier"), même si le
+           "type" de la notification n'a pas été reconnu comme
+           'negotiation' ou 'offer' ci-dessus.
         ------------------------------------------------------ */
 
-        if (
-          action ===
-          'booking'
-        ) {
-
-          if (!bookingId) {
-
-            console.warn(
-              '⚠️ Booking notification sans bookingId:',
-              notification
-            );
-
-
-            showToast({
-              type: 'warning',
-              title: 'Réservation',
-              message:
-                'Cette notification ne contient pas de réservation identifiable.',
-            });
-
-
-            return;
-          }
-
+        if (bookingId) {
 
           navigation.navigate(
             'Calendrier',
@@ -1504,6 +1489,29 @@ const NotificationScreen = ({
 
           return;
         }
+
+
+        /* ------------------------------------------------------
+           AUCUNE RÉSERVATION IDENTIFIABLE
+           ------------------------------------------------------
+           Ancien comportement : rien ne se passait (silencieux)
+           pour les notifications 'system' / 'payment' / 'sos' ou
+           tout type non reconnu ne portant pas de bookingId.
+           On informe désormais la personne au lieu de laisser
+           le bouton sembler ne rien faire.
+        ------------------------------------------------------ */
+
+        console.warn(
+          '⚠️ Notification sans bookingId exploitable :',
+          notification
+        );
+
+        showToast({
+          type: 'info',
+          title: 'Notification',
+          message:
+            "Cette notification n'est liée à aucune réservation à ouvrir.",
+        });
 
       },
       [
