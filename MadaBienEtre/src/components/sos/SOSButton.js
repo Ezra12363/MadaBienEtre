@@ -1,5 +1,5 @@
 // src/components/sos/SOSButton.js
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
 import sosService from '../../services/sosService';
@@ -25,17 +24,15 @@ const SOSButton = ({
   showText = true,
   variant = 'full', // full, compact, icon
 }) => {
-  const { user, token } = useAuth();
   const { colors: themeColors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [countdown, setCountdown] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
-  const [isPressed, setIsPressed] = useState(false);
 
   useEffect(() => {
     startPulse();
     return () => pulseAnim.stopAnimation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startPulse = () => {
@@ -97,7 +94,7 @@ const SOSButton = ({
           ]
         );
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(
         'Erreur',
         'Impossible d\'envoyer l\'alerte SOS.',

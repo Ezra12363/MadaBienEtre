@@ -1,5 +1,5 @@
 // src/services/therapistService.js
-import { get, post, put, del, uploadFile, handleApiError } from './api';
+import { get, post, put, del, uploadFile } from './api';
 
 class TherapistService {
   /**

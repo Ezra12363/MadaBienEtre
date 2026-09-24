@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo } from 'react';
 
 import {
   View,
@@ -25,9 +25,6 @@ import { useTheme } from '../../context/ThemeContext';
 
 const ANDROID_APK_URL =
   'https://10.78.77.30:8000/downloads/mada-bien-etre.apk';
-
-const GOOGLE_PLAY_URL = '';
-const APP_STORE_URL = '';
 
 /* =========================================================
    COLORS

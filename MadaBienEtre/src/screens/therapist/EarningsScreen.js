@@ -1,12 +1,10 @@
 // src/screens/therapist/EarningsScreen.js
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
   Animated,
   SafeAreaView,
@@ -22,7 +20,7 @@ import axios from 'axios';
 import { API_URL } from '../../config';
 
 const EarningsScreen = ({ navigation }) => {
-  const { colors: themeColors, isDark } = useTheme();
+  const { colors: themeColors, isDark: _isDark } = useTheme();
   const { token } = useAuth();
   
   // ✅ Ataovy azo antoka fa misy ny sanda rehetra
@@ -36,7 +34,7 @@ const EarningsScreen = ({ navigation }) => {
     year: 0,
   });
   const [transactions, setTransactions] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [_isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState('month');
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -55,7 +53,8 @@ const EarningsScreen = ({ navigation }) => {
       duration: 800,
       useNativeDriver: true,
     }).start();
-  }, [period]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `loadEarnings` est recréée à chaque render ; ne doit se relancer que si `period` change
+  }, [period, fadeAnim]);
 
   const loadEarnings = async () => {
     setIsLoading(true);

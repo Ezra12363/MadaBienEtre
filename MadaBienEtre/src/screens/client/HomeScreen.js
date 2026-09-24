@@ -1,6 +1,6 @@
 // src/screens/client/HomeScreen.js
 
-import React, {
+import {
   useCallback,
   useMemo,
   useRef,
@@ -34,10 +34,11 @@ import * as Animatable from 'react-native-animatable';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useNotifications } from '../../context/NotificationContext';
+import { useTopNavLayout } from '../../components/common/AppNavigation';
+import Header from '../../components/common/Header';
 
 import {
   colors,
-  spacing,
   typography,
 } from '../../theme';
 
@@ -52,12 +53,44 @@ const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 const TABLET_BREAKPOINT = 768;
 
 /* ============================================================
+   THEME DU HEADER (hook local)
+   Remplace l'ancien import { useHeaderTheme } de Header.js
+   qui n'existe pas / n'est pas exporté -> TypeError.
+   - Web grand écran (TopNavBar visible) : fond blanc, icônes vertes.
+   - Web petit écran, Android, iOS : fond vert, icônes blanches.
+============================================================ */
+
+const HEADER_GREEN = '#168A55';
+
+function useHeaderTheme(isLargeWebScreen) {
+  return useMemo(() => {
+    if (isLargeWebScreen) {
+      return {
+        isLargeWebScreen: true,
+        headerBg: '#FFFFFF',
+        iconColor: HEADER_GREEN,
+        backButtonBg: 'rgba(22, 138, 85, 0.10)',
+        backButtonBorder: 'rgba(22, 138, 85, 0.25)',
+      };
+    }
+
+    return {
+      isLargeWebScreen: false,
+      headerBg: HEADER_GREEN,
+      iconColor: '#FFFFFF',
+      backButtonBg: 'rgba(255, 255, 255, 0.18)',
+      backButtonBorder: 'rgba(255, 255, 255, 0.35)',
+    };
+  }, [isLargeWebScreen]);
+}
+
+/* ============================================================
    CONSTANTES COULEURS
 ============================================================ */
 
 const PRIMARY = colors.primary || '#168A55';
 const PRIMARY_DARK = '#0B633C';
-const PRIMARY_LIGHT = '#E9F8EF';
+const _PRIMARY_LIGHT = '#E9F8EF';
 
 const SECONDARY = colors.secondary || '#2EAD72';
 const SUCCESS = '#00A86B';
@@ -460,6 +493,20 @@ const HomeScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { colors: themeColors, isDark } = useTheme();
   const { unreadCount = 0 } = useNotifications() || {};
+
+  // Web large : TopNavBar (AppNavigation.js) affiche déjà le profil,
+  // les notifications et les messages tout en haut — on ne les
+  // duplique pas dans ce header maison. Android / iOS : jamais
+  // concerné (isMerged est toujours false hors web), donc RIEN ne
+  // change pour eux — même comportement que DashboardScreen.js.
+  const { isMerged } = useTopNavLayout();
+
+  // ✅ Thème du header partagé (fond blanc + icônes vertes sur web
+  // grand écran, fond vert + icônes blanches sur petit écran web,
+  // Android et iOS). Utilisé pour que les boutons "réglages" et
+  // "notifications" (propres à cet écran) restent toujours bien
+  // visibles, quelle que soit la taille de l'écran.
+  const headerTheme = useHeaderTheme(IS_WEB && isMerged);
 
   const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState({
@@ -1290,12 +1337,6 @@ const HomeScreen = ({ navigation }) => {
      HEADER
   ========================================================== */
 
-  const headerShadow = scrollY.interpolate({
-    inputRange: [0, 70],
-    outputRange: [0, 0.16],
-    extrapolate: 'clamp',
-  });
-
   return (
     <View
       style={[
@@ -1306,8 +1347,16 @@ const HomeScreen = ({ navigation }) => {
       ]}
     >
       <StatusBar
-        barStyle="light-content"
-        backgroundColor={PRIMARY_DARK}
+        barStyle={
+          headerTheme.isLargeWebScreen
+            ? 'dark-content'
+            : 'light-content'
+        }
+        backgroundColor={
+          headerTheme.isLargeWebScreen
+            ? '#FFFFFF'
+            : PRIMARY_DARK
+        }
       />
 
       <Toast
@@ -1319,116 +1368,106 @@ const HomeScreen = ({ navigation }) => {
       />
 
       {/* ======================================================
-          HEADER FIXE
+          HEADER FIXE — composant partagé <Header />
           Gauche  -> Paramètres / Profil
-          Centre  -> Logo (image) + "Mada Bien-être" (centré)
+          Centre  -> "Mada Bien-être" (titre + sous-titre)
           Droite  -> Notifications
+          Le fond (blanc/vert) et la couleur du texte/icônes
+          s'adaptent automatiquement à la taille de l'écran et
+          à la plateforme (voir Header.js / useHeaderTheme) :
+          - Web grand écran : fond blanc, icônes vertes.
+          - Web petit écran, Android, iOS : fond vert, icônes
+            blanches — toujours bien lisibles.
       ====================================================== */}
 
-      <Animated.View
-        style={[
-          styles.header,
-          {
-            backgroundColor: PRIMARY,
-            borderBottomColor: PRIMARY_DARK,
-            shadowOpacity: headerShadow,
-          },
-        ]}
-      >
-        <View style={styles.headerContent}>
-          {/* GAUCHE : PARAMÈTRES / PROFIL */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() =>
-              navigate(
-                'Profil',
-                undefined,
-                'Ouverture de votre profil'
-              )
-            }
-            style={styles.headerSideButton}
-          >
-            <Ionicons
-              name="settings-outline"
-              size={21}
-              color="#FFFFFF"
-            />
-          </TouchableOpacity>
-
-          {/* CENTRE : LOGO (IMAGE) + NOM */}
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() =>
-              navigate(
-                'Profil',
-                undefined,
-                'Ouverture de votre profil'
-              )
-            }
-            style={styles.headerBrand}
-          >
-            <View style={styles.headerLogo}>
-              <Image
-                source={require('../../../assets/logo.png')}
-                style={styles.headerLogoImage}
-                resizeMode="contain"
+      <Header
+        title="Mada Bien-être"
+        subtitle="Votre bien-être, notre priorité"
+        leftComponent={
+          isMerged ? (
+            <View style={styles.headerSideSlotPlaceholder} />
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() =>
+                navigate(
+                  'Profil',
+                  undefined,
+                  'Ouverture de votre profil'
+                )
+              }
+              style={[
+                styles.headerSideButton,
+                {
+                  backgroundColor: headerTheme.backButtonBg,
+                  borderColor: headerTheme.backButtonBorder,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Paramètres"
+            >
+              <Ionicons
+                name="settings-outline"
+                size={21}
+                color={headerTheme.iconColor}
               />
-            </View>
+            </TouchableOpacity>
+          )
+        }
+        rightComponent={
+          isMerged ? (
+            <View style={styles.headerSideSlotPlaceholder} />
+          ) : (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() =>
+                navigate(
+                  'Notifications',
+                  undefined,
+                  unreadCount > 0
+                    ? `${unreadCount} notification${
+                        unreadCount > 1 ? 's' : ''
+                      } disponible${
+                        unreadCount > 1 ? 's' : ''
+                      }`
+                    : 'Aucune nouvelle notification',
+                  unreadCount > 0
+                    ? 'success'
+                    : 'info'
+                )
+              }
+              style={[
+                styles.headerSideButton,
+                {
+                  backgroundColor: headerTheme.backButtonBg,
+                  borderColor: headerTheme.backButtonBorder,
+                },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Notifications"
+            >
+              <Ionicons
+                name="notifications-outline"
+                size={21}
+                color={headerTheme.iconColor}
+              />
 
-            <View style={styles.headerBrandTexts}>
-              <Text
-                numberOfLines={1}
-                style={styles.headerTitle}
-              >
-                Mada Bien-être
-              </Text>
-
-              <Text
-                numberOfLines={1}
-                style={styles.headerSubtitle}
-              >
-                Votre bien-être, notre priorité
-              </Text>
-            </View>
-          </TouchableOpacity>
-
-          {/* DROITE : NOTIFICATIONS */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() =>
-              navigate(
-                'Notifications',
-                undefined,
-                unreadCount > 0
-                  ? `${unreadCount} notification${
-                      unreadCount > 1 ? 's' : ''
-                    } disponible${
-                      unreadCount > 1 ? 's' : ''
-                    }`
-                  : 'Aucune nouvelle notification',
-                unreadCount > 0
-                  ? 'success'
-                  : 'info'
-              )
-            }
-            style={styles.headerSideButton}
-          >
-            <Ionicons
-              name="notifications-outline"
-              size={21}
-              color="#FFFFFF"
-            />
-
-            {unreadCount > 0 && (
-              <View style={styles.notificationBadge}>
-                <Text style={styles.notificationBadgeText}>
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
+              {unreadCount > 0 && (
+                <View
+                  style={[
+                    styles.notificationBadge,
+                    { borderColor: headerTheme.headerBg },
+                  ]}
+                >
+                  <Text style={styles.notificationBadgeText}>
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )
+        }
+      />
 
       {/* ======================================================
           CONTENU SCROLLABLE
@@ -2341,38 +2380,19 @@ const styles = StyleSheet.create({
 
   /* ==========================================================
      HEADER
+     (Le "shell" du header — fond, padding, ombre — est
+     maintenant géré par le composant partagé <Header />.
+     Il ne reste ici que le style des boutons "réglages" /
+     "notifications" propres à cet écran, dont la couleur est
+     appliquée dynamiquement via useHeaderTheme().)
   ========================================================== */
-
-  header: {
-    paddingTop:
-      Platform.OS === 'ios'
-        ? 48
-        : Platform.OS === 'android'
-          ? 30
-          : 12,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowRadius: 10,
-    elevation: 8,
-    zIndex: 50,
-  },
-
-  headerContent: {
-    minHeight: 48,
-    paddingHorizontal: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
 
   /* Bouton latéral (gauche = paramètres, droite = notifications)
      -> même largeur des deux côtés pour garder le centre
-        parfaitement centré */
+        parfaitement centré. Fond/bordure par défaut ; ils sont
+        écrasés par headerTheme.backButtonBg / backButtonBorder
+        appliqués en ligne pour rester lisibles quel que soit le
+        fond du header (blanc ou vert). */
   headerSideButton: {
     width: 40,
     height: 40,
@@ -2384,58 +2404,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.28)',
   },
 
-  /* Bloc central : logo + textes, centré entre les deux boutons */
-  headerBrand: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-  },
-
-  headerLogo: {
-    width: 39,
-    height: 39,
-    borderRadius: 13,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 9,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-
-  headerLogoImage: {
-    width: 30,
-    height: 30,
-  },
-
-  headerBrandTexts: {
-    flexShrink: 1,
-    alignItems: 'center',
-  },
-
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    textAlign: 'center',
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  headerSubtitle: {
-    color: 'rgba(255,255,255,0.78)',
-    fontSize: 8,
-    marginTop: 2,
-    textAlign: 'center',
-    fontFamily: typography.fontFamily.regular,
+  /* Espace neutre (même taille, sans décor) utilisé à la place du
+     bouton paramètres/notifications quand TopNavBar les affiche déjà
+     (web large) — évite un rond vide/décoratif inutile. */
+  headerSideSlotPlaceholder: {
+    width: 40,
+    height: 40,
   },
 
   notificationBadge: {

@@ -1,8 +1,6 @@
 // src/navigation/DrawerNavigator.js
-import React from 'react';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
@@ -20,11 +18,9 @@ import SOSScreen from '../screens/client/SOSScreen';
 import NotificationScreen from '../screens/client/NotificationScreen';
 
 const Drawer = createDrawerNavigator();
-const Stack = createNativeStackNavigator();
 
 // Composant du header du drawer
 const DrawerHeader = ({ user, onClose }) => {
-  const { colors: themeColors, isDark } = useTheme();
   
   return (
     <LinearGradient

@@ -1,5 +1,5 @@
 // src/components/common/FormInput.js
-import React, { memo, useState, useCallback, useRef, useEffect } from 'react';
+import { memo, useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,

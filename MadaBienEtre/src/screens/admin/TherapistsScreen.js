@@ -1,4 +1,4 @@
-import React, { 
+import { 
   useState, 
   useCallback, 
   useMemo, 
@@ -23,7 +23,6 @@ import {
   Platform, 
   Linking, 
   KeyboardAvoidingView, 
-  Dimensions, 
 } from 'react-native'; 
  
 import { Ionicons } from '@expo/vector-icons'; 
@@ -40,7 +39,6 @@ import { API_URL } from '../../config/env';
 import { exportToExcel } from '../../utils/exportExcel'; 
  
 const IS_WEB = Platform.OS === 'web'; 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window'); 
  
 /* ============================================================ 
    CONFIG 
@@ -223,13 +221,11 @@ const getLongitude = (item) => {
    MAIN COMPONENT 
 ============================================================ */ 
  
-const TherapistsScreen = ({ navigation }) => { 
+const TherapistsScreen = () => { 
   const { colors: themeColors } = useTheme(); 
  
   const { 
-    isTablet, 
     isDesktop, 
-    isLargeScreen, 
     horizontalPadding, 
   } = useResponsive(); 
  
@@ -415,8 +411,7 @@ const TherapistsScreen = ({ navigation }) => {
         err 
       ); 
  
-      let errorMessage = 
-        'Impossible de charger les thérapeutes'; 
+      let errorMessage; 
  
       if (err.response) { 
         const serverError = 
@@ -896,7 +891,7 @@ const TherapistsScreen = ({ navigation }) => {
             `Thérapeute ${statusText} avec succès`, 
             'success' 
           ); 
-        } catch (err) { 
+        } catch (_err) { 
           showToast( 
             `Impossible de modifier le statut`, 
             'error' 
@@ -961,7 +956,7 @@ const TherapistsScreen = ({ navigation }) => {
             } avec succès`, 
             'success' 
           ); 
-        } catch (err) { 
+        } catch (_err) { 
           showToast( 
             `Impossible de ${action} le compte`, 
             'error' 
@@ -1002,7 +997,7 @@ const TherapistsScreen = ({ navigation }) => {
             'Thérapeute supprimé définitivement', 
             'success' 
           ); 
-        } catch (err) { 
+        } catch (_err) { 
           showToast( 
             'Impossible de supprimer le thérapeute', 
             'error' 

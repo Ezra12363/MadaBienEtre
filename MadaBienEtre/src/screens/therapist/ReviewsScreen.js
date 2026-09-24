@@ -1,6 +1,6 @@
 // src/screens/therapist/ReviewsScreen.js
 
-import React, {
+import {
   useState,
   useEffect,
   useRef,
@@ -18,7 +18,6 @@ import {
   RefreshControl,
   Alert,
   Image,
-  Platform,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -155,7 +154,7 @@ const normalizeReviews = (data) => {
   return [];
 };
 
-const ReviewsScreen = ({ navigation }) => {
+const ReviewsScreen = ({ navigation: _navigation }) => {
   const { colors: themeColors, isDark } = useTheme();
   const { token } = useAuth();
 

@@ -1,6 +1,6 @@
 // src/screens/client/CreateBookingScreen.js
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -164,7 +164,7 @@ const CreateBookingScreen = ({ navigation }) => {
 
   const {
     location: liveLocation,
-    isTracking,
+    isTracking: _isTracking,
     isLocating,
     errorMsg: trackingError,
     permissionGranted,

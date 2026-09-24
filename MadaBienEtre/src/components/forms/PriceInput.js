@@ -1,5 +1,5 @@
 // src/components/forms/PriceInput.js
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
 
@@ -17,7 +16,6 @@ const PriceInput = ({
   label,
   placeholder = 'Entrez un prix',
   minPrice = 0,
-  maxPrice = 1000000,
   currency = 'Ar',
   suggestions = [],
   onSuggestionPress,

@@ -1,6 +1,6 @@
 // src/navigation/ClientNavigator.js
 
-import React, {
+import {
   createContext,
   useCallback,
   useContext,
@@ -11,13 +11,10 @@ import React, {
 } from 'react';
 
 import {
-  Animated,
-  Easing,
   Platform,
   SafeAreaView,
   StatusBar,
   StyleSheet,
-  TouchableOpacity,
   View,
 } from 'react-native';
 
@@ -29,14 +26,13 @@ import {
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
 
-import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 import {
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
-
-import { useTheme } from '../context/ThemeContext';
-import { colors } from '../theme';
+  NavBridgeProvider,
+  TabBarConnector,
+  TopNavBar,
+} from '../components/common/AppNavigation';
 
 // ============================================================
 // ÉCRANS CLIENT
@@ -417,397 +413,6 @@ const getTabLabel = (
 };
 
 // ============================================================
-// CUSTOM TAB BAR
-// ============================================================
-
-const ClientTabBar = ({
-  state,
-  descriptors,
-  navigation,
-}) => {
-  const insets =
-    useSafeAreaInsets();
-
-  const {
-    colors: themeColors,
-    isDark,
-  } = useTheme();
-
-  const {
-    tabBarVisible,
-  } = useClientTabBar();
-
-  // ----------------------------------------------------------
-  // Animation menu
-  // ----------------------------------------------------------
-
-  const translateY =
-    useRef(
-      new Animated.Value(0)
-    ).current;
-
-  const opacity =
-    useRef(
-      new Animated.Value(1)
-    ).current;
-
-  const previousVisibility =
-    useRef(true);
-
-  // ----------------------------------------------------------
-  // Animation show / hide
-  // ----------------------------------------------------------
-
-  useEffect(() => {
-    if (
-      previousVisibility.current ===
-      tabBarVisible
-    ) {
-      return;
-    }
-
-    previousVisibility.current =
-      tabBarVisible;
-
-    Animated.parallel([
-      Animated.timing(
-        translateY,
-        {
-          toValue:
-            tabBarVisible
-              ? 0
-              : HIDE_TRANSLATE_Y,
-
-          duration:
-            ANIMATION_DURATION,
-
-          easing:
-            Easing.out(
-              Easing.cubic
-            ),
-
-          useNativeDriver: true,
-        }
-      ),
-
-      Animated.timing(
-        opacity,
-        {
-          toValue:
-            tabBarVisible
-              ? 1
-              : 0,
-
-          duration:
-            ANIMATION_DURATION,
-
-          easing:
-            Easing.out(
-              Easing.cubic
-            ),
-
-          useNativeDriver: true,
-        }
-      ),
-    ]).start();
-  }, [
-    tabBarVisible,
-    translateY,
-    opacity,
-  ]);
-
-  // ----------------------------------------------------------
-  // Safe area
-  // ----------------------------------------------------------
-
-  const bottomInset =
-    Math.max(
-      insets.bottom || 0,
-      0
-    );
-
-  // ----------------------------------------------------------
-  // Hauteur
-  // ----------------------------------------------------------
-
-  const tabHeight =
-    Platform.OS === 'web'
-      ? 72
-      : 66 + bottomInset;
-
-  // ----------------------------------------------------------
-  // Couleurs
-  // ----------------------------------------------------------
-
-  const activeColor =
-    colors.primary ||
-    '#0D2B7E';
-
-  const inactiveColor =
-    themeColors.textSecondary ||
-    '#7A8194';
-
-  return (
-    <View
-      style={[
-        styles.tabBarWrapper,
-        {
-          height: tabHeight,
-          backgroundColor:
-            themeColors.background,
-        },
-      ]}
-      pointerEvents="box-none"
-    >
-      <Animated.View
-        style={[
-          styles.tabBar,
-
-          {
-            height: tabHeight,
-
-            paddingBottom:
-              Platform.OS === 'web'
-                ? 8
-                : bottomInset + 5,
-
-            backgroundColor:
-              themeColors.surface,
-
-            borderTopColor:
-              themeColors.border ||
-              (
-                isDark
-                  ? 'rgba(255,255,255,0.08)'
-                  : '#E7E9EF'
-              ),
-
-            shadowColor:
-              '#000000',
-
-            transform: [
-              {
-                translateY,
-              },
-            ],
-
-            opacity,
-          },
-        ]}
-      >
-        <View
-          style={
-            styles.tabBarInner
-          }
-        >
-          {state.routes.map(
-            (
-              route,
-              index
-            ) => {
-              const {
-                options,
-              } =
-                descriptors[
-                  route.key
-                ];
-
-              const focused =
-                state.index ===
-                index;
-
-              const iconName =
-                getTabIcon(
-                  route.name,
-                  focused
-                );
-
-              const label =
-                getTabLabel(
-                  route.name
-                );
-
-              const color =
-                focused
-                  ? activeColor
-                  : inactiveColor;
-
-              // ------------------------------------------------
-              // PRESS
-              // ------------------------------------------------
-
-              const onPress =
-                () => {
-                  const event =
-                    navigation.emit(
-                      {
-                        type:
-                          'tabPress',
-
-                        target:
-                          route.key,
-
-                        canPreventDefault:
-                          true,
-                      }
-                    );
-
-                  if (
-                    !focused &&
-                    !event.defaultPrevented
-                  ) {
-                    navigation.navigate(
-                      route.name
-                    );
-                  }
-                };
-
-              // ------------------------------------------------
-              // LONG PRESS
-              // ------------------------------------------------
-
-              const onLongPress =
-                () => {
-                  navigation.emit(
-                    {
-                      type:
-                        'tabLongPress',
-
-                      target:
-                        route.key,
-                    }
-                  );
-                };
-
-              return (
-                <TouchableOpacity
-                  key={
-                    route.key
-                  }
-
-                  accessibilityRole="button"
-
-                  accessibilityState={
-                    focused
-                      ? {
-                          selected:
-                            true,
-                        }
-                      : {}
-                  }
-
-                  accessibilityLabel={
-                    options
-                      .tabBarAccessibilityLabel ||
-                    label
-                  }
-
-                  testID={
-                    options
-                      .tabBarButtonTestID
-                  }
-
-                  onPress={
-                    onPress
-                  }
-
-                  onLongPress={
-                    onLongPress
-                  }
-
-                  activeOpacity={
-                    0.72
-                  }
-
-                  style={
-                    styles.tabButton
-                  }
-                >
-                  {/* ------------------------------------------ */}
-                  {/* ICON */}
-                  {/* ------------------------------------------ */}
-
-                  <View
-                    style={[
-                      styles.iconContainer,
-
-                      {
-                        backgroundColor:
-                          focused
-                            ? `${activeColor}16`
-                            : 'transparent',
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name={
-                        iconName
-                      }
-
-                      size={
-                        focused
-                          ? 23
-                          : 22
-                      }
-
-                      color={
-                        color
-                      }
-                    />
-                  </View>
-
-                  {/* ------------------------------------------ */}
-                  {/* LABEL */}
-                  {/* ------------------------------------------ */}
-
-                  <Animated.Text
-                    numberOfLines={
-                      1
-                    }
-
-                    style={[
-                      styles.tabLabel,
-
-                      {
-                        color,
-
-                        fontWeight:
-                          focused
-                            ? '700'
-                            : '500',
-                      },
-                    ]}
-                  >
-                    {label}
-                  </Animated.Text>
-
-                  {/* ------------------------------------------ */}
-                  {/* ACTIVE INDICATOR */}
-                  {/* ------------------------------------------ */}
-
-                  {focused && (
-                    <View
-                      style={[
-                        styles.activeIndicator,
-
-                        {
-                          backgroundColor:
-                            activeColor,
-                        },
-                      ]}
-                    />
-                  )}
-                </TouchableOpacity>
-              );
-            }
-          )}
-        </View>
-      </Animated.View>
-    </View>
-  );
-};
-
-// ============================================================
 // CLIENT NAVIGATOR
 // ============================================================
 
@@ -1064,6 +669,7 @@ const ClientNavigator = () => {
         contextValue
       }
     >
+    <NavBridgeProvider>
       <SafeAreaView
         style={[
           styles.container,
@@ -1093,6 +699,8 @@ const ClientNavigator = () => {
           }
         />
 
+        <TopNavBar brandLabel="Mada Bien-être" />
+
         {/* ================================================== */}
         {/* TABS */}
         {/* ================================================== */}
@@ -1100,8 +708,11 @@ const ClientNavigator = () => {
         <Tab.Navigator
           tabBar={
             props => (
-              <ClientTabBar
+              <TabBarConnector
                 {...props}
+                visible={tabBarVisible}
+                getIcon={getTabIcon}
+                getLabel={getTabLabel}
               />
             )
           }
@@ -1185,6 +796,7 @@ const ClientNavigator = () => {
           />
         </Tab.Navigator>
       </SafeAreaView>
+    </NavBridgeProvider>
     </ClientTabBarContext.Provider>
   );
 };
@@ -1204,139 +816,6 @@ const styles =
       flex: 1,
     },
 
-    // ========================================================
-    // TAB WRAPPER
-    // ========================================================
-
-    tabBarWrapper: {
-      width: '100%',
-      overflow: 'hidden',
-    },
-
-    // ========================================================
-    // TAB BAR
-    // ========================================================
-
-    tabBar: {
-      width: '100%',
-
-      borderTopWidth:
-        StyleSheet.hairlineWidth,
-
-      elevation: 12,
-
-      shadowOffset: {
-        width: 0,
-        height: -3,
-      },
-
-      shadowOpacity:
-        0.08,
-
-      shadowRadius: 8,
-    },
-
-    // ========================================================
-    // INNER
-    // ========================================================
-
-    tabBarInner: {
-      flex: 1,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'stretch',
-
-      justifyContent:
-        'space-around',
-
-      paddingHorizontal:
-        6,
-    },
-
-    // ========================================================
-    // BUTTON
-    // ========================================================
-
-    tabButton: {
-      flex: 1,
-
-      minWidth: 0,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      position:
-        'relative',
-
-      paddingTop: 5,
-
-      paddingHorizontal: 2,
-    },
-
-    // ========================================================
-    // ICON
-    // ========================================================
-
-    iconContainer: {
-      width: 42,
-
-      height: 32,
-
-      borderRadius: 16,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      marginBottom: 2,
-    },
-
-    // ========================================================
-    // LABEL
-    // ========================================================
-
-    tabLabel: {
-      fontSize:
-        Platform.OS ===
-        'web'
-          ? 11
-          : 10,
-
-      lineHeight: 14,
-
-      textAlign:
-        'center',
-
-      includeFontPadding:
-        false,
-
-      maxWidth: 100,
-    },
-
-    // ========================================================
-    // ACTIVE INDICATOR
-    // ========================================================
-
-    activeIndicator: {
-      position:
-        'absolute',
-
-      bottom: 0,
-
-      width: 24,
-
-      height: 3,
-
-      borderRadius: 3,
-    },
   });
 
 export default ClientNavigator;

@@ -1,5 +1,5 @@
 // src/services/notificationService.js
-import { get, put, del, handleApiError } from './api';
+import { get, put, del } from './api';
 import { Platform, Alert } from 'react-native';
 import * as Notifications from 'expo-notifications';
 

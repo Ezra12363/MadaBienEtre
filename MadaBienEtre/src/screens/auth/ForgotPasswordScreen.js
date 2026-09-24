@@ -1,6 +1,6 @@
 // src/screens/auth/ForgotPasswordScreen.js
 
-import React, {
+import {
   useState,
   useRef,
   useEffect,
@@ -40,7 +40,6 @@ import {
 } from '../../theme';
 
 import FormInput from '../../components/common/FormInput';
-import AppHeader from '../../components/common/AppHeader';
 
 
 // ============================================================
@@ -116,10 +115,6 @@ const ForgotPasswordScreen = ({ navigation }) => {
   const isTablet =
     width >= 768 &&
     width < 1100;
-
-  const isMobile =
-    !isWeb ||
-    width < 768;
 
   const isSmallScreen =
     height < 700;

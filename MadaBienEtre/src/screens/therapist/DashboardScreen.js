@@ -1,10 +1,11 @@
 // src/screens/therapist/DashboardScreen.js
 
-import React, {
+import {
   useState,
   useEffect,
   useRef,
   useCallback,
+  useMemo,
 } from 'react';
 
 import {
@@ -15,11 +16,10 @@ import {
   Animated,
   Dimensions,
   Platform,
+  useWindowDimensions,
   FlatList,
   TouchableOpacity,
   Alert,
-  Image,
-  ScrollView,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -30,12 +30,52 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 
+import Header from '../../components/common/Header';
+import { useTopNavLayout } from '../../components/common/AppNavigation';
+
 import {
   colors,
-  spacing,
-  typography,
 } from '../../theme';
 
+
+// ============================================================
+// THÈME DU HEADER (hook local — indépendant de Header.js)
+// - Web grand écran (>= 850px) : fond blanc, icônes vertes.
+// - Web petit écran, Android, iOS : fond vert, icônes blanches.
+// Mêmes couleurs et même seuil que components/common/Header.js
+// ============================================================
+
+const HEADER_WEB_LARGE_BREAKPOINT = 850;
+const HEADER_GREEN = '#168A55';
+const HEADER_GREEN_DARK = '#0B633C';
+
+const useHeaderTheme = () => {
+  const { width } = useWindowDimensions();
+
+  const isLargeWebScreen =
+    Platform.OS === 'web' &&
+    width >= HEADER_WEB_LARGE_BREAKPOINT;
+
+  return useMemo(
+    () =>
+      isLargeWebScreen
+        ? {
+            isLargeWebScreen: true,
+            headerBg: '#FFFFFF',
+            iconColor: HEADER_GREEN_DARK,
+            backButtonBg: 'rgba(11,99,60,0.08)',
+            backButtonBorder: 'rgba(11,99,60,0.18)',
+          }
+        : {
+            isLargeWebScreen: false,
+            headerBg: HEADER_GREEN,
+            iconColor: '#FFFFFF',
+            backButtonBg: 'rgba(255,255,255,0.18)',
+            backButtonBorder: 'rgba(255,255,255,0.32)',
+          },
+    [isLargeWebScreen]
+  );
+};
 
 // ============================================================
 // CONSTANTES
@@ -44,9 +84,9 @@ import {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const DEFAULT_GREEN = '#168A55';
-const DARK_GREEN = '#0E6B43';
-const LIGHT_GREEN = '#EAF7F0';
-const SOFT_GREEN = '#F3FAF6';
+const _DARK_GREEN = '#0E6B43';
+const _LIGHT_GREEN = '#EAF7F0';
+const _SOFT_GREEN = '#F3FAF6';
 
 const GOLD = '#F59E0B';
 const RED = '#E45858';
@@ -63,7 +103,7 @@ if (Platform.OS !== 'web') {
   try {
     const ChartKit = require('react-native-chart-kit');
     LineChart = ChartKit.LineChart;
-  } catch (error) {
+  } catch (_error) {
     console.warn('react-native-chart-kit non disponible');
   }
 }
@@ -131,6 +171,16 @@ const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { unreadCount } = useNotifications();
 
+  // Web large : TopNavBar (AppNavigation.js) affiche déjà le profil,
+  // les notifications et les messages tout en haut — on ne les
+  // duplique pas ici. Android / iOS : jamais concerné (isMerged est
+  // toujours false hors web), donc RIEN ne change pour eux.
+  const { isMerged } = useTopNavLayout();
+
+  // Thème du header (fond blanc + icônes vertes sur grand écran web,
+  // fond vert + icônes blanches sur petit écran / Android / iOS).
+  const headerTheme = useHeaderTheme();
+
   // ==========================================================
   // COULEURS
   // ==========================================================
@@ -170,7 +220,7 @@ const DashboardScreen = ({ navigation }) => {
     '#E2EBE5'
   );
 
-  const isDark =
+  const _isDark =
     backgroundColor.toLowerCase() === '#121212' ||
     backgroundColor.toLowerCase() === '#000000';
 
@@ -470,6 +520,7 @@ const DashboardScreen = ({ navigation }) => {
 
     return (
       <View
+        key={item.id ?? index}
         style={[
           styles.activityItem,
           {
@@ -760,84 +811,53 @@ const DashboardScreen = ({ navigation }) => {
         ]}
       >
         {/* ==================================================
-            HEADER PREMIUM
+            HEADER (composant partagé : components/common/Header.js)
+            - gauche  : bouton profil
+            - centre  : titre + sous-titre
+            - droite  : bouton notifications (badge non lues)
         ================================================== */}
 
-        <View
-          style={[
-            styles.header,
-            {
-              backgroundColor: primaryColor,
-            },
-          ]}
-        >
-          <View style={styles.headerContent}>
-            {/* PROFIL */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={openProfile}
-              style={styles.headerSideButton}
-            >
-              <View style={styles.headerButtonCircle}>
+        <Header
+          title="Mada Bien-être"
+          subtitle="Espace thérapeute"
+          leftComponent={
+            isMerged ? null : (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={openProfile}
+                style={[
+                  styles.headerButtonCircle,
+                  {
+                    backgroundColor: headerTheme.backButtonBg,
+                    borderColor: headerTheme.backButtonBorder,
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Ouvrir le profil"
+              >
                 <Ionicons
                   name="person-outline"
                   size={21}
-                  color="#FFFFFF"
+                  color={headerTheme.iconColor}
                 />
-              </View>
-            </TouchableOpacity>
-
-            {/* LOGO + TITRE CENTRÉ */}
-            <View
-              pointerEvents="none"
-              style={styles.headerCenter}
-            >
-              <View style={styles.headerBrandRow}>
-                <View style={styles.headerLogoFrame}>
-                  <Image
-                    source={require('../../../assets/logo.png')}
-                    style={styles.headerLogo}
-                    resizeMode="contain"
-                  />
-                </View>
-
-                <View style={styles.headerTitleWrapper}>
-                  <Text
-                    numberOfLines={1}
-                    style={styles.headerTitle}
-                  >
-                    Mada Bien-être
-                  </Text>
-
-                  <View style={styles.headerSubtitleRow}>
-                    <View
-                      style={[
-                        styles.headerStatusDot,
-                        {
-                          backgroundColor: isOnline
-                            ? '#B7F7D1'
-                            : '#CBD5E1',
-                        },
-                      ]}
-                    />
-
-                    <Text style={styles.headerSubtitle}>
-                      Espace thérapeute
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* NOTIFICATIONS */}
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={openNotifications}
-              style={styles.headerSideButton}
-              accessibilityRole="button"
-              accessibilityLabel="Ouvrir les notifications"
-            >
-              <View style={styles.headerButtonCircle}>
+              </TouchableOpacity>
+            )
+          }
+          rightComponent={
+            isMerged ? null : (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={openNotifications}
+                style={[
+                  styles.headerButtonCircle,
+                  {
+                    backgroundColor: headerTheme.backButtonBg,
+                    borderColor: headerTheme.backButtonBorder,
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Ouvrir les notifications"
+              >
                 <Ionicons
                   name={
                     unreadCount > 0
@@ -845,12 +865,15 @@ const DashboardScreen = ({ navigation }) => {
                       : 'notifications-outline'
                   }
                   size={23}
-                  color="#FFFFFF"
+                  color={headerTheme.iconColor}
                 />
 
                 {unreadCount > 0 && (
                   <View
-                    style={styles.headerNotificationBadge}
+                    style={[
+                      styles.headerNotificationBadge,
+                      { borderColor: headerTheme.headerBg },
+                    ]}
                   >
                     <Text
                       style={styles.headerNotificationText}
@@ -861,10 +884,10 @@ const DashboardScreen = ({ navigation }) => {
                     </Text>
                   </View>
                 )}
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
+              </TouchableOpacity>
+            )
+          }
+        />
 
         {/* ==================================================
             CONTENU SCROLLABLE
@@ -891,7 +914,8 @@ const DashboardScreen = ({ navigation }) => {
               },
             ],
             {
-              useNativeDriver: true,
+              // Le driver natif n'existe pas sur le web
+              useNativeDriver: Platform.OS !== 'web',
             }
           )}
           scrollEventThrottle={16}
@@ -1690,46 +1714,9 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // HEADER PREMIUM
+  // BOUTONS DU HEADER (profil / notifications)
+  // Le header lui-même vient de components/common/Header.js
   // ==========================================================
-
-  header: {
-    width: '100%',
-    minHeight: Platform.OS === 'ios' ? 102 : 82,
-    paddingTop:
-      Platform.OS === 'ios'
-        ? 42
-        : Platform.OS === 'android'
-        ? 28
-        : 12,
-    paddingBottom: 12,
-    elevation: 8,
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 7,
-    zIndex: 20,
-  },
-
-  headerContent: {
-    minHeight: 48,
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-  },
-
-  headerSideButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 3,
-  },
 
   headerButtonCircle: {
     width: 40,
@@ -1737,76 +1724,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(22, 138, 85, 0.12)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-  },
-
-  headerCenter: {
-    position: 'absolute',
-    left: 58,
-    right: 58,
-    top: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  headerBrandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    maxWidth: '100%',
-  },
-
-  headerLogoFrame: {
-    width: 43,
-    height: 43,
-    borderRadius: 15,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 9,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.95)',
-    overflow: 'hidden',
-  },
-
-  headerLogo: {
-    width: 33,
-    height: 33,
-    resizeMode: 'contain',
-  },
-
-  headerTitleWrapper: {
-    minWidth: 0,
-    alignItems: 'flex-start',
-  },
-
-  headerTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-  },
-
-  headerSubtitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 3,
-  },
-
-  headerStatusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    marginRight: 5,
-  },
-
-  headerSubtitle: {
-    color: 'rgba(255,255,255,0.78)',
-    fontSize: 10,
-    fontWeight: '600',
+    borderColor: 'rgba(22, 138, 85, 0.28)',
   },
 
   headerNotificationBadge: {

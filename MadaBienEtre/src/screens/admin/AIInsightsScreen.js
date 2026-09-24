@@ -1,5 +1,5 @@
 // src/screens/admin/AIInsightsScreen.js
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,6 @@ import {
   RefreshControl,
   SafeAreaView,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,10 +17,8 @@ import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
 
-const { width } = Dimensions.get('window');
-
 const AIInsightsScreen = ({ navigation }) => {
-  const { colors: themeColors, isDark } = useTheme();
+  const { colors: themeColors } = useTheme();
   
   // États
   const [loading, setLoading] = useState(true);
@@ -49,6 +46,7 @@ const AIInsightsScreen = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       loadAIInsights();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedPeriod])
   );
 

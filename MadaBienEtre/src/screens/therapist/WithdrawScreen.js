@@ -1,10 +1,9 @@
 // src/screens/therapist/WithdrawScreen.js
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -24,7 +23,7 @@ import axios from 'axios';
 import { API_URL } from '../../config';
 
 const WithdrawScreen = ({ navigation }) => {
-  const { colors: themeColors, isDark } = useTheme();
+  const { colors: themeColors, isDark: _isDark } = useTheme();
   const { token } = useAuth();
   
   const [amount, setAmount] = useState('');
@@ -50,7 +49,8 @@ const WithdrawScreen = ({ navigation }) => {
       duration: 800,
       useNativeDriver: true,
     }).start();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- effet de montage unique ; `loadBalance` est recréée à chaque render
+  }, [fadeAnim]);
 
   const loadBalance = async () => {
     try {
@@ -91,7 +91,7 @@ const WithdrawScreen = ({ navigation }) => {
 
     setIsLoading(true);
     try {
-      const response = await axios.post(
+      const _response = await axios.post(
         `${API_URL}/withdrawals/create`,
         {
           amount: parseFloat(amount),

@@ -1,5 +1,5 @@
 // src/context/ThemeContext.js
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme';
@@ -44,6 +44,7 @@ export const ThemeProvider = ({ children }) => {
 
   useEffect(() => {
     loadThemePreference();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

@@ -6,7 +6,7 @@
 // ✅ INDÉPENDANT : Tsy mandefa data any amin'ny parent, tsy misy
 // connexion amin'ny searchQuery de UsersScreen.
 // ============================================================
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -106,7 +106,7 @@ const AdminUserAddressModal = ({ visible, onClose, userId, userName, onSaved }) 
       } else {
         Alert.alert('❌ Erreur', `Aucun résultat trouvé pour "${addressSearchQuery}"`);
       }
-    } catch (e) {
+    } catch (_e) {
       Alert.alert('❌ Erreur', "Impossible de rechercher l'adresse");
     } finally {
       setIsSearching(false);
@@ -133,7 +133,7 @@ const AdminUserAddressModal = ({ visible, onClose, userId, userName, onSaved }) 
     }
     setIsSaving(true);
     try {
-      const { data, error } = await put(`/admin/users/${userId}/address`, {
+      const { error } = await put(`/admin/users/${userId}/address`, {
         address: addressText,
         latitude: selectedLocation.latitude,
         longitude: selectedLocation.longitude,
@@ -148,7 +148,7 @@ const AdminUserAddressModal = ({ visible, onClose, userId, userName, onSaved }) 
         onSaved();
       }
       onClose();
-    } catch (e) {
+    } catch (_e) {
       Alert.alert('❌ Erreur', "Une erreur est survenue lors de l'enregistrement");
     } finally {
       setIsSaving(false);

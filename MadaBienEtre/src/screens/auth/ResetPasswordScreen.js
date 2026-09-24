@@ -1,6 +1,6 @@
 // src/screens/auth/ResetPasswordScreen.js
 
-import React, {
+import {
   useState,
   useRef,
   useEffect,
@@ -116,10 +116,6 @@ const ResetPasswordScreen = ({
     width >= 768 &&
     width < 1100;
 
-  const isMobile =
-    !isWeb ||
-    width < 768;
-
   const isSmallScreen =
     height < 700;
 
@@ -150,8 +146,8 @@ const ResetPasswordScreen = ({
       }
     };
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
 
   // ==========================================================
   // TOAST

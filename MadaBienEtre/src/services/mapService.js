@@ -1,5 +1,5 @@
 // src/services/mapService.js
-import { get, post, handleApiError } from './api';
+import { get, post } from './api';
 import * as Location from 'expo-location';
 
 class MapService {

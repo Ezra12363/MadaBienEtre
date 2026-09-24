@@ -1,6 +1,6 @@
 // src/services/authService.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { post, get, put, handleApiError } from './api';
+import { post, get, put } from './api';
 
 // Clés de stockage
 const TOKEN_KEY = '@mada_token';
@@ -235,7 +235,7 @@ async forgotPassword(email) {
     try {
       const userStr = await AsyncStorage.getItem(USER_KEY);
       return userStr ? JSON.parse(userStr) : null;
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
   }

@@ -44,7 +44,7 @@
  * ============================================================
  */
 
-import React, {
+import {
   useState,
   useEffect,
   useRef,
@@ -1397,7 +1397,7 @@ const NotificationScreen = ({
 
         try {
 
-          let result = null;
+          let result;
 
 
           /* ----------------------------------------------------
@@ -2890,11 +2890,9 @@ const NotificationScreen = ({
 
       },
       [
-        colors.primary,
         deletingId,
         getColor,
         getIcon,
-        handleDeleteNotification,
         handleNotificationPress,
         openActionSheet,
         isDark,

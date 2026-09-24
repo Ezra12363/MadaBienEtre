@@ -1,5 +1,4 @@
 // src/services/adminService.js
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from './api';
 
 // ============================================================

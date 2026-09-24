@@ -11,11 +11,9 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Image,
   ActivityIndicator,
-  Alert,
   Animated,
   Switch,
   TextInput,
@@ -149,7 +147,7 @@ const ProfileScreen = ({ navigation }) => {
     setIsLoadingLocation,
   ] = useState(false);
 
-  const [searchResult, setSearchResult] =
+  const [_searchResult, setSearchResult] =
     useState(null);
 
   const [mapRegion, setMapRegion] = useState({
@@ -350,7 +348,7 @@ const ProfileScreen = ({ navigation }) => {
     };
 
     const lotMatch = address.match(
-      /Lot\s+([A-Z0-9\s\-]+)/i
+      /Lot\s+([A-Z0-9\s-]+)/i
     );
 
     if (lotMatch) {
@@ -464,7 +462,7 @@ const ProfileScreen = ({ navigation }) => {
             await Linking.openURL(
               'mailto:support@madabienetre.com'
             );
-          } catch (error) {
+          } catch (_error) {
             showToast(
               'error',
               'Erreur',
@@ -488,6 +486,7 @@ const ProfileScreen = ({ navigation }) => {
           ),
       },
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `showToast` est recréée à chaque render ; l'ajouter recalculerait cette liste à chaque fois
     [navigation]
   );
 
@@ -966,7 +965,7 @@ const ProfileScreen = ({ navigation }) => {
           profileData.address || '',
       };
 
-      const { data, error } =
+      const { data: _data, error } =
         await put(
           `/users/${userId}`,
           updateData
@@ -1263,7 +1262,7 @@ const ProfileScreen = ({ navigation }) => {
         useNativeDriver: true,
       }
     ).start();
-  }, []);
+  }, [fadeAnim]);
 
   // ==========================================================
   // MAP MARKERS

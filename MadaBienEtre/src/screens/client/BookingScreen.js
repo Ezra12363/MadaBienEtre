@@ -1,6 +1,6 @@
 // src/screens/client/BookingScreen.js
 
-import React, {
+import {
   useState,
   useEffect,
   useRef,
@@ -329,7 +329,7 @@ const BookingScreen = ({
   navigation,
   route,
 }) => {
-  const { therapist } = route.params || {};
+  const { therapist: _therapist } = route.params || {};
 
   const {
     colors: themeColors,
@@ -337,8 +337,8 @@ const BookingScreen = ({
   } = useTheme();
 
   const {
-    token,
-    user,
+    token: _token,
+    user: _user,
   } = useAuth();
 
   // ✅ NOUVEAU : createBooking envoie réellement la demande à l'API
@@ -392,10 +392,10 @@ const BookingScreen = ({
   // l'input se met en évidence (bordure + ombre colorée) pendant
   // la saisie, comme sur les interfaces de paiement/réservation
   // internationales (Stripe, Airbnb, etc.).
-  const [isPriceFocused, setIsPriceFocused] =
+  const [_isPriceFocused, _setIsPriceFocused] =
     useState(false);
 
-  const [isInstructionsFocused, setIsInstructionsFocused] =
+  const [_isInstructionsFocused, _setIsInstructionsFocused] =
     useState(false);
 
   // ============================================================
@@ -417,7 +417,7 @@ const BookingScreen = ({
   // largeur approximative d'une carte + marge
   const MASSAGE_CARD_STEP = 185;
 
-  const scrollMassageTypes = (direction) => {
+  const _scrollMassageTypes = (direction) => {
     if (!IS_WEB) return;
 
     const offset =

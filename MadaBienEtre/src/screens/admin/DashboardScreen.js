@@ -1,6 +1,6 @@
 // src/screens/admin/DashboardScreen.js
 
-import React, {
+import {
   useState,
   useCallback,
   useRef,
@@ -26,7 +26,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, typography } from '../../theme';
+import { useNotifications } from '../../context/NotificationContext';
+import { useTopNavLayout } from '../../components/common/AppNavigation';
+import { colors, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
 
@@ -38,6 +40,14 @@ const IS_WEB = Platform.OS === 'web';
 
 const DashboardScreen = ({ navigation }) => {
   const { colors: themeColors, isDark } = useTheme();
+  const { unreadCount = 0 } = useNotifications() || {};
+
+  // Web large : TopNavBar (AppNavigation.js) affiche déjà le profil
+  // et les notifications tout en haut — on ne les duplique pas ici.
+  // Android / iOS : jamais concerné (isMerged est toujours false hors
+  // web), donc RIEN ne change pour eux — même comportement que les
+  // dashboards Thérapeute et Client.
+  const { isMerged } = useTopNavLayout();
 
   const { width: windowWidth } = useWindowDimensions();
 
@@ -170,6 +180,7 @@ const DashboardScreen = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       loadDashboard();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
   );
 
@@ -275,6 +286,17 @@ const DashboardScreen = ({ navigation }) => {
       'info'
     );
   };
+
+  // Pas de "Profil" chez l'admin (voir les onglets du Tab.Navigator) :
+  // le bouton gauche du header ouvre donc les Paramètres, l'écran le
+  // plus proche d'un profil pour ce rôle.
+  const openProfile = useCallback(() => {
+    navigation.navigate('Paramètres');
+  }, [navigation]);
+
+  const openNotifications = useCallback(() => {
+    navigation.navigate('AdminNotifications');
+  }, [navigation]);
 
   /* ============================================================
      FORMAT
@@ -676,7 +698,55 @@ const DashboardScreen = ({ navigation }) => {
             },
           ]}
         >
-          <Header title="Tableau de bord" />
+        <Header
+          title="Tableau de bord"
+          leftComponent={
+            isMerged ? null : (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={openProfile}
+                style={styles.headerButtonCircle}
+                accessibilityRole="button"
+                accessibilityLabel="Ouvrir les paramètres"
+              >
+                <Ionicons
+                  name="settings-outline"
+                  size={21}
+                  color="#FFFFFF"
+                />
+              </TouchableOpacity>
+            )
+          }
+          rightComponent={
+            isMerged ? null : (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={openNotifications}
+                style={styles.headerButtonCircle}
+                accessibilityRole="button"
+                accessibilityLabel="Ouvrir les notifications"
+              >
+                <Ionicons
+                  name={
+                    unreadCount > 0
+                      ? 'notifications'
+                      : 'notifications-outline'
+                  }
+                  size={23}
+                  color="#FFFFFF"
+                />
+
+                {unreadCount > 0 && (
+                  <View style={styles.headerNotificationBadge}>
+                    <Text style={styles.headerNotificationText}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )
+          }
+        />
 
           <View style={styles.loadingContainer}>
             <View
@@ -746,7 +816,55 @@ const DashboardScreen = ({ navigation }) => {
           },
         ]}
       >
-        <Header title="Tableau de bord" />
+        <Header
+          title="Tableau de bord"
+          leftComponent={
+            isMerged ? null : (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={openProfile}
+                style={styles.headerButtonCircle}
+                accessibilityRole="button"
+                accessibilityLabel="Ouvrir les paramètres"
+              >
+                <Ionicons
+                  name="settings-outline"
+                  size={21}
+                  color="#FFFFFF"
+                />
+              </TouchableOpacity>
+            )
+          }
+          rightComponent={
+            isMerged ? null : (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={openNotifications}
+                style={styles.headerButtonCircle}
+                accessibilityRole="button"
+                accessibilityLabel="Ouvrir les notifications"
+              >
+                <Ionicons
+                  name={
+                    unreadCount > 0
+                      ? 'notifications'
+                      : 'notifications-outline'
+                  }
+                  size={23}
+                  color="#FFFFFF"
+                />
+
+                {unreadCount > 0 && (
+                  <View style={styles.headerNotificationBadge}>
+                    <Text style={styles.headerNotificationText}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            )
+          }
+        />
 
         <Toast />
 
@@ -1467,6 +1585,42 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     width: '100%',
+  },
+
+  /* ==========================================================
+     HEADER — bouton profil/paramètres + notifications
+  ========================================================== */
+
+  headerButtonCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+
+  headerNotificationBadge: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: '#E53935',
+    borderWidth: 1.5,
+    borderColor: colors.primary || '#168A55',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  headerNotificationText: {
+    color: '#FFFFFF',
+    fontSize: 9.5,
+    fontWeight: '800',
   },
 
   /* ==========================================================

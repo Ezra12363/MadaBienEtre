@@ -1,6 +1,6 @@
 // src/components/client/ClientOnlineStatusCard.js
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,

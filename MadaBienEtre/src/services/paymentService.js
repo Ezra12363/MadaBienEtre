@@ -1,5 +1,5 @@
 // src/services/paymentService.js
-import { get, post, put, handleApiError } from './api';
+import { get, post } from './api';
 
 class PaymentService {
   /**

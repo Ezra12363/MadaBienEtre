@@ -1,6 +1,6 @@
 // src/navigation/AdminNavigator.js
 
-import React, {
+import {
   createContext,
   useCallback,
   useContext,
@@ -11,8 +11,6 @@ import React, {
 } from 'react';
 
 import {
-  Animated,
-  Easing,
   Platform,
   SafeAreaView,
   StatusBar,
@@ -33,11 +31,13 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 
-import {
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
-
 import { useTheme } from '../context/ThemeContext';
+
+import {
+  NavBridgeProvider,
+  TabBarConnector,
+  TopNavBar,
+} from '../components/common/AppNavigation';
 
 import {
   colors,
@@ -51,6 +51,7 @@ import {
 // ============================================================
 
 import DashboardScreen from '../screens/admin/DashboardScreen';
+import AdminNotificationScreen from '../screens/admin/NotificationScreen';
 import UsersScreen from '../screens/admin/UsersScreen';
 import TherapistsScreen from '../screens/admin/TherapistsScreen';
 import ApprovalsScreen from '../screens/admin/ApprovalsScreen';
@@ -121,6 +122,20 @@ const DashboardStack = () => {
       <Stack.Screen
         name="DashboardMain"
         component={DashboardScreen}
+      />
+
+      {/* ======================================================
+          NOTIFICATIONS ADMIN
+
+          IMPORTANT :
+          Nom UNIQUE ("AdminNotifications") pour éviter le conflit
+          avec "Notifications" (ClientNavigator) et
+          "TherapistNotifications" (TherapistNavigator).
+      ====================================================== */}
+
+      <Stack.Screen
+        name="AdminNotifications"
+        component={AdminNotificationScreen}
       />
 
       <Stack.Screen
@@ -604,382 +619,6 @@ const getTabLabel = (
   }
 };
 
-
-// ============================================================
-// CUSTOM TAB BAR
-// ============================================================
-
-const AdminTabBar = ({
-  state,
-  descriptors,
-  navigation,
-}) => {
-
-  const insets =
-    useSafeAreaInsets();
-
-  const {
-    colors: themeColors,
-    isDark,
-  } = useTheme();
-
-  const {
-    tabBarVisible,
-  } = useAdminTabBar();
-
-
-  // ==========================================================
-  // ANIMATION
-  // ==========================================================
-
-  const translateY =
-    useRef(
-      new Animated.Value(0)
-    ).current;
-
-  const opacity =
-    useRef(
-      new Animated.Value(1)
-    ).current;
-
-  const previousVisibility =
-    useRef(true);
-
-
-  useEffect(() => {
-
-    if (
-      previousVisibility.current ===
-      tabBarVisible
-    ) {
-      return;
-    }
-
-    previousVisibility.current =
-      tabBarVisible;
-
-    Animated.parallel([
-
-      Animated.timing(
-        translateY,
-        {
-          toValue:
-            tabBarVisible
-              ? 0
-              : HIDE_TRANSLATE_Y,
-
-          duration:
-            ANIMATION_DURATION,
-
-          easing:
-            Easing.out(
-              Easing.cubic
-            ),
-
-          useNativeDriver:
-            true,
-        }
-      ),
-
-      Animated.timing(
-        opacity,
-        {
-          toValue:
-            tabBarVisible
-              ? 1
-              : 0,
-
-          duration:
-            ANIMATION_DURATION,
-
-          easing:
-            Easing.out(
-              Easing.cubic
-            ),
-
-          useNativeDriver:
-            true,
-        }
-      ),
-
-    ]).start();
-
-  }, [
-    tabBarVisible,
-    translateY,
-    opacity,
-  ]);
-
-
-  const bottomInset =
-    Math.max(
-      insets.bottom || 0,
-      0
-    );
-
-
-  const tabHeight =
-    Platform.OS === 'web'
-      ? 72
-      : 66 + bottomInset;
-
-
-  const activeColor =
-    colors.primary ||
-    '#0D2B7E';
-
-  const inactiveColor =
-    themeColors.textSecondary ||
-    '#7A8194';
-
-
-  return (
-    <View
-      style={[
-        styles.tabBarWrapper,
-        {
-          height:
-            tabHeight,
-
-          backgroundColor:
-            themeColors.background,
-        },
-      ]}
-      pointerEvents="box-none"
-    >
-
-      <Animated.View
-        style={[
-          styles.tabBar,
-          {
-            height:
-              tabHeight,
-
-            paddingBottom:
-              Platform.OS === 'web'
-                ? 8
-                : bottomInset + 5,
-
-            backgroundColor:
-              themeColors.surface,
-
-            borderTopColor:
-              themeColors.border ||
-              (
-                isDark
-                  ? 'rgba(255,255,255,0.08)'
-                  : '#E7E9EF'
-              ),
-
-            transform: [
-              {
-                translateY,
-              },
-            ],
-
-            opacity,
-          },
-        ]}
-      >
-
-        <View
-          style={
-            styles.tabBarInner
-          }
-        >
-
-          {state.routes.map(
-            (
-              route,
-              index
-            ) => {
-
-              const {
-                options,
-              } =
-                descriptors[
-                  route.key
-                ];
-
-              const focused =
-                state.index ===
-                index;
-
-              const iconName =
-                getTabIcon(
-                  route.name,
-                  focused
-                );
-
-              const label =
-                getTabLabel(
-                  route.name
-                );
-
-              const color =
-                focused
-                  ? activeColor
-                  : inactiveColor;
-
-
-              const onPress =
-                () => {
-
-                  const event =
-                    navigation.emit(
-                      {
-                        type:
-                          'tabPress',
-
-                        target:
-                          route.key,
-
-                        canPreventDefault:
-                          true,
-                      }
-                    );
-
-                  if (
-                    !focused &&
-                    !event.defaultPrevented
-                  ) {
-                    navigation.navigate(
-                      route.name
-                    );
-                  }
-                };
-
-
-              const onLongPress =
-                () => {
-
-                  navigation.emit(
-                    {
-                      type:
-                        'tabLongPress',
-
-                      target:
-                        route.key,
-                    }
-                  );
-                };
-
-
-              return (
-                <TouchableOpacity
-                  key={
-                    route.key
-                  }
-
-                  accessibilityRole="button"
-
-                  accessibilityState={
-                    focused
-                      ? {
-                          selected:
-                            true,
-                        }
-                      : {}
-                  }
-
-                  accessibilityLabel={
-                    options
-                      .tabBarAccessibilityLabel ||
-                    label
-                  }
-
-                  testID={
-                    options
-                      .tabBarButtonTestID
-                  }
-
-                  onPress={
-                    onPress
-                  }
-
-                  onLongPress={
-                    onLongPress
-                  }
-
-                  activeOpacity={0.72}
-
-                  style={
-                    styles.tabButton
-                  }
-                >
-
-                  <View
-                    style={[
-                      styles.iconContainer,
-                      {
-                        backgroundColor:
-                          focused
-                            ? `${activeColor}16`
-                            : 'transparent',
-                      },
-                    ]}
-                  >
-
-                    <Ionicons
-                      name={
-                        iconName
-                      }
-                      size={
-                        focused
-                          ? 23
-                          : 22
-                      }
-                      color={
-                        color
-                      }
-                    />
-
-                  </View>
-
-
-                  <Animated.Text
-                    numberOfLines={1}
-                    style={[
-                      styles.tabLabel,
-                      {
-                        color,
-                        fontWeight:
-                          focused
-                            ? '700'
-                            : '500',
-                      },
-                    ]}
-                  >
-                    {label}
-                  </Animated.Text>
-
-
-                  {focused && (
-                    <View
-                      style={[
-                        styles.activeIndicator,
-                        {
-                          backgroundColor:
-                            activeColor,
-                        },
-                      ]}
-                    />
-                  )}
-
-                </TouchableOpacity>
-              );
-            }
-          )}
-
-        </View>
-
-      </Animated.View>
-
-    </View>
-  );
-};
-
-
 // ============================================================
 // ADMIN NAVIGATOR
 // ============================================================
@@ -1227,6 +866,7 @@ const AdminNavigator = () => {
         contextValue
       }
     >
+    <NavBridgeProvider>
 
       <SafeAreaView
         style={[
@@ -1250,12 +890,16 @@ const AdminNavigator = () => {
           translucent={false}
         />
 
+        <TopNavBar brandLabel="Mada Bien-être" />
 
         <Tab.Navigator
           tabBar={
             props => (
-              <AdminTabBar
+              <TabBarConnector
                 {...props}
+                visible={tabBarVisible}
+                getIcon={getTabIcon}
+                getLabel={getTabLabel}
               />
             )
           }
@@ -1343,6 +987,7 @@ const AdminNavigator = () => {
 
       </SafeAreaView>
 
+    </NavBridgeProvider>
     </AdminTabBarContext.Provider>
   );
 };
@@ -1557,167 +1202,6 @@ const styles =
 
       fontFamily:
         typography.fontFamily.medium,
-    },
-
-
-    // ========================================================
-    // TAB BAR WRAPPER
-    // ========================================================
-
-    tabBarWrapper: {
-
-      width: '100%',
-
-      overflow:
-        'hidden',
-    },
-
-
-    // ========================================================
-    // TAB BAR
-    // ========================================================
-
-    tabBar: {
-
-      width: '100%',
-
-      borderTopWidth:
-        StyleSheet.hairlineWidth,
-
-      elevation:
-        12,
-
-      shadowOffset: {
-        width: 0,
-        height: -3,
-      },
-
-      shadowOpacity:
-        0.08,
-
-      shadowRadius:
-        8,
-    },
-
-
-    // ========================================================
-    // TAB BAR INNER
-    // ========================================================
-
-    tabBarInner: {
-
-      flex: 1,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'stretch',
-
-      justifyContent:
-        'space-around',
-
-      paddingHorizontal:
-        6,
-    },
-
-
-    // ========================================================
-    // TAB BUTTON
-    // ========================================================
-
-    tabButton: {
-
-      flex: 1,
-
-      minWidth:
-        0,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      position:
-        'relative',
-
-      paddingTop:
-        5,
-
-      paddingHorizontal:
-        2,
-    },
-
-
-    // ========================================================
-    // TAB ICON
-    // ========================================================
-
-    iconContainer: {
-
-      width: 42,
-
-      height: 32,
-
-      borderRadius: 16,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      marginBottom:
-        2,
-    },
-
-
-    // ========================================================
-    // TAB LABEL
-    // ========================================================
-
-    tabLabel: {
-
-      fontSize:
-        Platform.OS === 'web'
-          ? 11
-          : 10,
-
-      lineHeight:
-        14,
-
-      textAlign:
-        'center',
-
-      includeFontPadding:
-        false,
-
-      maxWidth:
-        100,
-    },
-
-
-    // ========================================================
-    // ACTIVE INDICATOR
-    // ========================================================
-
-    activeIndicator: {
-
-      position:
-        'absolute',
-
-      bottom:
-        0,
-
-      width:
-        24,
-
-      height:
-        3,
-
-      borderRadius:
-        3,
     },
 
   });

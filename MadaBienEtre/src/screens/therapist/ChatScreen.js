@@ -1,6 +1,6 @@
 // src/screens/therapist/ChatScreen.js
 
-import React, {
+import {
   useState,
   useEffect,
   useRef,

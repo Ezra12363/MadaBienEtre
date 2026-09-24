@@ -263,9 +263,9 @@ export const searchLocation = async (query) => {
 
   // Variantes utiles pour les lots mal indexés par les fournisseurs.
   if (hasLot) {
-    const lotNumber = rawQuery.match(/\blot\s+([a-z0-9][a-z0-9\-\/]*)/i)?.[1];
+    const lotNumber = rawQuery.match(/\blot\s+([a-z0-9][a-z0-9\-/]*)/i)?.[1];
     if (lotNumber) {
-      const rest = rawQuery.replace(/\blot\s+[a-z0-9][a-z0-9\-\/]*\s*/i, '').replace(/^[-,\s]+|[-,\s]+$/g, '');
+      const rest = rawQuery.replace(/\blot\s+[a-z0-9][a-z0-9\-/]*\s*/i, '').replace(/^[-,\s]+|[-,\s]+$/g, '');
       if (rest) {
         addQuery(`${lotNumber}, ${rest}, Madagascar`);
         addQuery(`Lot ${lotNumber}, ${rest}, Madagascar`);
@@ -287,7 +287,7 @@ export const searchLocation = async (query) => {
 
   // 3) Si le lot exact n'est pas indexé, chercher la rue/quartier sans inventer un lot.
   const withoutLot = rawQuery
-    .replace(/\blot\s+[a-z0-9][a-z0-9\-\/]*\s*,?\s*/i, '')
+    .replace(/\blot\s+[a-z0-9][a-z0-9\-/]*\s*,?\s*/i, '')
     .replace(/^[-,\s]+|[-,\s]+$/g, '')
     .trim();
 

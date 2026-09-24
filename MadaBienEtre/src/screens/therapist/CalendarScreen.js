@@ -1,6 +1,6 @@
 // src/screens/therapist/CalendarScreen.js
 
-import React, {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -42,11 +42,11 @@ import bookingService from '../../services/bookingService';
 // ============================================================
 
 const PRIMARY_GREEN = colors.primary || '#168A55';
-const SECONDARY_GREEN = '#2E9B68';
-const LIGHT_GREEN = '#E8F6EF';
+const _SECONDARY_GREEN = '#2E9B68';
+const _LIGHT_GREEN = '#E8F6EF';
 
-const TEXT_DARK = '#17231D';
-const MUTED_TEXT = '#718078';
+const _TEXT_DARK = '#17231D';
+const _MUTED_TEXT = '#718078';
 
 // ============================================================
 // HELPERS
@@ -243,7 +243,7 @@ const formatPrice = (value) => {
   return `${number.toLocaleString('fr-FR')} Ar`;
 };
 
-const formatDateLong = (dateString) => {
+const _formatDateLong = (dateString) => {
   if (!dateString) {
     return '';
   }
@@ -257,7 +257,7 @@ const formatDateLong = (dateString) => {
       month: 'long',
       year: 'numeric',
     });
-  } catch (error) {
+  } catch (_error) {
     return dateString;
   }
 };
@@ -275,7 +275,7 @@ const formatShortDate = (dateString) => {
       month: 'short',
       year: 'numeric',
     });
-  } catch (error) {
+  } catch (_error) {
     return dateString;
   }
 };
@@ -1667,7 +1667,7 @@ const CalendarScreen = ({ navigation }) => {
   // ==========================================================
 
   const openBooking = useCallback(
-    (booking, skipConfirmation = false) => {
+    (booking, _skipConfirmation = false) => {
       const bookingId = getBookingId(booking);
 
       if (!bookingId) {

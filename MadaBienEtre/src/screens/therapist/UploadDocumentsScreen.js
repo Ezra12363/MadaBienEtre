@@ -14,7 +14,7 @@
 //    validation APPROVED par l'administrateur (voir plus bas).
 // ============================================================
 
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -359,7 +359,7 @@ const DocumentCard = ({
 // ============================================================
 
 const UploadDocumentsScreen = ({
-  navigation,
+  navigation: _navigation,
 }) => {
 
   const {

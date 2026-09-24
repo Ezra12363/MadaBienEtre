@@ -1,6 +1,6 @@
 // src/navigation/TherapistNavigator.js
 
-import React, {
+import {
   createContext,
   useCallback,
   useContext,
@@ -11,12 +11,9 @@ import React, {
 } from 'react';
 
 import {
-  Animated,
-  Easing,
   Platform,
   StatusBar,
   StyleSheet,
-  TouchableOpacity,
   View,
 } from 'react-native';
 
@@ -28,14 +25,13 @@ import {
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
 
-import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../context/ThemeContext';
 
 import {
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
-
-import { useTheme } from '../context/ThemeContext';
-import { colors } from '../theme';
+  NavBridgeProvider,
+  TabBarConnector,
+  TopNavBar,
+} from '../components/common/AppNavigation';
 
 // ============================================================
 // NOTIFICATIONS
@@ -204,6 +200,34 @@ const DashboardStack = () => {
         component={UploadDocumentsScreen}
       />
 
+      {/* ======================================================
+          NAVIGATION VERS LE CLIENT + SUIVI EN DIRECT + NÉGOCIATION
+          ======================================================
+          Ces 3 écrans vivent DANS le Tab.Navigator (dans chaque
+          stack qui peut les ouvrir). Ainsi :
+            - la tab bar du bas reste affichée, exactement
+              comme sur les autres pages,
+            - l'onglet actif est celui d'où l'on vient,
+            - le bouton retour revient à l'écran précédent,
+            - retaper sur l'onglet actif revient à la racine du
+              stack.
+      ====================================================== */}
+
+      <Stack.Screen
+        name="Navigation"
+        component={NavigationScreen}
+      />
+
+      <Stack.Screen
+        name="Tracking"
+        component={TrackingScreen}
+      />
+
+      <Stack.Screen
+        name="Negotiation"
+        component={NegotiationScreen}
+      />
+
     </Stack.Navigator>
   );
 };
@@ -249,31 +273,32 @@ const RequestsStack = () => {
       />
 
       {/* ======================================================
-          ⚠️ IMPORTANT — FIX NAVIGATION / TRACKING / NEGOTIATION /
-          CHAT / SOS
+          NAVIGATION VERS LE CLIENT + SUIVI EN DIRECT + NÉGOCIATION
           ======================================================
-          Navigation, Tracking, Negotiation, TherapistChat sy
-          TherapistSOS dia NESORINA teto (tao amin'ny stack
-          "Demandes") satria ampiasain'ny BookingDetailScreen
-          (izay ao amin'ny tab "Calendrier") koa ireo — raha
-          mijanona ao anaty stack "Demandes" ireo écran ireo dia:
-            1) mamadika automatique ny tab actif ho "Demandes"
-               (satria ilay écran dia tao anaty stack "Demandes"),
-            2) rehefa "retour" avy any dia tsy miverina amin'ny
-               BookingDetail intsony fa mijanona/mikisaka ao
-               anaty stack "Demandes",
-            3) rehefa tsindriana indray ny tab "Demandes" dia ilay
-               écran farany navigué (Navigation/Tracking) no
-               miseho fa tsy OffersScreen.
-
-          Noho izany dia napetraka ao amin'ny STACK ROOT (jereo
-          ny "TherapistNavigator" ambany, ivelan'ny Tab.Navigator)
-          ireo écran ireo, mba ho azo antenaina avy amin'ny tab
-          rehetra (navigate() dia "bubble up" hatrany amin'ny
-          navigator root raha tsy hita ao amin'ny stack lokaly),
-          nefa tsy manova ny tab actif ary ny "retour" dia
-          miverina marina amin'ny écran nahatongavana.
+          Ces 3 écrans vivent DANS le Tab.Navigator (dans chaque
+          stack qui peut les ouvrir). Ainsi :
+            - la tab bar du bas reste affichée, exactement
+              comme sur les autres pages,
+            - l'onglet actif est celui d'où l'on vient,
+            - le bouton retour revient à l'écran précédent,
+            - retaper sur l'onglet actif revient à la racine du
+              stack.
       ====================================================== */}
+
+      <Stack.Screen
+        name="Navigation"
+        component={NavigationScreen}
+      />
+
+      <Stack.Screen
+        name="Tracking"
+        component={TrackingScreen}
+      />
+
+      <Stack.Screen
+        name="Negotiation"
+        component={NegotiationScreen}
+      />
 
     </Stack.Navigator>
   );
@@ -309,6 +334,34 @@ const CalendarStack = () => {
       <Stack.Screen
         name="BookingDetail"
         component={BookingDetailScreen}
+      />
+
+      {/* ======================================================
+          NAVIGATION VERS LE CLIENT + SUIVI EN DIRECT + NÉGOCIATION
+          ======================================================
+          Ces 3 écrans vivent DANS le Tab.Navigator (dans chaque
+          stack qui peut les ouvrir). Ainsi :
+            - la tab bar du bas reste affichée, exactement
+              comme sur les autres pages,
+            - l'onglet actif est celui d'où l'on vient,
+            - le bouton retour revient à l'écran précédent,
+            - retaper sur l'onglet actif revient à la racine du
+              stack.
+      ====================================================== */}
+
+      <Stack.Screen
+        name="Navigation"
+        component={NavigationScreen}
+      />
+
+      <Stack.Screen
+        name="Tracking"
+        component={TrackingScreen}
+      />
+
+      <Stack.Screen
+        name="Negotiation"
+        component={NegotiationScreen}
       />
 
     </Stack.Navigator>
@@ -471,391 +524,6 @@ const getTabLabel = (
     default:
       return routeName;
   }
-};
-
-// ============================================================
-// CUSTOM TAB BAR
-// ============================================================
-
-const TherapistTabBar = ({
-  state,
-  descriptors,
-  navigation,
-}) => {
-
-  const insets =
-    useSafeAreaInsets();
-
-  const {
-    colors: themeColors,
-    isDark,
-  } = useTheme();
-
-  const {
-    tabBarVisible,
-  } = useTherapistTabBar();
-
-  const translateY =
-    useRef(
-      new Animated.Value(0)
-    ).current;
-
-  const opacity =
-    useRef(
-      new Animated.Value(1)
-    ).current;
-
-  const previousVisibility =
-    useRef(true);
-
-  // ==========================================================
-  // ANIMATION
-  // ==========================================================
-
-  useEffect(() => {
-
-    if (
-      previousVisibility.current ===
-      tabBarVisible
-    ) {
-      return;
-    }
-
-    previousVisibility.current =
-      tabBarVisible;
-
-    Animated.parallel([
-
-      Animated.timing(
-        translateY,
-        {
-          toValue:
-            tabBarVisible
-              ? 0
-              : HIDE_TRANSLATE_Y,
-
-          duration:
-            ANIMATION_DURATION,
-
-          easing:
-            Easing.out(
-              Easing.cubic
-            ),
-
-          useNativeDriver:
-            true,
-        }
-      ),
-
-      Animated.timing(
-        opacity,
-        {
-          toValue:
-            tabBarVisible
-              ? 1
-              : 0,
-
-          duration:
-            ANIMATION_DURATION,
-
-          easing:
-            Easing.out(
-              Easing.cubic
-            ),
-
-          useNativeDriver:
-            true,
-        }
-      ),
-
-    ]).start();
-
-  }, [
-    tabBarVisible,
-    translateY,
-    opacity,
-  ]);
-
-  // ==========================================================
-  // SAFE AREA
-  // ==========================================================
-
-  const bottomInset =
-    Math.max(
-      insets.bottom || 0,
-      0
-    );
-
-  // ==========================================================
-  // HEIGHT
-  // ==========================================================
-
-  const tabHeight =
-    Platform.OS === 'web'
-      ? 72
-      : 66 + bottomInset;
-
-  // ==========================================================
-  // COLORS
-  // ==========================================================
-
-  const activeColor =
-    colors?.primary ||
-    '#0D2B7E';
-
-  const inactiveColor =
-    themeColors.textSecondary ||
-    '#7A8194';
-
-  // ==========================================================
-  // RENDER
-  // ==========================================================
-
-  return (
-    <View
-      style={[
-        styles.tabBarWrapper,
-        {
-          height:
-            tabHeight,
-
-          backgroundColor:
-            themeColors.background,
-        },
-      ]}
-      pointerEvents="box-none"
-    >
-
-      <Animated.View
-        style={[
-          styles.tabBar,
-          {
-            height:
-              tabHeight,
-
-            paddingBottom:
-              Platform.OS === 'web'
-                ? 8
-                : bottomInset + 5,
-
-            backgroundColor:
-              themeColors.surface,
-
-            borderTopColor:
-              themeColors.border ||
-              (
-                isDark
-                  ? 'rgba(255,255,255,0.08)'
-                  : '#E7E9EF'
-              ),
-
-            shadowColor:
-              '#000000',
-
-            transform: [
-              {
-                translateY,
-              },
-            ],
-
-            opacity,
-          },
-        ]}
-      >
-
-        <View
-          style={
-            styles.tabBarInner
-          }
-        >
-
-          {state.routes.map(
-            (
-              route,
-              index
-            ) => {
-
-              const {
-                options,
-              } =
-                descriptors[
-                  route.key
-                ];
-
-              const focused =
-                state.index ===
-                index;
-
-              const iconName =
-                getTabIcon(
-                  route.name,
-                  focused
-                );
-
-              const label =
-                getTabLabel(
-                  route.name
-                );
-
-              const color =
-                focused
-                  ? activeColor
-                  : inactiveColor;
-
-              const onPress =
-                () => {
-
-                  const event =
-                    navigation.emit({
-                      type:
-                        'tabPress',
-
-                      target:
-                        route.key,
-
-                      canPreventDefault:
-                        true,
-                    });
-
-                  if (
-                    !focused &&
-                    !event.defaultPrevented
-                  ) {
-
-                    navigation.navigate(
-                      route.name
-                    );
-                  }
-                };
-
-              const onLongPress =
-                () => {
-
-                  navigation.emit({
-                    type:
-                      'tabLongPress',
-
-                    target:
-                      route.key,
-                  });
-
-                };
-
-              return (
-                <TouchableOpacity
-                  key={
-                    route.key
-                  }
-
-                  accessibilityRole="button"
-
-                  accessibilityState={
-                    focused
-                      ? {
-                          selected:
-                            true,
-                        }
-                      : {}
-                  }
-
-                  accessibilityLabel={
-                    options
-                      .tabBarAccessibilityLabel ||
-                    label
-                  }
-
-                  testID={
-                    options
-                      .tabBarButtonTestID
-                  }
-
-                  onPress={
-                    onPress
-                  }
-
-                  onLongPress={
-                    onLongPress
-                  }
-
-                  activeOpacity={
-                    0.72
-                  }
-
-                  style={
-                    styles.tabButton
-                  }
-                >
-
-                  <View
-                    style={[
-                      styles.iconContainer,
-                      {
-                        backgroundColor:
-                          focused
-                            ? `${activeColor}16`
-                            : 'transparent',
-                      },
-                    ]}
-                  >
-
-                    <Ionicons
-                      name={
-                        iconName
-                      }
-
-                      size={
-                        focused
-                          ? 23
-                          : 22
-                      }
-
-                      color={
-                        color
-                      }
-                    />
-
-                  </View>
-
-                  <Animated.Text
-                    numberOfLines={1}
-                    style={[
-                      styles.tabLabel,
-                      {
-                        color,
-
-                        fontWeight:
-                          focused
-                            ? '700'
-                            : '500',
-                      },
-                    ]}
-                  >
-                    {label}
-                  </Animated.Text>
-
-                  {focused && (
-                    <View
-                      style={[
-                        styles.activeIndicator,
-                        {
-                          backgroundColor:
-                            activeColor,
-                        },
-                      ]}
-                    />
-                  )}
-
-                </TouchableOpacity>
-              );
-            }
-          )}
-
-        </View>
-
-      </Animated.View>
-
-    </View>
-  );
 };
 
 // ============================================================
@@ -1075,6 +743,7 @@ const TherapistTabsScreen = () => {
         contextValue
       }
     >
+    <NavBridgeProvider>
 
       <View
         style={[
@@ -1100,12 +769,17 @@ const TherapistTabsScreen = () => {
           translucent={false}
         />
 
+        <TopNavBar brandLabel="Mada Bien-être" />
+
         <Tab.Navigator
 
           tabBar={
             props => (
-              <TherapistTabBar
+              <TabBarConnector
                 {...props}
+                visible={tabBarVisible}
+                getIcon={getTabIcon}
+                getLabel={getTabLabel}
               />
             )
           }
@@ -1194,6 +868,7 @@ const TherapistTabsScreen = () => {
 
       </View>
 
+    </NavBridgeProvider>
     </TherapistTabBarContext.Provider>
   );
 };
@@ -1209,137 +884,19 @@ const styles =
       flex: 1,
     },
 
-    tabBarWrapper: {
-      width: '100%',
-      overflow: 'hidden',
-    },
-
-    tabBar: {
-      width: '100%',
-
-      borderTopWidth:
-        StyleSheet.hairlineWidth,
-
-      elevation: 12,
-
-      shadowOffset: {
-        width: 0,
-        height: -3,
-      },
-
-      shadowOpacity:
-        0.08,
-
-      shadowRadius: 8,
-    },
-
-    tabBarInner: {
-      flex: 1,
-
-      flexDirection:
-        'row',
-
-      alignItems:
-        'stretch',
-
-      justifyContent:
-        'space-around',
-
-      paddingHorizontal:
-        6,
-    },
-
-    tabButton: {
-      flex: 1,
-
-      minWidth: 0,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      position:
-        'relative',
-
-      paddingTop:
-        5,
-
-      paddingHorizontal:
-        2,
-    },
-
-    iconContainer: {
-      width: 42,
-
-      height: 32,
-
-      borderRadius: 16,
-
-      alignItems:
-        'center',
-
-      justifyContent:
-        'center',
-
-      marginBottom:
-        2,
-    },
-
-    tabLabel: {
-      fontSize:
-        Platform.OS === 'web'
-          ? 11
-          : 10,
-
-      lineHeight:
-        14,
-
-      textAlign:
-        'center',
-
-      includeFontPadding:
-        false,
-
-      maxWidth:
-        100,
-    },
-
-    activeIndicator: {
-      position:
-        'absolute',
-
-      bottom:
-        0,
-
-      width:
-        24,
-
-      height:
-        3,
-
-      borderRadius:
-        3,
-    },
 
   });
 
 // ============================================================
 // ROOT STACK — Tabs + écrans "cross-tab"
 //
-// FIX : Navigation, Tracking, TherapistChat, TherapistSOS dia
-// tonga eto (ivelan'ny Tab.Navigator) mba azo antsoina avy
-// amin'ny tab na stack rehetra (Calendrier, Demandes, sns.)
-// nefa:
-//   - tsy mamadika ny tab actif eo amin'ny tab bar,
-//   - ny bouton "retour" (Header.js -> navigation.goBack())
-//     dia miverina marina any amin'ny écran nahatongavana
-//     (ohatra: BookingDetailScreen), fa tsy any amin'ny
-//     page d'accueil,
-//   - rehefa tsindriana indray ny tab "Demandes" dia
-//     OffersScreen foana no miseho, satria ny stack "Demandes"
-//     tsy voakasik'ireo écran ireo intsony.
+// Navigation, Tracking et Negotiation ne sont PLUS ici : ils sont
+// enregistrés dans les stacks des onglets (Tableau de bord,
+// Demandes, Calendrier) pour que la tab bar du bas reste
+// affichée sur ces pages.
+//
+// Restent ici (plein écran, sans tab bar) : TherapistChat,
+// TherapistSOS.
 // ============================================================
 
 const TherapistNavigator = () => {
@@ -1353,25 +910,6 @@ const TherapistNavigator = () => {
       <Stack.Screen
         name="TherapistTabs"
         component={TherapistTabsScreen}
-      />
-
-      <Stack.Screen
-        name="Navigation"
-        component={NavigationScreen}
-      />
-
-      <Stack.Screen
-        name="Tracking"
-        component={TrackingScreen}
-      />
-
-      {/* ✅ FIX : Negotiation dia écran ROOT izao (nesorina tao
-          amin'ny stack "Demandes"), toy ny Navigation sy Tracking —
-          mba tsy hamadika ny tab actif rehefa antsoina avy amin'ny
-          tab "Calendrier" (BookingDetailScreen). */}
-      <Stack.Screen
-        name="Negotiation"
-        component={NegotiationScreen}
       />
 
       <Stack.Screen

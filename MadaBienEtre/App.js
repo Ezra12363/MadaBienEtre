@@ -1,5 +1,5 @@
 // src/App.js
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
@@ -37,8 +37,8 @@ export default function App() {
           'Poppins-Light': require('../assets/fonts/Poppins-Light.ttf'),
         });
         await new Promise(resolve => setTimeout(resolve, 1500));
-      } catch (e) {
-        //console.warn('Error loading assets:', e);
+      } catch (_e) {
+        //console.warn('Error loading assets:', _e);
       } finally {
         setAppIsReady(true);
         await SplashScreen.hideAsync();

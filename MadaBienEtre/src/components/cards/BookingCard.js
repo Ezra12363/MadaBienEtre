@@ -1,8 +1,6 @@
 // src/components/cards/BookingCard.js
-import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
 

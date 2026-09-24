@@ -34,7 +34,7 @@
 //    n'est pas valide, sur les deux plateformes.
 // ============================================================
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,

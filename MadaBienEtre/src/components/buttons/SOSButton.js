@@ -12,13 +12,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
 import SOSService from '../../services/sosService';
 
 const SOSButton = ({ bookingId, onSOSActivated, size = 'large' }) => {
-  const { user, token } = useAuth();
   const { colors: themeColors } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +42,7 @@ const SOSButton = ({ bookingId, onSOSActivated, size = 'large' }) => {
   React.useEffect(() => {
     startPulse();
     return () => pulseAnim.stopAnimation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSOS = async () => {
@@ -80,7 +79,7 @@ const SOSButton = ({ bookingId, onSOSActivated, size = 'large' }) => {
           ]
         );
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert(
         'Erreur',
         'Impossible d\'envoyer l\'alerte SOS.',

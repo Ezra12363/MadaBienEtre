@@ -1,12 +1,11 @@
 // src/screens/client/RatingScreen.js
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  ScrollView,
   ActivityIndicator,
   Alert,
   Animated,
@@ -57,6 +56,7 @@ const RatingScreen = ({ navigation, route }) => {
       duration: 800,
       useNativeDriver: true,
     }).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- effet de montage unique ; `loadBooking` est recréée à chaque render
   }, []);
 
   const loadBooking = async () => {
@@ -85,7 +85,7 @@ const RatingScreen = ({ navigation, route }) => {
 
     setIsLoading(true);
     try {
-      const response = await axios.post(
+      const _response = await axios.post(
         `${API_URL}/reviews`,
         {
           booking_id: bookingId,

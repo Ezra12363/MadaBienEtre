@@ -1,5 +1,5 @@
 // src/context/UserContext.js
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 
 const UserContext = createContext();
@@ -21,6 +21,7 @@ export const UserProvider = ({ children }) => {
       setProfile(user);
       loadUserStats();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const loadUserStats = async () => {

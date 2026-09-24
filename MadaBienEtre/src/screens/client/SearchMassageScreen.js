@@ -1,7 +1,7 @@
 // src/screens/client/SearchMassageScreen.js
 // Fanitsiana ny fampisehoana ny types de massage par catégorie unique
 
-import React, {
+import {
   useState,
   useEffect,
   useRef,
@@ -21,7 +21,6 @@ import {
   Animated,
   ActivityIndicator,
   Image,
-  Alert,
   Platform,
   Modal,
   KeyboardAvoidingView,
@@ -36,7 +35,7 @@ import massageTypeService from "../../services/massageTypeService";
 import therapistService from "../../services/therapistService";
 import MapViewWrapper from "../../components/map/MapViewWrapper";
 import useLocationTracking from "../../hooks/useLocationTracking";
-import { searchLocation, formatFullAddress, getAddressSuggestions, getPlaceDetails } from "../../services/geocoding";
+import { searchLocation, getAddressSuggestions, getPlaceDetails } from "../../services/geocoding";
 import {
   computeAutoDistances,
   calculateRoute,
@@ -48,7 +47,7 @@ import {
   MAP_TYPES,
 } from "../../config/googleMaps";
 
-const { width, height } = Dimensions.get("window");
+const { width: _width, height } = Dimensions.get("window");
 
 /* ============================================================
    CONSTANTES
@@ -157,6 +156,7 @@ const Toast = ({ visible, message, type, onHide }) => {
 
       return () => clearTimeout(timer);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `hideToast` est recréée à chaque render ; l'ajouter relancerait le minuteur d'auto-fermeture à chaque re-render
   }, [visible]);
 
   const hideToast = () => {
@@ -327,7 +327,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [isRouting, setIsRouting] = useState(false);
   const [mapKey, setMapKey] = useState(0);
-  const [showFilters, setShowFilters] = useState(false);
+  const [_showFilters, setShowFilters] = useState(false);
   const [sortMode, setSortMode] = useState("distance");
   const [mapType, setMapType] = useState(MAP_TYPES.standard);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -477,7 +477,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
      FILTER COUNT
   ========================================================== */
 
-  const activeFilterCount = useMemo(() => {
+  const _activeFilterCount = useMemo(() => {
     let count = 0;
     if (selectedType) count++;
     if (selectedCategory) count++;
@@ -499,7 +499,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
       mapType === MAP_TYPES.satellite ? "Vue plan activée" : "Vue satellite activée",
       "info"
     );
-  }, [mapType]);
+  }, [mapType, showToast]);
 
   /* ==========================================================
      LOAD THERAPISTS — DONNÉES RÉELLES DEPUIS L API / BASE
@@ -621,7 +621,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 450, useNativeDriver: true }).start();
     loadTherapists();
-  }, [loadTherapists]);
+  }, [fadeAnim, loadTherapists]);
 
   /* ==========================================================
      UPDATE DISTANCES
@@ -641,6 +641,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
     );
 
     setTherapists(updated);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dépendances volontairement granulaires (lat/lng) : `therapists` en dépendance créerait une boucle infinie (cet effet appelle setTherapists)
   }, [userLocation?.latitude, userLocation?.longitude]);
 
   /* ==========================================================
@@ -899,7 +900,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
   ========================================================== */
 
   const mapMarkers = useMemo(() => {
-    const markers = filteredTherapists.map((therapist, index) => ({
+    const markers = filteredTherapists.map((therapist, _index) => ({
       id: therapist.id,
       coordinate: therapist.coordinate || {
         latitude: DEFAULT_REGION.latitude,
@@ -974,7 +975,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
     return () => {
       cancelled = true;
     };
-  }, [selectedMarker, userLocation]);
+  }, [selectedMarker, userLocation, showToast]);
 
   /* ==========================================================
      MARKER PRESS
@@ -1125,7 +1126,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
         </Text>
       </TouchableOpacity>
     );
-  }, [selectedCategory, themeColors]);
+  }, [selectedCategory, themeColors, showToast]);
 
   /* ==========================================================
      ✅ RENDER TYPE CARD (GRID) - PAR CATEGORIE UNIQUE
@@ -1198,7 +1199,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
         </Text>
       </TouchableOpacity>
     );
-  }, [selectedCategory, themeColors, isDesktopWidth]);
+  }, [selectedCategory, themeColors, isDesktopWidth, showToast]);
 
   /* ==========================================================
      THERAPIST CARD
@@ -1512,7 +1513,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
         </Animated.View>
       );
     },
-    [selectedMarker, themeColors, isDark, fadeAnim, showMap, navigation],
+    [selectedMarker, themeColors, isDark, fadeAnim, showMap, navigation, showToast],
   );
 
   // ==========================================================

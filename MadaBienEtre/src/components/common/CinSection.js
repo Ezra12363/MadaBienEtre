@@ -1,5 +1,5 @@
 // src/components/common/CinSection.js
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,

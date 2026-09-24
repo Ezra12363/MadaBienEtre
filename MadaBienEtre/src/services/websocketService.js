@@ -1,5 +1,4 @@
 // src/services/websocketService.js
-import { Platform } from 'react-native';
 
 class WebSocketService {
   constructor() {

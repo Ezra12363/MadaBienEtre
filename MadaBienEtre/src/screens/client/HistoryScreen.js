@@ -1,6 +1,6 @@
 // src/screens/client/HistoryScreen.js
 
-import React, {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -1671,7 +1671,7 @@ const FilterButton = ({
 
 const BookingCard = ({
   booking,
-  index,
+  index: _index,
   themeColors,
   onPress,
   onMenuPress,
@@ -2043,7 +2043,7 @@ const EmptyState = ({
 // ============================================================
 
 const HistoryScreen = ({ navigation }) => {
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
   const { colors: themeColors } = useTheme();
 
   const [bookings, setBookings] = useState([]);

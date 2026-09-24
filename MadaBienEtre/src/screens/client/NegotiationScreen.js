@@ -15,7 +15,7 @@
 //
 // ============================================================
 
-import React, {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -45,10 +45,6 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 
-import {
-  colors,
-} from '../../theme';
-
 import Header from '../../components/common/Header';
 import offerService from '../../services/offerService';
 import bookingService from '../../services/bookingService';
@@ -59,7 +55,7 @@ import therapistService from '../../services/therapistService';
 // ============================================================
 
 const GREEN = '#16A34A';
-const GREEN_LIGHT = '#22C55E';
+const _GREEN_LIGHT = '#22C55E';
 const GREEN_PALE = '#EAF8EF';
 const GREEN_BORDER = '#BBE7C9';
 
@@ -772,6 +768,7 @@ const NegotiationScreen = ({
         );
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `updateTherapistProfile` est recréée à chaque render ; l'ajouter viderait ce useCallback de son intérêt
     []
   );
 
@@ -1112,7 +1109,7 @@ const NegotiationScreen = ({
   // LOAD BOOKING STATUS
   // ==========================================================
 
-  const loadBookingStatus =
+  const _loadBookingStatus =
     useCallback(
       async () => {
         if (!bookingId) {

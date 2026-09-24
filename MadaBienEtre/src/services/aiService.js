@@ -1,5 +1,5 @@
 // src/services/aiService.js
-import { get, post, handleApiError } from './api';
+import { get, post } from './api';
 
 class AIService {
   /**

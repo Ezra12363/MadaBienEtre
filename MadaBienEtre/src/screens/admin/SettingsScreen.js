@@ -14,7 +14,7 @@
 // ✅ Protection contre la perte du rôle utilisateur
 // ============================================================
 
-import React, {
+import {
   useState,
   useEffect,
   useRef,

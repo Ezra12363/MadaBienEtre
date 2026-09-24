@@ -1,5 +1,5 @@
 // src/context/NotificationContext.js
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import notificationService from '../services/notificationService';
 

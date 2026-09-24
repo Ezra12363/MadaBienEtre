@@ -1,5 +1,5 @@
 // src/services/chatService.js
-import { get, post, put, handleApiError } from './api';
+import { get, post, put, del } from './api';
 
 class ChatService {
   /**

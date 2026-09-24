@@ -5,7 +5,7 @@
 // Design cohérent avec WelcomeScreen
 // ============================================================
 
-import React, {
+import {
   useState,
   useRef,
   useEffect,
@@ -322,9 +322,6 @@ export default function LoginScreen({
   const isSmall =
     width < 380;
 
-  const isVerySmall =
-    width < 340;
-
   const isShort =
     height < 680;
 
@@ -391,11 +388,6 @@ export default function LoginScreen({
      SAFE TOP
   ========================================================== */
 
-  const androidStatusBar =
-    IS_ANDROID
-      ? StatusBar.currentHeight || 0
-      : 0;
-
   /* ==========================================================
      INITIALIZATION
   ========================================================== */
@@ -430,6 +422,7 @@ export default function LoginScreen({
         );
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ==========================================================

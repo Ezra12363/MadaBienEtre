@@ -1,5 +1,5 @@
 // src/screens/client/SOSScreen.js
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -23,13 +23,13 @@ import axios from 'axios';
 import { API_URL } from '../../config';
 import SOSButton from '../../components/sos/SOSButton';
 
-const SOSScreen = ({ navigation }) => {
-  const { colors: themeColors, isDark } = useTheme();
-  const { token, user } = useAuth();
+const SOSScreen = ({ navigation: _navigation }) => {
+  const { colors: themeColors, isDark: _isDark } = useTheme();
+  const { token, user: _user } = useAuth();
   
   const [isLoading, setIsLoading] = useState(false);
   const [location, setLocation] = useState(null);
-  const [isEmergency, setIsEmergency] = useState(false);
+  const [_isEmergency, setIsEmergency] = useState(false);
   const [sosSent, setSosSent] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -39,6 +39,7 @@ const SOSScreen = ({ navigation }) => {
     return () => {
       pulseAnim.stopAnimation();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- effet de montage unique ; `startPulseAnimation` est recréée à chaque render
   }, []);
 
   const startPulseAnimation = () => {

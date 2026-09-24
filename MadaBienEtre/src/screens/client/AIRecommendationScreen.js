@@ -1,5 +1,5 @@
 // src/screens/client/AIRecommendationScreen.js
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,7 +26,7 @@ const AIRecommendationScreen = ({ navigation }) => {
   const { token, user } = useAuth();
   
   const [symptoms, setSymptoms] = useState('');
-  const [budget, setBudget] = useState('');
+  const [budget, _setBudget] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [recommendations, setRecommendations] = useState([]);
   const [chatHistory, setChatHistory] = useState([
@@ -36,7 +36,7 @@ const AIRecommendationScreen = ({ navigation }) => {
       message: 'Bonjour ! Je suis votre assistant IA. Dites-moi ce que vous recherchez et je vous trouverai le massage idéal. 🧘',
     },
   ]);
-  const [isChatMode, setIsChatMode] = useState(false);
+  const [_isChatMode, _setIsChatMode] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef(null);
@@ -49,14 +49,9 @@ const AIRecommendationScreen = ({ navigation }) => {
   ];
 
   useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
-  }, []);
+  }, [fadeAnim]);
 
-  const getRecommendations = async () => {
+  const _getRecommendations = async () => {
     if (!symptoms.trim()) {
       Alert.alert('Erreur', 'Veuillez décrire ce que vous cherchez');
       return;
@@ -362,7 +357,7 @@ const AIRecommendationScreen = ({ navigation }) => {
               <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
                 {recommendations.length} thérapeute(s) recommandé(s)
               </Text>
-              {recommendations.map((therapist, index) => (
+              {recommendations.map((therapist, _index) => (
                 <TouchableOpacity
                   key={therapist.therapist_id}
                   style={[styles.therapistCard, { backgroundColor: themeColors.surface }]}

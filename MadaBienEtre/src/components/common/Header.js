@@ -1,5 +1,3 @@
-import React from 'react';
-
 import {
   View,
   Text,
@@ -7,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
+  useWindowDimensions,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -14,8 +13,58 @@ import { useNavigation } from '@react-navigation/native';
 
 import { colors, typography } from '../../theme';
 
-const PRIMARY = colors.primary || '#168A55';
-const PRIMARY_DARK = '#0B633C';
+/* =========================================================
+   COLORS — thème RESPONSIVE du header
+   ---------------------------------------------------------
+   - WEB + GRAND ÉCRAN (>= WEB_LARGE_BREAKPOINT)  :
+       fond BLANC, texte/icônes en VERT.
+   - WEB + PETIT ÉCRAN (< WEB_LARGE_BREAKPOINT),
+     ANDROID, iOS :
+       fond VERT, texte/icônes en BLANC.
+   Le contraste texte/bouton reste toujours net, quelle que
+   soit la taille de l'écran ou la plateforme.
+========================================================= */
+
+const GREEN = colors.primary || '#168A55';
+const GREEN_DARK = '#0B633C';
+
+// Doit correspondre au seuil "isMobile" utilisé ailleurs
+// dans l'application (ex: OffersScreen) pour rester cohérent.
+const WEB_LARGE_BREAKPOINT = 850;
+
+const getHeaderColors = isLargeWebScreen => {
+  if (isLargeWebScreen) {
+    // ---- WEB / GRAND ÉCRAN : fond blanc, texte/icônes verts ----
+    return {
+      headerBg: '#FFFFFF',
+      borderColor: '#E3E7E4',
+
+      titleColor: GREEN_DARK,
+      subtitleColor: 'rgba(11,99,60,0.65)',
+      iconColor: GREEN_DARK,
+
+      backButtonBg: 'rgba(11,99,60,0.08)',
+      backButtonBorder: 'rgba(11,99,60,0.18)',
+
+      logoBoxBg: 'rgba(11,99,60,0.08)',
+    };
+  }
+
+  // ---- PETIT ÉCRAN WEB, ANDROID, iOS : fond vert, texte/icônes blancs ----
+  return {
+    headerBg: GREEN,
+    borderColor: GREEN_DARK,
+
+    titleColor: '#FFFFFF',
+    subtitleColor: 'rgba(255,255,255,0.80)',
+    iconColor: '#FFFFFF',
+
+    backButtonBg: 'rgba(255,255,255,0.18)',
+    backButtonBorder: 'rgba(255,255,255,0.32)',
+
+    logoBoxBg: 'rgba(255,255,255,0.18)',
+  };
+};
 
 const Header = ({
   title,
@@ -24,9 +73,21 @@ const Header = ({
   onBackPress,
   leftComponent,
   rightComponent,
-  showLogo = true,
+  showLogo = false,
 }) => {
   const navigation = useNavigation();
+
+  // ✅ Largeur réelle de la fenêtre — permet de savoir si on est
+  // sur un "grand écran" web (ordinateur) ou un "petit écran"
+  // (web mobile, ou app Android/iOS).
+  const { width } = useWindowDimensions();
+
+  const isWeb = Platform.OS === 'web';
+
+  const isLargeWebScreen =
+    isWeb && width >= WEB_LARGE_BREAKPOINT;
+
+  const HEADER_COLORS = getHeaderColors(isLargeWebScreen);
 
   const handleBack = () => {
     if (onBackPress) {
@@ -44,8 +105,8 @@ const Header = ({
       style={[
         styles.header,
         {
-          backgroundColor: PRIMARY,
-          borderBottomColor: PRIMARY_DARK,
+          backgroundColor: HEADER_COLORS.headerBg,
+          borderBottomColor: HEADER_COLORS.borderColor,
         },
       ]}
     >
@@ -55,7 +116,13 @@ const Header = ({
             <TouchableOpacity
               onPress={handleBack}
               activeOpacity={0.8}
-              style={styles.backButton}
+              style={[
+                styles.backButton,
+                {
+                  backgroundColor: HEADER_COLORS.backButtonBg,
+                  borderColor: HEADER_COLORS.backButtonBorder,
+                },
+              ]}
               hitSlop={{
                 top: 10,
                 bottom: 10,
@@ -68,7 +135,7 @@ const Header = ({
               <Ionicons
                 name="arrow-back"
                 size={23}
-                color="#FFFFFF"
+                color={HEADER_COLORS.iconColor}
               />
             </TouchableOpacity>
           ) : (
@@ -78,7 +145,14 @@ const Header = ({
 
         <View style={styles.brand}>
           {showLogo ? (
-            <View style={styles.logoBox}>
+            <View
+              style={[
+                styles.logoBox,
+                {
+                  backgroundColor: HEADER_COLORS.logoBoxBg,
+                },
+              ]}
+            >
               <Image
                 source={require('../../../assets/logo.png')}
                 style={styles.logo}
@@ -90,7 +164,12 @@ const Header = ({
           <View style={styles.brandText}>
             <Text
               numberOfLines={1}
-              style={styles.title}
+              style={[
+                styles.title,
+                {
+                  color: HEADER_COLORS.titleColor,
+                },
+              ]}
             >
               {title || 'Mada Bien-être'}
             </Text>
@@ -98,7 +177,12 @@ const Header = ({
             {subtitle ? (
               <Text
                 numberOfLines={1}
-                style={styles.subtitle}
+                style={[
+                  styles.subtitle,
+                  {
+                    color: HEADER_COLORS.subtitleColor,
+                  },
+                ]}
               >
                 {subtitle}
               </Text>
@@ -117,36 +201,50 @@ const Header = ({
 const styles = StyleSheet.create({
   header: {
     width: '100%',
+
     paddingTop:
       Platform.OS === 'ios'
         ? 46
         : Platform.OS === 'android'
-        ? 28
-        : 10,
+          ? 28
+          : 10,
+
     paddingBottom: 9,
+
     borderBottomWidth: 1,
+
     elevation: 8,
+
     shadowColor: '#000000',
-    shadowOpacity: 0.16,
+
+    shadowOpacity: 0.08,
+
     shadowRadius: 8,
+
     shadowOffset: {
       width: 0,
       height: 3,
     },
+
     zIndex: 100,
   },
 
   content: {
     width: '100%',
+
     minHeight: 48,
+
     paddingHorizontal: 14,
+
     flexDirection: 'row',
+
     alignItems: 'center',
   },
 
   sideSlot: {
     width: 44,
     height: 42,
+
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -154,57 +252,74 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
+
     borderRadius: 12,
+
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.16)',
+
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
   },
 
   brand: {
     flex: 1,
+
     minWidth: 0,
+
     flexDirection: 'row',
+
     alignItems: 'center',
+
     justifyContent: 'center',
   },
 
   logoBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    width: 32,
+    height: 32,
+
+    borderRadius: 10,
+
     alignItems: 'center',
     justifyContent: 'center',
+
     marginRight: 8,
+
     overflow: 'hidden',
   },
 
   logo: {
-    width: 29,
-    height: 29,
+    width: 24,
+    height: 24,
   },
 
   brandText: {
     minWidth: 0,
+
     maxWidth: '75%',
+
     alignItems: 'center',
   },
 
   title: {
-    color: '#FFFFFF',
     fontSize: 15,
+
     fontWeight: '800',
-    fontFamily: typography.fontFamily.bold,
+
+    fontFamily:
+      typography.fontFamily.bold,
+
     textAlign: 'center',
   },
 
   subtitle: {
-    color: 'rgba(255,255,255,0.82)',
     fontSize: 9,
+
     marginTop: 2,
+
     textAlign: 'center',
+
+    fontFamily:
+      typography.fontFamily.regular,
   },
 });
 

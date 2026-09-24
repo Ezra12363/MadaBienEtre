@@ -1,5 +1,5 @@
 // src/context/AuthContext.js
-import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
+import { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import authService from '../services/authService';
 import api from '../services/api'; // ✅ Ajout de l'import api
 

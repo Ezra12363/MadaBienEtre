@@ -1,13 +1,12 @@
 // src/components/therapist/SpecialtiesSelector.js
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  ScrollView,
   FlatList,
   Image,
   Alert,
@@ -15,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, typography, spacing } from '../../theme';
+import { colors, typography } from '../../theme';
 import therapistService from '../../services/therapistService';
 import massageTypeService from '../../services/massageTypeService';
 import adminService from '../../services/adminService';
@@ -25,7 +24,7 @@ const SpecialtiesSelector = ({
   initialSpecialties = [],
   readOnly = false,
 }) => {
-  const { colors: themeColors, isDark } = useTheme();
+  const { colors: themeColors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [availableTypes, setAvailableTypes] = useState([]);
@@ -159,7 +158,7 @@ const SpecialtiesSelector = ({
       } else {
         Alert.alert('Erreur', result.error || 'Impossible de mettre à jour les spécialités.');
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert('Erreur', 'Une erreur est survenue.');
     } finally {
       setSubmitting(false);

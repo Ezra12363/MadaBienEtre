@@ -1,4 +1,28 @@
 // src/utils/validators.js
+// Vérifie la robustesse du mot de passe utilisée par validators.password.
+const validatePassword = (value) => {
+  const errors = [];
+  const password = typeof value === 'string' ? value : '';
+
+  if (password.length < 8) {
+    errors.push('au moins 8 caractères');
+  }
+  if (!/[A-Z]/.test(password)) {
+    errors.push('une lettre majuscule');
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push('une lettre minuscule');
+  }
+  if (!/[0-9]/.test(password)) {
+    errors.push('un chiffre');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+};
+
 export const validators = {
   required: (value) => {
     if (!value || (typeof value === 'string' && value.trim() === '')) {

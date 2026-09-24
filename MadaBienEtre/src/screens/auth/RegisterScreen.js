@@ -57,7 +57,6 @@ import AppHeader from '../../components/common/AppHeader';
 // ============================================================
 
 const GREEN = '#2E7D32';
-const GREEN_DARK = '#1B5E20';
 const GREEN_LIGHT = '#EAF5EC';
 const WHITE = '#FFFFFF';
 

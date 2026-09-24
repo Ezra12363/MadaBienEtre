@@ -1,6 +1,6 @@
 // src/screens/client/ChatScreen.js
 
-import React, {
+import {
   useState,
   useEffect,
   useRef,
@@ -90,6 +90,7 @@ const Toast = ({
     }, 2600);
 
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- ne doit se relancer que si `visible` change ; `hideToast` est recréée à chaque render
   }, [visible]);
 
   const hideToast = () => {
@@ -261,7 +262,7 @@ const ChatScreen = ({
   } = useTheme();
 
   const {
-    token,
+    token: _token,
     user,
   } = useAuth();
 
@@ -377,6 +378,7 @@ const ChatScreen = ({
     return () => {
       keyboardDidShowListener.remove();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- effet de montage unique ; `loadChatHistory`/`scrollToBottom` sont recréées à chaque render
   }, []);
 
   // ==========================================================
@@ -650,7 +652,7 @@ const ChatScreen = ({
               '2-digit',
           }
         );
-      } catch (e) {
+      } catch (_e) {
         return '';
       }
     };
@@ -697,7 +699,7 @@ const ChatScreen = ({
             month: 'short',
           }
         );
-      } catch (e) {
+      } catch (_e) {
         return '';
       }
     };

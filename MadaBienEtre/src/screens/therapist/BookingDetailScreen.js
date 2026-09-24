@@ -12,7 +12,7 @@
 // 6. Actions navigation, négociation, suivi, SOS et message.
 // ============================================================
 
-import React, {
+import {
   useCallback,
   useEffect,
   useRef,

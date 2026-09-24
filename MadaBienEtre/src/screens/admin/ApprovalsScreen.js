@@ -1,6 +1,6 @@
 // src/screens/admin/ApprovalsScreen.js
 
-import React, {
+import {
   useState,
   useCallback,
   useEffect,

@@ -1,5 +1,4 @@
 // src/navigation/RootNavigator.js
-import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';

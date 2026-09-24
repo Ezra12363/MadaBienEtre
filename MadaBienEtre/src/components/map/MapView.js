@@ -1,22 +1,18 @@
 // src/components/map/MapView.js
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Dimensions,
-  Platform,
 } from 'react-native';
 // ❌ Esory ny import react-native-maps
 // import MapView, { Marker, PROVIDER_GOOGLE, Circle, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, spacing, typography } from '../../theme';
-
-const { width, height } = Dimensions.get('window');
+import { colors, typography } from '../../theme';
 
 // ✅ Palette de secours pour les mêmes "statuts" que MapViewWrapper —
 // permet à ce composant simulé d'afficher aussi des couleurs
@@ -46,23 +42,17 @@ const resolveMarkerColor = ({ pinColor, status, available } = {}) => {
 };
 
 // ✅ MapView simulée ho an'ny web sy mobile
-const MapViewComponent = ({ 
-  children, 
-  style, 
-  initialRegion, 
-  onRegionChange,
-  onPress,
-  provider,
-  showsUserLocation,
-  showsMyLocationButton,
-  ...props 
-}) => {
-  const { colors: themeColors, isDark } = useTheme();
+// ✅ Les props non utilisées par cette carte simulée (initialRegion,
+// onRegionChange, onPress, provider, showsUserLocation,
+// showsMyLocationButton...) sont simplement ignorées.
+const MapViewComponent = ({ children, style }) => {
+  const { colors: themeColors } = useTheme();
   const [location, setLocation] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     getLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const getLocation = async () => {
@@ -132,7 +122,7 @@ const MapViewComponent = ({
 // Google Maps : contour blanc + couleur pleine selon le statut,
 // avec une petite ombre au sol pour donner un effet 3D "posé" sur
 // la carte, plutôt qu'un simple point encerclé.
-export const Marker = ({ children, coordinate, title, pinColor, status, available, ...props }) => {
+export const Marker = ({ children, title, pinColor, status, available }) => {
   const { colors: themeColors } = useTheme();
   const color = resolveMarkerColor({ pinColor, status, available });
 
@@ -169,7 +159,7 @@ export const Marker = ({ children, coordinate, title, pinColor, status, availabl
 };
 
 // ✅ Fake Circle
-export const Circle = ({ center, radius, strokeColor, fillColor, ...props }) => {
+export const Circle = ({ radius, strokeColor, fillColor }) => {
   return (
     <View style={[
       styles.circle,
@@ -185,7 +175,7 @@ export const Circle = ({ center, radius, strokeColor, fillColor, ...props }) => 
 };
 
 // ✅ Fake Polyline
-export const Polyline = ({ coordinates, strokeColor, strokeWidth, lineDashPattern, ...props }) => {
+export const Polyline = ({ strokeColor, strokeWidth }) => {
   return (
     <View style={[
       styles.polyline,

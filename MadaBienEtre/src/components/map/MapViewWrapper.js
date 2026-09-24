@@ -1,5 +1,5 @@
 // src/components/map/MapViewWrapper.js
-import React, {
+import {
   forwardRef,
   useCallback,
   useEffect,
@@ -30,7 +30,7 @@ let RNMarker = null;
 let RNPolyline = null;
 let RNCircle = null;
 let PROVIDER_GOOGLE = null;
-let RN_MAPS_LOAD_ERROR = null;
+let RN_MAPS_LOAD_ERROR;
 
 if (Platform.OS !== 'web') {
   try {
@@ -42,6 +42,7 @@ if (Platform.OS !== 'web') {
     PROVIDER_GOOGLE = Maps.PROVIDER_GOOGLE;
     if (!RNMapView) {
       RN_MAPS_LOAD_ERROR = "Ny module 'react-native-maps' dia hita fa tsy misy 'default'/'MapView' export.";
+      console.warn('❌ react-native-maps tsy azo ampiasaina:', RN_MAPS_LOAD_ERROR);
     }
   } catch (e) {
     RN_MAPS_LOAD_ERROR = e?.message || String(e);
@@ -55,7 +56,7 @@ const resetGoogleMapsLoader = () => {
   const existing = document.getElementById('google-maps-js-api');
   if (existing) existing.remove();
   if (window.google) {
-    try { delete window.google; } catch (e) { window.google = undefined; }
+    try { delete window.google; } catch (_e) { window.google = undefined; }
   }
 };
 
@@ -207,6 +208,7 @@ const MapTypeToggle = ({ mapType, onToggle, style }) => {
   );
 };
 
+// eslint-disable-next-line no-unused-vars
 const ScrollableMarkerList = ({ markers = [], onMarkerPress }) => {
   if (!markers.length) return null;
   return (
@@ -245,7 +247,6 @@ const MapViewWrapper = forwardRef(({
   showMapTypeControl = true,
   onMarkerPress,
   onMapReady,
-  fitToMarkersOnLoad = true,
   onMapPress,
   selectionMarker = null,
   onSelectionDragEnd,
@@ -347,6 +348,7 @@ const MapViewWrapper = forwardRef(({
       });
 
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [retryCount]);
 
   const retryWebMap = useCallback(() => {
@@ -380,10 +382,10 @@ const MapViewWrapper = forwardRef(({
 
       const isSatelliteMode = mapType === MAP_TYPES.satellite || mapType === MAP_TYPES.hybrid;
       if (isSatelliteMode) {
-        try { map.setTilt(45); } catch (e) { /* tilt indisponible sur cette zone */ }
+        try { map.setTilt(45); } catch (_e) { /* tilt indisponible sur cette zone */ }
         if ((map.getZoom() || 0) < 17) map.setZoom(18);
       } else {
-        try { map.setTilt(0); } catch (e) { /* no-op */ }
+        try { map.setTilt(0); } catch (_e) { /* no-op */ }
       }
     }
   }, [mapType]);
@@ -427,6 +429,7 @@ const MapViewWrapper = forwardRef(({
         delete webMarkersRef.current[id];
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markers, isLoading]);
 
   // ============================================================

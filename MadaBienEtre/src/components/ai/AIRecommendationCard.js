@@ -1,12 +1,9 @@
 // src/components/ai/AIRecommendationCard.js
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
-
-const { width } = Dimensions.get('window');
 
 const AIRecommendationCard = ({ 
   therapist, 

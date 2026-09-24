@@ -1,6 +1,6 @@
 // src/screens/auth/OTPVerificationScreen.js
 
-import React, {
+import {
   useState,
   useRef,
   useEffect,
@@ -50,7 +50,7 @@ const OTPVerificationScreen = ({
   navigation,
 }) => {
 
-  const { email, fullname } =
+  const { email } =
     route.params || {};
 
   // ==========================================================
@@ -136,10 +136,6 @@ const OTPVerificationScreen = ({
   const isTablet =
     width >= 768 &&
     width < 1100;
-
-  const isMobile =
-    !isWeb ||
-    width < 768;
 
   const isSmallScreen =
     height < 700;
@@ -493,6 +489,7 @@ const OTPVerificationScreen = ({
 
     };
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 
@@ -1026,7 +1023,7 @@ const OTPVerificationScreen = ({
 
         }
 
-      } catch (error) {
+      } catch (_error) {
 
         setIsResending(false);
 

@@ -1,5 +1,5 @@
 // src/context/BookingContext.js
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 // ✅ FIXÉ (BUG MAJEUR) : ce contexte ne faisait QUE simuler des
 // données (bookings statiques codées en dur, createBooking qui ne
@@ -17,7 +17,7 @@ export const BookingProvider = ({ children }) => {
   const [bookings, setBookings] = useState([]);
   const [currentBooking, setCurrentBooking] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [offers, setOffers] = useState([]);
+  const [offers] = useState([]);
 
   useEffect(() => {
     if (user) {

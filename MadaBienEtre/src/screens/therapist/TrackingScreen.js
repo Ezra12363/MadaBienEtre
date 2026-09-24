@@ -1,5 +1,5 @@
 // src/screens/therapist/TrackingScreen.js
-import React, {
+import {
   useState,
   useEffect,
   useRef,
@@ -21,7 +21,6 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
-import TherapistBottomMenu from '../../components/common/TherapistBottomMenu';
 import SOSButton from '../../components/sos/SOSButton';
 import axios from 'axios';
 import { API_URL, WS_URL } from '../../config';
@@ -126,12 +125,8 @@ const buildTrackingWebSocketUrl = (bookingId, token) => {
 // SCREEN
 // ============================================================
 
-const TrackingScreen = ({ navigation, route }) => {
+const TrackingScreen = ({ route }) => {
   const { bookingId } = route.params;
-
-  // ✅ Tab tokony hijanona voamariky ao amin'ny menu ambany (jereo
-  // ny fanazavana tao amin'ny NavigationScreen.js).
-  const activeTab = route.params?.activeTab || 'Calendrier';
 
   const { colors: themeColors } = useTheme();
   const { token } = useAuth();
@@ -373,7 +368,7 @@ const TrackingScreen = ({ navigation, route }) => {
       if (wsRef.current) {
         try {
           wsRef.current.close();
-        } catch (e) {
+        } catch (_e) {
           // no-op
         }
         wsRef.current = null;
@@ -429,8 +424,6 @@ const TrackingScreen = ({ navigation, route }) => {
             Chargement du suivi...
           </Text>
         </View>
-
-        <TherapistBottomMenu navigation={navigation} activeTab={activeTab} />
       </View>
     );
   }
@@ -621,8 +614,6 @@ const TrackingScreen = ({ navigation, route }) => {
           </View>
         </Animatable.View>
       </View>
-
-      <TherapistBottomMenu navigation={navigation} activeTab={activeTab} />
     </View>
   );
 };

@@ -27,7 +27,7 @@
  * ============================================================
  */
 
-import React, {
+import {
   useState,
   useEffect,
   useRef,
@@ -194,7 +194,7 @@ const getNotificationData = (notification) => {
       ) {
         return parsed;
       }
-    } catch (error) {
+    } catch (_error) {
       return {};
     }
   }
@@ -563,7 +563,7 @@ const NotificationScreen = ({
 
 
   const [
-    currentTime,
+    _currentTime,
     setCurrentTime,
   ] = useState(Date.now());
 
@@ -1673,7 +1673,7 @@ const NotificationScreen = ({
 
         try {
 
-          let result = null;
+          let result;
 
 
           /* ----------------------------------------------------
@@ -2265,7 +2265,6 @@ const NotificationScreen = ({
     }, [
       notifications,
       selectedFilter,
-      currentTime,
     ]);
 
 
@@ -2758,7 +2757,6 @@ const NotificationScreen = ({
 
       },
       [
-        colors.primary,
         deletingId,
         getColor,
         getIcon,
@@ -2857,7 +2855,6 @@ const NotificationScreen = ({
       );
 
     }, [
-      colors.primary,
       filters,
       selectedFilter,
       themeColors.text,

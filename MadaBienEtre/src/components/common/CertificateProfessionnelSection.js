@@ -1,5 +1,5 @@
 // src/components/common/CertificateProfessionnelSection.js
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,8 +17,6 @@ import { uploadFile } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 
 const CertificateProfessionnelSection = ({
   certificateUrl,

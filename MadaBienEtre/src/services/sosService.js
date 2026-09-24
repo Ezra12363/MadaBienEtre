@@ -1,5 +1,5 @@
 // src/services/sosService.js
-import { get, post, put, handleApiError } from './api';
+import { get, post, put } from './api';
 import * as Location from 'expo-location';
 
 class SOSService {

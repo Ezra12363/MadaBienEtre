@@ -2,9 +2,14 @@
 // ============================================================
 // MADA BIEN-ÊTRE — APP HEADER
 // HEADER FIXE — ANDROID / IOS / WEB
+//
+//   - Web         : fond BLANC, texte/icônes vert foncé (bien
+//                   lisibles sur fond clair).
+//   - Android/iOS : fond VERT (thème d'origine), texte/icônes
+//                   blancs (bien lisibles sur fond foncé).
 // ============================================================
 
-import React from 'react';
+import { useEffect } from 'react';
 
 import {
   View,
@@ -20,28 +25,49 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+import { useNavBridge, useTopNavLayout } from './AppNavigation';
+
 /* =========================================================
-   COLORS
+   COLORS — un jeu de couleurs par plateforme
 ========================================================= */
 
-export const HEADER_COLORS = {
-  primary: '#2E7D32',
-  primaryDark: '#164B2A',
-  primaryMid: '#1F6B38',
+const IS_WEB = Platform.OS === 'web';
 
-  white: '#FFFFFF',
+export const HEADER_COLORS = IS_WEB
+  ? {
+      // ---- WEB : fond blanc ----
+      headerBg: '#FFFFFF',
+      border: '#E3E7E4',
 
-  headerBg: '#2E7D32',
+      text: '#164B2A',
+      subtitle: 'rgba(22,75,42,0.65)',
+      iconColor: '#164B2A',
 
-  logoBoxBg: 'rgba(255,255,255,0.18)',
+      logoBoxBg: 'rgba(22,75,42,0.08)',
 
-  backButtonBg: 'rgba(255,255,255,0.16)',
-  backButtonBgPressed: 'rgba(255,255,255,0.28)',
+      backButtonBg: 'rgba(22,75,42,0.08)',
+      backButtonBgPressed: 'rgba(22,75,42,0.16)',
 
-  subtitle: 'rgba(255,255,255,0.85)',
+      statusBarStyle: 'dark-content',
+      statusBarBg: '#FFFFFF',
+    }
+  : {
+      // ---- ANDROID / IOS : fond vert (inchangé) ----
+      headerBg: '#2E7D32',
+      border: 'rgba(255,255,255,0.14)',
 
-  border: 'rgba(255,255,255,0.14)',
-};
+      text: '#FFFFFF',
+      subtitle: 'rgba(255,255,255,0.85)',
+      iconColor: '#FFFFFF',
+
+      logoBoxBg: 'rgba(255,255,255,0.18)',
+
+      backButtonBg: 'rgba(255,255,255,0.16)',
+      backButtonBgPressed: 'rgba(255,255,255,0.28)',
+
+      statusBarStyle: 'light-content',
+      statusBarBg: '#164B2A',
+    };
 
 /* =========================================================
    COMPONENT
@@ -57,6 +83,7 @@ export default function AppHeader({
   rightContent = null,
   transparent = false,
   manageStatusBar = true,
+  showLogo = true,
 }) {
   const { width } = useWindowDimensions();
 
@@ -66,6 +93,31 @@ export default function AppHeader({
 
   const isMobile = width < 850;
   const isTablet = width >= 850 && width < 1100;
+
+  /* ---------------------------------------------------------
+     BARRE FUSIONNÉE (web large) — voir AppNavigation.js
+     Android / iOS ne sont jamais concernés : `useTopNavLayout`
+     ne renvoie `isMerged = true` que si Platform.OS === 'web'.
+  --------------------------------------------------------- */
+
+  const bridge = useNavBridge();
+  const { isMerged } = useTopNavLayout();
+  const isSuppressed = isMerged && !!bridge;
+
+  // IMPORTANT — anti "Maximum update depth exceeded" :
+  // on dépend de la fonction `setPageContext` (référence stable,
+  // garantie par useCallback dans NavBridgeProvider), jamais de
+  // l'objet `bridge` en entier. `bridge` change de référence à
+  // chaque mise à jour du "pont" ; le mettre dans les dépendances
+  // du useEffect créait une boucle : effet -> setPageContext ->
+  // nouveau `bridge` -> effet -> setPageContext -> ... à l'infini.
+  const setPageContext = bridge?.setPageContext;
+
+  useEffect(() => {
+    if (isSuppressed && setPageContext) {
+      setPageContext({ title, subtitle, showBack, onBack });
+    }
+  }, [isSuppressed, setPageContext, title, subtitle, showBack, onBack]);
 
   /* ---------------------------------------------------------
      BACK
@@ -86,6 +138,17 @@ export default function AppHeader({
       navigation.goBack();
     }
   };
+
+  /* ---------------------------------------------------------
+     Web large : la barre fusionnée (TopNavBar) affiche déjà
+     tout ce qu'il faut — cet écran n'a plus besoin de son
+     propre header. Android / iOS : jamais concerné, voir plus
+     haut (`isSuppressed` dépend de Platform.OS === 'web').
+  --------------------------------------------------------- */
+
+  if (isSuppressed) {
+    return null;
+  }
 
   /* =========================================================
      HEADER CONTENT
@@ -120,7 +183,7 @@ export default function AppHeader({
           <Ionicons
             name="arrow-back"
             size={22}
-            color={HEADER_COLORS.white}
+            color={HEADER_COLORS.iconColor}
           />
         </Pressable>
       ) : (
@@ -134,7 +197,7 @@ export default function AppHeader({
       )}
 
       {/* =====================================================
-          CENTER — LOGO + TEXT
+          CENTER — LOGO (image réelle) + TEXT
       ===================================================== */}
 
       <Pressable
@@ -146,27 +209,25 @@ export default function AppHeader({
           isMobile && styles.centerLogoContainerMobile,
         ]}
       >
-        {/* LOGO */}
-
-        <View
-          style={[
-            styles.logoBox,
-
-            isMobile && styles.logoBoxMobile,
-          ]}
-        >
-          <Image
-            source={require('../../../assets/logo.png')}
+        {showLogo ? (
+          <View
             style={[
-              styles.logo,
+              styles.logoBox,
 
-              isMobile && styles.logoMobile,
+              isMobile && styles.logoBoxMobile,
             ]}
-            resizeMode="contain"
-          />
-        </View>
+          >
+            <Image
+              source={require('../../../assets/logo.png')}
+              style={[
+                styles.logo,
 
-        {/* TEXT */}
+                isMobile && styles.logoMobile,
+              ]}
+              resizeMode="contain"
+            />
+          </View>
+        ) : null}
 
         <View
           style={[
@@ -245,8 +306,8 @@ export default function AppHeader({
 
       {manageStatusBar && (
         <StatusBar
-          barStyle="light-content"
-          backgroundColor={HEADER_COLORS.primaryDark}
+          barStyle={HEADER_COLORS.statusBarStyle}
+          backgroundColor={HEADER_COLORS.statusBarBg}
           translucent={false}
         />
       )}
@@ -308,7 +369,7 @@ const styles = StyleSheet.create({
 
         top: 0,
 
-        boxShadow: '0px 4px 14px rgba(0,0,0,0.15)',
+        boxShadow: '0px 4px 14px rgba(0,0,0,0.08)',
       },
 
       default: {
@@ -443,15 +504,15 @@ const styles = StyleSheet.create({
   },
 
   /* =======================================================
-     LOGO BOX
+     LOGO BOX (image réelle, plus un simple texte)
   ======================================================= */
 
   logoBox: {
-    width: 50,
+    width: 46,
 
-    height: 50,
+    height: 46,
 
-    borderRadius: 14,
+    borderRadius: 13,
 
     backgroundColor: HEADER_COLORS.logoBoxBg,
 
@@ -460,14 +521,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
 
     marginRight: 10,
+
+    overflow: 'hidden',
   },
 
   logoBoxMobile: {
-    width: 44,
+    width: 40,
 
-    height: 44,
+    height: 40,
 
-    borderRadius: 13,
+    borderRadius: 12,
 
     marginRight: 8,
   },
@@ -477,15 +540,15 @@ const styles = StyleSheet.create({
   ======================================================= */
 
   logo: {
-    width: 38,
+    width: 34,
 
-    height: 38,
+    height: 34,
   },
 
   logoMobile: {
-    width: 32,
+    width: 28,
 
-    height: 32,
+    height: 28,
   },
 
   /* =======================================================
@@ -499,15 +562,15 @@ const styles = StyleSheet.create({
 
     flexShrink: 1,
 
-    maxWidth: 230,
+    maxWidth: 210,
   },
 
   logoTextsMobile: {
-    maxWidth: 170,
+    maxWidth: 155,
   },
 
   logoTitle: {
-    color: HEADER_COLORS.white,
+    color: HEADER_COLORS.text,
 
     fontSize: 18,
 

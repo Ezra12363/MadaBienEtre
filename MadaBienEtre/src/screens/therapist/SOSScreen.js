@@ -1,7 +1,5 @@
-// src/screens/therapist/SOSScreen.js
-// Même code que pour le client, adapté pour le thérapeute
-
-import React, { useState, useRef, useEffect } from 'react';
+// src/screens/client/SOSScreen.js
+import { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,10 +9,11 @@ import {
   Alert,
   Animated,
   Linking,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as Animatable from 'react-native-animatable';
+import { LinearGradient } from 'expo-linear-gradient'; // ✅ Maintenant disponible
+import * as Animatable from 'react-native-animatable'; // ✅ Maintenant disponible
 import * as Location from 'expo-location';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -22,14 +21,16 @@ import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import axios from 'axios';
 import { API_URL } from '../../config';
+import SOSButton from '../../components/sos/SOSButton';
 
-const SOSScreen = ({ navigation }) => {
-  const { colors: themeColors, isDark } = useTheme();
-  const { token, user } = useAuth();
+const SOSScreen = ({ navigation: _navigation }) => {
+  const { colors: themeColors, isDark: _isDark } = useTheme();
+  const { token, user: _user } = useAuth();
   
   const [isLoading, setIsLoading] = useState(false);
   const [location, setLocation] = useState(null);
-  const [isEmergency, setIsEmergency] = useState(false);
+  const [_isEmergency, setIsEmergency] = useState(false);
+  const [sosSent, setSosSent] = useState(false);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -38,6 +39,7 @@ const SOSScreen = ({ navigation }) => {
     return () => {
       pulseAnim.stopAnimation();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- effet de montage unique ; `startPulseAnimation` est recréée à chaque render
   }, []);
 
   const startPulseAnimation = () => {
@@ -65,7 +67,9 @@ const SOSScreen = ({ navigation }) => {
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({});
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
       setLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
@@ -86,10 +90,10 @@ const SOSScreen = ({ navigation }) => {
       const response = await axios.post(
         `${API_URL}/sos/create`,
         {
-          alert_type: 'therapist',
+          alert_type: 'emergency',
           latitude: location.latitude,
           longitude: location.longitude,
-          details: 'Alerte SOS déclenchée par le thérapeute',
+          details: 'Alerte SOS déclenchée par l\'utilisateur',
           severity: 'critical',
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -97,6 +101,7 @@ const SOSScreen = ({ navigation }) => {
 
       if (response.data.status === 'active') {
         setIsEmergency(true);
+        setSosSent(true);
         Alert.alert(
           '🚨 ALERTE SOS ENVOYÉE',
           'Notre équipe d\'urgence a été notifiée. Elle vous contactera dans les plus brefs délais.',
@@ -105,7 +110,6 @@ const SOSScreen = ({ navigation }) => {
               text: 'OK',
               onPress: () => {
                 Linking.openURL('tel:117');
-                navigation.goBack();
               },
             },
           ]
@@ -136,12 +140,13 @@ const SOSScreen = ({ navigation }) => {
     <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <Header title="SOS - Urgence" showBack />
 
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Bouton SOS principal */}
         <Animatable.View animation="pulse" iterationCount="infinite" duration={2000}>
           <TouchableOpacity
             style={styles.sosButtonContainer}
             onPress={handleSOS}
-            disabled={isLoading}
+            disabled={isLoading || sosSent}
             activeOpacity={0.8}
           >
             <Animated.View style={[
@@ -158,6 +163,11 @@ const SOSScreen = ({ navigation }) => {
             >
               {isLoading ? (
                 <ActivityIndicator color="#fff" size="large" />
+              ) : sosSent ? (
+                <View style={styles.sosContent}>
+                  <Ionicons name="checkmark-circle" size={48} color="#fff" />
+                  <Text style={styles.sosText}>ALERTE ENVOYÉE</Text>
+                </View>
               ) : (
                 <View style={styles.sosContent}>
                   <Ionicons name="alert-circle" size={48} color="#fff" />
@@ -172,6 +182,7 @@ const SOSScreen = ({ navigation }) => {
           En appuyant sur le bouton, vous envoyez votre position GPS à notre équipe d'urgence
         </Text>
 
+        {/* Position */}
         {location && (
           <View style={[styles.locationCard, { backgroundColor: themeColors.surface }]}>
             <Ionicons name="location" size={24} color={colors.primary} />
@@ -186,6 +197,7 @@ const SOSScreen = ({ navigation }) => {
           </View>
         )}
 
+        {/* Contacts d'urgence */}
         <View style={styles.emergencyContacts}>
           <Text style={[styles.contactsTitle, { color: themeColors.text }]}>
             Contacts d'urgence
@@ -196,6 +208,7 @@ const SOSScreen = ({ navigation }) => {
                 key={contact.number}
                 style={[styles.contactCard, { backgroundColor: themeColors.surface }]}
                 onPress={() => Linking.openURL(`tel:${contact.number}`)}
+                activeOpacity={0.7}
               >
                 <View style={styles.contactIcon}>
                   <Ionicons name={contact.icon} size={28} color={colors.error} />
@@ -209,6 +222,7 @@ const SOSScreen = ({ navigation }) => {
           </View>
         </View>
 
+        {/* Conseils de sécurité */}
         <View style={[styles.tipsCard, { backgroundColor: colors.error + '10' }]}>
           <Ionicons name="bulb-outline" size={24} color={colors.error} />
           <View style={styles.tipsContent}>
@@ -226,7 +240,12 @@ const SOSScreen = ({ navigation }) => {
             </Text>
           </View>
         </View>
-      </View>
+
+        {/* Bouton SOS compact en bas */}
+        <View style={styles.bottomSOSContainer}>
+          <SOSButton variant="compact" showText={true} />
+        </View>
+      </ScrollView>
     </View>
   );
 };
@@ -236,9 +255,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    flex: 1,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   sosButtonContainer: {
     alignItems: 'center',
@@ -281,13 +300,14 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
     lineHeight: 22,
     paddingHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
   },
   locationCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: spacing.md,
     borderRadius: 12,
-    marginTop: spacing.lg,
+    marginBottom: spacing.md,
     gap: spacing.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -307,7 +327,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
   },
   emergencyContacts: {
-    marginTop: spacing.lg,
+    marginBottom: spacing.lg,
   },
   contactsTitle: {
     fontSize: typography.fontSize.lg,
@@ -346,8 +366,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: spacing.md,
     borderRadius: 12,
-    marginTop: spacing.lg,
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
     gap: spacing.md,
   },
   tipsContent: {
@@ -362,6 +381,11 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.regular,
     lineHeight: 22,
+  },
+  bottomSOSContainer: {
+    alignItems: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
   },
 });
 

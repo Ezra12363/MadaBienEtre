@@ -1,5 +1,5 @@
 // src/screens/admin/UsersScreen.js
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
-  Animated,
   Modal,
   ScrollView,
   SafeAreaView,
   Image,
-  Pressable,
   Platform,
   KeyboardAvoidingView,
   Switch,
@@ -27,7 +25,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import { colors, spacing, typography } from '../../theme';
+import { colors, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
 import AdminUserAddressModal from '../../components/admin/AdminUserAddressModal';
@@ -49,11 +47,11 @@ const ITEMS_PER_PAGE = 10;
    MAIN COMPONENT
 ============================================================ */
 
-const UsersScreen = ({ navigation }) => {
+const UsersScreen = () => {
   const { colors: themeColors, isDark } = useTheme();
-  const { token, user } = useAuth();
+  useAuth();
 
-  const { isTablet, isDesktop, isLargeScreen, horizontalPadding } = useResponsive();
+  const { isDesktop, horizontalPadding } = useResponsive();
 
   /* ==========================================================
      STATE
@@ -345,6 +343,7 @@ const UsersScreen = ({ navigation }) => {
   useFocusEffect(
     useCallback(() => {
       loadAllData();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [showDeleted])
   );
 
@@ -487,6 +486,7 @@ const UsersScreen = ({ navigation }) => {
 
   useEffect(() => {
     applyFilters(searchQuery, selectedFilter, users);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users]);
 
   /* ==========================================================
@@ -764,7 +764,7 @@ const UsersScreen = ({ navigation }) => {
       return;
     }
 
-    const newStatus = !Boolean(targetUser.is_active);
+    const newStatus = !targetUser.is_active;
     const action = newStatus ? 'activer' : 'désactiver';
     const actionPast = newStatus ? 'activé' : 'désactivé';
 
@@ -942,11 +942,6 @@ const UsersScreen = ({ navigation }) => {
     return map[role] || role;
   };
 
-  const getRoleIcon = (role) => {
-    const map = { CLIENT: 'person-outline', THERAPIST: 'fitness-outline', ADMIN: 'shield-checkmark-outline' };
-    return map[role] || 'person-outline';
-  };
-
   const getStatusColor = (isActive) => (isActive ? '#27AE60' : '#E74C3C');
   const getStatusLabel = (isActive) => (isActive ? 'Actif' : 'Inactif');
 
@@ -1010,12 +1005,6 @@ const UsersScreen = ({ navigation }) => {
     } finally {
       setExportingExcel(false);
     }
-  };
-
-  const toggleSelect = (userId) => {
-    setSelectedIds((prev) =>
-      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
-    );
   };
 
   /* ==========================================================

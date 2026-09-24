@@ -1,5 +1,4 @@
 // src/components/chat/ChatBubble.js
-import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -8,12 +7,11 @@ import { colors, spacing, typography } from '../../theme';
 const ChatBubble = ({
   message,
   isOwn,
-  timestamp,
   avatar,
   onLongPress,
   showAvatar = true,
 }) => {
-  const { colors: themeColors, isDark } = useTheme();
+  const { colors: themeColors } = useTheme();
 
   const formatTime = (date) => {
     const d = new Date(date);

@@ -1,6 +1,6 @@
 // src/screens/therapist/AvailabilityScreen.js
 
-import React, {
+import {
   useState,
   useEffect,
   useCallback,

@@ -19,7 +19,7 @@
 //   - adminService.updateTherapistSpecialties(therapistId, ids) (PUT, nouveau)
 //   - massageTypeService.getActiveMassageTypes()             (déjà existant)
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -33,7 +33,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
-import { colors, typography, spacing } from '../../theme';
+import { colors, typography } from '../../theme';
 import therapistService from '../../services/therapistService';
 import massageTypeService from '../../services/massageTypeService';
 import adminService from '../../services/adminService';
@@ -134,7 +134,7 @@ const AdminSpecialtiesManager = ({
       } else {
         Alert.alert('Erreur', result.error || 'Impossible de mettre à jour les spécialités.');
       }
-    } catch (error) {
+    } catch (_error) {
       Alert.alert('Erreur', 'Une erreur est survenue.');
     } finally {
       setSubmitting(false);

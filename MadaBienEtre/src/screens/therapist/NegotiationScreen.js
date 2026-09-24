@@ -1,6 +1,6 @@
 // src/screens/therapist/NegotiationScreen.js
 
-import React, {
+import {
   useCallback,
   useEffect,
   useMemo,
@@ -33,7 +33,6 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing } from '../../theme';
 
 import Header from '../../components/common/Header';
-import TherapistBottomMenu from '../../components/common/TherapistBottomMenu';
 
 // ============================================================
 // ANDROID STATUS BAR
@@ -512,12 +511,6 @@ const NegotiationScreen = ({
   route,
 }) => {
   const params = route?.params || {};
-
-  // ✅ FIX : "Negotiation" dia écran root izao (ivelan'ny
-  // Tab.Navigator), ka tsy miseho ho azy intsony ny tab bar —
-  // TherapistBottomMenu manokana no mampiseho azy eto, mijoro
-  // eo amin'ilay tab niaingana (Calendrier na Demandes).
-  const activeTab = params.activeTab || 'Demandes';
 
   // ==========================================================
   // BOOKING
@@ -1902,8 +1895,6 @@ const NegotiationScreen = ({
             est manquant.
           </Text>
         </View>
-
-        <TherapistBottomMenu navigation={navigation} activeTab={activeTab} />
       </SafeAreaView>
     );
   }
@@ -1948,8 +1939,6 @@ const NegotiationScreen = ({
             Chargement de la négociation...
           </Text>
         </View>
-
-        <TherapistBottomMenu navigation={navigation} activeTab={activeTab} />
       </SafeAreaView>
     );
   }
@@ -3279,8 +3268,6 @@ showBack
           />
         </Animated.ScrollView>
       </KeyboardAvoidingView>
-
-      <TherapistBottomMenu navigation={navigation} activeTab={activeTab} />
     </SafeAreaView>
   );
 };

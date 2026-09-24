@@ -19,7 +19,7 @@
 // 7. Heure réelle récupérée depuis scheduled_time ou scheduled_date.
 // ============================================================
 
-import React, {
+import {
   useCallback,
   useEffect,
   useRef,
@@ -363,7 +363,7 @@ const formatDateTime = (value) => {
 // FORMAT DURATION
 // ============================================================
 
-const formatDuration = (value) => {
+const _formatDuration = (value) => {
   if (
     value === null ||
     value === undefined ||
@@ -1319,7 +1319,7 @@ const BookingDetailScreen = ({
     booking?.service?.name ??
     'Massage';
 
-  const duration =
+  const _duration =
     booking?.duration_minutes ??
     booking?.scheduled_duration_minutes ??
     booking?.duration ??

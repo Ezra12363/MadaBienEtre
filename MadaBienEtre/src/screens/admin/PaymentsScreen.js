@@ -1,5 +1,5 @@
 // src/screens/admin/PaymentsScreen.js
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,8 +19,8 @@ import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
 
-const PaymentsScreen = ({ navigation }) => {
-  const { colors: themeColors, isDark } = useTheme();
+const PaymentsScreen = () => {
+  const { colors: themeColors } = useTheme();
   const [payments, setPayments] = useState([]);
   const [filteredPayments, setFilteredPayments] = useState([]);
   const [loading, setLoading] = useState(true);

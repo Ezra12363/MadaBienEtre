@@ -1,5 +1,5 @@
 // src/screens/admin/SOSAlertsScreen.js
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -20,8 +20,8 @@ import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
 
-const SOSAlertsScreen = ({ navigation }) => {
-  const { colors: themeColors, isDark } = useTheme();
+const SOSAlertsScreen = () => {
+  const { colors: themeColors } = useTheme();
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,7 +64,7 @@ const SOSAlertsScreen = ({ navigation }) => {
           await adminService.resolveSOSAlert(alertId);
           await loadAlerts();
           Alert.alert('✅ Succès', 'Alerte résolue avec succès');
-        } catch (error) {
+        } catch (_error) {
           Alert.alert('Erreur', 'Impossible de résoudre l\'alerte');
         }
       }}

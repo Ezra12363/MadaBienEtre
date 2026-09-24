@@ -1,15 +1,13 @@
 // src/screens/admin/AnalyticsScreen.js
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
   SafeAreaView,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -18,10 +16,8 @@ import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
 
-const { width } = Dimensions.get('window');
-
-const AnalyticsScreen = ({ navigation }) => {
-  const { colors: themeColors, isDark } = useTheme();
+const AnalyticsScreen = () => {
+  const { colors: themeColors } = useTheme();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState(null);

@@ -17,7 +17,7 @@
 //    de négociation). On affiche : (1) les offres actives à traiter
 //    maintenant, (2) l'historique chronologique complet en dessous.
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -49,7 +49,7 @@ import therapistService from '../../services/therapistService';
 
 // ✅ Thème harmonisé avec HomeScreen.js (même vert PRIMARY, même
 // orange que les cartes de promotions de l'accueil).
-const PRIMARY = colors.primary || '#168A55';
+const _PRIMARY = colors.primary || '#168A55';
 const PRIMARY_DARK = '#0B633C';
 const GREEN = '#00A86B'; // SUCCESS (HomeScreen) — statut "accepté"
 const ORANGE = '#F28A24'; // même orange que les cartes de HomeScreen
@@ -183,7 +183,7 @@ const OffersScreen = ({ navigation, route }) => {
       duration: 600,
       useNativeDriver: true,
     }).start();
-  }, []);
+  }, [fadeAnim]);
 
   // ✅ Charge le profil thérapeute RÉEL (photo, nom, téléphone)
   // pour chaque offre venant d'un thérapeute, une seule fois

@@ -31,7 +31,7 @@
 //    boutons Contacter / Appeler).
 // ============================================================
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -63,7 +63,7 @@ import therapistService from '../../services/therapistService';
 import { geocodeAddress } from '../../services/geocoding';
 
 // ✅ Importer depuis le wrapper (carte identique web / mobile)
-import MapView, { Marker, PROVIDER_GOOGLE } from '../../components/map/MapViewWrapper';
+import MapView, { PROVIDER_GOOGLE } from '../../components/map/MapViewWrapper';
 
 // ============================================================
 // CONSTANTES
@@ -307,10 +307,10 @@ const photoStyles = StyleSheet.create({
 const TrackingScreen = ({ navigation, route: navRoute }) => {
   const { bookingId } = navRoute.params;
   const { colors: themeColors } = useTheme();
-  const { token } = useAuth();
+  const { token: _token } = useAuth();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
-  const isSmallScreen = screenWidth < 600;
-  const isTabletWidth = screenWidth >= 768;
+  const _isSmallScreen = screenWidth < 600;
+  const _isTabletWidth = screenWidth >= 768;
   const isDesktopWidth = screenWidth >= 1100;
 
   const mapHeight = Platform.OS === 'web'

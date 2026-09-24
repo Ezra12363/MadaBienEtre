@@ -1,6 +1,6 @@
 // src/screens/admin/MassageTypesScreen.js
 
-import React, {
+import {
   useState,
   useCallback,
   useMemo,
@@ -131,26 +131,6 @@ const getErrorMessage = (
   return fallback;
 };
 
-const normalizeUrl = (value) => {
-  if (!value) return '';
-  return String(value).trim();
-};
-
-const isValidHttpUrl = (value) => {
-  if (!value) return true;
-
-  try {
-    const url = new URL(value);
-
-    return (
-      url.protocol === 'http:' ||
-      url.protocol === 'https:'
-    );
-  } catch {
-    return false;
-  }
-};
-
 const formatPrice = (price) => {
   const number = Number(price);
 
@@ -173,7 +153,7 @@ const getCategoryLabel = (value) => {
 // COMPONENT
 // ============================================================
 
-const MassageTypesScreen = ({ navigation }) => {
+const MassageTypesScreen = () => {
   const {
     colors: themeColors,
     isDark,

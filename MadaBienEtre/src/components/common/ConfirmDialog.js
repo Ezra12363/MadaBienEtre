@@ -13,7 +13,7 @@
 // ✅ Responsive Web / Mobile
 // ============================================================
 
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   Modal,
   View,

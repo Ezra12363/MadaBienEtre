@@ -34,7 +34,7 @@
 //  6. Accessibilité web : focus visible clavier sur les champs et
 //     boutons, hit-slop correct sur les icônes tactiles.
 
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -59,7 +59,6 @@ import adminService from '../../services/adminService';
 
 const IS_WEB = Platform.OS === 'web';
 
-const RATING_FILTERS = [5, 4, 3, 2, 1];
 const SORT_OPTIONS = [
   { key: 'recent', label: 'Plus récents' },
   { key: 'old', label: 'Plus anciens' },
@@ -67,9 +66,9 @@ const SORT_OPTIONS = [
   { key: 'worst', label: 'Note la plus basse' },
 ];
 
-const ReviewsScreen = ({ navigation }) => {
+const ReviewsScreen = () => {
   const { colors: themeColors, isDark } = useTheme();
-  const { isMobile, isTablet, isDesktop, gridColumns, contentMaxWidth, containerPadding } =
+  const { isMobile, isTablet, isDesktop, contentMaxWidth, containerPadding } =
     useResponsive();
 
   const [reviews, setReviews] = useState([]);
@@ -153,7 +152,7 @@ const ReviewsScreen = ({ navigation }) => {
       await adminService.deleteReview(confirmTarget.id);
       setReviews((prev) => prev.filter((r) => r.id !== confirmTarget.id));
       showToast('Avis supprimé avec succès.', 'success');
-    } catch (error) {
+    } catch (_error) {
       showToast("Impossible de supprimer l'avis.", 'error');
     } finally {
       setDeleting(false);

@@ -17,7 +17,7 @@
 // ANDROID, ary iOS samy izy, satria tsy miankina amin'ny "portal"
 // mahazatra intsony.
 // ============================================
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
