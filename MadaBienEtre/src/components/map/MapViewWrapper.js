@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -23,7 +24,7 @@ import {
   MARKER_COLORS,
   MAP_TYPES,
 } from '../../config/googleMaps';
-import { getRouteArrowPoints } from '../../services/routing';
+import { getRouteArrowPoints, haversineDistance } from '../../services/routing';
 
 let RNMapView = null;
 let RNMarker = null;
@@ -230,15 +231,106 @@ const ScrollableMarkerList = ({ markers = [], onMarkerPress }) => {
   );
 };
 
+// ✅ La prop `route` doit être un tableau [{latitude, longitude}, ...].
+// Auparavant, un objet (résultat complet de calculateRoute, avec
+// `coordinates`, `distance`, ...) faisait planter le composant :
+// "TypeError: route.map is not a function". On accepte maintenant les
+// deux formes et on ignore proprement toute valeur invalide.
+const normalizeRouteCoordinates = (input) => {
+  const list = Array.isArray(input)
+    ? input
+    : Array.isArray(input?.coordinates)
+      ? input.coordinates
+      : null;
+
+  if (!list) return null;
+
+  const valid = list
+    .map((p) => ({
+      latitude: Number(p?.latitude ?? p?.lat),
+      longitude: Number(p?.longitude ?? p?.lng),
+    }))
+    .filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
+
+  return valid.length > 1 ? valid : null;
+};
+
+// ✅ TSIPIKA TSIPIKA (pointillés) — rehefa tsy misy lalana mampitohy
+// tanteraka ny depart sy ny arrivée :
+//   • `routeIsFallback` = tsy nahitana lalana (Google/OSRM tsy nisy valiny)
+//     → ny tsipika mihitsy dia aseho ho pointillés ;
+//   • lalana misy saingy tsy tonga tanteraka amin'ny toerana marina
+//     (ohatra: ny adiresy dia tsy eo amin'ny lalana) → pointillés
+//     eo anelanelan'ny toerana marina sy ny farany/fiandohan'ny lalana.
+const ROUTE_GAP_MIN_KM = 0.02; // 20 m
+const DOTTED_DASH_PATTERN = [1, 9];
+
+// ✅ ITINÉRAIRES ALTERNATIFS : lalana hafa (gris, tsindrio mba
+// hisafidianana) + étiquette (voiture / à pied / distance) eo amin'ny
+// lalana tsirairay.
+const ALT_ROUTE_COLOR = '#8A8F98';
+
+const escapeHtml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+const normalizeRouteOptions = (options) => {
+  if (!Array.isArray(options)) return [];
+
+  return options
+    .map((option) => ({
+      ...option,
+      coordinates: normalizeRouteCoordinates(option?.coordinates),
+    }))
+    .filter((option) => option.id != null && option.coordinates);
+};
+
+// Point où poser l'étiquette : fraction différente pour chaque
+// itinéraire, pour éviter que les étiquettes ne se chevauchent.
+const getRouteLabelPoint = (coordinates, fraction) => {
+  const index = Math.min(
+    coordinates.length - 1,
+    Math.max(0, Math.round((coordinates.length - 1) * fraction))
+  );
+  return coordinates[index];
+};
+
+const buildRouteGapSegments = (route, origin, destination, isFallback) => {
+  if (!route || route.length < 2 || isFallback) return [];
+
+  const segments = [];
+  const first = route[0];
+  const last = route[route.length - 1];
+
+  const gap = (a, b) => {
+    const d = haversineDistance(a?.latitude, a?.longitude, b?.latitude, b?.longitude);
+    return d != null && d > ROUTE_GAP_MIN_KM;
+  };
+
+  if (origin && gap(origin, first)) segments.push([origin, first]);
+  if (destination && gap(last, destination)) segments.push([last, destination]);
+
+  return segments;
+};
+
 const MapViewWrapper = forwardRef(({
   style,
   initialRegion,
   region,
   markers = [],
   userLocation = null,
-  route = null,
+  route: routeProp = null,
   routeColor,
   routeWidth = 5,
+  routeIsFallback = false,
+  routeOrigin = null,
+  routeDestination = null,
+  routeOptions = null,
+  selectedRouteId = null,
+  onRouteSelect,
   showRouteArrows = true,
   showUserLocation = true,
   trackUserLocation = true,
@@ -252,6 +344,26 @@ const MapViewWrapper = forwardRef(({
   onSelectionDragEnd,
   children,
 }, ref) => {
+  const route = useMemo(() => normalizeRouteCoordinates(routeProp), [routeProp]);
+
+  const routeOptionList = useMemo(() => normalizeRouteOptions(routeOptions), [routeOptions]);
+
+  const onRouteSelectRef = useRef(onRouteSelect);
+  onRouteSelectRef.current = onRouteSelect;
+
+  const routeGapSegments = useMemo(
+    () => buildRouteGapSegments(route, routeOrigin, routeDestination, routeIsFallback),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      route,
+      routeIsFallback,
+      routeOrigin?.latitude,
+      routeOrigin?.longitude,
+      routeDestination?.latitude,
+      routeDestination?.longitude,
+    ],
+  );
+
   const [isLoading, setIsLoading] = useState(true);
   const [mapError, setMapError] = useState(false);
   const [mapErrorReason, setMapErrorReason] = useState(null);
@@ -455,6 +567,7 @@ const MapViewWrapper = forwardRef(({
     if (webPolylineRef.current) {
       webPolylineRef.current.outline?.setMap(null);
       webPolylineRef.current.line?.setMap(null);
+      (webPolylineRef.current.dotted || []).forEach((d) => d.setMap(null));
       webPolylineRef.current = null;
     }
 
@@ -462,6 +575,41 @@ const MapViewWrapper = forwardRef(({
 
     const path = route.map((p) => ({ lat: p.latitude, lng: p.longitude }));
     const color = routeColor || DEFAULT_ROUTE_COLOR;
+
+    // ✅ Pointillés (tsipika tsipika) : ligne invisible + petits ronds
+    // répétés tous les 12 px le long du segment.
+    const makeDotted = (points) =>
+      new google.maps.Polyline({
+        map,
+        path: points.map((p) => ({ lat: p.latitude, lng: p.longitude })),
+        strokeOpacity: 0,
+        zIndex: 11,
+        clickable: false,
+        icons: [
+          {
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 3,
+              fillColor: color,
+              fillOpacity: 1,
+              strokeColor: '#FFFFFF',
+              strokeWeight: 1,
+            },
+            offset: '0',
+            repeat: '12px',
+          },
+        ],
+      });
+
+    // Aucun vrai trajet trouvé : toute la liaison depart → arrivée
+    // est affichée en pointillés (au lieu d'une ligne pleine trompeuse).
+    if (routeIsFallback) {
+      const dottedMain = makeDotted(route);
+      webPolylineRef.current = { dotted: [dottedMain] };
+      return () => dottedMain.setMap(null);
+    }
+
+    const dotted = routeGapSegments.map(makeDotted);
 
     // 1) Halo blanc — rend la ligne rouge lisible sur tout fond
     const outline = new google.maps.Polyline({
@@ -503,13 +651,138 @@ const MapViewWrapper = forwardRef(({
         : [],
     });
 
-    webPolylineRef.current = { outline, line };
+    webPolylineRef.current = { outline, line, dotted };
 
     return () => {
       outline.setMap(null);
       line.setMap(null);
+      dotted.forEach((d) => d.setMap(null));
     };
-  }, [route, routeColor, routeWidth, showRouteArrows, isLoading]);
+  }, [route, routeColor, routeWidth, showRouteArrows, isLoading, routeIsFallback, routeGapSegments]);
+
+  // ============================================================
+  // ✅ PROPOSITION D'ITINÉRAIRES (web) — routes alternatives en gris
+  // (cliquables) + étiquette sur CHAQUE itinéraire :
+  //   🚗 durée en voiture · 🚶 durée à pied · distance
+  // L'itinéraire sélectionné est dessiné par l'effet ci-dessus
+  // (prop `route`) ; ici on ajoute les alternatives et les étiquettes.
+  // ============================================================
+  useEffect(() => {
+    if (Platform.OS !== 'web' || !webMapRef.current || !window.google) return undefined;
+    if (routeOptionList.length === 0) return undefined;
+
+    const google = window.google;
+    const map = webMapRef.current;
+    const activeColor = routeColor || DEFAULT_ROUTE_COLOR;
+    const selectedId = selectedRouteId ?? routeOptionList[0].id;
+
+    class RouteLabelOverlay extends google.maps.OverlayView {
+      constructor(position, html, selected, onClick) {
+        super();
+        this.position = position;
+        this.html = html;
+        this.selected = selected;
+        this.onClick = onClick;
+        this.div = null;
+      }
+
+      onAdd() {
+        const div = document.createElement('div');
+        div.style.cssText = [
+          'position:absolute',
+          'transform:translate(-50%,-100%)',
+          'margin-top:-6px',
+          'padding:4px 8px',
+          'border-radius:10px',
+          'font:600 11px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
+          'white-space:nowrap',
+          'cursor:pointer',
+          'text-align:center',
+          'box-shadow:0 2px 6px rgba(0,0,0,0.3)',
+          this.selected
+            ? `background:${activeColor};color:#fff;border:2px solid #fff;z-index:20`
+            : 'background:#fff;color:#333;border:1px solid #B8BDC4;z-index:10',
+        ].join(';');
+        div.innerHTML = this.html;
+        div.addEventListener('click', (event) => {
+          event.stopPropagation();
+          this.onClick?.();
+        });
+        this.div = div;
+        this.getPanes().overlayMouseTarget.appendChild(div);
+      }
+
+      draw() {
+        const projection = this.getProjection();
+        if (!projection || !this.div) return;
+        const point = projection.fromLatLngToDivPixel(this.position);
+        if (point) {
+          this.div.style.left = `${point.x}px`;
+          this.div.style.top = `${point.y}px`;
+        }
+      }
+
+      onRemove() {
+        this.div?.parentNode?.removeChild(this.div);
+        this.div = null;
+      }
+    }
+
+    const created = [];
+    const total = routeOptionList.length;
+
+    routeOptionList.forEach((option, index) => {
+      const isSelected = option.id === selectedId;
+      const path = option.coordinates.map((p) => ({ lat: p.latitude, lng: p.longitude }));
+      const select = () => onRouteSelectRef.current?.(option.id);
+
+      if (!isSelected) {
+        created.push(
+          new google.maps.Polyline({
+            map,
+            path,
+            strokeColor: '#FFFFFF',
+            strokeOpacity: 0.9,
+            strokeWeight: routeWidth + 4,
+            zIndex: 8,
+            clickable: false,
+          })
+        );
+
+        const altLine = new google.maps.Polyline({
+          map,
+          path,
+          strokeColor: ALT_ROUTE_COLOR,
+          strokeOpacity: 0.95,
+          strokeWeight: routeWidth,
+          zIndex: 9,
+          clickable: true,
+        });
+        altLine.addListener('click', select);
+        created.push(altLine);
+      }
+
+      const labelPoint = getRouteLabelPoint(option.coordinates, (index + 1) / (total + 1));
+      const html =
+        `<div>🚗 ${escapeHtml(option.drivingDurationText || option.durationText)}` +
+        ` &nbsp;·&nbsp; 🚶 ${escapeHtml(option.walkingDurationText)}</div>` +
+        `<div style="font-weight:500;opacity:0.85">${escapeHtml(option.distanceText)}` +
+        `${option.summary ? ` · via ${escapeHtml(option.summary)}` : ''}</div>`;
+
+      const overlay = new RouteLabelOverlay(
+        new google.maps.LatLng(labelPoint.latitude, labelPoint.longitude),
+        html,
+        isSelected,
+        select
+      );
+      overlay.setMap(map);
+      created.push(overlay);
+    });
+
+    return () => {
+      created.forEach((item) => item.setMap(null));
+    };
+  }, [routeOptionList, selectedRouteId, routeColor, routeWidth, isLoading]);
 
   // ✅ Position utilisateur sur le web
   useEffect(() => {
@@ -747,6 +1020,59 @@ const MapViewWrapper = forwardRef(({
             />
           ))}
 
+          {/* ✅ PROPOSITION D'ITINÉRAIRES (natif) — alternatives en gris
+              (tsindrio = safidy) + étiquette voiture / à pied / distance. */}
+          {routeOptionList.map((option) =>
+            option.id !== (selectedRouteId ?? routeOptionList[0].id) ? (
+              <RNPolyline
+                key={`alt-route-${option.id}`}
+                coordinates={option.coordinates}
+                strokeColor={ALT_ROUTE_COLOR}
+                strokeWidth={routeWidth}
+                zIndex={3}
+                lineCap="round"
+                tappable
+                onPress={() => onRouteSelect && onRouteSelect(option.id)}
+              />
+            ) : null
+          )}
+
+          {routeOptionList.map((option, index) => {
+            const isSelected = option.id === (selectedRouteId ?? routeOptionList[0].id);
+            const labelPoint = getRouteLabelPoint(
+              option.coordinates,
+              (index + 1) / (routeOptionList.length + 1)
+            );
+
+            return (
+              <RNMarker
+                key={`route-label-${option.id}-${isSelected ? 's' : 'u'}`}
+                coordinate={labelPoint}
+                anchor={{ x: 0.5, y: 1 }}
+                zIndex={isSelected ? 8 : 7}
+                tracksViewChanges={false}
+                onPress={() => onRouteSelect && onRouteSelect(option.id)}
+              >
+                <View
+                  style={[
+                    styles.routeLabel,
+                    isSelected && {
+                      backgroundColor: routeColor || DEFAULT_ROUTE_COLOR,
+                      borderColor: '#FFFFFF',
+                    },
+                  ]}
+                >
+                  <Text style={[styles.routeLabelText, isSelected && styles.routeLabelTextSelected]}>
+                    {`🚗 ${option.drivingDurationText || option.durationText}  ·  🚶 ${option.walkingDurationText}`}
+                  </Text>
+                  <Text style={[styles.routeLabelSub, isSelected && styles.routeLabelTextSelected]}>
+                    {option.distanceText}
+                  </Text>
+                </View>
+              </RNMarker>
+            );
+          })}
+
           {/* ✅ TRACÉ DE L'ITINÉRAIRE (natif) — ligne rouge (ou
               `routeColor`) + flèches de direction régulièrement
               espacées, mitodika mankany amin'ny client. */}
@@ -758,7 +1084,21 @@ const MapViewWrapper = forwardRef(({
                 strokeWidth={routeWidth}
                 zIndex={5}
                 geodesic
+                lineCap="round"
+                lineDashPattern={routeIsFallback ? DOTTED_DASH_PATTERN : undefined}
               />
+              {/* ✅ Pointillés entre les points réels et les extrémités du tracé */}
+              {routeGapSegments.map((segment, idx) => (
+                <RNPolyline
+                  key={`route-gap-${idx}`}
+                  coordinates={segment}
+                  strokeColor={routeColor || DEFAULT_ROUTE_COLOR}
+                  strokeWidth={routeWidth}
+                  zIndex={5}
+                  lineCap="round"
+                  lineDashPattern={DOTTED_DASH_PATTERN}
+                />
+              ))}
               {showRouteArrows &&
                 getRouteArrowPoints(route, 6).map((arrow, idx) => (
                   <RNMarker
@@ -829,6 +1169,18 @@ const styles = StyleSheet.create({
   },
   map: { flex: 1, width: '100%', height: '100%' },
   routeArrowWrap: { alignItems: 'center', justifyContent: 'center' },
+  routeLabel: {
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#B8BDC4',
+    backgroundColor: '#FFFFFF',
+  },
+  routeLabelText: { fontSize: 11, fontWeight: '700', color: '#333333' },
+  routeLabelSub: { fontSize: 10, fontWeight: '500', color: '#555555' },
+  routeLabelTextSelected: { color: '#FFFFFF' },
   loadingOverlay: { 
     position: 'absolute', 
     top: 0, 

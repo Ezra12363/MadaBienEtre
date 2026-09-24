@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -31,40 +32,64 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import bookingService from '../../services/bookingService';
 import massageTypeService from '../../services/massageTypeService';
+import therapistService from '../../services/therapistService';
 
-import {
-  typography,
-} from '../../theme';
+import { typography } from '../../theme';
+
+// ============================================================
+// PALETTE VERTE UNIFIÉE
+// ============================================================
+
+const COLORS = {
+  primary: '#2E8B57',
+  primaryDark: '#247447',
+  primarySoft: '#EAF6EF',
+  primaryTint: '#D6EEE0',
+
+  white: '#FFFFFF',
+  background: '#F4F7F5',
+  card: '#FFFFFF',
+
+  text: '#222B26',
+  textSecondary: '#6B7A72',
+
+  border: '#E4EAE6',
+
+  red: '#D93636',
+  redSoft: '#FDECEC',
+
+  orange: '#E08E0B',
+  orangeSoft: '#FDF3E2',
+
+  purple: '#7B61FF',
+  purpleSoft: '#F1EDFE',
+
+  blue: '#3B82F6',
+  blueSoft: '#EFF6FF',
+
+  green: '#22C55E',
+  greenSoft: '#E7F7EC',
+};
 
 // ============================================================
 // HELPERS
 // ============================================================
 
 const safeString = (value) => {
-  if (value === null || value === undefined) {
-    return '';
-  }
-
+  if (value === null || value === undefined) return '';
   return String(value).trim();
 };
 
 const firstValidValue = (...values) => {
   for (const value of values) {
     const normalized = safeString(value);
-
-    if (normalized) {
-      return normalized;
-    }
+    if (normalized) return normalized;
   }
-
   return '';
 };
 
 const getTherapistObject = (item) => {
-  if (!item || typeof item !== 'object') {
-    return null;
-  }
-
+  if (!item || typeof item !== 'object') return null;
   return (
     item.therapist ||
     item.therapist_user ||
@@ -109,8 +134,8 @@ const getTherapistName = (item, therapist) => {
   );
 };
 
-const getTherapistEmail = (item, therapist) => {
-  return firstValidValue(
+const getTherapistEmail = (item, therapist) =>
+  firstValidValue(
     therapist?.email,
     therapist?.email_address,
     item?.therapist_email,
@@ -118,10 +143,9 @@ const getTherapistEmail = (item, therapist) => {
     item?.assigned_therapist_email,
     item?.assignedTherapistEmail,
   );
-};
 
-const getTherapistPhone = (item, therapist) => {
-  return firstValidValue(
+const getTherapistPhone = (item, therapist) =>
+  firstValidValue(
     therapist?.phone,
     therapist?.phone_number,
     therapist?.telephone,
@@ -133,10 +157,9 @@ const getTherapistPhone = (item, therapist) => {
     item?.assigned_therapist_phone,
     item?.assignedTherapistPhone,
   );
-};
 
-const getTherapistPhoto = (item, therapist) => {
-  return firstValidValue(
+const getTherapistPhoto = (item, therapist) =>
+  firstValidValue(
     therapist?.profile_image_url,
     therapist?.profileImageUrl,
     therapist?.avatar_url,
@@ -156,7 +179,6 @@ const getTherapistPhoto = (item, therapist) => {
     item?.therapist_image_url,
     item?.therapistImageUrl,
   );
-};
 
 const getTherapistOnlineStatus = (item, therapist) => {
   const value =
@@ -170,9 +192,7 @@ const getTherapistOnlineStatus = (item, therapist) => {
     item?.is_therapist_online ??
     item?.isTherapistOnline;
 
-  if (typeof value === 'boolean') {
-    return value;
-  }
+  if (typeof value === 'boolean') return value;
 
   const normalized = safeString(value).toLowerCase();
 
@@ -186,14 +206,27 @@ const getTherapistOnlineStatus = (item, therapist) => {
   );
 };
 
-const getTherapistAssignedAt = (item, therapist) => {
-  return firstValidValue(
+const getTherapistAssignedAt = (item, therapist) =>
+  firstValidValue(
     item?.therapist_assigned_at,
     item?.therapistAssignedAt,
     item?.assigned_at,
     item?.assignedAt,
     therapist?.assigned_at,
     therapist?.assignedAt,
+  );
+
+const isPlaceholderTherapistName = (name) => {
+  const normalized = safeString(name).toLowerCase();
+
+  return (
+    !normalized ||
+    normalized === 'thérapeute' ||
+    normalized === 'therapeute' ||
+    normalized === 'thérapeute assigné' ||
+    normalized === 'therapeute assigne' ||
+    normalized === 'non assigné' ||
+    normalized === 'non assigne'
   );
 };
 
@@ -204,6 +237,7 @@ const normalizeTherapist = (item) => {
     therapist?.id,
     therapist?.user_id,
     therapist?.userId,
+    therapist?.therapist_id,
     item?.therapist_id,
     item?.therapistId,
     item?.assigned_therapist_id,
@@ -217,21 +251,7 @@ const normalizeTherapist = (item) => {
   const isOnline = getTherapistOnlineStatus(item, therapist);
   const assignedAt = getTherapistAssignedAt(item, therapist);
 
-  /*
-   * Important :
-   * Tsy atao hoe isAssigned = Boolean(name) fotsiny,
-   * satria mety hiverina amin'ny backend ny texte "Thérapeute"
-   * na dia mbola tsy misy thérapeute aza.
-   */
-  const normalizedName = name.toLowerCase();
-
-  const isPlaceholderName =
-    normalizedName === 'thérapeute' ||
-    normalizedName === 'therapeute' ||
-    normalizedName === 'thérapeute assigné' ||
-    normalizedName === 'therapeute assigne' ||
-    normalizedName === 'non assigné' ||
-    normalizedName === 'non assigne';
+  const isPlaceholderName = isPlaceholderTherapistName(name);
 
   const isAssigned = Boolean(
     id ||
@@ -245,6 +265,7 @@ const normalizeTherapist = (item) => {
   return {
     id,
     name: name || 'Thérapeute assigné',
+    hasName: Boolean(name && !isPlaceholderName),
     email,
     phone,
     photo,
@@ -252,6 +273,51 @@ const normalizeTherapist = (item) => {
     assignedAt,
     isAssigned,
   };
+};
+
+const extractTherapistNameFromProfile = (payload) => {
+  if (!payload || typeof payload !== 'object') return '';
+
+  const user =
+    payload.user ||
+    payload.user_profile ||
+    payload.userProfile ||
+    payload.profile ||
+    payload;
+
+  const firstName = firstValidValue(
+    user?.first_name,
+    user?.firstName,
+    user?.prenom,
+    payload?.first_name,
+    payload?.firstName,
+  );
+
+  const lastName = firstValidValue(
+    user?.last_name,
+    user?.lastName,
+    user?.nom,
+    payload?.last_name,
+    payload?.lastName,
+  );
+
+  const composedName = `${firstName} ${lastName}`.trim();
+
+  return firstValidValue(
+    user?.full_name,
+    user?.fullname,
+    user?.fullName,
+    user?.name,
+    user?.display_name,
+    user?.displayName,
+    payload?.full_name,
+    payload?.fullname,
+    payload?.fullName,
+    payload?.name,
+    payload?.display_name,
+    payload?.displayName,
+    composedName,
+  );
 };
 
 const normalizeBooking = (item, index) => {
@@ -304,21 +370,18 @@ const normalizeBooking = (item, index) => {
     'pending',
   ).toLowerCase();
 
-  const massageType = firstValidValue(
-    booking.massage_type_name,
-    booking.massageTypeName,
-    booking.massage_type?.name,
-    booking.massageType?.name,
-    typeof booking.massageType === 'string'
-      ? booking.massageType
-      : '',
-    typeof booking.massage_type === 'string'
-      ? booking.massage_type
-      : '',
-    booking.service_name,
-    booking.serviceName,
-    booking.service?.name,
-  ) || 'Massage';
+  const massageType =
+    firstValidValue(
+      booking.massage_type_name,
+      booking.massageTypeName,
+      booking.massage_type?.name,
+      booking.massageType?.name,
+      typeof booking.massageType === 'string' ? booking.massageType : '',
+      typeof booking.massage_type === 'string' ? booking.massage_type : '',
+      booking.service_name,
+      booking.serviceName,
+      booking.service?.name,
+    ) || 'Massage';
 
   const duration =
     booking.duration_minutes ??
@@ -331,10 +394,7 @@ const normalizeBooking = (item, index) => {
     null;
 
   const finalPrice =
-    booking.final_price ??
-    booking.finalPrice ??
-    booking.agreed_price ??
-    null;
+    booking.final_price ?? booking.finalPrice ?? booking.agreed_price ?? null;
 
   const clientPrice =
     booking.client_price_proposed ??
@@ -344,9 +404,7 @@ const normalizeBooking = (item, index) => {
     null;
 
   const displayPrice =
-    finalPrice !== null && finalPrice !== undefined
-      ? finalPrice
-      : clientPrice;
+    finalPrice !== null && finalPrice !== undefined ? finalPrice : clientPrice;
 
   const imageUrl = firstValidValue(
     booking.massage_type_image,
@@ -385,20 +443,15 @@ const normalizeBooking = (item, index) => {
 };
 
 // ============================================================
-// FORMAT DATE ET HEURE
+// FORMATS
 // ============================================================
 
 const formatDate = (dateValue) => {
-  if (!dateValue) {
-    return 'Date non définie';
-  }
+  if (!dateValue) return 'Date non définie';
 
   try {
     const date = new Date(dateValue);
-
-    if (Number.isNaN(date.getTime())) {
-      return String(dateValue);
-    }
+    if (Number.isNaN(date.getTime())) return String(dateValue);
 
     return date.toLocaleDateString('fr-FR', {
       day: '2-digit',
@@ -411,22 +464,12 @@ const formatDate = (dateValue) => {
 };
 
 const formatTime = (timeValue) => {
-  if (!timeValue) {
-    return 'Heure non définie';
-  }
+  if (!timeValue) return 'Heure non définie';
 
   const value = String(timeValue).trim();
 
-  /*
-   * Raha datetime ISO no tonga dia ampiasaina,
-   * ohatra: 2026-09-10T14:30:00
-   */
-  if (
-    value.includes('T') ||
-    value.includes(' ')
-  ) {
+  if (value.includes('T') || value.includes(' ')) {
     const date = new Date(value);
-
     if (!Number.isNaN(date.getTime())) {
       return date.toLocaleTimeString('fr-FR', {
         hour: '2-digit',
@@ -438,20 +481,11 @@ const formatTime = (timeValue) => {
   return value.slice(0, 5);
 };
 
-// ============================================================
-// FORMAT DATE + HEURE (assignation thérapeute)
-// ============================================================
-
 const formatDateTime = (value) => {
-  if (!value) {
-    return '';
-  }
+  if (!value) return '';
 
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return String(value);
-  }
+  if (Number.isNaN(date.getTime())) return String(value);
 
   const datePart = date.toLocaleDateString('fr-FR', {
     day: '2-digit',
@@ -467,46 +501,20 @@ const formatDateTime = (value) => {
   return `${datePart} à ${timePart}`;
 };
 
-// ============================================================
-// FORMAT PRIX
-// ============================================================
-
 const formatPrice = (value) => {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ''
-  ) {
-    return null;
-  }
+  if (value === null || value === undefined || value === '') return null;
 
   const number = Number(value);
-
-  if (Number.isNaN(number)) {
-    return `${value} Ar`;
-  }
+  if (Number.isNaN(number)) return `${value} Ar`;
 
   return `${number.toLocaleString('fr-FR')} Ar`;
 };
 
-// ============================================================
-// FORMAT DURÉE
-// ============================================================
-
 const formatDuration = (value) => {
-  if (
-    value === null ||
-    value === undefined ||
-    value === ''
-  ) {
-    return null;
-  }
+  if (value === null || value === undefined || value === '') return null;
 
   const number = Number(value);
-
-  if (Number.isNaN(number)) {
-    return String(value);
-  }
+  if (Number.isNaN(number)) return String(value);
 
   if (number >= 60) {
     const hours = Math.floor(number / 60);
@@ -521,24 +529,21 @@ const formatDuration = (value) => {
 };
 
 // ============================================================
-// APPARENCE PAR TYPE DE MASSAGE
-//
-// Utilisée pour la vignette et l'accent de couleur de chaque
-// carte lorsque aucune photo n'est fournie par le backend.
+// VISUELS PAR TYPE DE MASSAGE
 // ============================================================
 
 const MASSAGE_TYPE_VISUALS = [
   {
     match: /relax/i,
     icon: 'leaf',
-    color: '#16A34A',
-    backgroundColor: '#DCFCE7',
+    color: COLORS.primary,
+    backgroundColor: COLORS.primarySoft,
   },
   {
     match: /th[ée]rap/i,
     icon: 'medkit',
     color: '#2563EB',
-    backgroundColor: '#DBEAFE',
+    backgroundColor: COLORS.blueSoft,
   },
   {
     match: /sport/i,
@@ -568,127 +573,116 @@ const getMassageTypeVisual = (massageType) => {
   return (
     found || {
       icon: 'sparkles',
-      color: '#16A34A',
-      backgroundColor: '#DCFCE7',
+      color: COLORS.primary,
+      backgroundColor: COLORS.primarySoft,
     }
   );
 };
 
 // ============================================================
-// STATUS
+// STATUS CONFIG (thème vert unifié)
 // ============================================================
 
 const STATUS_CONFIG = {
   pending: {
     label: 'En attente',
-    color: '#D97706',
-    backgroundColor: '#FEF3C7',
+    color: '#B26A00',
+    backgroundColor: COLORS.orangeSoft,
     icon: 'time-outline',
   },
 
   negotiation: {
     label: 'Négociation',
-    color: '#7C3AED',
-    backgroundColor: '#EDE9FE',
+    color: '#5B3DE0',
+    backgroundColor: COLORS.purpleSoft,
     icon: 'chatbubbles-outline',
   },
 
   negotiating: {
     label: 'Négociation',
-    color: '#7C3AED',
-    backgroundColor: '#EDE9FE',
+    color: '#5B3DE0',
+    backgroundColor: COLORS.purpleSoft,
     icon: 'chatbubbles-outline',
   },
 
   confirmed: {
     label: 'Confirmée',
-    color: '#2563EB',
-    backgroundColor: '#DBEAFE',
+    color: COLORS.primary,
+    backgroundColor: COLORS.primarySoft,
     icon: 'checkmark-circle-outline',
   },
 
   in_progress: {
     label: 'En cours',
-    color: '#0891B2',
-    backgroundColor: '#CFFAFE',
+    color: '#5B3DE0',
+    backgroundColor: COLORS.purpleSoft,
     icon: 'walk-outline',
   },
 
   completed: {
     label: 'Terminée',
-    color: '#16A34A',
-    backgroundColor: '#DCFCE7',
+    color: COLORS.primary,
+    backgroundColor: COLORS.primarySoft,
     icon: 'checkmark-done-circle-outline',
   },
 
   cancelled: {
     label: 'Annulée',
-    color: '#DC2626',
-    backgroundColor: '#FEE2E2',
+    color: COLORS.red,
+    backgroundColor: COLORS.redSoft,
     icon: 'close-circle-outline',
   },
 
   cancelled_by_client: {
     label: 'Annulée',
-    color: '#DC2626',
-    backgroundColor: '#FEE2E2',
+    color: COLORS.red,
+    backgroundColor: COLORS.redSoft,
     icon: 'close-circle-outline',
   },
 
   cancelled_by_therapist: {
     label: 'Annulée',
-    color: '#DC2626',
-    backgroundColor: '#FEE2E2',
+    color: COLORS.red,
+    backgroundColor: COLORS.redSoft,
     icon: 'close-circle-outline',
   },
 };
 
-const getStatusConfig = (status) => {
-  return (
-    STATUS_CONFIG[status] || {
-      label: status || 'Inconnu',
-      color: '#64748B',
-      backgroundColor: '#F1F5F9',
-      icon: 'help-circle-outline',
-    }
-  );
-};
+const getStatusConfig = (status) =>
+  STATUS_CONFIG[status] || {
+    label: status || 'Inconnu',
+    color: COLORS.textSecondary,
+    backgroundColor: '#F1F5F9',
+    icon: 'help-circle-outline',
+  };
 
 // ============================================================
-// TOAST (remplace Alert.alert pour les notifications :
-// fonctionne de façon identique sur mobile ET sur web)
+// TOAST
 // ============================================================
 
 const TOAST_CONFIG = {
   success: {
     icon: 'checkmark-circle',
-    color: '#16A34A',
-    background: '#DCFCE7',
+    color: COLORS.primary,
+    background: COLORS.primarySoft,
   },
-
   error: {
     icon: 'close-circle',
-    color: '#DC2626',
-    background: '#FEE2E2',
+    color: COLORS.red,
+    background: COLORS.redSoft,
   },
-
   info: {
     icon: 'information-circle',
-    color: '#2563EB',
-    background: '#DBEAFE',
+    color: '#4F46E5',
+    background: '#E0E7FF',
   },
 };
 
 const Toast = ({ visible, type, message, onHide }) => {
-  const translateY = useMemo(
-    () => new Animated.Value(-80),
-    [],
-  );
+  const translateY = useMemo(() => new Animated.Value(-80), []);
 
   useEffect(() => {
-    if (!visible) {
-      return undefined;
-    }
+    if (!visible) return undefined;
 
     Animated.spring(translateY, {
       toValue: 0,
@@ -709,32 +703,17 @@ const Toast = ({ visible, type, message, onHide }) => {
     return () => clearTimeout(timer);
   }, [visible, translateY, onHide]);
 
-  if (!visible) {
-    return null;
-  }
+  if (!visible) return null;
 
   const config = TOAST_CONFIG[type] || TOAST_CONFIG.info;
 
   return (
     <Animated.View
       pointerEvents="box-none"
-      style={[
-        styles.toastOverlay,
-        { transform: [{ translateY }] },
-      ]}
+      style={[styles.toastOverlay, { transform: [{ translateY }] }]}
     >
-      <View
-        style={[
-          styles.toastCard,
-          { backgroundColor: config.background },
-        ]}
-      >
-        <Ionicons
-          name={config.icon}
-          size={20}
-          color={config.color}
-        />
-
+      <View style={[styles.toastCard, { backgroundColor: config.background }]}>
+        <Ionicons name={config.icon} size={20} color={config.color} />
         <Text
           numberOfLines={2}
           style={[styles.toastText, { color: config.color }]}
@@ -747,8 +726,7 @@ const Toast = ({ visible, type, message, onHide }) => {
 };
 
 // ============================================================
-// CONFIRM MODAL (remplace les Alert.alert à boutons multiples,
-// qui ne déclenchent pas leurs callbacks sur react-native-web)
+// CONFIRM MODAL
 // ============================================================
 
 const ConfirmModal = ({
@@ -762,122 +740,93 @@ const ConfirmModal = ({
   themeColors,
   onCancel,
   onConfirm,
-}) => {
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      statusBarTranslucent={Platform.OS === 'android'}
-      onRequestClose={onCancel}
+}) => (
+  <Modal
+    visible={visible}
+    transparent
+    animationType="fade"
+    statusBarTranslucent={Platform.OS === 'android'}
+    onRequestClose={onCancel}
+  >
+    <Pressable
+      style={styles.modalBackdrop}
+      onPress={loading ? undefined : onCancel}
     >
       <Pressable
-        style={styles.modalBackdrop}
-        onPress={loading ? undefined : onCancel}
+        style={[styles.confirmCard, { backgroundColor: themeColors.card }]}
+        onPress={() => {}}
       >
-        <Pressable
+        <View
           style={[
-            styles.confirmCard,
-            { backgroundColor: themeColors.card },
+            styles.confirmIconWrap,
+            {
+              backgroundColor: destructive ? COLORS.redSoft : COLORS.primarySoft,
+            },
           ]}
-          onPress={() => {}}
         >
-          <View
+          <Ionicons
+            name={destructive ? 'alert-circle' : 'help-circle'}
+            size={26}
+            color={destructive ? COLORS.red : COLORS.primary}
+          />
+        </View>
+
+        <Text style={[styles.confirmTitle, { color: themeColors.text }]}>
+          {title}
+        </Text>
+
+        <Text
+          style={[styles.confirmMessage, { color: themeColors.textSecondary }]}
+        >
+          {message}
+        </Text>
+
+        <View style={styles.confirmActions}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            disabled={loading}
+            onPress={onCancel}
             style={[
-              styles.confirmIconWrap,
+              styles.confirmButton,
+              styles.confirmButtonGhost,
+              { borderColor: themeColors.border },
+            ]}
+          >
+            <Text
+              style={[
+                styles.confirmButtonGhostText,
+                { color: themeColors.text },
+              ]}
+            >
+              {cancelLabel}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            disabled={loading}
+            onPress={onConfirm}
+            style={[
+              styles.confirmButton,
               {
-                backgroundColor: destructive
-                  ? '#FEE2E2'
-                  : `${themeColors.primary}18`,
+                backgroundColor: destructive ? COLORS.red : COLORS.primary,
               },
             ]}
           >
-            <Ionicons
-              name={
-                destructive
-                  ? 'alert-circle'
-                  : 'help-circle'
-              }
-              size={26}
-              color={
-                destructive ? '#DC2626' : themeColors.primary
-              }
-            />
-          </View>
-
-          <Text
-            style={[
-              styles.confirmTitle,
-              { color: themeColors.text },
-            ]}
-          >
-            {title}
-          </Text>
-
-          <Text
-            style={[
-              styles.confirmMessage,
-              { color: themeColors.textSecondary },
-            ]}
-          >
-            {message}
-          </Text>
-
-          <View style={styles.confirmActions}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              disabled={loading}
-              onPress={onCancel}
-              style={[
-                styles.confirmButton,
-                styles.confirmButtonGhost,
-                { borderColor: themeColors.border },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.confirmButtonGhostText,
-                  { color: themeColors.text },
-                ]}
-              >
-                {cancelLabel}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.85}
-              disabled={loading}
-              onPress={onConfirm}
-              style={[
-                styles.confirmButton,
-                {
-                  backgroundColor: destructive
-                    ? '#DC2626'
-                    : themeColors.primary,
-                },
-              ]}
-            >
-              {loading ? (
-                <ActivityIndicator
-                  size="small"
-                  color="#FFFFFF"
-                />
-              ) : (
-                <Text style={styles.confirmButtonText}>
-                  {confirmLabel}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </Pressable>
+            {loading ? (
+              <ActivityIndicator size="small" color={COLORS.white} />
+            ) : (
+              <Text style={styles.confirmButtonText}>{confirmLabel}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </Pressable>
-    </Modal>
-  );
-};
+    </Pressable>
+  </Modal>
+);
 
 // ============================================================
-// ACTION SHEET (menu ⋮ d'une réservation — remplace le
-// Alert.alert à options multiples)
+// BOOKING ACTION SHEET
 // ============================================================
 
 const BookingActionSheet = ({
@@ -889,10 +838,6 @@ const BookingActionSheet = ({
   onViewDetails,
   onCancel,
 }) => {
-  // ⚠️ Android : la hauteur de la barre de navigation
-  // gestuelle varie selon les téléphones. On l'ajoute au
-  // padding bas du sheet pour que "Fermer" ne soit jamais
-  // masqué ou coupé par cette barre.
   const insets = useSafeAreaInsets();
 
   return (
@@ -903,18 +848,14 @@ const BookingActionSheet = ({
       statusBarTranslucent={Platform.OS === 'android'}
       onRequestClose={onClose}
     >
-      <Pressable
-        style={styles.modalBackdrop}
-        onPress={onClose}
-      >
+      <Pressable style={styles.modalBackdrop} onPress={onClose}>
         <Pressable
           style={[
             styles.actionSheet,
             {
               backgroundColor: themeColors.card,
               paddingBottom:
-                20 +
-                (Platform.OS === 'android' ? insets.bottom : 0),
+                20 + (Platform.OS === 'android' ? insets.bottom : 0),
             },
           ]}
           onPress={() => {}}
@@ -923,10 +864,7 @@ const BookingActionSheet = ({
 
           <Text
             numberOfLines={1}
-            style={[
-              styles.actionSheetTitle,
-              { color: themeColors.text },
-            ]}
+            style={[styles.actionSheetTitle, { color: themeColors.text }]}
           >
             {booking?.massageType || 'Réservation'}
           </Text>
@@ -948,21 +886,14 @@ const BookingActionSheet = ({
             <View
               style={[
                 styles.actionSheetIcon,
-                { backgroundColor: `${themeColors.primary}15` },
+                { backgroundColor: COLORS.primarySoft },
               ]}
             >
-              <Ionicons
-                name="eye-outline"
-                size={18}
-                color={themeColors.primary}
-              />
+              <Ionicons name="eye-outline" size={18} color={COLORS.primary} />
             </View>
 
             <Text
-              style={[
-                styles.actionSheetRowText,
-                { color: themeColors.text },
-              ]}
+              style={[styles.actionSheetRowText, { color: themeColors.text }]}
             >
               Voir les détails
             </Text>
@@ -977,21 +908,18 @@ const BookingActionSheet = ({
               <View
                 style={[
                   styles.actionSheetIcon,
-                  { backgroundColor: '#FEE2E2' },
+                  { backgroundColor: COLORS.redSoft },
                 ]}
               >
                 <Ionicons
                   name="close-circle-outline"
                   size={18}
-                  color="#DC2626"
+                  color={COLORS.red}
                 />
               </View>
 
               <Text
-                style={[
-                  styles.actionSheetRowText,
-                  { color: '#DC2626' },
-                ]}
+                style={[styles.actionSheetRowText, { color: COLORS.red }]}
               >
                 Annuler la réservation
               </Text>
@@ -1020,19 +948,23 @@ const BookingActionSheet = ({
 
 // ============================================================
 // CALENDAR FILTER MODAL
-//
-// Bottom sheet avec un mini calendrier mensuel qui permet de
-// filtrer "Mes réservations" par date exacte. S'ouvre depuis le
-// bouton calendrier du header (avant : ce bouton faisait
-// exactement la même chose que le bouton "+", ce qui ne servait
-// à rien).
 // ============================================================
 
 const WEEKDAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 const MONTH_LABELS = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+  'Janvier',
+  'Février',
+  'Mars',
+  'Avril',
+  'Mai',
+  'Juin',
+  'Juillet',
+  'Août',
+  'Septembre',
+  'Octobre',
+  'Novembre',
+  'Décembre',
 ];
 
 const toDateKey = (date) => {
@@ -1047,7 +979,6 @@ const buildMonthGrid = (viewDate) => {
   const month = viewDate.getMonth();
 
   const firstDay = new Date(year, month, 1);
-  // JS: dimanche=0..samedi=6 -> on veut lundi en premier
   const startOffset = (firstDay.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
@@ -1074,15 +1005,9 @@ const CalendarFilterModal = ({
   onReset,
   onApply,
 }) => {
-  // ⚠️ Android : idem que pour l'ActionSheet, on ajoute la
-  // hauteur réelle de la barre de navigation gestuelle au
-  // padding bas pour que "Réinitialiser" / "Appliquer" restent
-  // toujours visibles et cliquables au-dessus du menu système.
   const insets = useSafeAreaInsets();
 
-  const [viewDate, setViewDate] = useState(
-    () => range?.start || new Date(),
-  );
+  const [viewDate, setViewDate] = useState(() => range?.start || new Date());
 
   useEffect(() => {
     if (visible) {
@@ -1090,22 +1015,17 @@ const CalendarFilterModal = ({
     }
   }, [visible, range?.start]);
 
-  const cells = useMemo(
-    () => buildMonthGrid(viewDate),
-    [viewDate],
-  );
+  const cells = useMemo(() => buildMonthGrid(viewDate), [viewDate]);
 
   const goPrevMonth = useCallback(() => {
     setViewDate(
-      (prev) =>
-        new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
     );
   }, []);
 
   const goNextMonth = useCallback(() => {
     setViewDate(
-      (prev) =>
-        new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
     );
   }, []);
 
@@ -1118,16 +1038,10 @@ const CalendarFilterModal = ({
       visible={visible}
       transparent
       animationType="slide"
-      // ⚠️ Android : sans ça, le bottom-sheet peut se retrouver
-      // partiellement masqué/derrière la barre de statut ou la
-      // barre de navigation système sur certains téléphones.
       statusBarTranslucent={Platform.OS === 'android'}
       onRequestClose={onClose}
     >
-      <Pressable
-        style={styles.modalBackdrop}
-        onPress={onClose}
-      >
+      <Pressable style={styles.modalBackdrop} onPress={onClose}>
         <Pressable
           style={[
             styles.calendarSheet,
@@ -1135,8 +1049,7 @@ const CalendarFilterModal = ({
             {
               backgroundColor: themeColors.card,
               paddingBottom:
-                20 +
-                (Platform.OS === 'android' ? insets.bottom : 0),
+                20 + (Platform.OS === 'android' ? insets.bottom : 0),
             },
           ]}
           onPress={() => {}}
@@ -1152,23 +1065,14 @@ const CalendarFilterModal = ({
             Filtrer par période
           </Text>
 
-          {/* ======================================================
-              "DU" / "AU" — deux champs qui affichent la plage
-              choisie, comme deux inputs de date. Le champ actif
-              (celui qui va recevoir le prochain jour touché dans
-              le calendrier) est mis en surbrillance.
-              ====================================================== */}
+          {/* Champs Du / Au */}
           <View style={styles.rangeFieldsRow}>
             <View
               style={[
                 styles.rangeField,
                 {
-                  borderColor: !endKey
-                    ? themeColors.primary
-                    : themeColors.border,
-                  backgroundColor: !endKey
-                    ? `${themeColors.primary}10`
-                    : 'transparent',
+                  borderColor: !endKey ? COLORS.primary : themeColors.border,
+                  backgroundColor: !endKey ? COLORS.primarySoft : 'transparent',
                 },
               ]}
             >
@@ -1183,14 +1087,9 @@ const CalendarFilterModal = ({
 
               <Text
                 numberOfLines={1}
-                style={[
-                  styles.rangeFieldValue,
-                  { color: themeColors.text },
-                ]}
+                style={[styles.rangeFieldValue, { color: themeColors.text }]}
               >
-                {range?.start
-                  ? formatDate(range.start)
-                  : 'Choisir'}
+                {range?.start ? formatDate(range.start) : 'Choisir'}
               </Text>
             </View>
 
@@ -1207,11 +1106,11 @@ const CalendarFilterModal = ({
                 {
                   borderColor:
                     !!range?.start && !endKey
-                      ? themeColors.primary
+                      ? COLORS.primary
                       : themeColors.border,
                   backgroundColor:
                     !!range?.start && !endKey
-                      ? `${themeColors.primary}10`
+                      ? COLORS.primarySoft
                       : 'transparent',
                 },
               ]}
@@ -1227,28 +1126,20 @@ const CalendarFilterModal = ({
 
               <Text
                 numberOfLines={1}
-                style={[
-                  styles.rangeFieldValue,
-                  { color: themeColors.text },
-                ]}
+                style={[styles.rangeFieldValue, { color: themeColors.text }]}
               >
-                {range?.end
-                  ? formatDate(range.end)
-                  : 'Choisir'}
+                {range?.end ? formatDate(range.end) : 'Choisir'}
               </Text>
             </View>
           </View>
 
+          {/* Header mois */}
           <View style={styles.calendarHeaderRow}>
             <TouchableOpacity
               onPress={goPrevMonth}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons
-                name="chevron-back"
-                size={20}
-                color={themeColors.text}
-              />
+              <Ionicons name="chevron-back" size={20} color={themeColors.text} />
             </TouchableOpacity>
 
             <Text
@@ -1257,8 +1148,7 @@ const CalendarFilterModal = ({
                 { color: themeColors.text },
               ]}
             >
-              {MONTH_LABELS[viewDate.getMonth()]}{' '}
-              {viewDate.getFullYear()}
+              {MONTH_LABELS[viewDate.getMonth()]} {viewDate.getFullYear()}
             </Text>
 
             <TouchableOpacity
@@ -1273,6 +1163,7 @@ const CalendarFilterModal = ({
             </TouchableOpacity>
           </View>
 
+          {/* Jours de la semaine */}
           <View style={styles.calendarWeekRow}>
             {WEEKDAY_LABELS.map((label, index) => (
               <Text
@@ -1287,14 +1178,12 @@ const CalendarFilterModal = ({
             ))}
           </View>
 
+          {/* Grille */}
           <View style={styles.calendarGrid}>
             {cells.map((cellDate, index) => {
               if (!cellDate) {
                 return (
-                  <View
-                    key={`empty-${index}`}
-                    style={styles.calendarCell}
-                  />
+                  <View key={`empty-${index}`} style={styles.calendarCell} />
                 );
               }
 
@@ -1304,10 +1193,7 @@ const CalendarFilterModal = ({
               const isEdge = isStart || isEnd;
 
               const isInRange =
-                !!startKey &&
-                !!endKey &&
-                key > startKey &&
-                key < endKey;
+                !!startKey && !!endKey && key > startKey && key < endKey;
 
               const isToday = key === todayKey;
               const hasBooking = bookingDateSet?.has(key);
@@ -1317,18 +1203,16 @@ const CalendarFilterModal = ({
                   key={key}
                   style={[
                     styles.calendarCell,
-                    isInRange && {
-                      backgroundColor: `${themeColors.primary}18`,
-                    },
+                    isInRange && { backgroundColor: COLORS.primarySoft },
                     isStart &&
                       !!endKey && {
-                        backgroundColor: `${themeColors.primary}18`,
+                        backgroundColor: COLORS.primarySoft,
                         borderTopLeftRadius: 16,
                         borderBottomLeftRadius: 16,
                       },
                     isEnd &&
                       !!startKey && {
-                        backgroundColor: `${themeColors.primary}18`,
+                        backgroundColor: COLORS.primarySoft,
                         borderTopRightRadius: 16,
                         borderBottomRightRadius: 16,
                       },
@@ -1339,13 +1223,11 @@ const CalendarFilterModal = ({
                   <View
                     style={[
                       styles.calendarDayCircle,
-                      isEdge && {
-                        backgroundColor: themeColors.primary,
-                      },
+                      isEdge && { backgroundColor: COLORS.primary },
                       !isEdge &&
                         isToday && {
                           borderWidth: 1.5,
-                          borderColor: themeColors.primary,
+                          borderColor: COLORS.primary,
                         },
                     ]}
                   >
@@ -1353,9 +1235,7 @@ const CalendarFilterModal = ({
                       style={[
                         styles.calendarDayText,
                         {
-                          color: isEdge
-                            ? '#FFFFFF'
-                            : themeColors.text,
+                          color: isEdge ? COLORS.white : themeColors.text,
                         },
                       ]}
                     >
@@ -1367,10 +1247,7 @@ const CalendarFilterModal = ({
                     <View
                       style={[
                         styles.calendarDayDot,
-                        {
-                          backgroundColor:
-                            themeColors.primary,
-                        },
+                        { backgroundColor: COLORS.primary },
                       ]}
                     />
                   )}
@@ -1420,14 +1297,12 @@ const CalendarFilterModal = ({
                 styles.confirmButton,
                 {
                   backgroundColor: range?.start
-                    ? themeColors.primary
+                    ? COLORS.primary
                     : themeColors.border,
                 },
               ]}
             >
-              <Text style={styles.confirmButtonText}>
-                Appliquer
-              </Text>
+              <Text style={styles.confirmButtonText}>Appliquer</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -1437,184 +1312,44 @@ const CalendarFilterModal = ({
 };
 
 // ============================================================
-// THERAPIST COMPACT CARD
+// THERAPIST COMPACT
 // ============================================================
 
-const TherapistCompact = ({
-  therapist,
-  themeColors,
-}) => {
-  if (!therapist?.isAssigned) {
-    return null;
-  }
+const TherapistCompact = ({ therapist, themeColors }) => {
+  if (!therapist?.isAssigned) return null;
 
-  const therapistName =
-    therapist.name || 'Thérapeute assigné';
-
-  const avatarLetter =
-    therapistName
-      .trim()
-      .charAt(0)
-      .toUpperCase() || 'T';
-
-  const assignedAtLabel = formatDateTime(
-    therapist.assignedAt,
-  );
+  const therapistName = therapist.name || 'Thérapeute assigné';
+  const assignedAtLabel = formatDateTime(therapist.assignedAt);
 
   return (
-    <View
-      style={[
-        styles.therapistCompact,
-        {
-          backgroundColor: themeColors.background,
-          borderColor: themeColors.border,
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.therapistAvatarWrapper,
-          {
-            borderColor: therapist.isOnline
-              ? '#22C55E'
-              : themeColors.border,
-          },
-        ]}
-      >
-        {therapist.photo ? (
-          <Image
-            source={{ uri: therapist.photo }}
-            style={styles.therapistAvatar}
-            resizeMode="cover"
-          />
-        ) : (
-          <View
-            style={[
-              styles.therapistAvatarFallback,
-              {
-                backgroundColor: themeColors.primary,
-              },
-            ]}
-          >
-            <Text style={styles.therapistAvatarLetter}>
-              {avatarLetter}
-            </Text>
-          </View>
-        )}
-
+    <View style={styles.metaRow}>
+      <View style={styles.metaItem}>
         <View
-          style={[
-            styles.onlineIndicator,
-            {
-              backgroundColor: therapist.isOnline
-                ? '#22C55E'
-                : '#94A3B8',
-              borderColor: themeColors.background,
-            },
-          ]}
-        />
-      </View>
+          style={[styles.metaIconWrap, { backgroundColor: COLORS.purpleSoft }]}
+        >
+          <Ionicons name="person-outline" size={13} color={COLORS.purple} />
+        </View>
 
-      <View style={styles.therapistCompactInfo}>
-        <View style={styles.therapistNameLine}>
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.therapistName,
-              {
-                color: themeColors.text,
-              },
-            ]}
-          >
+        <Text
+          numberOfLines={1}
+          style={[styles.metaText, { color: themeColors.text }]}
+        >
+          <Text style={{ fontFamily: typography.fontFamily.bold }}>
             {therapistName}
           </Text>
 
-          <View
-            style={[
-              styles.onlineBadge,
-              {
-                backgroundColor: therapist.isOnline
-                  ? '#DCFCE7'
-                  : themeColors.border,
-              },
-            ]}
-          >
+          {!!assignedAtLabel && (
             <Text
-              style={[
-                styles.onlineBadgeText,
-                {
-                  color: therapist.isOnline
-                    ? '#15803D'
-                    : themeColors.textSecondary,
-                },
-              ]}
-            >
-              {therapist.isOnline ? 'En ligne' : 'Hors ligne'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.contactLine}>
-          <Ionicons
-            name="mail-outline"
-            size={13}
-            color={themeColors.textSecondary}
-          />
-
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.contactText,
-              {
+              style={{
                 color: themeColors.textSecondary,
-              },
-            ]}
-          >
-            {therapist.email || 'Email non renseigné'}
-          </Text>
-        </View>
-
-        <View style={styles.contactLine}>
-          <Ionicons
-            name="call-outline"
-            size={13}
-            color={themeColors.textSecondary}
-          />
-
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.contactText,
-              {
-                color: themeColors.textSecondary,
-              },
-            ]}
-          >
-            {therapist.phone || 'Numéro non renseigné'}
-          </Text>
-        </View>
-
-        {!!assignedAtLabel && (
-          <View style={styles.contactLine}>
-            <Ionicons
-              name="calendar-outline"
-              size={13}
-              color={themeColors.textSecondary}
-            />
-
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.contactText,
-                {
-                  color: themeColors.textSecondary,
-                },
-              ]}
+                fontFamily: typography.fontFamily.regular,
+              }}
             >
-              Assigné le {assignedAtLabel}
+              {'  •  Assigné le '}
+              {assignedAtLabel}
             </Text>
-          </View>
-        )}
+          )}
+        </Text>
       </View>
     </View>
   );
@@ -1624,13 +1359,7 @@ const TherapistCompact = ({
 // FILTER BUTTON
 // ============================================================
 
-const FilterButton = ({
-  label,
-  value,
-  activeFilter,
-  onPress,
-  themeColors,
-}) => {
+const FilterButton = ({ label, value, activeFilter, onPress, themeColors }) => {
   const isActive = activeFilter === value;
 
   return (
@@ -1640,12 +1369,8 @@ const FilterButton = ({
       style={[
         styles.filterButton,
         {
-          backgroundColor: isActive
-            ? themeColors.primary
-            : themeColors.card,
-          borderColor: isActive
-            ? themeColors.primary
-            : themeColors.border,
+          backgroundColor: isActive ? COLORS.primary : themeColors.card,
+          borderColor: isActive ? COLORS.primary : themeColors.border,
         },
       ]}
     >
@@ -1653,9 +1378,7 @@ const FilterButton = ({
         style={[
           styles.filterButtonText,
           {
-            color: isActive
-              ? '#FFFFFF'
-              : themeColors.textSecondary,
+            color: isActive ? COLORS.white : themeColors.textSecondary,
           },
         ]}
       >
@@ -1666,7 +1389,7 @@ const FilterButton = ({
 };
 
 // ============================================================
-// BOOKING CARD COMPACT
+// BOOKING CARD
 // ============================================================
 
 const BookingCard = ({
@@ -1681,11 +1404,9 @@ const BookingCard = ({
   const formattedPrice = formatPrice(booking.displayPrice);
   const formattedDuration = formatDuration(booking.duration);
 
-  const dateTimeLabel = `${formatDate(
-    booking.scheduledDate,
-  )} · ${formatTime(booking.scheduledTime)}${
-    formattedDuration ? ` (${formattedDuration})` : ''
-  }`;
+  const dateTimeLabel = `${formatDate(booking.scheduledDate)} · ${formatTime(
+    booking.scheduledTime,
+  )}${formattedDuration ? ` (${formattedDuration})` : ''}`;
 
   return (
     <TouchableOpacity
@@ -1699,14 +1420,12 @@ const BookingCard = ({
         },
       ]}
     >
-      {/* LIGNE PRINCIPALE : VIGNETTE + TITRE + PRIX */}
+      {/* TOP ROW */}
       <View style={styles.cardTopRow}>
         <View
           style={[
             styles.thumbnailWrapper,
-            {
-              backgroundColor: typeVisual.backgroundColor,
-            },
+            { backgroundColor: typeVisual.backgroundColor },
           ]}
         >
           {booking.imageUrl ? (
@@ -1730,9 +1449,7 @@ const BookingCard = ({
           <View
             style={[
               styles.miniStatusBadge,
-              {
-                backgroundColor: statusConfig.backgroundColor,
-              },
+              { backgroundColor: statusConfig.backgroundColor },
             ]}
           >
             <Ionicons
@@ -1740,15 +1457,9 @@ const BookingCard = ({
               size={11}
               color={statusConfig.color}
             />
-
             <Text
               numberOfLines={1}
-              style={[
-                styles.miniStatusText,
-                {
-                  color: statusConfig.color,
-                },
-              ]}
+              style={[styles.miniStatusText, { color: statusConfig.color }]}
             >
               {statusConfig.label}
             </Text>
@@ -1756,12 +1467,7 @@ const BookingCard = ({
 
           <Text
             numberOfLines={1}
-            style={[
-              styles.cardMainTitle,
-              {
-                color: themeColors.text,
-              },
-            ]}
+            style={[styles.cardMainTitle, { color: themeColors.text }]}
           >
             {booking.massageType}
           </Text>
@@ -1772,15 +1478,9 @@ const BookingCard = ({
               size={12}
               color={typeVisual.color}
             />
-
             <Text
               numberOfLines={1}
-              style={[
-                styles.typeText,
-                {
-                  color: themeColors.textSecondary,
-                },
-              ]}
+              style={[styles.typeText, { color: themeColors.textSecondary }]}
             >
               {booking.massageType}
             </Text>
@@ -1792,25 +1492,17 @@ const BookingCard = ({
             <View
               style={[
                 styles.priceBadge,
-                {
-                  backgroundColor: `${themeColors.primary}15`,
-                },
+                { backgroundColor: COLORS.primarySoft },
               ]}
             >
               <Ionicons
                 name="cash-outline"
                 size={13}
-                color={themeColors.primary}
+                color={COLORS.primary}
               />
-
               <Text
                 numberOfLines={1}
-                style={[
-                  styles.priceBadgeText,
-                  {
-                    color: themeColors.primary,
-                  },
-                ]}
+                style={[styles.priceBadgeText, { color: COLORS.primary }]}
               >
                 {formattedPrice}
               </Text>
@@ -1821,56 +1513,37 @@ const BookingCard = ({
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             onPress={() => onMenuPress?.(booking)}
-            style={[
-              styles.menuButton,
-              {
-                backgroundColor: `${themeColors.primary}12`,
-              },
-            ]}
+            style={[styles.menuButton, { backgroundColor: COLORS.primarySoft }]}
           >
             <Ionicons
               name="ellipsis-vertical"
               size={16}
-              color={themeColors.primary}
+              color={COLORS.primary}
             />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* LIGNE DATE / HEURE + LIEU */}
-      <View
-        style={[
-          styles.metaGroup,
-          {
-            borderTopColor: themeColors.border,
-          },
-        ]}
-      >
+      {/* META GROUP */}
+      <View style={[styles.metaGroup, { borderTopColor: themeColors.border }]}>
         <View style={styles.metaRow}>
           <View style={styles.metaItem}>
             <View
               style={[
                 styles.metaIconWrap,
-                {
-                  backgroundColor: '#DCFCE7',
-                },
+                { backgroundColor: COLORS.primarySoft },
               ]}
             >
               <Ionicons
                 name="calendar-outline"
                 size={13}
-                color="#16A34A"
+                color={COLORS.primary}
               />
             </View>
 
             <Text
               numberOfLines={1}
-              style={[
-                styles.metaText,
-                {
-                  color: themeColors.text,
-                },
-              ]}
+              style={[styles.metaText, { color: themeColors.text }]}
             >
               {dateTimeLabel}
             </Text>
@@ -1882,72 +1555,41 @@ const BookingCard = ({
             <View
               style={[
                 styles.metaIconWrap,
-                {
-                  backgroundColor: '#DBEAFE',
-                },
+                { backgroundColor: COLORS.blueSoft },
               ]}
             >
               <Ionicons
                 name="location-outline"
                 size={13}
-                color="#2563EB"
+                color={COLORS.blue}
               />
             </View>
 
             <Text
               numberOfLines={1}
-              style={[
-                styles.metaText,
-                {
-                  color: themeColors.textSecondary,
-                },
-              ]}
+              style={[styles.metaText, { color: themeColors.textSecondary }]}
             >
               {booking.address || 'Adresse non définie'}
             </Text>
           </View>
         </View>
+
+        <TherapistCompact
+          therapist={booking.therapist}
+          themeColors={themeColors}
+        />
       </View>
 
-      {/* THERAPEUTE : AFFICHÉ UNIQUEMENT S'IL EST ASSIGNÉ */}
-      <TherapistCompact
-        therapist={booking.therapist}
-        themeColors={themeColors}
-      />
-
       {/* FOOTER */}
-      <View
-        style={[
-          styles.cardFooter,
-          {
-            borderTopColor: themeColors.border,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.detailsText,
-            {
-              color: themeColors.primary,
-            },
-          ]}
-        >
+      <View style={[styles.cardFooter, { borderTopColor: themeColors.border }]}>
+        <Text style={[styles.detailsText, { color: COLORS.primary }]}>
           Voir les détails
         </Text>
 
         <View
-          style={[
-            styles.arrowCircle,
-            {
-              backgroundColor: `${themeColors.primary}15`,
-            },
-          ]}
+          style={[styles.arrowCircle, { backgroundColor: COLORS.primarySoft }]}
         >
-          <Ionicons
-            name="arrow-forward"
-            size={15}
-            color={themeColors.primary}
-          />
+          <Ionicons name="arrow-forward" size={15} color={COLORS.primary} />
         </View>
       </View>
     </TouchableOpacity>
@@ -1958,11 +1600,7 @@ const BookingCard = ({
 // EMPTY STATE
 // ============================================================
 
-const EmptyState = ({
-  activeFilter,
-  onCreateBooking,
-  themeColors,
-}) => {
+const EmptyState = ({ activeFilter, onCreateBooking, themeColors }) => {
   const isFiltered = activeFilter !== 'all';
 
   return (
@@ -1970,42 +1608,22 @@ const EmptyState = ({
       <View
         style={[
           styles.emptyIconContainer,
-          {
-            backgroundColor: `${themeColors.primary}15`,
-          },
+          { backgroundColor: COLORS.primarySoft },
         ]}
       >
         <Ionicons
-          name={
-            isFiltered
-              ? 'filter-outline'
-              : 'calendar-outline'
-          }
+          name={isFiltered ? 'filter-outline' : 'calendar-outline'}
           size={45}
-          color={themeColors.primary}
+          color={COLORS.primary}
         />
       </View>
 
-      <Text
-        style={[
-          styles.emptyTitle,
-          {
-            color: themeColors.text,
-          },
-        ]}
-      >
-        {isFiltered
-          ? 'Aucune réservation trouvée'
-          : 'Aucune réservation'}
+      <Text style={[styles.emptyTitle, { color: themeColors.text }]}>
+        {isFiltered ? 'Aucune réservation trouvée' : 'Aucune réservation'}
       </Text>
 
       <Text
-        style={[
-          styles.emptyDescription,
-          {
-            color: themeColors.textSecondary,
-          },
-        ]}
+        style={[styles.emptyDescription, { color: themeColors.textSecondary }]}
       >
         {isFiltered
           ? 'Aucune réservation ne correspond à ce filtre.'
@@ -2018,20 +1636,11 @@ const EmptyState = ({
           onPress={onCreateBooking}
           style={[
             styles.emptyActionButton,
-            {
-              backgroundColor: themeColors.primary,
-            },
+            { backgroundColor: COLORS.primary },
           ]}
         >
-          <Ionicons
-            name="add"
-            size={19}
-            color="#FFFFFF"
-          />
-
-          <Text style={styles.emptyActionButtonText}>
-            Faire une demande
-          </Text>
+          <Ionicons name="add" size={19} color={COLORS.white} />
+          <Text style={styles.emptyActionButtonText}>Faire une demande</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -2046,33 +1655,23 @@ const HistoryScreen = ({ navigation }) => {
   const { user: _user } = useAuth();
   const { colors: themeColors } = useTheme();
 
+  const therapistNameCacheRef = useRef(new Map());
+
   const [bookings, setBookings] = useState([]);
   const [activeFilter, setActiveFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
 
-  // Filtre par période (bouton calendrier du header)
-  // - draftRange : ce que l'utilisateur est en train de choisir
-  //   dans la modale (pas encore appliqué à la liste)
-  // - appliedRange : la période réellement utilisée pour filtrer
-  //   "Mes réservations" (mise à jour uniquement au clic sur
-  //   "Appliquer")
   const [calendarVisible, setCalendarVisible] = useState(false);
-  const [draftRange, setDraftRange] = useState({
-    start: null,
-    end: null,
-  });
-  const [appliedRange, setAppliedRange] = useState({
-    start: null,
-    end: null,
-  });
+  const [draftRange, setDraftRange] = useState({ start: null, end: null });
+  const [appliedRange, setAppliedRange] = useState({ start: null, end: null });
 
   const [massageTypesById, setMassageTypesById] = useState({});
   const [massageTypesByName, setMassageTypesByName] = useState({});
 
   // ==========================================================
-  // TYPES DE MASSAGE RÉELS (pour la photo de chaque carte)
+  // TYPES DE MASSAGE
   // ==========================================================
 
   useEffect(() => {
@@ -2080,12 +1679,8 @@ const HistoryScreen = ({ navigation }) => {
 
     (async () => {
       try {
-        const types =
-          await massageTypeService.getActiveMassageTypes();
-
-        if (cancelled) {
-          return;
-        }
+        const types = await massageTypeService.getActiveMassageTypes();
+        if (cancelled) return;
 
         const byId = {};
         const byName = {};
@@ -2094,11 +1689,8 @@ const HistoryScreen = ({ navigation }) => {
           if (type?.id !== undefined && type?.id !== null) {
             byId[String(type.id)] = type;
           }
-
           if (type?.name) {
-            byName[
-              String(type.name).trim().toLowerCase()
-            ] = type;
+            byName[String(type.name).trim().toLowerCase()] = type;
           }
         });
 
@@ -2119,9 +1711,7 @@ const HistoryScreen = ({ navigation }) => {
 
   const resolveBookingImage = useCallback(
     (booking) => {
-      if (booking.imageUrl) {
-        return booking.imageUrl;
-      }
+      if (booking.imageUrl) return booking.imageUrl;
 
       const matchById =
         booking.massageTypeId !== undefined &&
@@ -2131,40 +1721,97 @@ const HistoryScreen = ({ navigation }) => {
           : null;
 
       const matchByName = booking.massageType
-        ? massageTypesByName[
-            String(booking.massageType).trim().toLowerCase()
-          ]
+        ? massageTypesByName[String(booking.massageType).trim().toLowerCase()]
         : null;
 
       const match = matchById || matchByName;
-
       const rawPath = match?.image_url || match?.icon_url;
 
-      if (!rawPath) {
-        return null;
-      }
+      if (!rawPath) return null;
 
       return massageTypeService.getMassageImageUrl(rawPath);
     },
     [massageTypesById, massageTypesByName],
   );
 
+  // ==========================================================
+  // ENRICHISSEMENT THÉRAPEUTE
+  // ==========================================================
+
+  const enrichTherapistNames = useCallback(async (bookingList) => {
+    const idsToFetch = [];
+    const seen = new Set();
+
+    bookingList.forEach((booking) => {
+      const therapist = booking.therapist;
+
+      if (
+        therapist?.isAssigned &&
+        therapist?.id &&
+        !therapist?.hasName &&
+        !therapistNameCacheRef.current.has(therapist.id) &&
+        !seen.has(therapist.id)
+      ) {
+        seen.add(therapist.id);
+        idsToFetch.push(therapist.id);
+      }
+    });
+
+    if (idsToFetch.length === 0) return bookingList;
+
+    await Promise.all(
+      idsToFetch.map(async (therapistId) => {
+        try {
+          const result = await therapistService.getTherapist(therapistId);
+
+          if (result?.success) {
+            const resolvedName = extractTherapistNameFromProfile(result.data);
+            if (resolvedName) {
+              therapistNameCacheRef.current.set(therapistId, resolvedName);
+            }
+          }
+        } catch (fetchError) {
+          console.error('Erreur chargement nom thérapeute:', fetchError);
+        }
+      }),
+    );
+
+    if (therapistNameCacheRef.current.size === 0) return bookingList;
+
+    let hasChanges = false;
+
+    const enrichedList = bookingList.map((booking) => {
+      const therapist = booking.therapist;
+      const cachedName = therapist?.id
+        ? therapistNameCacheRef.current.get(therapist.id)
+        : null;
+
+      if (therapist?.isAssigned && !therapist?.hasName && cachedName) {
+        hasChanges = true;
+        return {
+          ...booking,
+          therapist: { ...therapist, name: cachedName, hasName: true },
+        };
+      }
+
+      return booking;
+    });
+
+    return hasChanges ? enrichedList : bookingList;
+  }, []);
+
+  // ==========================================================
+  // LOAD BOOKINGS
+  // ==========================================================
+
   const loadBookings = useCallback(
     async (showLoader = true) => {
       try {
-        if (showLoader) {
-          setLoading(true);
-        }
-
+        if (showLoader) setLoading(true);
         setError('');
 
-        const response =
-          await bookingService.getBookings();
-
-        const responseData =
-          response?.data ??
-          response ??
-          [];
+        const response = await bookingService.getBookings();
+        const responseData = response?.data ?? response ?? [];
 
         let bookingList = [];
 
@@ -2172,34 +1819,28 @@ const HistoryScreen = ({ navigation }) => {
           bookingList = responseData;
         } else if (Array.isArray(responseData.items)) {
           bookingList = responseData.items;
-        } else if (
-          Array.isArray(responseData.bookings)
-        ) {
+        } else if (Array.isArray(responseData.bookings)) {
           bookingList = responseData.bookings;
         } else if (Array.isArray(responseData.data)) {
           bookingList = responseData.data;
         }
 
-        const normalizedBookings = bookingList.map(
-          normalizeBooking,
-        );
-
+        const normalizedBookings = bookingList.map(normalizeBooking);
         setBookings(normalizedBookings);
-      } catch (requestError) {
-        console.error(
-          'Erreur chargement réservations:',
-          requestError,
-        );
 
-        setError(
-          'Impossible de charger vos réservations.',
-        );
+        const enrichedBookings = await enrichTherapistNames(normalizedBookings);
+        if (enrichedBookings !== normalizedBookings) {
+          setBookings(enrichedBookings);
+        }
+      } catch (requestError) {
+        console.error('Erreur chargement réservations:', requestError);
+        setError('Impossible de charger vos réservations.');
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [],
+    [enrichTherapistNames],
   );
 
   useFocusEffect(
@@ -2213,16 +1854,16 @@ const HistoryScreen = ({ navigation }) => {
     loadBookings(false);
   }, [loadBookings]);
 
+  // ==========================================================
+  // BOOKINGS PAR DATE + FILTRES
+  // ==========================================================
+
   const bookingDateSet = useMemo(() => {
     const set = new Set();
 
     bookings.forEach((booking) => {
-      if (!booking.scheduledDate) {
-        return;
-      }
-
+      if (!booking.scheduledDate) return;
       const parsed = new Date(booking.scheduledDate);
-
       if (!Number.isNaN(parsed.getTime())) {
         set.add(toDateKey(parsed));
       }
@@ -2257,31 +1898,20 @@ const HistoryScreen = ({ navigation }) => {
 
     if (appliedRange.start) {
       const startKey = toDateKey(appliedRange.start);
-      // Si "Au" n'a jamais été choisi, on filtre uniquement le
-      // jour de début (comportement d'un jour unique).
       const endKey = appliedRange.end
         ? toDateKey(appliedRange.end)
         : startKey;
 
-      // Sécurité : si jamais les deux dates sont inversées.
       const [lowKey, highKey] =
-        startKey <= endKey
-          ? [startKey, endKey]
-          : [endKey, startKey];
+        startKey <= endKey ? [startKey, endKey] : [endKey, startKey];
 
       result = result.filter((booking) => {
-        if (!booking.scheduledDate) {
-          return false;
-        }
+        if (!booking.scheduledDate) return false;
 
         const parsed = new Date(booking.scheduledDate);
-
-        if (Number.isNaN(parsed.getTime())) {
-          return false;
-        }
+        if (Number.isNaN(parsed.getTime())) return false;
 
         const key = toDateKey(parsed);
-
         return key >= lowKey && key <= highKey;
       });
     }
@@ -2289,25 +1919,17 @@ const HistoryScreen = ({ navigation }) => {
     return result;
   }, [bookings, activeFilter, appliedRange]);
 
-  // ----------------------------------------------------------
-  // Sélection dans le calendrier : le 1er jour touché devient
-  // "Du", le 2ème "Au" (en s'ajustant automatiquement si
-  // l'utilisateur touche un jour antérieur au "Du" déjà choisi).
-  // Rien n'est appliqué à la liste tant que l'utilisateur n'a
-  // pas appuyé sur "Appliquer".
-  // ----------------------------------------------------------
+  // ==========================================================
+  // CALENDAR HANDLERS
+  // ==========================================================
 
   const handleSelectCalendarDate = useCallback((date) => {
     setDraftRange((prev) => {
       if (!prev.start || (prev.start && prev.end)) {
-        // Rien choisi encore, ou une période complète déjà en
-        // place -> on recommence une nouvelle sélection.
         return { start: date, end: null };
       }
 
-      // "Du" déjà choisi, on choisit "Au".
       if (toDateKey(date) < toDateKey(prev.start)) {
-        // Jour touché avant le "Du" -> il devient le nouveau "Du".
         return { start: date, end: null };
       }
 
@@ -2339,6 +1961,10 @@ const HistoryScreen = ({ navigation }) => {
     setAppliedRange({ start: null, end: null });
     setDraftRange({ start: null, end: null });
   }, []);
+
+  // ==========================================================
+  // ACTIONS
+  // ==========================================================
 
   const handleBookingPress = useCallback(
     (booking) => {
@@ -2373,7 +1999,7 @@ const HistoryScreen = ({ navigation }) => {
   }, []);
 
   // ==========================================================
-  // MENU D'UNE RÉSERVATION (⋮)
+  // MENU / CANCEL
   // ==========================================================
 
   const [menuTarget, setMenuTarget] = useState(null);
@@ -2389,10 +2015,7 @@ const HistoryScreen = ({ navigation }) => {
   }, []);
 
   const handleViewDetailsFromMenu = useCallback(() => {
-    if (menuTarget) {
-      handleBookingPress(menuTarget);
-    }
-
+    if (menuTarget) handleBookingPress(menuTarget);
     setMenuTarget(null);
   }, [menuTarget, handleBookingPress]);
 
@@ -2402,17 +2025,12 @@ const HistoryScreen = ({ navigation }) => {
   }, [menuTarget]);
 
   const closeCancelModal = useCallback(() => {
-    if (isCancelling) {
-      return;
-    }
-
+    if (isCancelling) return;
     setCancelTarget(null);
   }, [isCancelling]);
 
   const performCancelBooking = useCallback(async () => {
-    if (!cancelTarget || isCancelling) {
-      return;
-    }
+    if (!cancelTarget || isCancelling) return;
 
     setIsCancelling(true);
 
@@ -2424,8 +2042,7 @@ const HistoryScreen = ({ navigation }) => {
 
       if (!result?.success) {
         throw new Error(
-          result?.error ||
-            "Impossible d'annuler la réservation.",
+          result?.error || "Impossible d'annuler la réservation.",
         );
       }
 
@@ -2433,14 +2050,9 @@ const HistoryScreen = ({ navigation }) => {
       showToast('Réservation annulée avec succès.', 'success');
       loadBookings(false);
     } catch (cancelError) {
-      console.error(
-        'Erreur annulation réservation:',
-        cancelError,
-      );
-
+      console.error('Erreur annulation réservation:', cancelError);
       showToast(
-        cancelError?.message ||
-          "Impossible d'annuler la réservation.",
+        cancelError?.message || "Impossible d'annuler la réservation.",
         'error',
       );
     } finally {
@@ -2483,78 +2095,38 @@ const HistoryScreen = ({ navigation }) => {
   );
 
   const keyExtractor = useCallback(
-    (item, index) => {
-      return String(item.bookingId || index);
-    },
+    (item, index) => String(item.bookingId || index),
     [],
   );
 
   const filterOptions = [
-    {
-      label: 'Toutes',
-      value: 'all',
-    },
-    {
-      label: 'En attente',
-      value: 'pending',
-    },
-    {
-      label: 'Négociation',
-      value: 'negotiation',
-    },
-    {
-      label: 'Confirmées',
-      value: 'confirmed',
-    },
-    {
-      label: 'En cours',
-      value: 'in_progress',
-    },
-    {
-      label: 'Terminées',
-      value: 'completed',
-    },
-    {
-      label: 'Annulées',
-      value: 'cancelled',
-    },
+    { label: 'Toutes', value: 'all' },
+    { label: 'En attente', value: 'pending' },
+    { label: 'Négociation', value: 'negotiation' },
+    { label: 'Confirmées', value: 'confirmed' },
+    { label: 'En cours', value: 'in_progress' },
+    { label: 'Terminées', value: 'completed' },
+    { label: 'Annulées', value: 'cancelled' },
   ];
 
   return (
     <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: themeColors.background,
-        },
-      ]}
+      style={[styles.container, { backgroundColor: themeColors.background }]}
     >
-      <Header
-        title="Mes réservations"
-        showBack
-      />
+      <Header title="Mes réservations" showBack />
 
       <View style={styles.content}>
         {/* PAGE HEADER */}
         <View style={styles.pageHeader}>
           <View>
-            <Text
-              style={[
-                styles.pageTitle,
-                {
-                  color: themeColors.text,
-                },
-              ]}
-            >
+            <Text style={[styles.pageTitle, { color: themeColors.text }]}>
               Historique
             </Text>
 
             <Text
               style={[
                 styles.pageSubtitle,
-                {
-                  color: themeColors.textSecondary,
-                },
+                { color: themeColors.textSecondary },
               ]}
             >
               Consultez vos demandes de massage
@@ -2568,8 +2140,8 @@ const HistoryScreen = ({ navigation }) => {
               style={[
                 styles.headerCalendarButton,
                 {
-                  backgroundColor: `${themeColors.primary}12`,
-                  borderColor: `${themeColors.primary}35`,
+                  backgroundColor: COLORS.primarySoft,
+                  borderColor: COLORS.primaryTint,
                 },
                 !!appliedRange.start && styles.headerCalendarButtonActive,
               ]}
@@ -2580,7 +2152,7 @@ const HistoryScreen = ({ navigation }) => {
               <Ionicons
                 name="calendar-outline"
                 size={20}
-                color={themeColors.primary}
+                color={COLORS.primary}
               />
             </TouchableOpacity>
 
@@ -2589,17 +2161,11 @@ const HistoryScreen = ({ navigation }) => {
               onPress={handleCreateBooking}
               style={[
                 styles.newBookingButton,
-                {
-                  backgroundColor: themeColors.primary,
-                },
+                { backgroundColor: COLORS.primary },
               ]}
             >
-            <Ionicons
-              name="add"
-              size={21}
-              color="#FFFFFF"
-            />
-          </TouchableOpacity>
+              <Ionicons name="add" size={21} color={COLORS.white} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -2616,9 +2182,7 @@ const HistoryScreen = ({ navigation }) => {
                 label={item.label}
                 value={item.value}
                 activeFilter={activeFilter}
-                onPress={() =>
-                  setActiveFilter(item.value)
-                }
+                onPress={() => setActiveFilter(item.value)}
                 themeColors={themeColors}
               />
             )}
@@ -2631,26 +2195,22 @@ const HistoryScreen = ({ navigation }) => {
               style={[
                 styles.dateFilterChip,
                 {
-                  backgroundColor: `${themeColors.primary}15`,
-                  borderColor: themeColors.primary,
+                  backgroundColor: COLORS.primarySoft,
+                  borderColor: COLORS.primary,
                 },
               ]}
             >
               <Ionicons
                 name="calendar-outline"
                 size={13}
-                color={themeColors.primary}
+                color={COLORS.primary}
               />
 
               <Text
-                style={[
-                  styles.dateFilterChipText,
-                  { color: themeColors.primary },
-                ]}
+                style={[styles.dateFilterChipText, { color: COLORS.primary }]}
               >
                 {appliedRange.end &&
-                toDateKey(appliedRange.end) !==
-                  toDateKey(appliedRange.start)
+                toDateKey(appliedRange.end) !== toDateKey(appliedRange.start)
                   ? `${formatDate(appliedRange.start)} – ${formatDate(
                       appliedRange.end,
                     )}`
@@ -2665,7 +2225,7 @@ const HistoryScreen = ({ navigation }) => {
                 <Ionicons
                   name="close-circle"
                   size={15}
-                  color={themeColors.primary}
+                  color={COLORS.primary}
                 />
               </TouchableOpacity>
             </View>
@@ -2675,17 +2235,11 @@ const HistoryScreen = ({ navigation }) => {
         {/* CONTENT */}
         {loading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator
-              size="large"
-              color={themeColors.primary}
-            />
-
+            <ActivityIndicator size="large" color={COLORS.primary} />
             <Text
               style={[
                 styles.loadingText,
-                {
-                  color: themeColors.textSecondary,
-                },
+                { color: themeColors.textSecondary },
               ]}
             >
               Chargement de vos réservations...
@@ -2693,30 +2247,14 @@ const HistoryScreen = ({ navigation }) => {
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
-            <Ionicons
-              name="cloud-offline-outline"
-              size={45}
-              color="#DC2626"
-            />
+            <Ionicons name="cloud-offline-outline" size={45} color={COLORS.red} />
 
-            <Text
-              style={[
-                styles.errorTitle,
-                {
-                  color: themeColors.text,
-                },
-              ]}
-            >
+            <Text style={[styles.errorTitle, { color: themeColors.text }]}>
               Une erreur est survenue
             </Text>
 
             <Text
-              style={[
-                styles.errorText,
-                {
-                  color: themeColors.textSecondary,
-                },
-              ]}
+              style={[styles.errorText, { color: themeColors.textSecondary }]}
             >
               {error}
             </Text>
@@ -2726,20 +2264,11 @@ const HistoryScreen = ({ navigation }) => {
               onPress={() => loadBookings(true)}
               style={[
                 styles.retryButton,
-                {
-                  backgroundColor: themeColors.primary,
-                },
+                { backgroundColor: COLORS.primary },
               ]}
             >
-              <Ionicons
-                name="refresh-outline"
-                size={18}
-                color="#FFFFFF"
-              />
-
-              <Text style={styles.retryButtonText}>
-                Réessayer
-              </Text>
+              <Ionicons name="refresh-outline" size={18} color={COLORS.white} />
+              <Text style={styles.retryButtonText}>Réessayer</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -2750,15 +2279,14 @@ const HistoryScreen = ({ navigation }) => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.listContent,
-              filteredBookings.length === 0 &&
-                styles.emptyListContent,
+              filteredBookings.length === 0 && styles.emptyListContent,
             ]}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={themeColors.primary}
-                colors={[themeColors.primary]}
+                tintColor={COLORS.primary}
+                colors={[COLORS.primary]}
               />
             }
             ListEmptyComponent={
@@ -2865,6 +2393,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: COLORS.primary,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
 
   headerCalendarButton: {
@@ -2877,8 +2410,8 @@ const styles = StyleSheet.create({
   },
 
   headerCalendarButtonActive: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#168A55',
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
   },
 
   dateFilterChipRow: {
@@ -2934,7 +2467,7 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // COMPACT BOOKING CARD
+  // BOOKING CARD
   // ==========================================================
 
   bookingCard: {
@@ -2943,11 +2476,12 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 11,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
-
-  // ==========================================================
-  // TOP ROW : VIGNETTE + TITRE + PRIX
-  // ==========================================================
 
   cardTopRow: {
     flexDirection: 'row',
@@ -3048,10 +2582,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // ==========================================================
-  // META (DATE / HEURE + LIEU)
-  // ==========================================================
-
   metaGroup: {
     marginTop: 11,
     paddingTop: 10,
@@ -3088,111 +2618,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.medium,
   },
 
-  // ==========================================================
-  // THERAPIST COMPACT
-  // ==========================================================
-
-  therapistCompact: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    padding: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-
-  therapistAvatarWrapper: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    borderWidth: 1.2,
-    padding: 2,
-    position: 'relative',
-    marginRight: 11,
-  },
-
-  therapistAvatar: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 13,
-  },
-
-  therapistAvatarFallback: {
-    flex: 1,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  therapistAvatarLetter: {
-    color: '#FFFFFF',
-    fontSize: 21,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  onlineIndicator: {
-    position: 'absolute',
-    right: -2,
-    bottom: -2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-
-  therapistCompactInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  therapistNameLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minWidth: 0,
-  },
-
-  therapistName: {
-    flex: 1,
-    minWidth: 0,
-    fontSize: 12,
-    lineHeight: 16,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  onlineBadge: {
-    marginLeft: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 7,
-  },
-
-  onlineBadgeText: {
-    fontSize: 9,
-    lineHeight: 11,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  contactLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minWidth: 0,
-    marginTop: 3,
-    gap: 5,
-  },
-
-  contactText: {
-    flex: 1,
-    minWidth: 0,
-    fontSize: 10,
-    lineHeight: 13,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  // ==========================================================
-  // FOOTER
-  // ==========================================================
-
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3217,7 +2642,7 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // EMPTY STATE
+  // EMPTY / LOADING / ERROR
   // ==========================================================
 
   emptyState: {
@@ -3264,14 +2689,10 @@ const styles = StyleSheet.create({
   },
 
   emptyActionButtonText: {
-    color: '#FFFFFF',
+    color: COLORS.white,
     fontSize: 13,
     fontFamily: typography.fontFamily.bold,
   },
-
-  // ==========================================================
-  // LOADING / ERROR
-  // ==========================================================
 
   loadingContainer: {
     flex: 1,
@@ -3322,7 +2743,7 @@ const styles = StyleSheet.create({
   },
 
   retryButtonText: {
-    color: '#FFFFFF',
+    color: COLORS.white,
     fontSize: 13,
     fontFamily: typography.fontFamily.bold,
   },
@@ -3365,7 +2786,7 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // MODAL BACKDROP (commun ConfirmModal / ActionSheet)
+  // MODAL BACKDROP
   // ==========================================================
 
   modalBackdrop: {
@@ -3388,6 +2809,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 22,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 12,
   },
 
   confirmIconWrap: {
@@ -3439,7 +2865,7 @@ const styles = StyleSheet.create({
   },
 
   confirmButtonText: {
-    color: '#FFFFFF',
+    color: COLORS.white,
     fontSize: 13.5,
     fontFamily: typography.fontFamily.bold,
   },
@@ -3454,8 +2880,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     paddingHorizontal: 18,
     paddingTop: 10,
-    // paddingBottom réel calculé dans le composant (insets.bottom
-    // + marge) pour tenir compte de la barre de navigation Android.
   },
 
   actionSheetHandle: {
@@ -3522,8 +2946,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     paddingHorizontal: 24,
     paddingTop: 10,
-    // paddingBottom réel calculé dans le composant (insets.bottom
-    // + marge) pour tenir compte de la barre de navigation Android.
   },
 
   calendarSheetWeb: {

@@ -38,7 +38,7 @@ import useLocationTracking from "../../hooks/useLocationTracking";
 import { searchLocation, getAddressSuggestions, getPlaceDetails } from "../../services/geocoding";
 import {
   computeAutoDistances,
-  calculateRoute,
+  calculateAlternativeRoutes,
   formatDistance,
 } from "../../services/routing";
 import {
@@ -324,7 +324,23 @@ const SearchMassageScreen = ({ navigation, route }) => {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const searchDebounceRef = useRef(null);
   const [selectedMarker, setSelectedMarker] = useState(null);
-  const [selectedRoute, setSelectedRoute] = useState(null);
+  // ✅ Proposition d'itinéraires : liste (le plus rapide + alternatives)
+  // et identifiant de celui qui est sélectionné.
+  const [routeOptions, setRouteOptions] = useState([]);
+  const [selectedRouteId, setSelectedRouteId] = useState(null);
+
+  const selectedRoute = useMemo(
+    () =>
+      routeOptions.find((option) => option.id === selectedRouteId) ||
+      routeOptions[0] ||
+      null,
+    [routeOptions, selectedRouteId],
+  );
+
+  const clearRoutes = useCallback(() => {
+    setRouteOptions([]);
+    setSelectedRouteId(null);
+  }, []);
   const [isRouting, setIsRouting] = useState(false);
   const [mapKey, setMapKey] = useState(0);
   const [_showFilters, setShowFilters] = useState(false);
@@ -887,7 +903,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
     setAddressSuggestions([]);
     setAddressResult(null);
     setSelectedMarker(null);
-    setSelectedRoute(null);
+    clearRoutes();
     setSelectedCategory(null);
     setSelectedType(null);
     setFilteredTherapists(therapists);
@@ -943,14 +959,14 @@ const SearchMassageScreen = ({ navigation, route }) => {
 
     const fetchRoute = async () => {
       if (!selectedMarker || !userLocation || !selectedMarker.coordinate) {
-        setSelectedRoute(null);
+        clearRoutes();
         return;
       }
 
       setIsRouting(true);
 
       try {
-        const result = await calculateRoute(
+        const result = await calculateAlternativeRoutes(
           userLocation.latitude,
           userLocation.longitude,
           selectedMarker.coordinate.latitude,
@@ -958,7 +974,8 @@ const SearchMassageScreen = ({ navigation, route }) => {
         );
 
         if (!cancelled) {
-          setSelectedRoute(result);
+          setRouteOptions(result || []);
+          setSelectedRouteId(result?.[0]?.id ?? null);
         }
       } catch (error) {
         console.error("Route error:", error);
@@ -975,7 +992,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
     return () => {
       cancelled = true;
     };
-  }, [selectedMarker, userLocation, showToast]);
+  }, [selectedMarker, userLocation, showToast, clearRoutes]);
 
   /* ==========================================================
      MARKER PRESS
@@ -984,7 +1001,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
   const handleMarkerPress = (marker) => {
     if (!marker) {
       setSelectedMarker(null);
-      setSelectedRoute(null);
+      clearRoutes();
       return;
     }
 
@@ -2028,7 +2045,13 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 style={styles.map}
                 markers={mapMarkers}
                 userLocation={userLocation}
-                route={selectedRoute}
+                route={selectedRoute?.coordinates}
+                routeIsFallback={!!selectedRoute?.isFallback}
+                routeOrigin={userLocation}
+                routeDestination={selectedMarker?.coordinate}
+                routeOptions={routeOptions}
+                selectedRouteId={selectedRoute?.id}
+                onRouteSelect={setSelectedRouteId}
                 showUserLocation
                 trackUserLocation
                 showMapTypeControl={false}
@@ -2170,10 +2193,22 @@ const SearchMassageScreen = ({ navigation, route }) => {
                       <Ionicons name="time-outline" size={15} color={PRIMARY} />
                       <View>
                         <Text style={[styles.panelStatLabel, { color: themeColors.textSecondary }]}>
-                          Trajet
+                          En voiture
                         </Text>
                         <Text style={[styles.panelStatValue, { color: themeColors.text }]}>
-                          {isRouting ? "..." : selectedRoute ? selectedRoute.durationText : "—"}
+                          {isRouting ? "..." : selectedRoute ? selectedRoute.drivingDurationText : "—"}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.panelStat}>
+                      <Ionicons name="walk-outline" size={15} color={PRIMARY} />
+                      <View>
+                        <Text style={[styles.panelStatLabel, { color: themeColors.textSecondary }]}>
+                          À pied
+                        </Text>
+                        <Text style={[styles.panelStatValue, { color: themeColors.text }]}>
+                          {isRouting ? "..." : selectedRoute ? selectedRoute.walkingDurationText : "—"}
                         </Text>
                       </View>
                     </View>
@@ -2182,6 +2217,68 @@ const SearchMassageScreen = ({ navigation, route }) => {
                       <Text style={styles.panelPrice}>{formatPrice(selectedMarker.price || 0)}</Text>
                     </View>
                   </View>
+
+                  {routeOptions.length > 0 && (
+                    <View style={styles.routeOptionsWrap}>
+                      <Text style={[styles.routeOptionsTitle, { color: themeColors.text }]}>
+                        {routeOptions.length > 1
+                          ? `${routeOptions.length} itinéraires possibles`
+                          : "Itinéraire"}
+                      </Text>
+
+                      {routeOptions.map((option, index) => {
+                        const active = option.id === selectedRoute?.id;
+
+                        return (
+                          <TouchableOpacity
+                            key={option.id}
+                            activeOpacity={0.8}
+                            onPress={() => setSelectedRouteId(option.id)}
+                            style={[
+                              styles.routeOption,
+                              { borderColor: active ? PRIMARY : "#E3E7EC" },
+                              active && styles.routeOptionActive,
+                            ]}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text
+                                numberOfLines={1}
+                                style={[styles.routeOptionTitle, { color: themeColors.text }]}
+                              >
+                                {`Itinéraire ${index + 1} · ${option.tag}`}
+                                {option.summary && !option.isFallback ? ` · via ${option.summary}` : ""}
+                              </Text>
+
+                              <View style={styles.routeOptionRow}>
+                                <Ionicons name="car-outline" size={13} color={PRIMARY} />
+                                <Text style={[styles.routeOptionValue, { color: themeColors.text }]}>
+                                  {option.drivingDurationText}
+                                </Text>
+
+                                <Ionicons name="walk-outline" size={13} color={PRIMARY} style={{ marginLeft: 10 }} />
+                                <Text style={[styles.routeOptionValue, { color: themeColors.text }]}>
+                                  {option.walkingDurationText}
+                                </Text>
+
+                                <Ionicons name="navigate-outline" size={13} color={PRIMARY} style={{ marginLeft: 10 }} />
+                                <Text style={[styles.routeOptionValue, { color: themeColors.text }]}>
+                                  {option.distanceText}
+                                </Text>
+                              </View>
+                            </View>
+
+                            {active && <Ionicons name="checkmark-circle" size={18} color={PRIMARY} />}
+                          </TouchableOpacity>
+                        );
+                      })}
+
+                      {selectedRoute?.isFallback && (
+                        <Text style={[styles.routeOptionsNote, { color: themeColors.textSecondary }]}>
+                          Aucune route trouvée : trajet estimé en ligne droite (pointillés).
+                        </Text>
+                      )}
+                    </View>
+                  )}
 
                   <TouchableOpacity
                     activeOpacity={0.85}
@@ -2621,6 +2718,14 @@ const styles = StyleSheet.create({
   panelStat: { flexDirection: "row", alignItems: "center", flex: 1 },
   panelStatLabel: { fontSize: 7, marginLeft: 5, fontFamily: typography.fontFamily.regular },
   panelStatValue: { fontSize: 9, marginLeft: 5, marginTop: 1, fontFamily: typography.fontFamily.bold },
+  routeOptionsWrap: { marginTop: 12, marginBottom: 4 },
+  routeOptionsTitle: { fontSize: 11, marginBottom: 6, fontFamily: typography.fontFamily.bold },
+  routeOption: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 6 },
+  routeOptionActive: { backgroundColor: "#2E7D3212" },
+  routeOptionTitle: { fontSize: 10.5, fontFamily: typography.fontFamily.bold },
+  routeOptionRow: { flexDirection: "row", alignItems: "center", marginTop: 4 },
+  routeOptionValue: { fontSize: 10.5, marginLeft: 4, fontFamily: typography.fontFamily.medium },
+  routeOptionsNote: { fontSize: 9.5, marginTop: 2, fontFamily: typography.fontFamily.regular },
   panelPriceContainer: { alignItems: "flex-end" },
   panelPrice: { color: PRIMARY, fontSize: 12, fontFamily: typography.fontFamily.bold },
   panelButton: { height: 38, marginTop: 11, borderRadius: 11, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },

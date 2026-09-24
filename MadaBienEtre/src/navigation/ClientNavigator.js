@@ -354,6 +354,83 @@ const ProfileStack = () => {
 };
 
 // ============================================================
+// HISTORY STACK
+// ============================================================
+//
+// Nouvel onglet "Historique" du client. Regroupe HistoryScreen et
+// tous les écrans qu'il peut ouvrir (voir dans HistoryScreen.js :
+// navigation.navigate('BookingDetail', ...) et
+// navigation.navigate('CreateBooking')), pour que la navigation
+// imbriquée reste cohérente que l'on soit sur cet onglet ou un autre.
+// ============================================================
+
+const HistoryStack = () => {
+  const { colors: themeColors } = useTheme();
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: 'fade',
+        contentStyle: {
+          backgroundColor: themeColors.background,
+        },
+      }}
+    >
+      <Stack.Screen
+        name="HistoryScreen"
+        component={HistoryScreen}
+      />
+
+      <Stack.Screen
+        name="BookingDetail"
+        component={BookingDetailScreen}
+      />
+
+      <Stack.Screen
+        name="CreateBooking"
+        component={BookingScreen}
+      />
+
+      <Stack.Screen
+        name="Negotiation"
+        component={NegotiationScreen}
+      />
+
+      <Stack.Screen
+        name="Offers"
+        component={OffersScreen}
+      />
+
+      <Stack.Screen
+        name="Payment"
+        component={PaymentScreen}
+      />
+
+      <Stack.Screen
+        name="Rating"
+        component={RatingScreen}
+      />
+
+      <Stack.Screen
+        name="Tracking"
+        component={TrackingScreen}
+      />
+
+      <Stack.Screen
+        name="Chat"
+        component={ChatScreen}
+      />
+
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationScreen}
+      />
+    </Stack.Navigator>
+  );
+};
+
+// ============================================================
 // TAB ICONS
 // ============================================================
 
@@ -371,6 +448,11 @@ const getTabIcon = (
       return focused
         ? 'calendar'
         : 'calendar-outline';
+
+    case 'Historique':
+      return focused
+        ? 'time'
+        : 'time-outline';
 
     case 'Messages':
       return focused
@@ -400,6 +482,9 @@ const getTabLabel = (
 
     case 'Réservations':
       return 'Réservations';
+
+    case 'Historique':
+      return 'Historique';
 
     case 'Messages':
       return 'Messages';
@@ -762,6 +847,21 @@ const ClientNavigator = () => {
             options={{
               tabBarLabel:
                 'Réservations',
+            }}
+          />
+
+          {/* ================================================= */}
+          {/* HISTORIQUE */}
+          {/* ================================================= */}
+
+          <Tab.Screen
+            name="Historique"
+            component={
+              HistoryStack
+            }
+            options={{
+              tabBarLabel:
+                'Historique',
             }}
           />
 

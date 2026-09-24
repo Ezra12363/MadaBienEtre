@@ -54,7 +54,7 @@ import Header from '../../components/common/Header';
 import MapView from '../../components/map/MapViewWrapper';
 
 import {
-  calculateRoute,
+  calculateAlternativeRoutes,
   haversineDistance,
   formatDistance,
 } from '../../services/routing';
@@ -100,8 +100,9 @@ export default function NavigationScreen({ route: navRoute }) {
   const mapRef = useRef(null);
 
   const [therapistPosition, setTherapistPosition] = useState(null);
-  const [routeCoordinates, setRouteCoordinates] = useState([]);
-  const [routeInfo, setRouteInfo] = useState(null);
+  // ✅ Proposition d'itinéraires : le plus rapide + alternatives.
+  const [routeOptions, setRouteOptions] = useState([]);
+  const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [routeLoading, setRouteLoading] = useState(false);
   const [gpsError, setGpsError] = useState('');
@@ -211,6 +212,24 @@ export default function NavigationScreen({ route: navRoute }) {
   // ROUTE
   // ==========================================================
 
+  // Itinéraire sélectionné (par défaut : le plus rapide) et données
+  // dérivées, avec les mêmes noms qu'avant pour le reste de l'écran.
+  const routeInfo = useMemo(
+    () =>
+      routeOptions.find((option) => option.id === selectedRouteId) ||
+      routeOptions[0] ||
+      null,
+    [routeOptions, selectedRouteId]
+  );
+
+  const routeCoordinates = useMemo(() => {
+    if (routeInfo?.coordinates?.length > 1) return routeInfo.coordinates;
+    if (therapistPosition && clientPosition) {
+      return [therapistPosition, clientPosition];
+    }
+    return [];
+  }, [routeInfo, therapistPosition, clientPosition]);
+
   const loadRoute = useCallback(
     async (origin) => {
       if (!origin) return;
@@ -218,25 +237,19 @@ export default function NavigationScreen({ route: navRoute }) {
       setRouteLoading(true);
 
       try {
-        const result = await calculateRoute(
+        const options = await calculateAlternativeRoutes(
           origin.latitude,
           origin.longitude,
           clientPosition.latitude,
-          clientPosition.longitude,
-          'driving'
+          clientPosition.longitude
         );
 
-        if (result) {
-          setRouteCoordinates(result.coordinates || [origin, clientPosition]);
-          setRouteInfo(result);
-        } else {
-          setRouteCoordinates([origin, clientPosition]);
-          setRouteInfo(null);
-        }
+        setRouteOptions(options || []);
+        setSelectedRouteId(options?.[0]?.id ?? null);
       } catch (error) {
         console.warn('[Navigation] Route:', error?.message);
-        setRouteCoordinates([origin, clientPosition]);
-        setRouteInfo(null);
+        setRouteOptions([]);
+        setSelectedRouteId(null);
       } finally {
         setRouteLoading(false);
       }
@@ -388,6 +401,15 @@ export default function NavigationScreen({ route: navRoute }) {
             route={routeCoordinates.length > 1 ? routeCoordinates : null}
             routeColor={END_COLOR}
             routeWidth={5}
+            // ✅ Tsipika tsipika (pointillés) rehefa tsy nahitana lalana
+            // mampitohy ny thérapeute sy ny client ; ary eo anelanelan'ny
+            // toerana marina sy ny lalana raha tsy tonga tanteraka.
+            routeIsFallback={!routeInfo || !!routeInfo.isFallback}
+            routeOrigin={therapistPosition}
+            routeDestination={clientPosition}
+            routeOptions={routeOptions}
+            selectedRouteId={routeInfo?.id}
+            onRouteSelect={setSelectedRouteId}
             showUserLocation={false}
             trackUserLocation={false}
             showMapTypeControl
@@ -547,14 +569,14 @@ export default function NavigationScreen({ route: navRoute }) {
             />
 
             <View style={styles.routeInfoItem}>
-              <Ionicons name="time-outline" size={18} color={PRIMARY} />
+              <Ionicons name="car-outline" size={18} color={PRIMARY} />
               <Text
                 style={[
                   styles.routeInfoLabel,
                   { color: themeColors.textSecondary },
                 ]}
               >
-                Durée
+                Voiture
               </Text>
 
               {routeLoading ? (
@@ -563,11 +585,80 @@ export default function NavigationScreen({ route: navRoute }) {
                 <Text
                   style={[styles.routeInfoValue, { color: themeColors.text }]}
                 >
-                  {routeInfo?.durationText || '—'}
+                  {routeInfo?.drivingDurationText || '—'}
+                </Text>
+              )}
+            </View>
+
+            <View
+              style={[
+                styles.routeInfoDivider,
+                { backgroundColor: themeColors.border || '#E5E5E5' },
+              ]}
+            />
+
+            <View style={styles.routeInfoItem}>
+              <Ionicons name="walk-outline" size={18} color={PRIMARY} />
+              <Text
+                style={[
+                  styles.routeInfoLabel,
+                  { color: themeColors.textSecondary },
+                ]}
+              >
+                À pied
+              </Text>
+
+              {routeLoading ? (
+                <ActivityIndicator size="small" color={PRIMARY} />
+              ) : (
+                <Text
+                  style={[styles.routeInfoValue, { color: themeColors.text }]}
+                >
+                  {routeInfo?.walkingDurationText || '—'}
                 </Text>
               )}
             </View>
           </View>
+
+          {/* ✅ Choix de l'itinéraire (le plus rapide + alternatives) */}
+          {routeOptions.length > 1 && (
+            <View style={styles.routeOptionsList}>
+              {routeOptions.map((option, index) => {
+                const active = option.id === routeInfo?.id;
+
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    activeOpacity={0.8}
+                    onPress={() => setSelectedRouteId(option.id)}
+                    style={[
+                      styles.routeOption,
+                      { borderColor: active ? PRIMARY : themeColors.border || '#E5E5E5' },
+                      active && { backgroundColor: `${PRIMARY}12` },
+                    ]}
+                  >
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.routeOptionTitle, { color: themeColors.text }]}
+                    >
+                      {`${index + 1}. ${option.tag}`}
+                    </Text>
+
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.routeOptionMeta, { color: themeColors.textSecondary }]}
+                    >
+                      {`🚗 ${option.drivingDurationText}  ·  🚶 ${option.walkingDurationText}  ·  ${option.distanceText}`}
+                    </Text>
+
+                    {active && (
+                      <Ionicons name="checkmark-circle" size={16} color={PRIMARY} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
 
           <TouchableOpacity
             style={styles.startButton}
@@ -771,6 +862,29 @@ const styles = StyleSheet.create({
   routeInfoValue: {
     fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.bold,
+  },
+
+  routeOptionsList: { marginBottom: spacing.md, gap: 6 },
+
+  routeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+
+  routeOptionTitle: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  routeOptionMeta: {
+    flex: 1,
+    fontSize: typography.fontSize.xs,
+    fontFamily: typography.fontFamily.regular,
   },
 
   startButton: {

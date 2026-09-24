@@ -7,6 +7,9 @@ import {
   GOOGLE_DIRECTIONS_URL,
 } from '../config/googleMaps';
 
+// ✅ Serveur public OSRM (routage OpenStreetMap, gratuit, sans clé).
+const OSRM_BASE_URL = 'https://router.project-osrm.org/route/v1/driving';
+
 /**
  * ✅ "Distance automatique" — Haversine (calcul local, gratis, tsy
  * mila API call, ary mandeha na offline aza). Ampiasaina ho
@@ -118,6 +121,12 @@ export const calculateDistance = async (lat1, lng1, lat2, lng2, mode = 'driving'
  * @param {number} timeoutMs
  * @returns {Promise<boolean>}
  */
+// ✅ Mémorise le refus de Google (REQUEST_DENIED : facturation non activée,
+// API "Directions" non activée, clé restreinte...). Une fois refusé, on ne
+// re-sollicite plus Google pendant la session : on passe directement à OSRM
+// (gratuit, sans clé), ce qui évite des erreurs répétées dans la console.
+let googleDirectionsDenied = false;
+
 const waitForGoogleMapsJS = (timeoutMs = 8000) => {
   return new Promise((resolve) => {
     if (typeof window === 'undefined') {
@@ -185,6 +194,9 @@ const calculateRouteViaDirectionsService = (originLat, originLng, destinationLat
       (result, status) => {
         if (status !== 'OK' || !result?.routes?.length) {
           console.warn('⚠️ DirectionsService (web) status:', status);
+          if (status === 'REQUEST_DENIED' || status === 'OVER_QUERY_LIMIT') {
+            googleDirectionsDenied = true;
+          }
           resolve(null);
           return;
         }
@@ -243,6 +255,76 @@ const calculateRouteViaDirectionsService = (originLat, originLng, destinationLat
       }
     );
   });
+};
+
+/**
+ * ✅ TRAJET RÉEL VIA OSRM (gratuit, sans clé API, CORS autorisé → marche
+ * sur le web ET sur mobile). Sert de secours lorsque Google Directions est
+ * refusé (facturation non activée) ou indisponible. Renvoie le vrai tracé
+ * qui suit les rues, au même format que Google.
+ * NB : le serveur public OSRM ne calcule que la voiture ; pour les autres
+ * modes, la distance/durée sont donc celles de la route en voiture.
+ * @returns {Promise<object|null>}
+ */
+const calculateRouteViaOSRM = async (originLat, originLng, destinationLat, destinationLng) => {
+  try {
+    const url =
+      `${OSRM_BASE_URL}/${originLng},${originLat};${destinationLng},${destinationLat}`;
+
+    const response = await axios.get(url, {
+      params: { overview: 'full', geometries: 'geojson', steps: 'true' },
+      timeout: 12000,
+    });
+
+    const route = response.data?.routes?.[0];
+
+    if (response.data?.code !== 'Ok' || !route?.geometry?.coordinates?.length) {
+      console.warn('⚠️ OSRM sans résultat:', response.data?.code);
+      return null;
+    }
+
+    // GeoJSON = [lng, lat]
+    const coordinates = route.geometry.coordinates.map(([lng, lat]) => ({
+      latitude: lat,
+      longitude: lng,
+    }));
+
+    const distanceKm = route.distance / 1000;
+    const durationMin = route.duration / 60;
+    const leg = route.legs?.[0];
+
+    const lats = coordinates.map((c) => c.latitude);
+    const lngs = coordinates.map((c) => c.longitude);
+
+    return {
+      coordinates,
+      distance: distanceKm,
+      distanceText: formatDistance(distanceKm),
+      duration: durationMin,
+      durationText: formatDuration(durationMin),
+      steps: (leg?.steps || []).map((step) => ({
+        instruction: [step.maneuver?.type, step.maneuver?.modifier, step.name]
+          .filter(Boolean)
+          .join(' '),
+        distance: formatDistance((step.distance || 0) / 1000),
+        duration: formatDuration((step.duration || 0) / 60),
+        latitude: step.maneuver?.location?.[1],
+        longitude: step.maneuver?.location?.[0],
+      })),
+      polyline: '',
+      summary: 'Itinéraire OSRM',
+      bounds: {
+        northeast: { lat: Math.max(...lats), lng: Math.max(...lngs) },
+        southwest: { lat: Math.min(...lats), lng: Math.min(...lngs) },
+      },
+      waypoints: [],
+      isFallback: false,
+      source: 'osrm',
+    };
+  } catch (error) {
+    console.warn('⚠️ OSRM indisponible:', error?.message);
+    return null;
+  }
 };
 
 /**
@@ -323,7 +405,7 @@ export const calculateRoute = async (
   // JavaScript (DirectionsService) — c'est lui qui fait suivre la
   // ligne rouge aux vraies rues, contrairement à l'appel REST
   // ci-dessous qui échoue à cause de CORS dans un navigateur.
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' && !googleDirectionsDenied) {
     const jsApiReady = await waitForGoogleMapsJS();
 
     if (jsApiReady) {
@@ -346,11 +428,19 @@ export const calculateRoute = async (
     }
   }
 
-  // Si aucune clé Google n'est disponible, inutile de provoquer une erreur
-  // réseau : on utilise directement le calcul local.
-  if (!GOOGLE_MAPS_API_KEY) {
-    console.warn('⚠️ GOOGLE_MAPS_API_KEY absente. Utilisation du trajet local.');
-    return createFallbackRoute();
+  // ✅ Google refusé (facturation non activée, clé restreinte...) ou web
+  // (l'API REST Google est bloquée par CORS dans un navigateur) : on ne
+  // tente pas l'appel REST inutile, on passe directement à OSRM, puis à la
+  // ligne droite en dernier recours.
+  if (Platform.OS === 'web' || googleDirectionsDenied || !GOOGLE_MAPS_API_KEY) {
+    const osrmRoute = await calculateRouteViaOSRM(
+      originLat,
+      originLng,
+      destinationLat,
+      destinationLng
+    );
+
+    return osrmRoute || createFallbackRoute();
   }
 
   try {
@@ -376,7 +466,10 @@ export const calculateRoute = async (
 
       if (!leg?.distance || !leg?.duration) {
         console.warn('⚠️ Google Directions response incomplete.');
-        return createFallbackRoute();
+        return (
+          (await calculateRouteViaOSRM(originLat, originLng, destinationLat, destinationLng)) ||
+          createFallbackRoute()
+        );
       }
 
       const polyline = route.overview_polyline?.points || '';
@@ -415,7 +508,14 @@ export const calculateRoute = async (
       response.data?.error_message || ''
     );
 
-    return createFallbackRoute();
+    if (response.data?.status === 'REQUEST_DENIED' || response.data?.status === 'OVER_QUERY_LIMIT') {
+      googleDirectionsDenied = true;
+    }
+
+    return (
+      (await calculateRouteViaOSRM(originLat, originLng, destinationLat, destinationLng)) ||
+      createFallbackRoute()
+    );
   } catch (error) {
     // "Network Error" est fréquent sur Expo Web lorsque l'endpoint Google
     // bloque la requête côté navigateur (CORS), ou si le réseau/quotas/API
@@ -427,8 +527,283 @@ export const calculateRoute = async (
       message
     );
 
-    return createFallbackRoute();
+    return (
+      (await calculateRouteViaOSRM(originLat, originLng, destinationLat, destinationLng)) ||
+      createFallbackRoute()
+    );
   }
+};
+
+/**
+ * ✅ ITINÉRAIRES MULTIPLES (proposition d'itinéraires) — le plus rapide
+ * + les routes alternatives, chacune avec sa distance, sa durée EN
+ * VOITURE et sa durée À PIED.
+ *
+ * Ordre d'essai : Google (JS SDK sur le web / REST sur mobile) → OSRM
+ * (gratuit) → ligne droite estimée (dernier recours, `isFallback`).
+ *
+ * NB : la durée en voiture vient du fournisseur (Google/OSRM) ; la durée
+ * à pied est estimée à 5 km/h (estimateDuration) car OSRM public ne
+ * calcule que la voiture.
+ */
+const buildRouteOption = ({
+  coordinates,
+  distanceKm,
+  durationMin,
+  summary = '',
+  isFallback = false,
+  source = 'google',
+}) => {
+  const walkingMin = estimateDuration(distanceKm, 'walking');
+
+  return {
+    coordinates,
+    distance: distanceKm,
+    distanceText: formatDistance(distanceKm),
+    // `duration` = voiture (compatibilité avec calculateRoute)
+    duration: durationMin,
+    durationText: formatDuration(durationMin),
+    drivingDuration: durationMin,
+    drivingDurationText: formatDuration(durationMin),
+    walkingDuration: walkingMin,
+    walkingDurationText: formatDuration(walkingMin),
+    summary,
+    steps: [],
+    isFallback,
+    source,
+  };
+};
+
+const finalizeRouteOptions = (list) => {
+  const seen = new Set();
+  const unique = [];
+
+  list.forEach((route) => {
+    const key = `${route.distance.toFixed(2)}-${Math.round(route.duration)}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(route);
+    }
+  });
+
+  unique.sort((a, b) => a.duration - b.duration);
+
+  const shortest = unique.reduce(
+    (best, route) => (route.distance < best.distance ? route : best),
+    unique[0]
+  );
+
+  return unique.slice(0, 4).map((route, index) => ({
+    ...route,
+    id: `route-${index}`,
+    tag: route.isFallback
+      ? 'Trajet estimé'
+      : index === 0
+        ? 'Le plus rapide'
+        : route === shortest
+          ? 'Le plus court'
+          : `Alternative ${index}`,
+  }));
+};
+
+const fetchGoogleJsRoutes = (oLat, oLng, dLat, dLng) =>
+  new Promise((resolve) => {
+    if (typeof window === 'undefined' || !window.google?.maps?.DirectionsService) {
+      resolve(null);
+      return;
+    }
+
+    const google = window.google;
+
+    new google.maps.DirectionsService().route(
+      {
+        origin: { lat: oLat, lng: oLng },
+        destination: { lat: dLat, lng: dLng },
+        travelMode: google.maps.TravelMode.DRIVING,
+        provideRouteAlternatives: true,
+        unitSystem: google.maps.UnitSystem.METRIC,
+      },
+      (result, status) => {
+        if (status !== 'OK' || !result?.routes?.length) {
+          console.warn('⚠️ DirectionsService (web, alternatives) status:', status);
+          if (status === 'REQUEST_DENIED' || status === 'OVER_QUERY_LIMIT') {
+            googleDirectionsDenied = true;
+          }
+          resolve(null);
+          return;
+        }
+
+        const list = result.routes
+          .map((route) => {
+            const leg = route.legs?.[0];
+            const coordinates = (route.overview_path || []).map((pt) => ({
+              latitude: pt.lat(),
+              longitude: pt.lng(),
+            }));
+
+            if (!leg?.distance || !leg?.duration || coordinates.length < 2) return null;
+
+            return buildRouteOption({
+              coordinates,
+              distanceKm: leg.distance.value / 1000,
+              durationMin: leg.duration.value / 60,
+              summary: route.summary || '',
+              source: 'google',
+            });
+          })
+          .filter(Boolean);
+
+        resolve(list.length ? list : null);
+      }
+    );
+  });
+
+const fetchGoogleRestRoutes = async (oLat, oLng, dLat, dLng) => {
+  try {
+    const response = await axios.get(GOOGLE_DIRECTIONS_URL, {
+      params: {
+        origin: `${oLat},${oLng}`,
+        destination: `${dLat},${dLng}`,
+        key: GOOGLE_MAPS_API_KEY,
+        mode: 'driving',
+        alternatives: 'true',
+        units: 'metric',
+      },
+      timeout: 15000,
+    });
+
+    const status = response.data?.status;
+
+    if (status !== 'OK' || !Array.isArray(response.data?.routes)) {
+      console.warn('⚠️ Google Directions (alternatives):', status, response.data?.error_message || '');
+      if (status === 'REQUEST_DENIED' || status === 'OVER_QUERY_LIMIT') {
+        googleDirectionsDenied = true;
+      }
+      return null;
+    }
+
+    const list = response.data.routes
+      .map((route) => {
+        const leg = route.legs?.[0];
+        const coordinates = decodePolyline(route.overview_polyline?.points || '');
+
+        if (!leg?.distance || !leg?.duration || coordinates.length < 2) return null;
+
+        return buildRouteOption({
+          coordinates,
+          distanceKm: leg.distance.value / 1000,
+          durationMin: leg.duration.value / 60,
+          summary: route.summary || '',
+          source: 'google',
+        });
+      })
+      .filter(Boolean);
+
+    return list.length ? list : null;
+  } catch (error) {
+    console.warn('⚠️ Google Directions (alternatives) indisponible:', error?.message);
+    return null;
+  }
+};
+
+const fetchOsrmRoutes = async (oLat, oLng, dLat, dLng) => {
+  try {
+    const response = await axios.get(
+      `${OSRM_BASE_URL}/${oLng},${oLat};${dLng},${dLat}`,
+      {
+        params: { overview: 'full', geometries: 'geojson', alternatives: 'true' },
+        timeout: 12000,
+      }
+    );
+
+    if (response.data?.code !== 'Ok' || !Array.isArray(response.data?.routes)) {
+      return null;
+    }
+
+    const list = response.data.routes
+      .map((route) => {
+        const coordinates = (route.geometry?.coordinates || []).map(([lng, lat]) => ({
+          latitude: lat,
+          longitude: lng,
+        }));
+
+        if (coordinates.length < 2) return null;
+
+        return buildRouteOption({
+          coordinates,
+          distanceKm: route.distance / 1000,
+          durationMin: route.duration / 60,
+          summary: route.legs?.[0]?.summary || '',
+          source: 'osrm',
+        });
+      })
+      .filter(Boolean);
+
+    return list.length ? list : null;
+  } catch (error) {
+    console.warn('⚠️ OSRM (alternatives) indisponible:', error?.message);
+    return null;
+  }
+};
+
+/**
+ * @returns {Promise<Array>} liste d'itinéraires triés du plus rapide au plus
+ * lent : { id, tag, coordinates, distance, distanceText, drivingDuration,
+ * drivingDurationText, walkingDuration, walkingDurationText, summary,
+ * isFallback } — ou [] si les coordonnées sont invalides.
+ */
+export const calculateAlternativeRoutes = async (lat1, lng1, lat2, lng2) => {
+  const valid = [lat1, lng1, lat2, lng2].every(
+    (value) => value != null && Number.isFinite(Number(value))
+  );
+
+  if (!valid) {
+    console.warn('⚠️ Invalid route coordinates:', { lat1, lng1, lat2, lng2 });
+    return [];
+  }
+
+  const oLat = Number(lat1);
+  const oLng = Number(lng1);
+  const dLat = Number(lat2);
+  const dLng = Number(lng2);
+
+  let routes = null;
+
+  if (!googleDirectionsDenied) {
+    if (Platform.OS === 'web') {
+      if (await waitForGoogleMapsJS()) {
+        routes = await fetchGoogleJsRoutes(oLat, oLng, dLat, dLng);
+      }
+    } else if (GOOGLE_MAPS_API_KEY) {
+      routes = await fetchGoogleRestRoutes(oLat, oLng, dLat, dLng);
+    }
+  }
+
+  if (!routes?.length) {
+    routes = await fetchOsrmRoutes(oLat, oLng, dLat, dLng);
+  }
+
+  if (!routes?.length) {
+    const distance = haversineDistance(oLat, oLng, dLat, dLng);
+
+    if (distance == null) return [];
+
+    routes = [
+      buildRouteOption({
+        coordinates: [
+          { latitude: oLat, longitude: oLng },
+          { latitude: dLat, longitude: dLng },
+        ],
+        distanceKm: distance,
+        durationMin: estimateDuration(distance, 'driving'),
+        summary: 'Trajet estimé',
+        isFallback: true,
+        source: 'local',
+      }),
+    ];
+  }
+
+  return finalizeRouteOptions(routes);
 };
 
 /**
@@ -618,6 +993,7 @@ export default {
   computeAutoDistances,
   calculateDistance,
   calculateRoute,
+  calculateAlternativeRoutes,
   decodePolyline,
   openGoogleMaps,
   openDirections,

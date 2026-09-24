@@ -34,6 +34,7 @@ import { API_URL, WS_URL } from '../../config';
 // visible sur le web. La prop `markers` + `route`, elle, est câblée
 // pour fonctionner aussi bien en natif (Android/iOS) que sur le web.
 import MapView from '../../components/map/MapViewWrapper';
+import { calculateAlternativeRoutes, haversineDistance } from '../../services/routing';
 
 // ============================================================
 // CONSTANTES
@@ -195,12 +196,101 @@ const TrackingScreen = ({ route }) => {
     return list;
   }, [therapistLocation, clientLocation, booking]);
 
+  // ==========================================================
+  // ✅ ITINÉRAIRE RÉEL (rues) — via calculateRoute (Google → OSRM).
+  // Auparavant : simple ligne droite thérapeute → client. Le calcul
+  // n'est relancé que si le thérapeute s'est déplacé de plus de 50 m
+  // (ou si la position du client change), pour éviter un appel réseau
+  // à chaque rafraîchissement GPS.
+  // ==========================================================
+  // ✅ Proposition d'itinéraires : le plus rapide + alternatives.
+  const [routeOptions, setRouteOptions] = useState([]);
+  const [selectedRouteId, setSelectedRouteId] = useState(null);
+
+  // Itinéraire sélectionné (par défaut : le plus rapide).
+  const routeResult = useMemo(
+    () =>
+      routeOptions.find((option) => option.id === selectedRouteId) ||
+      routeOptions[0] ||
+      null,
+    [routeOptions, selectedRouteId]
+  );
+  const lastRouteKeyRef = useRef(null);
+  const routeRequestIdRef = useRef(0);
+
+  useEffect(() => {
+    if (!therapistLocation || !clientLocation) {
+      lastRouteKeyRef.current = null;
+      setRouteOptions([]);
+      return;
+    }
+
+    const last = lastRouteKeyRef.current;
+
+    if (last) {
+      const movedKm = haversineDistance(
+        therapistLocation.latitude,
+        therapistLocation.longitude,
+        last.origin.latitude,
+        last.origin.longitude
+      );
+      const clientMovedKm = haversineDistance(
+        clientLocation.latitude,
+        clientLocation.longitude,
+        last.destination.latitude,
+        last.destination.longitude
+      );
+
+      if ((movedKm ?? 0) < 0.05 && (clientMovedKm ?? 0) < 0.05) {
+        return;
+      }
+    }
+
+    lastRouteKeyRef.current = {
+      origin: therapistLocation,
+      destination: clientLocation,
+    };
+
+    routeRequestIdRef.current += 1;
+    const requestId = routeRequestIdRef.current;
+
+    calculateAlternativeRoutes(
+      therapistLocation.latitude,
+      therapistLocation.longitude,
+      clientLocation.latitude,
+      clientLocation.longitude
+    )
+      .then((result) => {
+        if (isMountedRef.current && requestId === routeRequestIdRef.current) {
+          const list = result || [];
+          setRouteOptions(list);
+          // Garde l'itinéraire choisi s'il existe encore, sinon le plus rapide.
+          setSelectedRouteId((previous) =>
+            list.some((option) => option.id === previous)
+              ? previous
+              : list[0]?.id ?? null
+          );
+        }
+      })
+      .catch(() => {
+        if (isMountedRef.current && requestId === routeRequestIdRef.current) {
+          setRouteOptions([]);
+        }
+      });
+  }, [therapistLocation, clientLocation]);
+
   const routeCoordinates = useMemo(() => {
+    if (routeResult?.coordinates?.length > 1) {
+      return routeResult.coordinates;
+    }
     if (therapistLocation && clientLocation) {
       return [therapistLocation, clientLocation];
     }
     return null;
-  }, [therapistLocation, clientLocation]);
+  }, [routeResult, therapistLocation, clientLocation]);
+
+  // Pas de vrai trajet (ligne droite de secours) → pointillés.
+  const routeIsFallback = !routeResult || !!routeResult.isFallback;
 
   // ==========================================================
   // DONNÉES DE LA RÉSERVATION
@@ -477,6 +567,12 @@ const TrackingScreen = ({ route }) => {
             route={routeCoordinates}
             routeColor={colors.primary}
             routeWidth={4}
+            routeIsFallback={routeIsFallback}
+            routeOrigin={therapistLocation}
+            routeDestination={clientLocation}
+            routeOptions={routeOptions}
+            selectedRouteId={routeResult?.id}
+            onRouteSelect={setSelectedRouteId}
             showUserLocation={false}
             trackUserLocation={false}
             showMapTypeControl
@@ -582,6 +678,94 @@ const TrackingScreen = ({ route }) => {
                   </Text>
                 </View>
               )}
+            </View>
+          )}
+
+          {/* ✅ Itinéraire : distance + durée en voiture / à pied */}
+          {routeResult && (
+            <View style={styles.statusDetails}>
+              <View style={styles.statusItem}>
+                <Ionicons
+                  name="navigate-outline"
+                  size={18}
+                  color={themeColors.textSecondary}
+                />
+                <Text style={[styles.statusItemText, { color: themeColors.text }]}>
+                  {routeResult.distanceText}
+                </Text>
+              </View>
+
+              <View style={styles.statusItem}>
+                <Ionicons
+                  name="car-outline"
+                  size={18}
+                  color={themeColors.textSecondary}
+                />
+                <Text style={[styles.statusItemText, { color: themeColors.text }]}>
+                  {routeResult.drivingDurationText}
+                </Text>
+              </View>
+
+              <View style={styles.statusItem}>
+                <Ionicons
+                  name="walk-outline"
+                  size={18}
+                  color={themeColors.textSecondary}
+                />
+                <Text style={[styles.statusItemText, { color: themeColors.text }]}>
+                  {routeResult.walkingDurationText}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {routeOptions.length > 1 && (
+            <View style={styles.routeOptionsList}>
+              {routeOptions.map((option, index) => {
+                const active = option.id === routeResult?.id;
+
+                return (
+                  <TouchableOpacity
+                    key={option.id}
+                    activeOpacity={0.8}
+                    onPress={() => setSelectedRouteId(option.id)}
+                    style={[
+                      styles.routeOption,
+                      {
+                        borderColor: active
+                          ? colors.primary
+                          : themeColors.border || '#E5E5E5',
+                      },
+                      active && { backgroundColor: `${colors.primary}12` },
+                    ]}
+                  >
+                    <Text
+                      numberOfLines={1}
+                      style={[styles.routeOptionTitle, { color: themeColors.text }]}
+                    >
+                      {`${index + 1}. ${option.tag}`}
+                    </Text>
+
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.routeOptionMeta,
+                        { color: themeColors.textSecondary },
+                      ]}
+                    >
+                      {`🚗 ${option.drivingDurationText}  ·  🚶 ${option.walkingDurationText}  ·  ${option.distanceText}`}
+                    </Text>
+
+                    {active && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={16}
+                        color={colors.primary}
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
 
@@ -707,6 +891,32 @@ const styles = StyleSheet.create({
   // ==========================================================
   // BANDEAU D'INFOS — flotte au-dessus de la carte agrandie
   // ==========================================================
+  // ==========================================================
+  // PROPOSITION D'ITINÉRAIRES
+  // ==========================================================
+  routeOptionsList: { marginTop: spacing.sm, gap: 6 },
+
+  routeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+
+  routeOptionTitle: {
+    fontSize: typography.fontSize.xs,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  routeOptionMeta: {
+    flex: 1,
+    fontSize: typography.fontSize.xs,
+    fontFamily: typography.fontFamily.regular,
+  },
+
   statusCardFloating: {
     position: 'absolute',
     left: spacing.sm,
