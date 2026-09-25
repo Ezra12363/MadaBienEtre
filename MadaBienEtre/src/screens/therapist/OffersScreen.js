@@ -16,6 +16,7 @@ import {
   Alert,
   FlatList,
   Image,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -42,6 +43,16 @@ import offerService from '../../services/offerService';
 import Header from '../../components/common/Header';
 
 import { useTheme } from '../../context/ThemeContext';
+import MapViewWrapper from '../../components/map/MapViewWrapper';
+import { DEFAULT_REGION, MAP_TYPES } from '../../config/googleMaps';
+import {
+  haversineDistance,
+  estimateDuration,
+  formatDuration,
+  formatDistance,
+  calculateAlternativeRoutes,
+} from '../../services/routing';
+import * as Location from 'expo-location';
 
 // ============================================================
 // ANDROID STATUS BAR
@@ -659,6 +670,45 @@ const getAddress = booking =>
   booking?.location ??
   'Adresse non renseignée';
 
+const getLatitude = booking => {
+  const value =
+    booking?.latitude ??
+    booking?.client_latitude ??
+    booking?.clientLatitude ??
+    booking?.address_latitude ??
+    booking?.addressLatitude ??
+    booking?.location?.latitude ??
+    booking?.location?.lat ??
+    booking?.client?.latitude ??
+    booking?.client?.lat ??
+    booking?.client_location?.latitude ??
+    booking?.coordinates?.latitude ??
+    booking?.coordinates?.lat;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+const getLongitude = booking => {
+  const value =
+    booking?.longitude ??
+    booking?.client_longitude ??
+    booking?.clientLongitude ??
+    booking?.address_longitude ??
+    booking?.addressLongitude ??
+    booking?.location?.longitude ??
+    booking?.location?.lng ??
+    booking?.client?.longitude ??
+    booking?.client?.lng ??
+    booking?.client_location?.longitude ??
+    booking?.coordinates?.longitude ??
+    booking?.coordinates?.lng;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+const hasValidCoordinates = booking =>
+  getLatitude(booking) !== null && getLongitude(booking) !== null;
+
 const getScheduledDate = booking =>
   booking?.scheduled_date ??
   booking?.scheduledDate ??
@@ -668,6 +718,116 @@ const getScheduledDate = booking =>
   booking?.scheduled_at ??
   booking?.scheduledAt ??
   null;
+
+// ============================================================
+// DIRECTIONS (ITINÉRAIRE THÉRAPEUTE → CLIENT)
+// ============================================================
+// ✅ FIXÉ : io no antony tsy nanaraka lalana marina foana ny tsipika
+// mena teto ("faritra mena") — nampiasa Google Directions manokana
+// (fetchDirectionsWeb / fetchDirectionsNative) izay mety tsy
+// mba misy azy raha tsy misy "billing" mivaingana amin'ny clé API,
+// ka niverina ho lisitra mahitsy (ligne droite) matetika.
+//
+// Ampiasaina ao amin'ity izao ny `calculateAlternativeRoutes` avy ao
+// amin'ny services/routing — dia MITOVY TANTERAKA amin'izay
+// ampiasain'ny SearchMassageScreen.js (efa voamarina fa manaraka
+// tena lalana amin'ny sary), ka ny tsipika mena eto dia manaraka
+// ny lalana tena izy koa, tsy vola droite intsony — na amin'ny web
+// na amin'ny mobile.
+//
+// Ny halavan-dalana (distanceKm) azo avy amin'io trajet reely io no
+// entina manisa ny fotoana isaky ny mode (à pied / vélo / moto),
+// mba tsy hiantso ny API in-telo (mode iray = fiantsoana iray
+// ihany, kanto sy mora vetivety kokoa).
+// ============================================================
+
+const TRAVEL_MODES = [
+  { key: 'walking', label: 'À pied', icon: 'walk-outline', googleMode: 'walking' },
+  { key: 'bicycling', label: 'Vélo', icon: 'bicycle-outline', googleMode: 'bicycling' },
+  { key: 'moto', label: 'Moto', icon: 'car-sport-outline', googleMode: 'driving' },
+];
+
+// ✅ Halavan-dalana (km) manaraka ny "coordinates" nalaina tamin'ny
+// trajet reel (fitambaran'ny distance eo amin'ny points mifanaraka),
+// ampiasaina rehefa tsy misy "distanceKm"/"distance_km" avy amin'ny
+// valiny nomen'ny calculateAlternativeRoutes.
+const sumRouteDistanceKm = coordinates => {
+  if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
+  let total = 0;
+  for (let i = 1; i < coordinates.length; i += 1) {
+    const a = coordinates[i - 1];
+    const b = coordinates[i];
+    const d = haversineDistance(a?.latitude, a?.longitude, b?.latitude, b?.longitude);
+    if (Number.isFinite(d)) total += d;
+  }
+  return total > 0 ? total : null;
+};
+
+const buildFallbackRoute = (origin, destination, googleMode = 'driving') => {
+  const distanceKm = haversineDistance(
+    origin.latitude,
+    origin.longitude,
+    destination.latitude,
+    destination.longitude
+  );
+  // ✅ Raha tsy nahazo valiny avy amin'ny API (routing service), dia
+  // atao estimation (Haversine + vitesse moyenne isaky ny mode) mba
+  // hisy foana "firy heure" aseho, na dia tsy zava-marina 100% aza.
+  const durationMin =
+    distanceKm != null ? estimateDuration(distanceKm, googleMode) : null;
+  return {
+    coordinates: [origin, destination],
+    distanceText: distanceKm != null ? formatDistance(distanceKm) : '',
+    distanceKm,
+    durationText: durationMin != null ? formatDuration(durationMin) : '',
+    durationMin,
+    isFallback: true,
+  };
+};
+
+// ✅ Trajet réel PARTAGÉ (une seule fois pour les 3 modes) — mitovy
+// tanteraka amin'ny fomba fiasan'ny SearchMassageScreen.js.
+const fetchRealRoute = async (origin, destination) => {
+  if (!origin || !destination) return null;
+  if (
+    !Number.isFinite(origin.latitude) ||
+    !Number.isFinite(origin.longitude) ||
+    !Number.isFinite(destination.latitude) ||
+    !Number.isFinite(destination.longitude)
+  ) {
+    return null;
+  }
+
+  try {
+    const options = await calculateAlternativeRoutes(
+      origin.latitude,
+      origin.longitude,
+      destination.latitude,
+      destination.longitude
+    );
+    const best = Array.isArray(options) && options.length ? options[0] : null;
+    const coordinates = Array.isArray(best?.coordinates) ? best.coordinates : null;
+
+    if (coordinates && coordinates.length > 1) {
+      const distanceKm =
+        best.distanceKm ??
+        best.distance_km ??
+        sumRouteDistanceKm(coordinates) ??
+        haversineDistance(origin.latitude, origin.longitude, destination.latitude, destination.longitude);
+
+      return {
+        coordinates,
+        distanceText: best.distanceText || (distanceKm != null ? formatDistance(distanceKm) : ''),
+        distanceKm,
+        isFallback: !!best.isFallback,
+      };
+    }
+  } catch (e) {
+    console.warn('⚠️ ROUTING ERROR:', e);
+  }
+
+  return null;
+};
 
 // ============================================================
 // FORMAT
@@ -906,7 +1066,7 @@ function ClientAvatar({ photoUrl, name, size = 52, isOnline = false }) {
 // ============================================================
 
 export default function OffersScreen({ navigation }) {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isWeb = Platform.OS === 'web';
   const isMobile = !isWeb || width < 850;
 
@@ -938,6 +1098,44 @@ export default function OffersScreen({ navigation }) {
 
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
+
+  // ==========================================================
+  // MAP VIEW (Liste / Carte des adresses clients)
+  // ==========================================================
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
+  const [mapKey, setMapKey] = useState(0);
+  const [selectedMapBookingId, setSelectedMapBookingId] = useState(null);
+  const mapRef = useRef(null);
+
+  // ✅ Position GPS actuelle du thérapeute (sert d'origine à l'itinéraire)
+  const [therapistPosition, setTherapistPosition] = useState(null);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+
+  // ✅ Itinéraire sélectionné : client visé + mode de déplacement
+  const [selectedRouteBooking, setSelectedRouteBooking] = useState(null);
+  // ✅ Calcule EN MEME TEMPS ny itineraire 3 mode (moto / vélo / à
+  // pied) rehefa misy client voafantina — tsy mila mifidy mode
+  // aloha vao mahita ny "firy heure" amin'ny mode hafa.
+  const [modeEtas, setModeEtas] = useState(null); // { walking, bicycling, moto }
+  const [routeLoading, setRouteLoading] = useState(false);
+  const [travelMode, setTravelMode] = useState('moto');
+
+  // ✅ Itineraire miaraka amin'ny tracé + distance/durée ho an'ny
+  // mode aseho amin'ny carte (safidian'ny mpampiasa amin'ny
+  // bokotra "À pied / Vélo / Moto").
+  const routeInfo = modeEtas ? modeEtas[travelMode] || null : null;
+
+  // ✅ Mode satellite (hybride : photo + noms de rues) activé par défaut
+  const [mapTypeState, setMapTypeState] = useState(MAP_TYPES.hybrid);
+
+  // ✅ Hauteur minimale de la carte sur mobile — sur le web, on
+  // laisse maintenant le flexbox (mapSection: flex:1) calculer la
+  // hauteur disponible tout seul, au lieu d'un calcul figé
+  // (height - 240) qui supposait une hauteur d'en-tête fixe et
+  // provoquait un débordement caché (contenu "coincé" en bas, non
+  // accessible en scroll) dès que l'en-tête/filtres étaient plus
+  // hauts que prévu.
+  const mobileMapHeight = Math.max(360, Math.round(height * 0.6));
 
   // ==========================================================
   // LOAD BOOKINGS
@@ -1065,6 +1263,60 @@ export default function OffersScreen({ navigation }) {
     return () => clearInterval(interval);
   }, [loadBookings]);
 
+  // ==========================================================
+  // POSITION GPS ACTUELLE DU THÉRAPEUTE
+  // ==========================================================
+
+  useEffect(() => {
+    let subscription;
+    let cancelled = false;
+
+    const startWatching = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          if (!cancelled) setLocationPermissionDenied(true);
+          return;
+        }
+        if (!cancelled) setLocationPermissionDenied(false);
+
+        const initial = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (!cancelled) {
+          setTherapistPosition({
+            latitude: initial.coords.latitude,
+            longitude: initial.coords.longitude,
+          });
+        }
+
+        subscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            distanceInterval: 20,
+            timeInterval: 8000,
+          },
+          loc => {
+            if (cancelled) return;
+            setTherapistPosition({
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+            });
+          }
+        );
+      } catch (locError) {
+        console.warn('⚠️ LOCATION ERROR:', locError);
+      }
+    };
+
+    startWatching();
+
+    return () => {
+      cancelled = true;
+      subscription?.remove?.();
+    };
+  }, []);
+
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     loadBookings(false);
@@ -1154,6 +1406,182 @@ export default function OffersScreen({ navigation }) {
       return true;
     });
   }, [activeTab, bookings, dateFrom, dateTo, searchQuery]);
+
+  // ==========================================================
+  // MAP DATA — adresses des clients ayant fait une demande
+  // ==========================================================
+
+  const geolocatedBookings = useMemo(
+    () => filteredBookings.filter(hasValidCoordinates),
+    [filteredBookings]
+  );
+
+  const mapMarkers = useMemo(
+    () =>
+      geolocatedBookings.map(booking => ({
+        id: booking.id,
+        coordinate: {
+          latitude: getLatitude(booking),
+          longitude: getLongitude(booking),
+        },
+        title: getClientName(booking),
+        description: `${getMassageName(booking)} · ${getAddress(booking)}`,
+        status: normalizeStatus(booking),
+        distance: getDistance(booking),
+      })),
+    [geolocatedBookings]
+  );
+
+  const mapRegion = useMemo(() => {
+    if (!geolocatedBookings.length) return DEFAULT_REGION;
+    const first = geolocatedBookings[0];
+    return {
+      latitude: getLatitude(first) ?? DEFAULT_REGION.latitude,
+      longitude: getLongitude(first) ?? DEFAULT_REGION.longitude,
+      latitudeDelta: DEFAULT_REGION.latitudeDelta,
+      longitudeDelta: DEFAULT_REGION.longitudeDelta,
+    };
+  }, [geolocatedBookings]);
+
+  const handleMapMarkerPress = useCallback(marker => {
+    if (!marker) {
+      setSelectedMapBookingId(null);
+      setSelectedRouteBooking(null);
+      return;
+    }
+    setSelectedMapBookingId(marker.id);
+
+    const booking = geolocatedBookings.find(
+      item => String(item.id) === String(marker.id)
+    );
+    if (booking) setSelectedRouteBooking(booking);
+
+    const lat = marker?.coordinate?.latitude;
+    const lng = marker?.coordinate?.longitude;
+    if (lat === undefined || lng === undefined) return;
+    mapRef.current?.animateToRegion?.(
+      {
+        latitude: lat,
+        longitude: lng,
+        latitudeDelta: 0.02,
+        longitudeDelta: 0.02,
+      },
+      400
+    );
+  }, [geolocatedBookings]);
+
+  const handleSelectMapListItem = useCallback(booking => {
+    setSelectedMapBookingId(booking.id);
+    setSelectedRouteBooking(booking);
+    const lat = getLatitude(booking);
+    const lng = getLongitude(booking);
+    if (lat !== null && lng !== null) {
+      mapRef.current?.animateToRegion?.(
+        { latitude: lat, longitude: lng, latitudeDelta: 0.02, longitudeDelta: 0.02 },
+        400
+      );
+    }
+  }, []);
+
+  const handleOpenDirections = useCallback(booking => {
+    const lat = getLatitude(booking);
+    const lng = getLongitude(booking);
+    const label = encodeURIComponent(getClientName(booking) || 'Client');
+
+    let url;
+    if (lat !== null && lng !== null) {
+      url = Platform.select({
+        ios: `maps:0,0?q=${label}@${lat},${lng}`,
+        android: `geo:0,0?q=${lat},${lng}(${label})`,
+        default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
+      });
+    } else {
+      url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        getAddress(booking)
+      )}`;
+    }
+
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Erreur', "Impossible d'ouvrir l'itinéraire.");
+    });
+  }, []);
+
+  const handleCallClient = useCallback(booking => {
+    const phone = getPhone(booking);
+    if (!phone) return;
+    Linking.openURL(`tel:${phone}`).catch(() => {
+      Alert.alert('Erreur', "Impossible de lancer l'appel.");
+    });
+  }, []);
+
+  const handleClearRoute = useCallback(() => {
+    setSelectedRouteBooking(null);
+    setModeEtas(null);
+    setSelectedMapBookingId(null);
+  }, []);
+
+  // ✅ Recalcule l'itinéraire RÉEL (suit les vraies rues, comme sur
+  // Google Maps) dès que le client sélectionné ou la position GPS
+  // actuelle du thérapeute change — en une seule fois pour les 3
+  // modes (à pied / vélo / moto), afin d'afficher directement
+  // "si moto : X h Y min" et "si à pied : X h Y min" sans que le
+  // thérapeute ait besoin de basculer entre les boutons.
+  useEffect(() => {
+    if (!selectedRouteBooking || !therapistPosition) {
+      setModeEtas(null);
+      return undefined;
+    }
+
+    const destLat = getLatitude(selectedRouteBooking);
+    const destLng = getLongitude(selectedRouteBooking);
+    if (destLat === null || destLng === null) {
+      setModeEtas(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setRouteLoading(true);
+
+    const destination = { latitude: destLat, longitude: destLng };
+
+    // ✅ Un seul appel au service de routing (trajet réel, comme dans
+    // SearchMassageScreen.js) : le même tracé sert aux 3 modes, seule
+    // la durée estimée change selon la vitesse moyenne du mode.
+    fetchRealRoute(therapistPosition, destination).then(realRoute => {
+      if (cancelled) return;
+
+      const base = realRoute || buildFallbackRoute(therapistPosition, destination, 'driving');
+      const next = {};
+      TRAVEL_MODES.forEach(item => {
+        const durationMin =
+          base.distanceKm != null ? estimateDuration(base.distanceKm, item.googleMode) : null;
+        next[item.key] = {
+          ...base,
+          durationText: durationMin != null ? formatDuration(durationMin) : '',
+          durationMin,
+        };
+      });
+      setModeEtas(next);
+      setRouteLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRouteBooking, therapistPosition]);
+
+  // ✅ Efface l'itinéraire si le client sélectionné sort de la liste
+  // filtrée en cours (changement d'onglet, recherche, date, ...)
+  useEffect(() => {
+    if (
+      selectedRouteBooking &&
+      !geolocatedBookings.find(
+        item => String(item.id) === String(selectedRouteBooking.id)
+      )
+    ) {
+      handleClearRoute();
+    }
+  }, [geolocatedBookings, selectedRouteBooking, handleClearRoute]);
 
   // ==========================================================
   // OPEN BOOKING
@@ -2050,6 +2478,51 @@ export default function OffersScreen({ navigation }) {
         )}
       </View>
 
+      <View style={styles.viewModeRow}>
+        <Text style={styles.viewModeLabel} numberOfLines={1}>
+          {geolocatedBookings.length} adresse
+          {geolocatedBookings.length > 1 ? 's' : ''} client localisée
+          {geolocatedBookings.length > 1 ? 's' : ''}
+        </Text>
+
+        <View style={styles.viewSwitcher}>
+          <Pressable
+            style={[
+              styles.viewSwitchButton,
+              viewMode === 'list' && styles.viewSwitchButtonActive,
+            ]}
+            onPress={() => setViewMode('list')}
+            accessibilityRole="button"
+            accessibilityLabel="Vue liste"
+          >
+            <Ionicons
+              name="list-outline"
+              size={16}
+              color={viewMode === 'list' ? COLORS.white : colors.textSecondary}
+            />
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.viewSwitchButton,
+              viewMode === 'map' && styles.viewSwitchButtonActive,
+            ]}
+            onPress={() => {
+              setViewMode('map');
+              setMapKey(value => value + 1);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Vue carte"
+          >
+            <Ionicons
+              name="map-outline"
+              size={16}
+              color={viewMode === 'map' ? COLORS.white : colors.textSecondary}
+            />
+          </Pressable>
+        </View>
+      </View>
+
       {!isWeb && (dateFrom || dateTo) ? (
         <Pressable
           style={styles.dateFilterSummary}
@@ -2562,6 +3035,370 @@ export default function OffersScreen({ navigation }) {
   };
 
   // ==========================================================
+  // MAP VIEW — carte Google Maps + liste des adresses clients
+  // ==========================================================
+
+  const renderMapListItem = booking => {
+    const statusUI = getStatusUI(booking, isDark);
+    const isActive = String(booking.id) === String(selectedMapBookingId);
+    const distance = getDistance(booking);
+    const phone = getPhone(booking);
+    const email = getEmail(booking);
+
+    return (
+      <Pressable
+        key={booking.id}
+        style={[styles.mapListCard, isActive && styles.mapListCardActive]}
+        onPress={() => handleSelectMapListItem(booking)}
+      >
+        <View style={styles.mapListCardTop}>
+          <ClientAvatar
+            photoUrl={getClientPhoto(booking)}
+            name={getClientName(booking)}
+            size={40}
+            isOnline={getClientOnline(booking)}
+          />
+
+          <View style={styles.mapListInfo}>
+            <Text style={styles.mapListName} numberOfLines={1}>
+              {getClientName(booking)}
+            </Text>
+            <Text style={styles.mapListMassage} numberOfLines={1}>
+              {getMassageName(booking)}
+              {distance !== null ? ` · ${distance.toFixed(1)} km` : ''}
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.mapListStatusDot,
+              { backgroundColor: statusUI.dot },
+            ]}
+          />
+        </View>
+
+        <View style={styles.mapListAddressRow}>
+          <Ionicons
+            name="location-outline"
+            size={13}
+            color={COLORS.primary}
+          />
+          <Text style={styles.mapListAddressText} numberOfLines={2}>
+            {getAddress(booking)}
+          </Text>
+        </View>
+
+        {/* CONTACT */}
+        <View style={styles.mapListContactRow}>
+          {phone ? (
+            <Pressable
+              style={styles.mapListContactItem}
+              onPress={event => {
+                event?.stopPropagation?.();
+                handleCallClient(booking);
+              }}
+              hitSlop={6}
+            >
+              <Ionicons
+                name="call-outline"
+                size={12}
+                color={COLORS.primary}
+              />
+              <Text
+                style={[styles.mapListContactText, { color: COLORS.primary }]}
+                numberOfLines={1}
+              >
+                {phone}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {email ? (
+            <View style={styles.mapListContactItem}>
+              <Ionicons
+                name="mail-outline"
+                size={12}
+                color={colors.textSecondary}
+              />
+              <Text style={styles.mapListContactText} numberOfLines={1}>
+                {email}
+              </Text>
+            </View>
+          ) : null}
+
+          {!phone && !email ? (
+            <Text style={styles.mapListContactText}>
+              Aucun contact renseigné
+            </Text>
+          ) : null}
+        </View>
+
+        <View style={styles.mapListActionsRow}>
+          <Pressable
+            style={styles.mapListDirectionsButton}
+            onPress={event => {
+              event?.stopPropagation?.();
+              handleOpenDirections(booking);
+            }}
+          >
+            <Ionicons
+              name="navigate-outline"
+              size={13}
+              color={COLORS.primary}
+            />
+            <Text style={styles.mapListDirectionsText}>Itinéraire</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.mapListOpenButton}
+            onPress={event => {
+              event?.stopPropagation?.();
+              openBooking(booking);
+            }}
+          >
+            <Text style={styles.mapListOpenButtonText}>Voir la demande</Text>
+            <Ionicons
+              name="chevron-forward"
+              size={13}
+              color={COLORS.white}
+            />
+          </Pressable>
+        </View>
+      </Pressable>
+    );
+  };
+
+  const renderMapView = () => {
+    if (!loading && geolocatedBookings.length === 0) {
+      return (
+        <View style={styles.mapEmptyState}>
+          <View style={styles.mapEmptyIcon}>
+            <Ionicons name="map-outline" size={32} color={COLORS.primary} />
+          </View>
+          <Text style={styles.mapEmptyTitle}>Aucune adresse localisée</Text>
+          <Text style={styles.mapEmptyText}>
+            Les demandes de cet onglet n'ont pas encore de coordonnées GPS
+            valides pour être affichées sur la carte.
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View
+        style={[
+          styles.mapSection,
+          isMobile ? styles.mapSectionMobile : styles.mapSectionWeb,
+        ]}
+      >
+        <View
+          style={[
+            styles.mapPane,
+            isMobile
+              ? [styles.mapPaneMobile, { minHeight: mobileMapHeight }]
+              : styles.mapPaneWeb,
+          ]}
+        >
+          <MapViewWrapper
+            ref={mapRef}
+            key={mapKey}
+            style={styles.map}
+            markers={mapMarkers}
+            initialRegion={mapRegion}
+            onMarkerPress={handleMapMarkerPress}
+            showMapTypeControl
+            mapType={mapTypeState}
+            onMapTypeChange={setMapTypeState}
+            showUserLocation
+            trackUserLocation={false}
+            userLocation={Platform.OS === 'web' ? therapistPosition : null}
+            route={routeInfo?.coordinates}
+            routeOrigin={therapistPosition}
+            routeDestination={
+              selectedRouteBooking
+                ? {
+                    latitude: getLatitude(selectedRouteBooking),
+                    longitude: getLongitude(selectedRouteBooking),
+                  }
+                : null
+            }
+            routeIsFallback={routeInfo?.isFallback}
+            routeColor="#EF4444"
+            routeWidth={5}
+            // ✅ Etiquette rouge affichée DIRECTEMENT sur le tracé
+            // (au milieu du trajet thérapeute → client), bien
+            // visible : distance + durée du mode de déplacement
+            // actuellement sélectionné.
+            routeLabel={
+              routeInfo
+                ? `${routeInfo.distanceText}${
+                    routeInfo.durationText ? `  ·  ${routeInfo.durationText}` : ''
+                  }`
+                : null
+            }
+          />
+
+          <View style={styles.mapTopBadge}>
+            <Ionicons
+              name="people-outline"
+              size={13}
+              color={COLORS.primary}
+            />
+            <Text style={styles.mapTopBadgeText}>
+              {geolocatedBookings.length} demande
+              {geolocatedBookings.length > 1 ? 's' : ''} localisée
+              {geolocatedBookings.length > 1 ? 's' : ''}
+            </Text>
+          </View>
+
+          {locationPermissionDenied ? (
+            <View style={styles.locationWarningBadge}>
+              <Ionicons
+                name="alert-circle-outline"
+                size={13}
+                color={COLORS.orange}
+              />
+              <Text style={styles.locationWarningText} numberOfLines={2}>
+                Activez la localisation pour voir votre position et
+                l'itinéraire vers le client.
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={styles.mapLegend}>
+            {['pending', 'confirmed', 'in_progress', 'completed'].map(
+              key => {
+                const ui = getStatusUI({ status: key }, isDark);
+                return (
+                  <View key={key} style={styles.mapLegendItem}>
+                    <View
+                      style={[
+                        styles.mapLegendDot,
+                        { backgroundColor: ui.dot },
+                      ]}
+                    />
+                    <Text style={styles.mapLegendText}>{ui.label}</Text>
+                  </View>
+                );
+              }
+            )}
+          </View>
+
+          {selectedRouteBooking ? (
+            <View style={styles.routePanel}>
+              <View style={styles.routePanelHeader}>
+                <View style={styles.routePanelAvatar}>
+                  <Ionicons name="location" size={14} color={COLORS.white} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.routePanelName} numberOfLines={1}>
+                    {getClientName(selectedRouteBooking)}
+                  </Text>
+                  <Text style={styles.routePanelAddress} numberOfLines={1}>
+                    {getAddress(selectedRouteBooking)}
+                  </Text>
+                </View>
+                <Pressable onPress={handleClearRoute} hitSlop={8}>
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                </Pressable>
+              </View>
+
+              {/* ✅ Distance bien visible en ROUGE ("faritra menamena") —
+                  toujours la distance réelle du trajet (suit les rues),
+                  pas la ligne droite, sauf si aucune route n'a été
+                  trouvée (auquel cas "estimation" est précisé. */}
+              {routeLoading && !modeEtas ? (
+                <View style={styles.routePanelLoadingRow}>
+                  <ActivityIndicator size="small" color={COLORS.red} />
+                  <Text style={styles.routePanelMeta}>
+                    Calcul de l'itinéraire réel...
+                  </Text>
+                </View>
+              ) : !therapistPosition ? (
+                <Text style={styles.routePanelMeta}>
+                  Position GPS indisponible
+                </Text>
+              ) : (
+                <>
+                  <View style={styles.routeDistanceRow}>
+                    <Ionicons name="navigate" size={16} color={COLORS.red} />
+                    <Text style={styles.routeDistanceValue}>
+                      {routeInfo?.distanceText || '—'}
+                    </Text>
+                    {routeInfo?.isFallback ? (
+                      <Text style={styles.routePanelEstimateTag}>estimation</Text>
+                    ) : null}
+                  </View>
+
+                  {/* ✅ "Raha mandeha moto de firy heure, na tongotra,
+                      tombile de firy heure" — les 3 modes affichés EN
+                      MEME TEMPS, sans avoir à cliquer pour comparer. */}
+                  <View style={styles.etaRow}>
+                    {TRAVEL_MODES.map(mode => {
+                      const eta = modeEtas?.[mode.key];
+                      const isActive = travelMode === mode.key;
+                      return (
+                        <Pressable
+                          key={mode.key}
+                          style={[
+                            styles.etaChip,
+                            isActive && styles.etaChipActive,
+                          ]}
+                          onPress={() => setTravelMode(mode.key)}
+                        >
+                          <Ionicons
+                            name={mode.icon}
+                            size={16}
+                            color={isActive ? COLORS.white : COLORS.red}
+                          />
+                          <Text
+                            style={[
+                              styles.etaChipTime,
+                              isActive && styles.etaChipTimeActive,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {eta?.durationText || '…'}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.etaChipLabel,
+                              isActive && styles.etaChipLabelActive,
+                            ]}
+                          >
+                            {mode.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+            </View>
+          ) : null}
+        </View>
+
+        <ScrollView
+          style={[
+            styles.mapListPane,
+            isMobile ? styles.mapListPaneMobile : styles.mapListPaneWeb,
+          ]}
+          contentContainerStyle={styles.mapListContent}
+          showsVerticalScrollIndicator={!isMobile}
+          nestedScrollEnabled
+          keyboardShouldPersistTaps="handled"
+        >
+          {geolocatedBookings.map(renderMapListItem)}
+        </ScrollView>
+      </View>
+    );
+  };
+
+  // ==========================================================
   // EMPTY / ERROR
   // ==========================================================
 
@@ -2651,39 +3488,62 @@ export default function OffersScreen({ navigation }) {
           {renderActionsSheet()}
 
           <View style={styles.webContentWrap}>
-            {renderTop()}
-            {renderError()}
+            {viewMode === 'map' ? (
+              // ✅ FIXÉ : "aza atao miraikitra ambany" — avant, cette
+              // zone n'était jamais scrollable : si les filtres +
+              // la carte dépassaient la hauteur de la fenêtre, le bas
+              // du contenu (liste des clients, bas de la carte)
+              // restait invisible et inaccessible. Un ScrollView
+              // englobant (avec flexGrow:1) permet à la mise en page
+              // flex normale de s'afficher quand tout tient à
+              // l'écran, ET de faire défiler TOUTE la page (haut ↔
+              // bas) dès que ce n'est pas le cas.
+              <ScrollView
+                style={styles.webMapScroll}
+                contentContainerStyle={styles.webMapScrollContent}
+                showsVerticalScrollIndicator
+              >
+                {renderTop()}
+                {renderError()}
+                {renderMapView()}
+              </ScrollView>
+            ) : (
+              <>
+                {renderTop()}
+                {renderError()}
 
-            <View style={styles.webTableContainer}>
-              {renderWebHeader()}
+                <View style={styles.webTableContainer}>
+                  {renderWebHeader()}
 
-              {loading && bookings.length === 0 ? (
-                <View style={styles.loadingContainer}>
-                  <ActivityIndicator size="large" color={COLORS.primary} />
-                  <Text style={styles.loadingText}>Chargement...</Text>
-                </View>
-              ) : (
-                <FlatList
-                  data={filteredBookings}
-                  keyExtractor={item => String(item.id)}
-                  renderItem={renderWebRow}
-                  ListEmptyComponent={renderEmpty}
-                  contentContainerStyle={
-                    filteredBookings.length === 0
-                      ? styles.listEmptyContent
-                      : undefined
-                  }
-                  refreshControl={
-                    <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={handleRefresh}
-                      tintColor={COLORS.primary}
+                  {loading && bookings.length === 0 ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="large" color={COLORS.primary} />
+                      <Text style={styles.loadingText}>Chargement...</Text>
+                    </View>
+                  ) : (
+                    <FlatList
+                      data={filteredBookings}
+                      keyExtractor={item => String(item.id)}
+                      renderItem={renderWebRow}
+                      ListEmptyComponent={renderEmpty}
+                      contentContainerStyle={
+                        filteredBookings.length === 0
+                          ? styles.listEmptyContent
+                          : undefined
+                      }
+                      refreshControl={
+                        <RefreshControl
+                          refreshing={refreshing}
+                          onRefresh={handleRefresh}
+                          tintColor={COLORS.primary}
+                        />
+                      }
+                      showsVerticalScrollIndicator
                     />
-                  }
-                  showsVerticalScrollIndicator
-                />
-              )}
-            </View>
+                  )}
+                </View>
+              </>
+            )}
           </View>
         </View>
       </SafeAreaView>
@@ -2723,34 +3583,53 @@ export default function OffersScreen({ navigation }) {
 
         {renderDateModal()}
         {renderActionsSheet()}
-        {renderTop()}
-        {renderError()}
 
-        {loading && bookings.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Chargement...</Text>
-          </View>
+        {viewMode === 'map' ? (
+          // ✅ Même correctif que sur le web : toute la zone (filtres
+          // + carte + liste) devient scrollable si elle dépasse la
+          // hauteur de l'écran, au lieu de rester coincée/coupée en
+          // bas sans moyen d'y accéder.
+          <ScrollView
+            style={styles.mobileMapScroll}
+            contentContainerStyle={styles.mobileMapScrollContent}
+            nestedScrollEnabled
+          >
+            {renderTop()}
+            {renderError()}
+            {renderMapView()}
+          </ScrollView>
         ) : (
-          <FlatList
-            data={filteredBookings}
-            keyExtractor={item => String(item.id)}
-            renderItem={renderMobileCard}
-            ListEmptyComponent={renderEmpty}
-            contentContainerStyle={
-              filteredBookings.length === 0
-                ? styles.listEmptyContent
-                : styles.mobileList
-            }
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-                tintColor={COLORS.primary}
+          <>
+            {renderTop()}
+            {renderError()}
+
+            {loading && bookings.length === 0 ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Chargement...</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={filteredBookings}
+                keyExtractor={item => String(item.id)}
+                renderItem={renderMobileCard}
+                ListEmptyComponent={renderEmpty}
+                contentContainerStyle={
+                  filteredBookings.length === 0
+                    ? styles.listEmptyContent
+                    : styles.mobileList
+                }
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    tintColor={COLORS.primary}
+                  />
+                }
+                showsVerticalScrollIndicator={false}
               />
-            }
-            showsVerticalScrollIndicator={false}
-          />
+            )}
+          </>
         )}
       </View>
     </SafeAreaView>
@@ -2788,6 +3667,25 @@ const createStyles = (colors, isDark) => {
       paddingTop: 0,
       paddingBottom: 0,
       gap: 0,
+    },
+
+    // ✅ Enveloppe scrollable (web) pour l'onglet "Carte" — voir le
+    // commentaire au niveau du JSX : garantit que rien ne reste
+    // "coincé" hors écran quand les filtres + la carte dépassent la
+    // hauteur de la fenêtre.
+    webMapScroll: {
+      flex: 1,
+    },
+    webMapScrollContent: {
+      flexGrow: 1,
+    },
+
+    // ✅ Même principe côté mobile.
+    mobileMapScroll: {
+      flex: 1,
+    },
+    mobileMapScrollContent: {
+      flexGrow: 1,
     },
 
     // ========================================================
@@ -3836,6 +4734,468 @@ const createStyles = (colors, isDark) => {
     tableStatusText: {
       fontSize: 9.5,
       fontWeight: '800',
+    },
+
+    // ========================================================
+    // LIST / MAP VIEW SWITCHER
+    // ========================================================
+
+    viewModeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: 10,
+      marginBottom: 2,
+      gap: 10,
+    },
+
+    viewModeLabel: {
+      flex: 1,
+      fontSize: 11,
+      color: colors.textSecondary,
+    },
+
+    viewSwitcher: {
+      flexDirection: 'row',
+      backgroundColor: isDark ? '#1B2A22' : '#F0F5F1',
+      borderRadius: 12,
+      padding: 3,
+      gap: 3,
+    },
+
+    viewSwitchButton: {
+      width: 34,
+      height: 30,
+      borderRadius: 9,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    viewSwitchButtonActive: {
+      backgroundColor: COLORS.primary,
+    },
+
+    // ========================================================
+    // MAP SECTION (carte des adresses clients + liste)
+    // ========================================================
+
+    mapSection: {
+      flex: 1,
+      marginTop: 12,
+    },
+
+    mapSectionWeb: {
+      flexDirection: 'row',
+      gap: 16,
+    },
+
+    mapSectionMobile: {
+      flexDirection: 'column',
+    },
+
+    mapPane: {
+      borderRadius: 18,
+      overflow: 'hidden',
+      backgroundColor: '#E5E7EB',
+      position: 'relative',
+    },
+
+    mapPaneWeb: {
+      flex: 1.6,
+      minHeight: 480,
+    },
+
+    mapPaneMobile: {
+      minHeight: 320,
+      marginBottom: 12,
+    },
+
+    map: {
+      flex: 1,
+    },
+
+    mapTopBadge: {
+      position: 'absolute',
+      // ✅ FIXÉ : avant, ce badge était collé exactement au même
+      // endroit (top:12, left:12) que le bouton "Satellite/Plan" du
+      // MapViewWrapper (top:10, left:10) — il le recouvrait
+      // entièrement, rendant ce bouton invisible/inaccessible.
+      // On le descend sous le bouton pour ne plus le cacher.
+      top: 54,
+      left: 12,
+      minHeight: 32,
+      paddingHorizontal: 10,
+      borderRadius: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: 'rgba(255,255,255,0.95)',
+      ...Platform.select({
+        web: { boxShadow: '0 2px 8px rgba(0,0,0,0.12)' },
+        default: { elevation: 3 },
+      }),
+    },
+
+    mapTopBadgeText: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: COLORS.text,
+    },
+
+    locationWarningBadge: {
+      position: 'absolute',
+      // ✅ Descendu pour laisser la place au badge "X demandes
+      // localisées" juste au-dessus (voir mapTopBadge).
+      top: 94,
+      left: 12,
+      right: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderRadius: 10,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: 'rgba(255,255,255,0.95)',
+      ...Platform.select({
+        web: { boxShadow: '0 2px 8px rgba(0,0,0,0.12)' },
+        default: { elevation: 3 },
+      }),
+    },
+
+    locationWarningText: {
+      flex: 1,
+      fontSize: 10,
+      fontWeight: '700',
+      color: '#92400E',
+    },
+
+    // ✅ Carte "info trajet" — endrika international (mitovitovy
+    // amin'ny Google Maps / Uber) : rounded card, ombre douce,
+    // avatar + nom + adresse, distance en rouge bien visible, puis
+    // 3 "chips" ETA (à pied / vélo / moto) affichés en même temps.
+    routePanel: {
+      position: 'absolute',
+      top: 12,
+      right: 12,
+      width: 280,
+      maxWidth: '92%',
+      padding: 12,
+      borderRadius: 16,
+      backgroundColor: 'rgba(255,255,255,0.98)',
+      ...Platform.select({
+        web: { boxShadow: '0 6px 20px rgba(0,0,0,0.16)' },
+        default: { elevation: 6 },
+      }),
+    },
+
+    routePanelHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+
+    routePanelAvatar: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: COLORS.red,
+    },
+
+    routePanelName: {
+      fontSize: 13,
+      fontWeight: '800',
+      color: COLORS.text,
+    },
+
+    routePanelAddress: {
+      marginTop: 1,
+      fontSize: 10.5,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+
+    routePanelMeta: {
+      marginTop: 6,
+      fontSize: 11,
+      fontWeight: '700',
+      color: COLORS.primary,
+    },
+
+    routePanelLoadingRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 8,
+    },
+
+    // ✅ Distance affichée en rouge (menamena), bien lisible.
+    routeDistanceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 10,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: '#F1F1F1',
+    },
+
+    routeDistanceValue: {
+      fontSize: 17,
+      fontWeight: '800',
+      color: COLORS.red,
+      letterSpacing: 0.2,
+    },
+
+    routePanelEstimateTag: {
+      fontSize: 9.5,
+      fontWeight: '700',
+      color: '#92400E',
+      backgroundColor: '#FEF3C7',
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 6,
+      overflow: 'hidden',
+    },
+
+    etaRow: {
+      flexDirection: 'row',
+      gap: 6,
+      marginTop: 8,
+    },
+
+    etaChip: {
+      flex: 1,
+      alignItems: 'center',
+      gap: 2,
+      paddingVertical: 7,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: '#FCA5A5',
+      backgroundColor: '#FEF2F2',
+    },
+
+    etaChipActive: {
+      backgroundColor: COLORS.red,
+      borderColor: COLORS.red,
+    },
+
+    etaChipTime: {
+      fontSize: 12,
+      fontWeight: '800',
+      color: COLORS.red,
+    },
+
+    etaChipTimeActive: {
+      color: COLORS.white,
+    },
+
+    etaChipLabel: {
+      fontSize: 9,
+      fontWeight: '600',
+      color: '#B91C1C',
+    },
+
+    etaChipLabelActive: {
+      color: 'rgba(255,255,255,0.9)',
+    },
+
+    mapLegend: {
+      position: 'absolute',
+      left: 12,
+      bottom: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+      borderRadius: 10,
+      backgroundColor: 'rgba(255,255,255,0.95)',
+      gap: 4,
+      ...Platform.select({
+        web: { boxShadow: '0 2px 8px rgba(0,0,0,0.12)' },
+        default: { elevation: 3 },
+      }),
+    },
+
+    mapLegendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+
+    mapLegendDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+    },
+
+    mapLegendText: {
+      fontSize: 9,
+      fontWeight: '700',
+      color: COLORS.text,
+    },
+
+    mapListPane: {},
+
+    mapListPaneWeb: {
+      flex: 1,
+      maxWidth: 380,
+    },
+
+    mapListPaneMobile: {
+      flex: 1,
+      minHeight: 180,
+    },
+
+    mapListContent: {
+      paddingBottom: 16,
+    },
+
+    mapListCard: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 14,
+      padding: 12,
+      backgroundColor: colors.card,
+      marginBottom: 10,
+    },
+
+    mapListCardActive: {
+      borderColor: COLORS.primary,
+      backgroundColor: isDark ? '#132A1E' : COLORS.primarySoft,
+    },
+
+    mapListCardTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+
+    mapListInfo: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    mapListName: {
+      fontSize: 12.5,
+      fontWeight: '800',
+      color: colors.text,
+    },
+
+    mapListMassage: {
+      fontSize: 10.5,
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+
+    mapListStatusDot: {
+      width: 9,
+      height: 9,
+      borderRadius: 5,
+    },
+
+    mapListAddressRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 5,
+      marginTop: 8,
+    },
+
+    mapListAddressText: {
+      flex: 1,
+      fontSize: 10.5,
+      lineHeight: 14,
+      color: colors.textSecondary,
+    },
+
+    mapListContactRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 12,
+      marginTop: 7,
+    },
+
+    mapListContactItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+
+    mapListContactText: {
+      fontSize: 10,
+      color: colors.textSecondary,
+    },
+
+    mapListActionsRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 10,
+    },
+
+    mapListDirectionsButton: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      paddingVertical: 8,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: COLORS.primary,
+    },
+
+    mapListDirectionsText: {
+      fontSize: 10.5,
+      fontWeight: '800',
+      color: COLORS.primary,
+    },
+
+    mapListOpenButton: {
+      flex: 1.2,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+      paddingVertical: 8,
+      borderRadius: 10,
+      backgroundColor: COLORS.primary,
+    },
+
+    mapListOpenButtonText: {
+      fontSize: 10.5,
+      fontWeight: '800',
+      color: COLORS.white,
+    },
+
+    mapEmptyState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 30,
+      paddingVertical: 60,
+    },
+
+    mapEmptyIcon: {
+      width: 64,
+      height: 64,
+      borderRadius: 20,
+      backgroundColor: isDark ? '#132A1E' : COLORS.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+
+    mapEmptyTitle: {
+      fontSize: 14,
+      fontWeight: '800',
+      color: colors.text,
+    },
+
+    mapEmptyText: {
+      fontSize: 11,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: 6,
+      maxWidth: 280,
     },
   });
 };
