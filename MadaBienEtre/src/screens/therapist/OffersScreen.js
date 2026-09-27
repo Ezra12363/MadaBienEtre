@@ -59,9 +59,7 @@ import * as Location from 'expo-location';
 // ============================================================
 
 const ANDROID_STATUS_BAR_HEIGHT =
-  Platform.OS === 'android'
-    ? StatusBar.currentHeight || 24
-    : 0;
+  Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0;
 
 // ============================================================
 // COLORS
@@ -117,14 +115,12 @@ const AUTO_REFRESH_MS = 15000;
 
 function Toast({ toast }) {
   const { colors, isDark } = useTheme();
-
   const toastStyles = useMemo(
     () => createToastStyles(colors, isDark),
     [colors, isDark]
   );
 
   if (!toast) return null;
-
   const isSuccess = toast.type === 'success';
 
   return (
@@ -187,7 +183,6 @@ function ConfirmationModal({
   destructive = false,
 }) {
   const { colors, isDark } = useTheme();
-
   const confirmationStyles = useMemo(
     () => createConfirmationStyles(colors, isDark),
     [colors, isDark]
@@ -334,7 +329,6 @@ const mergeClientObjects = (a, b) => {
   if (!a && !b) return undefined;
   if (!a) return b;
   if (!b) return a;
-
   const merged = { ...a };
   Object.keys(b).forEach(key => {
     if (isEmptyBookingValue(merged[key]) && !isEmptyBookingValue(b[key])) {
@@ -347,7 +341,6 @@ const mergeClientObjects = (a, b) => {
 const mergeBookingRecords = (base, extra) => {
   if (!base) return extra;
   if (!extra) return base;
-
   const merged = { ...base };
   Object.keys(extra).forEach(key => {
     if (key === 'client') return;
@@ -355,10 +348,8 @@ const mergeBookingRecords = (base, extra) => {
       merged[key] = extra[key];
     }
   });
-
   const mergedClient = mergeClientObjects(base.client, extra.client);
   if (mergedClient) merged.client = mergedClient;
-
   return merged;
 };
 
@@ -379,9 +370,7 @@ const normalizeArray = value => {
 // ============================================================
 
 const normalizeStatus = booking => {
-  const raw = String(
-    booking?.status ?? booking?.booking_status ?? ''
-  )
+  const raw = String(booking?.status ?? booking?.booking_status ?? '')
     .trim()
     .toLowerCase()
     .normalize('NFD')
@@ -467,8 +456,7 @@ const normalizeStatus = booking => {
 const isDisplayedBooking = () => true;
 
 const isCancelledStatus = status =>
-  status === 'cancelled_by_client' ||
-  status === 'cancelled_by_therapist';
+  status === 'cancelled_by_client' || status === 'cancelled_by_therapist';
 
 // ============================================================
 // STATUS UI
@@ -575,16 +563,10 @@ const getClientName = booking =>
   'Client';
 
 const getPhone = booking =>
-  booking?.client_phone ??
-  booking?.phone ??
-  booking?.client?.phone ??
-  '';
+  booking?.client_phone ?? booking?.phone ?? booking?.client?.phone ?? '';
 
 const getEmail = booking =>
-  booking?.client_email ??
-  booking?.email ??
-  booking?.client?.email ??
-  '';
+  booking?.client_email ?? booking?.email ?? booking?.client?.email ?? '';
 
 const getClientPhoto = booking =>
   booking?.client_photo ??
@@ -655,14 +637,6 @@ const getDistance = booking => {
   return Number.isFinite(number) ? number : null;
 };
 
-const getEta = booking => {
-  const value =
-    booking?.eta_minutes ?? booking?.etaMinutes ?? booking?.eta;
-  if (value === null || value === undefined || value === '') return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
-};
-
 const getAddress = booking =>
   booking?.address ??
   booking?.client_location ??
@@ -720,25 +694,30 @@ const getScheduledDate = booking =>
   null;
 
 // ============================================================
-// DIRECTIONS (ITINÉRAIRE THÉRAPEUTE → CLIENT)
+// RELATIVE TIME
 // ============================================================
-// ✅ FIXÉ : io no antony tsy nanaraka lalana marina foana ny tsipika
-// mena teto ("faritra mena") — nampiasa Google Directions manokana
-// (fetchDirectionsWeb / fetchDirectionsNative) izay mety tsy
-// mba misy azy raha tsy misy "billing" mivaingana amin'ny clé API,
-// ka niverina ho lisitra mahitsy (ligne droite) matetika.
-//
-// Ampiasaina ao amin'ity izao ny `calculateAlternativeRoutes` avy ao
-// amin'ny services/routing — dia MITOVY TANTERAKA amin'izay
-// ampiasain'ny SearchMassageScreen.js (efa voamarina fa manaraka
-// tena lalana amin'ny sary), ka ny tsipika mena eto dia manaraka
-// ny lalana tena izy koa, tsy vola droite intsony — na amin'ny web
-// na amin'ny mobile.
-//
-// Ny halavan-dalana (distanceKm) azo avy amin'io trajet reely io no
-// entina manisa ny fotoana isaky ny mode (à pied / vélo / moto),
-// mba tsy hiantso ny API in-telo (mode iray = fiantsoana iray
-// ihany, kanto sy mora vetivety kokoa).
+
+const getRelativeTimeLabel = value => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const diffMs = Date.now() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+
+  if (diffMin < 1) return "à l'instant";
+  if (diffMin < 60) return `il y a ${diffMin} min`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `il y a ${diffH} h`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD < 7) return `il y a ${diffD} j`;
+  return date.toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+  });
+};
+
+// ============================================================
+// DIRECTIONS
 // ============================================================
 
 const TRAVEL_MODES = [
@@ -747,17 +726,18 @@ const TRAVEL_MODES = [
   { key: 'moto', label: 'Moto', icon: 'car-sport-outline', googleMode: 'driving' },
 ];
 
-// ✅ Halavan-dalana (km) manaraka ny "coordinates" nalaina tamin'ny
-// trajet reel (fitambaran'ny distance eo amin'ny points mifanaraka),
-// ampiasaina rehefa tsy misy "distanceKm"/"distance_km" avy amin'ny
-// valiny nomen'ny calculateAlternativeRoutes.
 const sumRouteDistanceKm = coordinates => {
   if (!Array.isArray(coordinates) || coordinates.length < 2) return null;
   let total = 0;
   for (let i = 1; i < coordinates.length; i += 1) {
     const a = coordinates[i - 1];
     const b = coordinates[i];
-    const d = haversineDistance(a?.latitude, a?.longitude, b?.latitude, b?.longitude);
+    const d = haversineDistance(
+      a?.latitude,
+      a?.longitude,
+      b?.latitude,
+      b?.longitude
+    );
     if (Number.isFinite(d)) total += d;
   }
   return total > 0 ? total : null;
@@ -770,9 +750,6 @@ const buildFallbackRoute = (origin, destination, googleMode = 'driving') => {
     destination.latitude,
     destination.longitude
   );
-  // ✅ Raha tsy nahazo valiny avy amin'ny API (routing service), dia
-  // atao estimation (Haversine + vitesse moyenne isaky ny mode) mba
-  // hisy foana "firy heure" aseho, na dia tsy zava-marina 100% aza.
   const durationMin =
     distanceKm != null ? estimateDuration(distanceKm, googleMode) : null;
   return {
@@ -785,8 +762,6 @@ const buildFallbackRoute = (origin, destination, googleMode = 'driving') => {
   };
 };
 
-// ✅ Trajet réel PARTAGÉ (une seule fois pour les 3 modes) — mitovy
-// tanteraka amin'ny fomba fiasan'ny SearchMassageScreen.js.
 const fetchRealRoute = async (origin, destination) => {
   if (!origin || !destination) return null;
   if (
@@ -794,9 +769,7 @@ const fetchRealRoute = async (origin, destination) => {
     !Number.isFinite(origin.longitude) ||
     !Number.isFinite(destination.latitude) ||
     !Number.isFinite(destination.longitude)
-  ) {
-    return null;
-  }
+  ) return null;
 
   try {
     const options = await calculateAlternativeRoutes(
@@ -806,18 +779,27 @@ const fetchRealRoute = async (origin, destination) => {
       destination.longitude
     );
     const best = Array.isArray(options) && options.length ? options[0] : null;
-    const coordinates = Array.isArray(best?.coordinates) ? best.coordinates : null;
+    const coordinates = Array.isArray(best?.coordinates)
+      ? best.coordinates
+      : null;
 
     if (coordinates && coordinates.length > 1) {
       const distanceKm =
         best.distanceKm ??
         best.distance_km ??
         sumRouteDistanceKm(coordinates) ??
-        haversineDistance(origin.latitude, origin.longitude, destination.latitude, destination.longitude);
+        haversineDistance(
+          origin.latitude,
+          origin.longitude,
+          destination.latitude,
+          destination.longitude
+        );
 
       return {
         coordinates,
-        distanceText: best.distanceText || (distanceKm != null ? formatDistance(distanceKm) : ''),
+        distanceText:
+          best.distanceText ||
+          (distanceKm != null ? formatDistance(distanceKm) : ''),
         distanceKm,
         isFallback: !!best.isFallback,
       };
@@ -852,6 +834,49 @@ const formatDate = value => {
     });
   } catch {
     return String(value);
+  }
+};
+
+const formatDateLong = value => {
+  if (!value) return '';
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  } catch {
+    return String(value);
+  }
+};
+
+const formatDateShort = value => {
+  if (!value) return '';
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+    });
+  } catch {
+    return String(value);
+  }
+};
+
+const formatTimeShort = value => {
+  if (!value) return '';
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return '';
   }
 };
 
@@ -979,16 +1004,18 @@ function TabButton({ label, count, active, onPress }) {
       <Text style={[styles.tabText, active && styles.tabTextActive]}>
         {label}
       </Text>
-      <View style={[styles.tabCount, active && styles.tabCountActive]}>
-        <Text
-          style={[
-            styles.tabCountText,
-            active && styles.tabCountTextActive,
-          ]}
-        >
-          {count}
-        </Text>
-      </View>
+      {count > 0 ? (
+        <View style={[styles.tabCount, active && styles.tabCountActive]}>
+          <Text
+            style={[
+              styles.tabCountText,
+              active && styles.tabCountTextActive,
+            ]}
+          >
+            {count}
+          </Text>
+        </View>
+      ) : null}
     </Pressable>
   );
 }
@@ -1019,7 +1046,7 @@ function ClientAvatar({ photoUrl, name, size = 52, isOnline = false }) {
 
   const [failed, setFailed] = useState(false);
   const showImage = !!photoUrl && !failed;
-  const radius = Math.max(10, Math.round(size * 0.24));
+  const radius = Math.max(10, Math.round(size * 0.3));
 
   return (
     <View
@@ -1046,7 +1073,7 @@ function ClientAvatar({ photoUrl, name, size = 52, isOnline = false }) {
             { width: size, height: size, borderRadius: radius },
           ]}
         >
-          <Text style={[styles.avatarText, { fontSize: size * 0.38 }]}>
+          <Text style={[styles.avatarText, { fontSize: size * 0.42 }]}>
             {getInitial(name)}
           </Text>
         </View>
@@ -1069,6 +1096,12 @@ export default function OffersScreen({ navigation }) {
   const { width, height } = useWindowDimensions();
   const isWeb = Platform.OS === 'web';
   const isMobile = !isWeb || width < 850;
+
+  const numColumns = isMobile
+    ? width >= 900
+      ? 2
+      : 1
+    : 1;
 
   const insets = useSafeAreaInsets();
   const sheetBottomPadding =
@@ -1099,43 +1132,25 @@ export default function OffersScreen({ navigation }) {
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
 
-  // ==========================================================
-  // MAP VIEW (Liste / Carte des adresses clients)
-  // ==========================================================
-  const [viewMode, setViewMode] = useState('list'); // 'list' | 'map'
+  const [viewMode, setViewMode] = useState('list');
   const [mapKey, setMapKey] = useState(0);
-  const [selectedMapBookingId, setSelectedMapBookingId] = useState(null);
   const mapRef = useRef(null);
 
-  // ✅ Position GPS actuelle du thérapeute (sert d'origine à l'itinéraire)
   const [therapistPosition, setTherapistPosition] = useState(null);
-  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+  const [locationPermissionDenied, setLocationPermissionDenied] =
+    useState(false);
 
-  // ✅ Itinéraire sélectionné : client visé + mode de déplacement
   const [selectedRouteBooking, setSelectedRouteBooking] = useState(null);
-  // ✅ Calcule EN MEME TEMPS ny itineraire 3 mode (moto / vélo / à
-  // pied) rehefa misy client voafantina — tsy mila mifidy mode
-  // aloha vao mahita ny "firy heure" amin'ny mode hafa.
-  const [modeEtas, setModeEtas] = useState(null); // { walking, bicycling, moto }
+  const [modeEtas, setModeEtas] = useState(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [travelMode, setTravelMode] = useState('moto');
 
-  // ✅ Itineraire miaraka amin'ny tracé + distance/durée ho an'ny
-  // mode aseho amin'ny carte (safidian'ny mpampiasa amin'ny
-  // bokotra "À pied / Vélo / Moto").
   const routeInfo = modeEtas ? modeEtas[travelMode] || null : null;
 
-  // ✅ Mode satellite (hybride : photo + noms de rues) activé par défaut
   const [mapTypeState, setMapTypeState] = useState(MAP_TYPES.hybrid);
 
-  // ✅ Hauteur minimale de la carte sur mobile — sur le web, on
-  // laisse maintenant le flexbox (mapSection: flex:1) calculer la
-  // hauteur disponible tout seul, au lieu d'un calcul figé
-  // (height - 240) qui supposait une hauteur d'en-tête fixe et
-  // provoquait un débordement caché (contenu "coincé" en bas, non
-  // accessible en scroll) dès que l'en-tête/filtres étaient plus
-  // hauts que prévu.
-  const mobileMapHeight = Math.max(360, Math.round(height * 0.6));
+  const mobileMapHeight = Math.max(420, Math.round(height * 0.65));
+  const webMapHeight = Math.max(540, Math.round(height - 220));
 
   // ==========================================================
   // LOAD BOOKINGS
@@ -1171,8 +1186,7 @@ export default function OffersScreen({ navigation }) {
 
       const mergedMap = new Map();
       [...available, ...allBookings].forEach(booking => {
-        const id =
-          booking?.id ?? booking?.booking_id ?? booking?.bookingId;
+        const id = booking?.id ?? booking?.booking_id ?? booking?.bookingId;
         if (id === null || id === undefined) return;
         const key = String(id);
         const existing = mergedMap.get(key);
@@ -1243,9 +1257,7 @@ export default function OffersScreen({ navigation }) {
       }
     } catch (loadError) {
       console.error('❌ LOAD ERROR:', loadError);
-      setError(
-        loadError?.message || 'Impossible de charger les réservations.'
-      );
+      setError(loadError?.message || 'Impossible de charger les réservations.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -1264,7 +1276,7 @@ export default function OffersScreen({ navigation }) {
   }, [loadBookings]);
 
   // ==========================================================
-  // POSITION GPS ACTUELLE DU THÉRAPEUTE
+  // GPS
   // ==========================================================
 
   useEffect(() => {
@@ -1335,9 +1347,8 @@ export default function OffersScreen({ navigation }) {
   const counts = useMemo(() => {
     return {
       all: bookings.length,
-      pending: bookings.filter(
-        item => normalizeStatus(item) === 'pending'
-      ).length,
+      pending: bookings.filter(item => normalizeStatus(item) === 'pending')
+        .length,
       negotiating: bookings.filter(
         item => normalizeStatus(item) === 'negotiating'
       ).length,
@@ -1353,9 +1364,8 @@ export default function OffersScreen({ navigation }) {
       cancelled: bookings.filter(item =>
         isCancelledStatus(normalizeStatus(item))
       ).length,
-      expired: bookings.filter(
-        item => normalizeStatus(item) === 'expired'
-      ).length,
+      expired: bookings.filter(item => normalizeStatus(item) === 'expired')
+        .length,
     };
   }, [bookings]);
 
@@ -1371,14 +1381,11 @@ export default function OffersScreen({ navigation }) {
       const status = normalizeStatus(booking);
 
       if (activeTab === 'pending' && status !== 'pending') return false;
-      if (activeTab === 'negotiating' && status !== 'negotiating')
-        return false;
+      if (activeTab === 'negotiating' && status !== 'negotiating') return false;
       if (activeTab === 'confirmed' && status !== 'confirmed') return false;
-      if (activeTab === 'in_progress' && status !== 'in_progress')
-        return false;
+      if (activeTab === 'in_progress' && status !== 'in_progress') return false;
       if (activeTab === 'completed' && status !== 'completed') return false;
-      if (activeTab === 'cancelled' && !isCancelledStatus(status))
-        return false;
+      if (activeTab === 'cancelled' && !isCancelledStatus(status)) return false;
       if (activeTab === 'expired' && status !== 'expired') return false;
 
       if (fromKey || toKey) {
@@ -1408,7 +1415,7 @@ export default function OffersScreen({ navigation }) {
   }, [activeTab, bookings, dateFrom, dateTo, searchQuery]);
 
   // ==========================================================
-  // MAP DATA — adresses des clients ayant fait une demande
+  // MAP DATA
   // ==========================================================
 
   const geolocatedBookings = useMemo(
@@ -1443,44 +1450,49 @@ export default function OffersScreen({ navigation }) {
     };
   }, [geolocatedBookings]);
 
-  const handleMapMarkerPress = useCallback(marker => {
-    if (!marker) {
-      setSelectedMapBookingId(null);
-      setSelectedRouteBooking(null);
-      return;
-    }
-    setSelectedMapBookingId(marker.id);
+  const handleMapMarkerPress = useCallback(
+    marker => {
+      if (!marker) {
+        setSelectedRouteBooking(null);
+        return;
+      }
 
-    const booking = geolocatedBookings.find(
-      item => String(item.id) === String(marker.id)
-    );
-    if (booking) setSelectedRouteBooking(booking);
+      const booking = geolocatedBookings.find(
+        item => String(item.id) === String(marker.id)
+      );
+      if (booking) setSelectedRouteBooking(booking);
 
-    const lat = marker?.coordinate?.latitude;
-    const lng = marker?.coordinate?.longitude;
-    if (lat === undefined || lng === undefined) return;
+      const lat = marker?.coordinate?.latitude;
+      const lng = marker?.coordinate?.longitude;
+      if (lat === undefined || lng === undefined) return;
+      mapRef.current?.animateToRegion?.(
+        {
+          latitude: lat,
+          longitude: lng,
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        },
+        400
+      );
+    },
+    [geolocatedBookings]
+  );
+
+  const focusBookingOnMap = useCallback(booking => {
+    if (!booking) return;
+    const lat = getLatitude(booking);
+    const lng = getLongitude(booking);
+    if (lat === null || lng === null) return;
+    setSelectedRouteBooking(booking);
     mapRef.current?.animateToRegion?.(
       {
         latitude: lat,
         longitude: lng,
-        latitudeDelta: 0.02,
-        longitudeDelta: 0.02,
+        latitudeDelta: 0.015,
+        longitudeDelta: 0.015,
       },
-      400
+      500
     );
-  }, [geolocatedBookings]);
-
-  const handleSelectMapListItem = useCallback(booking => {
-    setSelectedMapBookingId(booking.id);
-    setSelectedRouteBooking(booking);
-    const lat = getLatitude(booking);
-    const lng = getLongitude(booking);
-    if (lat !== null && lng !== null) {
-      mapRef.current?.animateToRegion?.(
-        { latitude: lat, longitude: lng, latitudeDelta: 0.02, longitudeDelta: 0.02 },
-        400
-      );
-    }
   }, []);
 
   const handleOpenDirections = useCallback(booking => {
@@ -1517,15 +1529,8 @@ export default function OffersScreen({ navigation }) {
   const handleClearRoute = useCallback(() => {
     setSelectedRouteBooking(null);
     setModeEtas(null);
-    setSelectedMapBookingId(null);
   }, []);
 
-  // ✅ Recalcule l'itinéraire RÉEL (suit les vraies rues, comme sur
-  // Google Maps) dès que le client sélectionné ou la position GPS
-  // actuelle du thérapeute change — en une seule fois pour les 3
-  // modes (à pied / vélo / moto), afin d'afficher directement
-  // "si moto : X h Y min" et "si à pied : X h Y min" sans que le
-  // thérapeute ait besoin de basculer entre les boutons.
   useEffect(() => {
     if (!selectedRouteBooking || !therapistPosition) {
       setModeEtas(null);
@@ -1544,17 +1549,18 @@ export default function OffersScreen({ navigation }) {
 
     const destination = { latitude: destLat, longitude: destLng };
 
-    // ✅ Un seul appel au service de routing (trajet réel, comme dans
-    // SearchMassageScreen.js) : le même tracé sert aux 3 modes, seule
-    // la durée estimée change selon la vitesse moyenne du mode.
     fetchRealRoute(therapistPosition, destination).then(realRoute => {
       if (cancelled) return;
 
-      const base = realRoute || buildFallbackRoute(therapistPosition, destination, 'driving');
+      const base =
+        realRoute ||
+        buildFallbackRoute(therapistPosition, destination, 'driving');
       const next = {};
       TRAVEL_MODES.forEach(item => {
         const durationMin =
-          base.distanceKm != null ? estimateDuration(base.distanceKm, item.googleMode) : null;
+          base.distanceKm != null
+            ? estimateDuration(base.distanceKm, item.googleMode)
+            : null;
         next[item.key] = {
           ...base,
           durationText: durationMin != null ? formatDuration(durationMin) : '',
@@ -1570,8 +1576,6 @@ export default function OffersScreen({ navigation }) {
     };
   }, [selectedRouteBooking, therapistPosition]);
 
-  // ✅ Efface l'itinéraire si le client sélectionné sort de la liste
-  // filtrée en cours (changement d'onglet, recherche, date, ...)
   useEffect(() => {
     if (
       selectedRouteBooking &&
@@ -1597,10 +1601,6 @@ export default function OffersScreen({ navigation }) {
     },
     [navigation]
   );
-
-  // ==========================================================
-  // NEGOTIATION
-  // ==========================================================
 
   const handleNegotiation = useCallback(
     booking => {
@@ -1631,29 +1631,18 @@ export default function OffersScreen({ navigation }) {
     [navigation, showToast]
   );
 
-  // ==========================================================
-  // GET CLIENT OFFER
-  // ==========================================================
-
   const getActiveClientOffer = useCallback(async bookingId => {
     const result = await offerService.getOffersByBooking(bookingId);
-
     if (!result?.success) {
       throw new Error(
         result?.error || 'Impossible de récupérer les offres.'
       );
     }
-
     const offers = normalizeArray(result.data);
     const active = offers.filter(isActiveClientOffer);
-
     if (active.length === 0) return null;
     return active[active.length - 1];
   }, []);
-
-  // ==========================================================
-  // ACCEPT
-  // ==========================================================
 
   const executeAccept = useCallback(
     async booking => {
@@ -1727,26 +1716,19 @@ export default function OffersScreen({ navigation }) {
     [busyId, getActiveClientOffer, loadBookings, showToast]
   );
 
-  // ==========================================================
-  // ACTION STATE
-  // ==========================================================
-
   const getActionState = useCallback(booking => {
     const status = normalizeStatus(booking);
     const showNegotiation =
       status === 'pending' || status === 'negotiating';
 
     const hasClientOffer =
-      !!booking?._activeClientOffer && !!getOfferId(booking._activeClientOffer);
+      !!booking?._activeClientOffer &&
+      !!getOfferId(booking._activeClientOffer);
 
     const showAcceptReject = status === 'negotiating' && hasClientOffer;
 
     return { showNegotiation, showAcceptReject };
   }, []);
-
-  // ==========================================================
-  // ACCEPT WITH CONFIRMATION
-  // ==========================================================
 
   const handleAccept = useCallback(
     booking => {
@@ -1773,10 +1755,6 @@ export default function OffersScreen({ navigation }) {
     },
     [busyId, executeAccept, getActionState, showToast]
   );
-
-  // ==========================================================
-  // REJECT
-  // ==========================================================
 
   const handleReject = useCallback(
     booking => {
@@ -1809,7 +1787,9 @@ export default function OffersScreen({ navigation }) {
             }
             const result = await offerService.rejectOffer(offerId);
             if (!result?.success) {
-              throw new Error(result?.error || 'Impossible de refuser l’offre.');
+              throw new Error(
+                result?.error || 'Impossible de refuser l’offre.'
+              );
             }
             setBookings(previous =>
               previous.map(item =>
@@ -1848,13 +1828,10 @@ export default function OffersScreen({ navigation }) {
       const booking = item;
       const status = normalizeStatus(booking);
       const statusUI = getStatusUI(booking, isDark);
-      const confirmed = status === 'confirmed';
       const busy = busyId === booking.id;
 
       const price = getPrice(booking);
       const distance = getDistance(booking);
-      const eta = getEta(booking);
-      const date = getScheduledDate(booking);
       const expiresAt = getExpiresAt(booking);
       const expired = isOfferExpired(booking);
 
@@ -1862,20 +1839,30 @@ export default function OffersScreen({ navigation }) {
         !!expiresAt && (status === 'pending' || status === 'negotiating');
 
       const actionState = getActionState(booking);
-      const hasActions =
-        actionState.showNegotiation || actionState.showAcceptReject;
+
+      const requestedAt = getRequestedAt(booking);
+      const relativeLabel = getRelativeTimeLabel(requestedAt);
+      const publishedLabel = relativeLabel
+        ? `Publié ${relativeLabel}`
+        : '';
+
+      const requestDateLabel = formatDateLong(requestedAt);
+      const requestTimeLabel = requestedAt
+        ? formatTimeShort(requestedAt)
+        : '';
 
       return (
-        <View
-          style={[
-            styles.mobileCard,
+        <Pressable
+          onPress={() => openBooking(booking)}
+          style={({ pressed }) => [
+            styles.card,
             hoveredId === booking.id && styles.cardHover,
+            pressed && styles.cardPressed,
           ]}
-          onMouseEnter={() => isWeb && setHoveredId(booking.id)}
-          onMouseLeave={() => isWeb && setHoveredId(null)}
+          onHoverIn={() => isWeb && setHoveredId(booking.id)}
+          onHoverOut={() => isWeb && setHoveredId(null)}
         >
-          {/* HEADER */}
-          <View style={styles.mobileHeader}>
+          <View style={styles.cardTopRow}>
             <ClientAvatar
               photoUrl={getClientPhoto(booking)}
               name={getClientName(booking)}
@@ -1883,426 +1870,257 @@ export default function OffersScreen({ navigation }) {
               isOnline={getClientOnline(booking)}
             />
 
-            <View style={styles.clientInfo}>
-              <View style={styles.clientNameRow}>
-                <Text style={styles.clientName} numberOfLines={1}>
+            <View style={styles.cardTopInfo}>
+              <View style={styles.cardNameRow}>
+                <Text style={styles.cardName} numberOfLines={1}>
                   {getClientName(booking)}
+                </Text>
+                <View
+                  style={[
+                    styles.cardStatusPill,
+                    { backgroundColor: statusUI.background },
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.cardStatusDot,
+                      { backgroundColor: statusUI.dot },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.cardStatusText,
+                      { color: statusUI.color },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {statusUI.label}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.cardBookingId} numberOfLines={1}>
+                Réservation #{booking.id}
+              </Text>
+
+              <View style={styles.cardSubRow}>
+                <Ionicons
+                  name="location-outline"
+                  size={12}
+                  color={colors.textSecondary}
+                />
+                <Text style={styles.cardSubText} numberOfLines={1}>
+                  {getAddress(booking)}
                 </Text>
               </View>
 
-              <Text style={styles.metaLine} numberOfLines={1}>
-                #{booking.id}
-                {getPhone(booking) ? `  ·  ${getPhone(booking)}` : ''}
-              </Text>
-            </View>
+              <View style={styles.cardMetaRow}>
+                <Text style={styles.cardMetaText} numberOfLines={1}>
+                  {getMassageName(booking)}
+                </Text>
+                <View style={styles.cardMetaDot} />
+                <Text style={styles.cardMetaText} numberOfLines={1}>
+                  {getDuration(booking)} min
+                </Text>
+              </View>
 
-            <View
-              style={[
-                styles.statusBadge,
-                { backgroundColor: statusUI.background },
-              ]}
-            >
-              <Ionicons
-                name={statusUI.icon}
-                size={11}
-                color={statusUI.color}
-              />
-              <Text
-                style={[styles.statusText, { color: statusUI.color }]}
-                numberOfLines={1}
-              >
-                {statusUI.label}
-              </Text>
-            </View>
-
-            <Pressable
-              style={styles.kebabButton}
-              onPress={event => {
-                event?.stopPropagation?.();
-                setActionSheetBooking(booking);
-              }}
-              disabled={busy}
-              hitSlop={10}
-              android_ripple={{
-                color: '#ECECEC',
-                borderless: true,
-                radius: 20,
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Voir les actions"
-            >
-              {busy ? (
-                <ActivityIndicator size="small" color={COLORS.primary} />
-              ) : (
-                <Ionicons
-                  name="ellipsis-vertical"
-                  size={20}
-                  color={colors.textSecondary}
-                />
-              )}
-            </Pressable>
-          </View>
-
-          {/* INFO ROW */}
-          <View style={styles.compactInfoRow}>
-            <View style={styles.compactInfoItem}>
-              <Ionicons name="body-outline" size={13} color={COLORS.primary} />
-              <Text style={styles.compactInfoText} numberOfLines={1}>
-                {getMassageName(booking)}
-              </Text>
-            </View>
-
-            <View style={styles.compactInfoDivider} />
-
-            <View style={styles.compactInfoItem}>
-              <Ionicons name="time-outline" size={13} color={COLORS.primary} />
-              <Text style={styles.compactInfoText} numberOfLines={1}>
-                {getDuration(booking)} min
-              </Text>
-            </View>
-
-            {distance !== null ? (
-              <>
-                <View style={styles.compactInfoDivider} />
-                <View style={styles.compactInfoItem}>
+              {publishedLabel ? (
+                <View style={styles.cardPublishedRow}>
                   <Ionicons
-                    name="navigate-outline"
-                    size={13}
+                    name="time-outline"
+                    size={11}
                     color={COLORS.primary}
                   />
-                  <Text style={styles.compactInfoText} numberOfLines={1}>
-                    {distance.toFixed(1)} km
-                    {eta !== null ? ` · ${Math.round(eta)} min` : ''}
-                  </Text>
-                </View>
-              </>
-            ) : null}
-          </View>
-
-          {/* ADDRESS */}
-          <View style={styles.addressRow}>
-            <Ionicons
-              name="location-outline"
-              size={14}
-              color={COLORS.primary}
-            />
-            <Text style={styles.address} numberOfLines={1}>
-              {getAddress(booking)}
-            </Text>
-          </View>
-
-          {showExpiry ? (
-            <View style={styles.expiryRow}>
-              <Ionicons
-                name={expired ? 'alert-circle-outline' : 'hourglass-outline'}
-                size={13}
-                color={expired ? COLORS.red : COLORS.orange}
-              />
-              <Text
-                style={[
-                  styles.expiryLine,
-                  expired && styles.expiryLineUrgent,
-                ]}
-                numberOfLines={1}
-              >
-                {expired ? 'Expirée le ' : 'Expire le '}
-                {formatDate(expiresAt)}
-              </Text>
-            </View>
-          ) : null}
-
-          {/* FOOTER */}
-          <View style={styles.footerRow}>
-            <View style={styles.footerDateBlock}>
-              {date ? (
-                <View style={styles.dateRow}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={13}
-                    color={colors.textSecondary}
-                  />
-                  <Text style={styles.dateText} numberOfLines={1}>
-                    {formatDate(date)}
+                  <Text style={styles.cardPublishedText} numberOfLines={1}>
+                    {publishedLabel}
                   </Text>
                 </View>
               ) : null}
 
-              <Text style={styles.price}>{formatPrice(price)}</Text>
-            </View>
+              {requestDateLabel ? (
+                <View style={styles.cardDateRow}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={11}
+                    color={colors.textSecondary}
+                  />
+                  <Text style={styles.cardDateText} numberOfLines={1}>
+                    {requestDateLabel}
+                    {requestTimeLabel ? ` · ${requestTimeLabel}` : ''}
+                  </Text>
+                </View>
+              ) : null}
 
-            {hasActions ? (
-              <View style={styles.actionHint}>
-                <Ionicons
-                  name="flash-outline"
-                  size={12}
-                  color={COLORS.primary}
-                />
-                <Text style={styles.actionHintText}>Action requise</Text>
-              </View>
-            ) : confirmed ? (
-              <View style={styles.confirmedBadge}>
-                <Ionicons
-                  name="checkmark-circle"
-                  size={14}
-                  color={COLORS.primary}
-                />
-                <Text style={styles.confirmedText}>Confirmée</Text>
-              </View>
-            ) : null}
-          </View>
-        </View>
-      );
-    },
-    [busyId, hoveredId, isWeb, isDark, getActionState, colors]
-  );
+              <View style={styles.cardBottomRow}>
+                {distance !== null ? (
+                  <View style={styles.cardDistanceWrap}>
+                    <Ionicons
+                      name="navigate-outline"
+                      size={11}
+                      color={COLORS.red}
+                    />
+                    <Text style={styles.cardDistanceText} numberOfLines={1}>
+                      {distance.toFixed(1)} km
+                    </Text>
+                  </View>
+                ) : null}
 
-  // ==========================================================
-  // WEB HEADER
-  // ==========================================================
-
-  const renderWebHeader = () => (
-    <View style={styles.tableHeader}>
-      <View style={styles.colClient}>
-        <Text style={styles.tableHeaderText}>CLIENT</Text>
-      </View>
-      <View style={styles.colContact}>
-        <Text style={styles.tableHeaderText}>CONTACT</Text>
-      </View>
-      <View style={styles.colMassage}>
-        <Text style={styles.tableHeaderText}>PRESTATION</Text>
-      </View>
-      <View style={styles.colTravel}>
-        <Text style={styles.tableHeaderText}>DISTANCE</Text>
-      </View>
-      <View style={styles.colDuration}>
-        <Text style={styles.tableHeaderText}>DURÉE</Text>
-      </View>
-      <View style={styles.colAddress}>
-        <Text style={styles.tableHeaderText}>ADRESSE</Text>
-      </View>
-      <View style={styles.colDates}>
-        <Text style={styles.tableHeaderText}>DEMANDE / EXPIRATION</Text>
-      </View>
-      <View style={styles.colPrice}>
-        <Text style={styles.tableHeaderText}>PRIX</Text>
-      </View>
-      <View style={styles.colStatus}>
-        <Text style={styles.tableHeaderText}>STATUT</Text>
-      </View>
-      <View style={styles.colActions}>
-        <Text style={styles.tableHeaderText}>ACTIONS</Text>
-      </View>
-    </View>
-  );
-
-  // ==========================================================
-  // WEB ROW
-  // ==========================================================
-
-  const renderWebRow = useCallback(
-    ({ item }) => {
-      const booking = item;
-      const status = normalizeStatus(booking);
-      const statusUI = getStatusUI(booking, isDark);
-      const busy = busyId === booking.id;
-
-      const actionState = getActionState(booking);
-      const showNegotiation = actionState.showNegotiation;
-      const showAcceptReject = actionState.showAcceptReject;
-
-      const distance = getDistance(booking);
-      const requestedAt = getRequestedAt(booking);
-      const expiresAt = getExpiresAt(booking);
-      const expired = isOfferExpired(booking);
-
-      return (
-        <Pressable
-          onPress={() => openBooking(booking)}
-          onHoverIn={() => setHoveredId(booking.id)}
-          onHoverOut={() => setHoveredId(null)}
-          style={[
-            styles.tableRow,
-            hoveredId === booking.id && styles.tableRowHover,
-          ]}
-        >
-          <View style={styles.colClient}>
-            <View style={styles.webClient}>
-              <ClientAvatar
-                photoUrl={getClientPhoto(booking)}
-                name={getClientName(booking)}
-                size={38}
-                isOnline={getClientOnline(booking)}
-              />
-              <View style={styles.webClientInfo}>
-                <Text style={styles.webClientName} numberOfLines={1}>
-                  {getClientName(booking)}
+                <Text style={styles.cardPrice} numberOfLines={1}>
+                  {formatPrice(price)}
                 </Text>
-                <Text style={styles.webBookingId}>#{booking.id}</Text>
               </View>
+
+              {showExpiry ? (
+                <View style={styles.cardExpiryRow}>
+                  <Ionicons
+                    name={
+                      expired ? 'alert-circle-outline' : 'hourglass-outline'
+                    }
+                    size={11}
+                    color={expired ? COLORS.red : COLORS.orange}
+                  />
+                  <Text
+                    style={[
+                      styles.cardExpiryText,
+                      expired && styles.cardExpiryTextUrgent,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {expired ? 'Expirée le ' : 'Expire le '}
+                    {formatDateLong(expiresAt)}
+                  </Text>
+                </View>
+              ) : null}
             </View>
           </View>
 
-          <View style={styles.colContact}>
-            {getPhone(booking) ? (
-              <View style={styles.webContactLine}>
-                <Ionicons
-                  name="call-outline"
-                  size={11}
-                  color={colors.textSecondary}
-                />
-                <Text style={styles.tableSubText} numberOfLines={1}>
-                  {getPhone(booking)}
-                </Text>
-              </View>
-            ) : null}
-            {getEmail(booking) ? (
-              <View style={styles.webContactLine}>
-                <Ionicons
-                  name="mail-outline"
-                  size={11}
-                  color={colors.textSecondary}
-                />
-                <Text style={styles.tableSubText} numberOfLines={1}>
-                  {getEmail(booking)}
-                </Text>
-              </View>
-            ) : null}
-            {!getPhone(booking) && !getEmail(booking) ? (
-              <Text style={styles.tableSubText}>—</Text>
-            ) : null}
-          </View>
-
-          <View style={styles.colMassage}>
-            <Text style={styles.tableMainText} numberOfLines={1}>
-              {getMassageName(booking)}
-            </Text>
-            {getCategory(booking) ? (
-              <Text style={styles.tableSubText}>{getCategory(booking)}</Text>
-            ) : null}
-          </View>
-
-          <View style={styles.colTravel}>
-            <Text style={styles.tableMainText}>
-              {distance !== null ? `${distance.toFixed(1)} km` : '—'}
-            </Text>
-          </View>
-
-          <View style={styles.colDuration}>
-            <Text style={styles.tableMainText}>
-              {getDuration(booking)} min
-            </Text>
-          </View>
-
-          <View style={styles.colAddress}>
-            <View style={styles.webAddress}>
-              <Ionicons
-                name="location-outline"
-                size={14}
-                color={COLORS.primary}
-              />
-              <Text style={styles.tableAddress} numberOfLines={2}>
-                {getAddress(booking)}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.colDates}>
-            {requestedAt ? (
-              <View style={styles.webContactLine}>
-                <Ionicons
-                  name="paper-plane-outline"
-                  size={11}
-                  color={colors.textSecondary}
-                />
-                <Text style={styles.tableSubText} numberOfLines={1}>
-                  {formatDate(requestedAt)}
-                </Text>
-              </View>
-            ) : null}
-            {expiresAt ? (
-              <View style={styles.webContactLine}>
-                <Ionicons
-                  name="hourglass-outline"
-                  size={11}
-                  color={expired ? COLORS.red : COLORS.orange}
-                />
-                <Text
-                  style={[
-                    styles.tableSubText,
-                    expired && { color: COLORS.red, fontWeight: '700' },
-                  ]}
-                  numberOfLines={1}
+          {/* ✅ Barre d'actions :
+              - Boutons principaux ALIGNÉS À GAUCHE
+              - Bouton "Plus" ALIGNÉ À DROITE (marginLeft: 'auto')
+          */}
+          <View style={styles.cardActionsBar}>
+            <View style={styles.cardActionsLeft}>
+              {getPhone(booking) ? (
+                <Pressable
+                  style={styles.cardSmallAction}
+                  onPress={event => {
+                    event?.stopPropagation?.();
+                    handleCallClient(booking);
+                  }}
+                  hitSlop={6}
                 >
-                  {formatDate(expiresAt)}
-                </Text>
-              </View>
-            ) : null}
-            {!requestedAt && !expiresAt ? (
-              <Text style={styles.tableSubText}>—</Text>
-            ) : null}
-          </View>
+                  <Ionicons
+                    name="call-outline"
+                    size={13}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.cardSmallActionText}>Appeler</Text>
+                </Pressable>
+              ) : null}
 
-          <View style={styles.colPrice}>
-            <Text style={styles.tablePrice}>
-              {formatPrice(getPrice(booking))}
-            </Text>
-          </View>
-
-          <View style={styles.colStatus}>
-            <View
-              style={[
-                styles.tableStatus,
-                { backgroundColor: statusUI.background },
-              ]}
-            >
-              <Ionicons
-                name={statusUI.icon}
-                size={13}
-                color={statusUI.color}
-              />
-              <Text
-                style={[styles.tableStatusText, { color: statusUI.color }]}
+              <Pressable
+                style={styles.cardSmallAction}
+                onPress={event => {
+                  event?.stopPropagation?.();
+                  handleOpenDirections(booking);
+                }}
+                hitSlop={6}
               >
-                {statusUI.label}
-              </Text>
-            </View>
-          </View>
+                <Ionicons
+                  name="navigate-outline"
+                  size={13}
+                  color={COLORS.primary}
+                />
+                <Text style={styles.cardSmallActionText}>Itinéraire</Text>
+              </Pressable>
 
-          <View style={styles.colActions}>
+              {actionState.showAcceptReject ? (
+                <>
+                  <Pressable
+                    style={[styles.cardSmallAction, busy && styles.disabled]}
+                    disabled={busy}
+                    onPress={event => {
+                      event?.stopPropagation?.();
+                      handleAccept(booking);
+                    }}
+                    hitSlop={6}
+                  >
+                    {busy ? (
+                      <ActivityIndicator size="small" color={COLORS.primary} />
+                    ) : (
+                      <>
+                        <Ionicons
+                          name="checkmark"
+                          size={13}
+                          color={COLORS.primary}
+                        />
+                        <Text style={styles.cardSmallActionText}>Accepter</Text>
+                      </>
+                    )}
+                  </Pressable>
+
+                  <Pressable
+                    style={[styles.cardSmallAction, busy && styles.disabled]}
+                    disabled={busy}
+                    onPress={event => {
+                      event?.stopPropagation?.();
+                      handleReject(booking);
+                    }}
+                    hitSlop={6}
+                  >
+                    <Ionicons name="close" size={13} color={COLORS.red} />
+                    <Text
+                      style={[
+                        styles.cardSmallActionText,
+                        { color: COLORS.red },
+                      ]}
+                    >
+                      Refuser
+                    </Text>
+                  </Pressable>
+                </>
+              ) : actionState.showNegotiation ? (
+                <Pressable
+                  style={styles.cardSmallAction}
+                  onPress={event => {
+                    event?.stopPropagation?.();
+                    handleNegotiation(booking);
+                  }}
+                  hitSlop={6}
+                >
+                  <Ionicons
+                    name="swap-horizontal"
+                    size={13}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.cardSmallActionText}>Négocier</Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            {/* ✅ Bouton "Plus" aligné à DROITE grâce à
+                cardSmallActionRight (marginLeft: 'auto') */}
             <Pressable
-              style={[
-                styles.tableToggle,
-                (showNegotiation || showAcceptReject)
-                  ? styles.tableToggleActive
-                  : {
-                      backgroundColor: statusUI.background,
-                      borderColor: statusUI.background,
-                    },
-                busy && styles.disabled,
-              ]}
+              style={[styles.cardSmallAction, styles.cardSmallActionRight]}
               onPress={event => {
                 event?.stopPropagation?.();
                 setActionSheetBooking(booking);
               }}
-              disabled={busy}
+              hitSlop={6}
             >
-              {busy ? (
-                <ActivityIndicator size="small" color={COLORS.primary} />
-              ) : (
-                <Ionicons
-                  name={
-                    showNegotiation || showAcceptReject
-                      ? 'options-outline'
-                      : statusUI.icon
-                  }
-                  size={17}
-                  color={
-                    showNegotiation || showAcceptReject
-                      ? COLORS.primary
-                      : statusUI.color
-                  }
-                />
-              )}
+              <Ionicons
+                name="ellipsis-horizontal"
+                size={13}
+                color={colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.cardSmallActionText,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                Plus
+              </Text>
             </Pressable>
           </View>
         </Pressable>
@@ -2311,15 +2129,21 @@ export default function OffersScreen({ navigation }) {
     [
       busyId,
       hoveredId,
-      openBooking,
+      isWeb,
       isDark,
-      colors,
       getActionState,
+      colors,
+      openBooking,
+      handleAccept,
+      handleReject,
+      handleNegotiation,
+      handleCallClient,
+      handleOpenDirections,
     ]
   );
 
   // ==========================================================
-  // TOP (search + dates + tabs)
+  // TOP
   // ==========================================================
 
   const renderTop = () => (
@@ -2328,7 +2152,7 @@ export default function OffersScreen({ navigation }) {
         <View style={styles.searchInputWrap}>
           <Ionicons
             name="search-outline"
-            size={17}
+            size={16}
             color={colors.textSecondary}
           />
           <TextInput
@@ -2343,7 +2167,7 @@ export default function OffersScreen({ navigation }) {
             <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
               <Ionicons
                 name="close-circle"
-                size={16}
+                size={15}
                 color={colors.textSecondary}
               />
             </Pressable>
@@ -2355,7 +2179,7 @@ export default function OffersScreen({ navigation }) {
             <View style={styles.webInlineDateWrap}>
               <Ionicons
                 name="calendar-outline"
-                size={15}
+                size={14}
                 color={COLORS.primary}
               />
               <Text style={styles.webInlineDateLabel}>Du</Text>
@@ -2370,11 +2194,7 @@ export default function OffersScreen({ navigation }) {
                     return;
                   }
                   const parts = value.split('-').map(Number);
-                  const selected = new Date(
-                    parts[0],
-                    parts[1] - 1,
-                    parts[2]
-                  );
+                  const selected = new Date(parts[0], parts[1] - 1, parts[2]);
                   setDateFrom(selected);
                   if (
                     dateTo &&
@@ -2386,12 +2206,12 @@ export default function OffersScreen({ navigation }) {
                 style={{
                   flex: 1,
                   minWidth: 0,
-                  height: 38,
+                  height: 34,
                   border: 'none',
                   outline: 'none',
                   background: 'transparent',
                   color: colors.text,
-                  fontSize: 12,
+                  fontSize: 11.5,
                 }}
               />
             </View>
@@ -2399,7 +2219,7 @@ export default function OffersScreen({ navigation }) {
             <View style={styles.webInlineDateWrap}>
               <Ionicons
                 name="calendar-outline"
-                size={15}
+                size={14}
                 color={COLORS.primary}
               />
               <Text style={styles.webInlineDateLabel}>Au</Text>
@@ -2414,11 +2234,7 @@ export default function OffersScreen({ navigation }) {
                     return;
                   }
                   const parts = value.split('-').map(Number);
-                  const selected = new Date(
-                    parts[0],
-                    parts[1] - 1,
-                    parts[2]
-                  );
+                  const selected = new Date(parts[0], parts[1] - 1, parts[2]);
                   setDateTo(selected);
                   if (dateFrom && selected.getTime() < dateFrom.getTime()) {
                     setDateFrom(selected);
@@ -2427,12 +2243,12 @@ export default function OffersScreen({ navigation }) {
                 style={{
                   flex: 1,
                   minWidth: 0,
-                  height: 38,
+                  height: 34,
                   border: 'none',
                   outline: 'none',
                   background: 'transparent',
                   color: colors.text,
-                  fontSize: 12,
+                  fontSize: 11.5,
                 }}
               />
             </View>
@@ -2450,7 +2266,7 @@ export default function OffersScreen({ navigation }) {
               >
                 <Ionicons
                   name="close-circle"
-                  size={18}
+                  size={17}
                   color={colors.textSecondary}
                 />
               </Pressable>
@@ -2466,24 +2282,14 @@ export default function OffersScreen({ navigation }) {
           >
             <Ionicons
               name="calendar-outline"
-              size={19}
-              color={
-                dateFrom || dateTo ? COLORS.white : COLORS.primary
-              }
+              size={18}
+              color={dateFrom || dateTo ? COLORS.white : COLORS.primary}
             />
             {dateFrom || dateTo ? (
               <View style={styles.calendarFilterDot} />
             ) : null}
           </Pressable>
         )}
-      </View>
-
-      <View style={styles.viewModeRow}>
-        <Text style={styles.viewModeLabel} numberOfLines={1}>
-          {geolocatedBookings.length} adresse
-          {geolocatedBookings.length > 1 ? 's' : ''} client localisée
-          {geolocatedBookings.length > 1 ? 's' : ''}
-        </Text>
 
         <View style={styles.viewSwitcher}>
           <Pressable
@@ -2497,7 +2303,7 @@ export default function OffersScreen({ navigation }) {
           >
             <Ionicons
               name="list-outline"
-              size={16}
+              size={15}
               color={viewMode === 'list' ? COLORS.white : colors.textSecondary}
             />
           </Pressable>
@@ -2516,7 +2322,7 @@ export default function OffersScreen({ navigation }) {
           >
             <Ionicons
               name="map-outline"
-              size={16}
+              size={15}
               color={viewMode === 'map' ? COLORS.white : colors.textSecondary}
             />
           </Pressable>
@@ -2528,7 +2334,7 @@ export default function OffersScreen({ navigation }) {
           style={styles.dateFilterSummary}
           onPress={() => setShowDateModal(true)}
         >
-          <Ionicons name="funnel-outline" size={14} color={COLORS.primary} />
+          <Ionicons name="funnel-outline" size={13} color={COLORS.primary} />
           <Text style={styles.dateFilterSummaryText}>
             {dateFrom ? formatDateLabel(dateFrom) : 'Toutes les dates'}
             {'  →  '}
@@ -2543,7 +2349,7 @@ export default function OffersScreen({ navigation }) {
           >
             <Ionicons
               name="close-circle-outline"
-              size={16}
+              size={15}
               color={COLORS.red}
             />
           </Pressable>
@@ -2630,10 +2436,7 @@ export default function OffersScreen({ navigation }) {
 
           <View style={styles.sheetHeaderRow}>
             <Text style={styles.sheetTitle}>Filtrer par date</Text>
-            <Pressable
-              onPress={() => setShowDateModal(false)}
-              hitSlop={8}
-            >
+            <Pressable onPress={() => setShowDateModal(false)} hitSlop={8}>
               <Ionicons
                 name="close"
                 size={22}
@@ -2645,96 +2448,49 @@ export default function OffersScreen({ navigation }) {
           <View style={styles.dateFieldsRow}>
             <View style={styles.dateFieldWrap}>
               <Text style={styles.dateFieldLabel}>Du</Text>
-              {isWeb ? (
-                <View style={styles.webDateInputWrap}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={16}
-                    color={COLORS.primary}
-                  />
-                  <input
-                    type="date"
-                    value={dateFrom ? formatDateOnly(dateFrom) : ''}
-                    max={dateTo ? formatDateOnly(dateTo) : undefined}
-                    onChange={event => {
-                      const value = event.target.value;
-                      if (!value) {
-                        setDateFrom(null);
-                        return;
-                      }
-                      const parts = value.split('-').map(Number);
-                      const selected = new Date(
-                        parts[0],
-                        parts[1] - 1,
-                        parts[2]
-                      );
-                      setDateFrom(selected);
+              <Pressable
+                style={styles.nativeDateButton}
+                onPress={() => {
+                  setShowToPicker(false);
+                  setShowFromPicker(true);
+                }}
+              >
+                <Ionicons
+                  name="calendar-outline"
+                  size={16}
+                  color={COLORS.primary}
+                />
+                <Text
+                  style={[
+                    styles.nativeDateText,
+                    !dateFrom && styles.nativeDatePlaceholder,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {formatDateLabel(dateFrom)}
+                </Text>
+              </Pressable>
+
+              {showFromPicker ? (
+                <DateTimePicker
+                  value={dateFrom || new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={(event, selectedDate) => {
+                    setShowFromPicker(false);
+                    if (event?.type === 'dismissed') return;
+                    if (selectedDate) {
+                      setDateFrom(selectedDate);
                       if (
                         dateTo &&
-                        formatDateOnly(selected) > formatDateOnly(dateTo)
+                        selectedDate.getTime() > dateTo.getTime()
                       ) {
-                        setDateTo(selected);
+                        setDateTo(selectedDate);
                       }
-                    }}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      height: 40,
-                      border: 'none',
-                      outline: 'none',
-                      background: 'transparent',
-                      color: colors.text,
-                      fontSize: 13,
-                    }}
-                  />
-                </View>
-              ) : (
-                <>
-                  <Pressable
-                    style={styles.nativeDateButton}
-                    onPress={() => {
-                      setShowToPicker(false);
-                      setShowFromPicker(true);
-                    }}
-                  >
-                    <Ionicons
-                      name="calendar-outline"
-                      size={16}
-                      color={COLORS.primary}
-                    />
-                    <Text
-                      style={[
-                        styles.nativeDateText,
-                        !dateFrom && styles.nativeDatePlaceholder,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {formatDateLabel(dateFrom)}
-                    </Text>
-                  </Pressable>
-
-                  {showFromPicker ? (
-                    <DateTimePicker
-                      value={dateFrom || new Date()}
-                      mode="date"
-                      display="default"
-                      onChange={(event, selectedDate) => {
-                        setShowFromPicker(false);
-                        if (event?.type === 'dismissed') return;
-                        if (selectedDate) {
-                          setDateFrom(selectedDate);
-                          if (
-                            dateTo &&
-                            selectedDate.getTime() > dateTo.getTime()
-                          ) {
-                            setDateTo(selectedDate);
-                          }
-                        }
-                      }}
-                    />
-                  ) : null}
-                </>
-              )}
+                    }
+                  }}
+                />
+              ) : null}
             </View>
 
             <View style={styles.dateArrow}>
@@ -2747,97 +2503,50 @@ export default function OffersScreen({ navigation }) {
 
             <View style={styles.dateFieldWrap}>
               <Text style={styles.dateFieldLabel}>Au</Text>
-              {isWeb ? (
-                <View style={styles.webDateInputWrap}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={16}
-                    color={COLORS.primary}
-                  />
-                  <input
-                    type="date"
-                    value={dateTo ? formatDateOnly(dateTo) : ''}
-                    min={dateFrom ? formatDateOnly(dateFrom) : undefined}
-                    onChange={event => {
-                      const value = event.target.value;
-                      if (!value) {
-                        setDateTo(null);
-                        return;
-                      }
-                      const parts = value.split('-').map(Number);
-                      const selected = new Date(
-                        parts[0],
-                        parts[1] - 1,
-                        parts[2]
-                      );
-                      setDateTo(selected);
+              <Pressable
+                style={styles.nativeDateButton}
+                onPress={() => {
+                  setShowFromPicker(false);
+                  setShowToPicker(true);
+                }}
+              >
+                <Ionicons
+                  name="calendar-outline"
+                  size={16}
+                  color={COLORS.primary}
+                />
+                <Text
+                  style={[
+                    styles.nativeDateText,
+                    !dateTo && styles.nativeDatePlaceholder,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {formatDateLabel(dateTo)}
+                </Text>
+              </Pressable>
+
+              {showToPicker ? (
+                <DateTimePicker
+                  value={dateTo || dateFrom || new Date()}
+                  mode="date"
+                  display="default"
+                  minimumDate={dateFrom || undefined}
+                  onChange={(event, selectedDate) => {
+                    setShowToPicker(false);
+                    if (event?.type === 'dismissed') return;
+                    if (selectedDate) {
+                      setDateTo(selectedDate);
                       if (
                         dateFrom &&
-                        selected.getTime() < dateFrom.getTime()
+                        selectedDate.getTime() < dateFrom.getTime()
                       ) {
-                        setDateFrom(selected);
+                        setDateFrom(selectedDate);
                       }
-                    }}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      height: 40,
-                      border: 'none',
-                      outline: 'none',
-                      background: 'transparent',
-                      color: colors.text,
-                      fontSize: 13,
-                    }}
-                  />
-                </View>
-              ) : (
-                <>
-                  <Pressable
-                    style={styles.nativeDateButton}
-                    onPress={() => {
-                      setShowFromPicker(false);
-                      setShowToPicker(true);
-                    }}
-                  >
-                    <Ionicons
-                      name="calendar-outline"
-                      size={16}
-                      color={COLORS.primary}
-                    />
-                    <Text
-                      style={[
-                        styles.nativeDateText,
-                        !dateTo && styles.nativeDatePlaceholder,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {formatDateLabel(dateTo)}
-                    </Text>
-                  </Pressable>
-
-                  {showToPicker ? (
-                    <DateTimePicker
-                      value={dateTo || dateFrom || new Date()}
-                      mode="date"
-                      display="default"
-                      minimumDate={dateFrom || undefined}
-                      onChange={(event, selectedDate) => {
-                        setShowToPicker(false);
-                        if (event?.type === 'dismissed') return;
-                        if (selectedDate) {
-                          setDateTo(selectedDate);
-                          if (
-                            dateFrom &&
-                            selectedDate.getTime() < dateFrom.getTime()
-                          ) {
-                            setDateFrom(selectedDate);
-                          }
-                        }
-                      }}
-                    />
-                  ) : null}
-                </>
-              )}
+                    }
+                  }}
+                />
+              ) : null}
             </View>
           </View>
 
@@ -2880,11 +2589,8 @@ export default function OffersScreen({ navigation }) {
     if (!actionSheetBooking) return null;
 
     const booking = actionSheetBooking;
-    const statusUI = getStatusUI(booking, isDark);
     const actionState = getActionState(booking);
     const busy = busyId === booking.id;
-    const hasActions =
-      actionState.showNegotiation || actionState.showAcceptReject;
 
     return (
       <Modal
@@ -2924,110 +2630,96 @@ export default function OffersScreen({ navigation }) {
               </Pressable>
             </View>
 
-            {hasActions ? (
-              <View style={styles.actionsRow}>
-                {actionState.showAcceptReject && (
-                  <Pressable
-                    style={[
-                      styles.actionButton,
-                      styles.acceptButton,
-                      busy && styles.disabled,
-                    ]}
-                    disabled={busy}
-                    onPress={() => {
-                      setActionSheetBooking(null);
-                      handleAccept(booking);
-                    }}
-                  >
-                    {busy ? (
-                      <ActivityIndicator size="small" color={COLORS.white} />
-                    ) : (
-                      <>
-                        <Ionicons
-                          name="checkmark"
-                          size={18}
-                          color={COLORS.white}
-                        />
-                        <Text style={styles.acceptButtonText}>Accepter</Text>
-                      </>
-                    )}
-                  </Pressable>
-                )}
+            <View style={styles.actionsSingleRow}>
+              {actionState.showAcceptReject ? (
+                <Pressable
+                  style={[styles.actionText, busy && styles.disabled]}
+                  disabled={busy}
+                  onPress={() => {
+                    setActionSheetBooking(null);
+                    handleAccept(booking);
+                  }}
+                  hitSlop={6}
+                >
+                  {busy ? (
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="checkmark-circle-outline"
+                        size={17}
+                        color={COLORS.primary}
+                      />
+                      <Text style={styles.actionTextLabel}>Accepter</Text>
+                    </>
+                  )}
+                </Pressable>
+              ) : null}
 
-                {actionState.showNegotiation && (
-                  <Pressable
-                    style={[styles.actionButton, styles.negotiationButton]}
-                    onPress={() => {
-                      setActionSheetBooking(null);
-                      handleNegotiation(booking);
-                    }}
-                  >
-                    <Ionicons
-                      name="swap-horizontal"
-                      size={18}
-                      color={COLORS.primary}
-                    />
-                    <Text style={styles.negotiationText}>Négociation</Text>
-                  </Pressable>
-                )}
+              {actionState.showNegotiation ? (
+                <Pressable
+                  style={styles.actionText}
+                  onPress={() => {
+                    setActionSheetBooking(null);
+                    handleNegotiation(booking);
+                  }}
+                  hitSlop={6}
+                >
+                  <Ionicons
+                    name="swap-horizontal-outline"
+                    size={17}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.actionTextLabel}>Négociation</Text>
+                </Pressable>
+              ) : null}
 
-                {actionState.showAcceptReject && (
-                  <Pressable
-                    style={[
-                      styles.actionButton,
-                      styles.rejectButton,
-                      busy && styles.disabled,
-                    ]}
-                    disabled={busy}
-                    onPress={() => {
-                      setActionSheetBooking(null);
-                      handleReject(booking);
-                    }}
+              {actionState.showAcceptReject ? (
+                <Pressable
+                  style={[styles.actionText, busy && styles.disabled]}
+                  disabled={busy}
+                  onPress={() => {
+                    setActionSheetBooking(null);
+                    handleReject(booking);
+                  }}
+                  hitSlop={6}
+                >
+                  <Ionicons
+                    name="close-circle-outline"
+                    size={17}
+                    color={COLORS.red}
+                  />
+                  <Text
+                    style={[styles.actionTextLabel, { color: COLORS.red }]}
                   >
-                    <Ionicons name="close" size={18} color={COLORS.red} />
-                    <Text style={styles.rejectText}>Refuser</Text>
-                  </Pressable>
-                )}
-              </View>
-            ) : (
-              <View
-                style={[
-                  styles.confirmedRow,
-                  { backgroundColor: statusUI.background },
-                ]}
+                    Refuser
+                  </Text>
+                </Pressable>
+              ) : null}
+
+              <Pressable
+                style={styles.actionText}
+                onPress={() => {
+                  setActionSheetBooking(null);
+                  openBooking(booking);
+                }}
+                hitSlop={6}
               >
                 <Ionicons
-                  name={statusUI.icon}
-                  size={18}
-                  color={statusUI.color}
+                  name="eye-outline"
+                  size={17}
+                  color={colors.textSecondary}
                 />
                 <Text
                   style={[
-                    styles.confirmedRowText,
-                    { color: statusUI.color },
+                    styles.actionTextLabel,
+                    { color: colors.textSecondary },
                   ]}
                 >
-                  {statusUI.label}
+                  Détails
                 </Text>
-              </View>
-            )}
-
-            <Pressable
-              style={styles.actionsSheetDetail}
-              onPress={() => {
-                setActionSheetBooking(null);
-                openBooking(booking);
-              }}
-            >
-              <Ionicons
-                name="eye-outline"
-                size={15}
-                color={colors.textSecondary}
-              />
-              <Text style={styles.actionsSheetDetailText}>
-                Voir les détails
-              </Text>
-            </Pressable>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -3035,138 +2727,8 @@ export default function OffersScreen({ navigation }) {
   };
 
   // ==========================================================
-  // MAP VIEW — carte Google Maps + liste des adresses clients
+  // MAP VIEW
   // ==========================================================
-
-  const renderMapListItem = booking => {
-    const statusUI = getStatusUI(booking, isDark);
-    const isActive = String(booking.id) === String(selectedMapBookingId);
-    const distance = getDistance(booking);
-    const phone = getPhone(booking);
-    const email = getEmail(booking);
-
-    return (
-      <Pressable
-        key={booking.id}
-        style={[styles.mapListCard, isActive && styles.mapListCardActive]}
-        onPress={() => handleSelectMapListItem(booking)}
-      >
-        <View style={styles.mapListCardTop}>
-          <ClientAvatar
-            photoUrl={getClientPhoto(booking)}
-            name={getClientName(booking)}
-            size={40}
-            isOnline={getClientOnline(booking)}
-          />
-
-          <View style={styles.mapListInfo}>
-            <Text style={styles.mapListName} numberOfLines={1}>
-              {getClientName(booking)}
-            </Text>
-            <Text style={styles.mapListMassage} numberOfLines={1}>
-              {getMassageName(booking)}
-              {distance !== null ? ` · ${distance.toFixed(1)} km` : ''}
-            </Text>
-          </View>
-
-          <View
-            style={[
-              styles.mapListStatusDot,
-              { backgroundColor: statusUI.dot },
-            ]}
-          />
-        </View>
-
-        <View style={styles.mapListAddressRow}>
-          <Ionicons
-            name="location-outline"
-            size={13}
-            color={COLORS.primary}
-          />
-          <Text style={styles.mapListAddressText} numberOfLines={2}>
-            {getAddress(booking)}
-          </Text>
-        </View>
-
-        {/* CONTACT */}
-        <View style={styles.mapListContactRow}>
-          {phone ? (
-            <Pressable
-              style={styles.mapListContactItem}
-              onPress={event => {
-                event?.stopPropagation?.();
-                handleCallClient(booking);
-              }}
-              hitSlop={6}
-            >
-              <Ionicons
-                name="call-outline"
-                size={12}
-                color={COLORS.primary}
-              />
-              <Text
-                style={[styles.mapListContactText, { color: COLORS.primary }]}
-                numberOfLines={1}
-              >
-                {phone}
-              </Text>
-            </Pressable>
-          ) : null}
-
-          {email ? (
-            <View style={styles.mapListContactItem}>
-              <Ionicons
-                name="mail-outline"
-                size={12}
-                color={colors.textSecondary}
-              />
-              <Text style={styles.mapListContactText} numberOfLines={1}>
-                {email}
-              </Text>
-            </View>
-          ) : null}
-
-          {!phone && !email ? (
-            <Text style={styles.mapListContactText}>
-              Aucun contact renseigné
-            </Text>
-          ) : null}
-        </View>
-
-        <View style={styles.mapListActionsRow}>
-          <Pressable
-            style={styles.mapListDirectionsButton}
-            onPress={event => {
-              event?.stopPropagation?.();
-              handleOpenDirections(booking);
-            }}
-          >
-            <Ionicons
-              name="navigate-outline"
-              size={13}
-              color={COLORS.primary}
-            />
-            <Text style={styles.mapListDirectionsText}>Itinéraire</Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.mapListOpenButton}
-            onPress={event => {
-              event?.stopPropagation?.();
-              openBooking(booking);
-            }}
-          >
-            <Text style={styles.mapListOpenButtonText}>Voir la demande</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={13}
-              color={COLORS.white}
-            />
-          </Pressable>
-        </View>
-      </Pressable>
-    );
-  };
 
   const renderMapView = () => {
     if (!loading && geolocatedBookings.length === 0) {
@@ -3178,7 +2740,7 @@ export default function OffersScreen({ navigation }) {
           <Text style={styles.mapEmptyTitle}>Aucune adresse localisée</Text>
           <Text style={styles.mapEmptyText}>
             Les demandes de cet onglet n'ont pas encore de coordonnées GPS
-            valides pour être affichées sur la carte.
+            valides.
           </Text>
         </View>
       );
@@ -3196,7 +2758,7 @@ export default function OffersScreen({ navigation }) {
             styles.mapPane,
             isMobile
               ? [styles.mapPaneMobile, { minHeight: mobileMapHeight }]
-              : styles.mapPaneWeb,
+              : [styles.mapPaneWeb, { minHeight: webMapHeight }],
           ]}
         >
           <MapViewWrapper
@@ -3225,14 +2787,12 @@ export default function OffersScreen({ navigation }) {
             routeIsFallback={routeInfo?.isFallback}
             routeColor="#EF4444"
             routeWidth={5}
-            // ✅ Etiquette rouge affichée DIRECTEMENT sur le tracé
-            // (au milieu du trajet thérapeute → client), bien
-            // visible : distance + durée du mode de déplacement
-            // actuellement sélectionné.
             routeLabel={
               routeInfo
                 ? `${routeInfo.distanceText}${
-                    routeInfo.durationText ? `  ·  ${routeInfo.durationText}` : ''
+                    routeInfo.durationText
+                      ? `  ·  ${routeInfo.durationText}`
+                      : ''
                   }`
                 : null
             }
@@ -3241,12 +2801,12 @@ export default function OffersScreen({ navigation }) {
           <View style={styles.mapTopBadge}>
             <Ionicons
               name="people-outline"
-              size={13}
+              size={12}
               color={COLORS.primary}
             />
             <Text style={styles.mapTopBadgeText}>
-              {geolocatedBookings.length} demande
-              {geolocatedBookings.length > 1 ? 's' : ''} localisée
+              {geolocatedBookings.length} client
+              {geolocatedBookings.length > 1 ? 's' : ''} localisé
               {geolocatedBookings.length > 1 ? 's' : ''}
             </Text>
           </View>
@@ -3260,83 +2820,85 @@ export default function OffersScreen({ navigation }) {
               />
               <Text style={styles.locationWarningText} numberOfLines={2}>
                 Activez la localisation pour voir votre position et
-                l'itinéraire vers le client.
+                l'itinéraire.
               </Text>
             </View>
           ) : null}
 
-          <View style={styles.mapLegend}>
-            {['pending', 'confirmed', 'in_progress', 'completed'].map(
-              key => {
-                const ui = getStatusUI({ status: key }, isDark);
-                return (
-                  <View key={key} style={styles.mapLegendItem}>
-                    <View
-                      style={[
-                        styles.mapLegendDot,
-                        { backgroundColor: ui.dot },
-                      ]}
-                    />
-                    <Text style={styles.mapLegendText}>{ui.label}</Text>
-                  </View>
-                );
-              }
-            )}
-          </View>
-
           {selectedRouteBooking ? (
-            <View style={styles.routePanel}>
-              <View style={styles.routePanelHeader}>
-                <View style={styles.routePanelAvatar}>
-                  <Ionicons name="location" size={14} color={COLORS.white} />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
+            <View
+              style={[
+                styles.clientDetailCard,
+                !isMobile && styles.clientDetailCardWeb,
+              ]}
+            >
+              <Pressable
+                style={styles.clientDetailClose}
+                onPress={handleClearRoute}
+                hitSlop={8}
+              >
+                <Ionicons
+                  name="close-circle"
+                  size={18}
+                  color={colors.textSecondary}
+                />
+              </Pressable>
+
+              <View style={styles.clientDetailHeader}>
+                <ClientAvatar
+                  photoUrl={getClientPhoto(selectedRouteBooking)}
+                  name={getClientName(selectedRouteBooking)}
+                  size={36}
+                  isOnline={getClientOnline(selectedRouteBooking)}
+                />
+                <View style={styles.clientDetailInfo}>
                   <Text style={styles.routePanelName} numberOfLines={1}>
                     {getClientName(selectedRouteBooking)}
                   </Text>
                   <Text style={styles.routePanelAddress} numberOfLines={1}>
                     {getAddress(selectedRouteBooking)}
                   </Text>
+                  <Text
+                    style={styles.routePanelSubMeta}
+                    numberOfLines={1}
+                  >
+                    {getMassageName(selectedRouteBooking)} ·{' '}
+                    {getDuration(selectedRouteBooking)} min · #
+                    {selectedRouteBooking.id}
+                  </Text>
                 </View>
-                <Pressable onPress={handleClearRoute} hitSlop={8}>
-                  <Ionicons
-                    name="close-circle"
-                    size={20}
-                    color={colors.textSecondary}
-                  />
-                </Pressable>
+                <View
+                  style={[
+                    styles.mapListStatusDot,
+                    {
+                      backgroundColor: getStatusUI(
+                        selectedRouteBooking,
+                        isDark
+                      ).dot,
+                    },
+                  ]}
+                />
               </View>
 
-              {/* ✅ Distance bien visible en ROUGE ("faritra menamena") —
-                  toujours la distance réelle du trajet (suit les rues),
-                  pas la ligne droite, sauf si aucune route n'a été
-                  trouvée (auquel cas "estimation" est précisé. */}
               {routeLoading && !modeEtas ? (
                 <View style={styles.routePanelLoadingRow}>
                   <ActivityIndicator size="small" color={COLORS.red} />
-                  <Text style={styles.routePanelMeta}>
-                    Calcul de l'itinéraire réel...
-                  </Text>
+                  <Text style={styles.routePanelMeta}>Calcul...</Text>
                 </View>
               ) : !therapistPosition ? (
-                <Text style={styles.routePanelMeta}>
-                  Position GPS indisponible
-                </Text>
+                <Text style={styles.routePanelMeta}>GPS indisponible</Text>
               ) : (
                 <>
                   <View style={styles.routeDistanceRow}>
-                    <Ionicons name="navigate" size={16} color={COLORS.red} />
+                    <Ionicons name="navigate" size={14} color={COLORS.red} />
                     <Text style={styles.routeDistanceValue}>
                       {routeInfo?.distanceText || '—'}
                     </Text>
                     {routeInfo?.isFallback ? (
-                      <Text style={styles.routePanelEstimateTag}>estimation</Text>
+                      <Text style={styles.routePanelEstimateTag}>≈</Text>
                     ) : null}
                   </View>
 
-                  {/* ✅ "Raha mandeha moto de firy heure, na tongotra,
-                      tombile de firy heure" — les 3 modes affichés EN
-                      MEME TEMPS, sans avoir à cliquer pour comparer. */}
                   <View style={styles.etaRow}>
                     {TRAVEL_MODES.map(mode => {
                       const eta = modeEtas?.[mode.key];
@@ -3352,8 +2914,8 @@ export default function OffersScreen({ navigation }) {
                         >
                           <Ionicons
                             name={mode.icon}
-                            size={16}
-                            color={isActive ? COLORS.white : COLORS.red}
+                            size={14}
+                            color={isActive ? COLORS.red : colors.textSecondary}
                           />
                           <Text
                             style={[
@@ -3364,36 +2926,75 @@ export default function OffersScreen({ navigation }) {
                           >
                             {eta?.durationText || '…'}
                           </Text>
-                          <Text
-                            style={[
-                              styles.etaChipLabel,
-                              isActive && styles.etaChipLabelActive,
-                            ]}
-                          >
-                            {mode.label}
-                          </Text>
                         </Pressable>
                       );
                     })}
                   </View>
                 </>
               )}
-            </View>
-          ) : null}
-        </View>
 
-        <ScrollView
-          style={[
-            styles.mapListPane,
-            isMobile ? styles.mapListPaneMobile : styles.mapListPaneWeb,
-          ]}
-          contentContainerStyle={styles.mapListContent}
-          showsVerticalScrollIndicator={!isMobile}
-          nestedScrollEnabled
-          keyboardShouldPersistTaps="handled"
-        >
-          {geolocatedBookings.map(renderMapListItem)}
-        </ScrollView>
+              <Pressable
+                style={styles.mapFocusLink}
+                onPress={() => focusBookingOnMap(selectedRouteBooking)}
+                hitSlop={6}
+              >
+                <Ionicons
+                  name="locate-outline"
+                  size={13}
+                  color={COLORS.primary}
+                />
+                <Text style={styles.mapFocusLinkText}>
+                  Centrer sur la carte
+                </Text>
+              </Pressable>
+
+              <View style={styles.clientDetailActions}>
+                {getPhone(selectedRouteBooking) ? (
+                  <Pressable
+                    style={styles.iconRoundButton}
+                    onPress={() => handleCallClient(selectedRouteBooking)}
+                    hitSlop={6}
+                  >
+                    <Ionicons name="call" size={15} color={COLORS.primary} />
+                  </Pressable>
+                ) : null}
+                <Pressable
+                  style={styles.iconRoundButton}
+                  onPress={() => handleOpenDirections(selectedRouteBooking)}
+                  hitSlop={6}
+                >
+                  <Ionicons
+                    name="navigate"
+                    size={15}
+                    color={COLORS.primary}
+                  />
+                </Pressable>
+                <Pressable
+                  style={styles.iconRoundButtonPrimary}
+                  onPress={() => openBooking(selectedRouteBooking)}
+                  hitSlop={6}
+                >
+                  <Ionicons
+                    name="chevron-forward"
+                    size={16}
+                    color={COLORS.white}
+                  />
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.mapHintPill}>
+              <Ionicons
+                name="hand-left-outline"
+                size={13}
+                color={colors.textSecondary}
+              />
+              <Text style={styles.mapHintText}>
+                Touchez un repère pour voir le client
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
     );
   };
@@ -3489,15 +3090,6 @@ export default function OffersScreen({ navigation }) {
 
           <View style={styles.webContentWrap}>
             {viewMode === 'map' ? (
-              // ✅ FIXÉ : "aza atao miraikitra ambany" — avant, cette
-              // zone n'était jamais scrollable : si les filtres +
-              // la carte dépassaient la hauteur de la fenêtre, le bas
-              // du contenu (liste des clients, bas de la carte)
-              // restait invisible et inaccessible. Un ScrollView
-              // englobant (avec flexGrow:1) permet à la mise en page
-              // flex normale de s'afficher quand tout tient à
-              // l'écran, ET de faire défiler TOUTE la page (haut ↔
-              // bas) dès que ce n'est pas le cas.
               <ScrollView
                 style={styles.webMapScroll}
                 contentContainerStyle={styles.webMapScrollContent}
@@ -3512,9 +3104,7 @@ export default function OffersScreen({ navigation }) {
                 {renderTop()}
                 {renderError()}
 
-                <View style={styles.webTableContainer}>
-                  {renderWebHeader()}
-
+                <View style={styles.webCardsContainer}>
                   {loading && bookings.length === 0 ? (
                     <View style={styles.loadingContainer}>
                       <ActivityIndicator size="large" color={COLORS.primary} />
@@ -3522,14 +3112,19 @@ export default function OffersScreen({ navigation }) {
                     </View>
                   ) : (
                     <FlatList
+                      key={`web-grid-${numColumns}`}
                       data={filteredBookings}
                       keyExtractor={item => String(item.id)}
-                      renderItem={renderWebRow}
+                      renderItem={renderMobileCard}
+                      numColumns={numColumns}
+                      columnWrapperStyle={
+                        numColumns > 1 ? styles.cardsColumnWrapper : undefined
+                      }
                       ListEmptyComponent={renderEmpty}
                       contentContainerStyle={
                         filteredBookings.length === 0
                           ? styles.listEmptyContent
-                          : undefined
+                          : styles.webCardsContent
                       }
                       refreshControl={
                         <RefreshControl
@@ -3585,10 +3180,6 @@ export default function OffersScreen({ navigation }) {
         {renderActionsSheet()}
 
         {viewMode === 'map' ? (
-          // ✅ Même correctif que sur le web : toute la zone (filtres
-          // + carte + liste) devient scrollable si elle dépasse la
-          // hauteur de l'écran, au lieu de rester coincée/coupée en
-          // bas sans moyen d'y accéder.
           <ScrollView
             style={styles.mobileMapScroll}
             contentContainerStyle={styles.mobileMapScrollContent}
@@ -3610,9 +3201,14 @@ export default function OffersScreen({ navigation }) {
               </View>
             ) : (
               <FlatList
+                key={`mobile-grid-${numColumns}`}
                 data={filteredBookings}
                 keyExtractor={item => String(item.id)}
                 renderItem={renderMobileCard}
+                numColumns={numColumns}
+                columnWrapperStyle={
+                  numColumns > 1 ? styles.cardsColumnWrapper : undefined
+                }
                 ListEmptyComponent={renderEmpty}
                 contentContainerStyle={
                   filteredBookings.length === 0
@@ -3644,19 +3240,10 @@ const createStyles = (colors, isDark) => {
   const primarySoft = isDark ? '#132A1E' : COLORS.primarySoft;
   const redSoft = isDark ? '#3A1717' : COLORS.redSoft;
   const avatarBg = isDark ? '#16301F' : COLORS.avatar;
-  const hoverBg = isDark ? '#16301F' : COLORS.hover;
-  const tableHeaderBg = isDark ? colors.surfaceLight : COLORS.tableHeader;
 
   return StyleSheet.create({
-    safeArea: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-
-    screen: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
+    safeArea: { flex: 1, backgroundColor: colors.background },
+    screen: { flex: 1, backgroundColor: colors.background },
 
     webContentWrap: {
       flex: 1,
@@ -3666,27 +3253,12 @@ const createStyles = (colors, isDark) => {
       paddingHorizontal: 0,
       paddingTop: 0,
       paddingBottom: 0,
-      gap: 0,
     },
 
-    // ✅ Enveloppe scrollable (web) pour l'onglet "Carte" — voir le
-    // commentaire au niveau du JSX : garantit que rien ne reste
-    // "coincé" hors écran quand les filtres + la carte dépassent la
-    // hauteur de la fenêtre.
-    webMapScroll: {
-      flex: 1,
-    },
-    webMapScrollContent: {
-      flexGrow: 1,
-    },
-
-    // ✅ Même principe côté mobile.
-    mobileMapScroll: {
-      flex: 1,
-    },
-    mobileMapScrollContent: {
-      flexGrow: 1,
-    },
+    webMapScroll: { flex: 1 },
+    webMapScrollContent: { flexGrow: 1 },
+    mobileMapScroll: { flex: 1 },
+    mobileMapScrollContent: { flexGrow: 1 },
 
     // ========================================================
     // TOP
@@ -3696,51 +3268,37 @@ const createStyles = (colors, isDark) => {
       backgroundColor: colors.card,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
-      paddingHorizontal: 16,
-      paddingTop: 12,
-      paddingBottom: 10,
-      ...Platform.select({
-        web: {
-          borderWidth: 0,
-          borderBottomWidth: 1,
-          borderColor: colors.border,
-          borderRadius: 0,
-          paddingHorizontal: 20,
-          paddingVertical: 14,
-        },
-        default: {},
-      }),
+      paddingHorizontal: 14,
+      paddingTop: 10,
+      paddingBottom: 8,
     },
 
     searchRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      marginBottom: 10,
+      marginBottom: 8,
     },
 
-    searchRowWeb: {
-      flexWrap: 'wrap',
-      rowGap: 8,
-    },
+    searchRowWeb: { flexWrap: 'wrap', rowGap: 8 },
 
     webInlineDateRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 6,
       flexShrink: 0,
     },
 
     webInlineDateWrap: {
-      minHeight: 42,
-      borderRadius: 12,
+      minHeight: 36,
+      borderRadius: 9,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.background,
-      paddingHorizontal: 10,
+      paddingHorizontal: 8,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: 5,
     },
 
     webInlineDateLabel: {
@@ -3750,25 +3308,25 @@ const createStyles = (colors, isDark) => {
     },
 
     webInlineDateClear: {
-      width: 30,
-      height: 30,
+      width: 28,
+      height: 28,
       alignItems: 'center',
       justifyContent: 'center',
     },
 
     searchInputWrap: {
       flex: 1,
-      minHeight: 44,
-      borderRadius: 12,
+      minHeight: 38,
+      borderRadius: 10,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: colors.background,
-      paddingHorizontal: 12,
+      paddingHorizontal: 11,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 7,
+      gap: 6,
       ...Platform.select({
-        web: { minWidth: 220 },
+        web: { minWidth: 200 },
         default: {},
       }),
     },
@@ -3776,8 +3334,8 @@ const createStyles = (colors, isDark) => {
     searchInput: {
       flex: 1,
       minWidth: 0,
-      height: 42,
-      fontSize: 13,
+      height: 36,
+      fontSize: 12.5,
       color: colors.text,
       ...Platform.select({
         web: { outlineStyle: 'none' },
@@ -3786,9 +3344,9 @@ const createStyles = (colors, isDark) => {
     },
 
     calendarFilterButton: {
-      width: 44,
-      height: 44,
-      borderRadius: 12,
+      width: 38,
+      height: 38,
+      borderRadius: 10,
       borderWidth: 1,
       borderColor: colors.border,
       backgroundColor: primarySoft,
@@ -3803,10 +3361,10 @@ const createStyles = (colors, isDark) => {
 
     calendarFilterDot: {
       position: 'absolute',
-      top: 7,
-      right: 7,
-      width: 8,
-      height: 8,
+      top: 6,
+      right: 6,
+      width: 7,
+      height: 7,
       borderRadius: 4,
       backgroundColor: COLORS.white,
       borderWidth: 1,
@@ -3814,10 +3372,10 @@ const createStyles = (colors, isDark) => {
     },
 
     dateFilterSummary: {
-      marginBottom: 10,
-      minHeight: 34,
-      paddingHorizontal: 10,
-      borderRadius: 9,
+      marginTop: 8,
+      minHeight: 30,
+      paddingHorizontal: 9,
+      borderRadius: 8,
       backgroundColor: primarySoft,
       flexDirection: 'row',
       alignItems: 'center',
@@ -3831,20 +3389,90 @@ const createStyles = (colors, isDark) => {
       color: COLORS.primaryDark,
     },
 
-    // ========================================================
-    // BOTTOM SHEETS
-    // ========================================================
-
-    sheetOverlay: {
-      flex: 1,
-      justifyContent: 'flex-end',
+    viewSwitcher: {
+      flexDirection: 'row',
+      backgroundColor: isDark ? '#1B2A22' : '#F0F5F1',
+      borderRadius: 10,
+      padding: 2,
+      gap: 2,
+      flexShrink: 0,
     },
 
+    viewSwitchButton: {
+      width: 34,
+      height: 32,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    viewSwitchButtonActive: { backgroundColor: COLORS.primary },
+
+    // ========================================================
+    // TABS
+    // ========================================================
+
+    tabsContent: {
+      gap: 5,
+      paddingVertical: 2,
+      paddingRight: 6,
+      paddingTop: 6,
+    },
+
+    tab: {
+      minHeight: 30,
+      paddingHorizontal: 11,
+      borderRadius: 15,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+
+    tabActive: {
+      backgroundColor: COLORS.primary,
+      borderColor: COLORS.primary,
+    },
+
+    tabText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+
+    tabTextActive: { color: COLORS.white },
+
+    tabCount: {
+      minWidth: 17,
+      height: 17,
+      borderRadius: 9,
+      paddingHorizontal: 4,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+    },
+
+    tabCountActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
+
+    tabCountText: {
+      fontSize: 9,
+      fontWeight: '800',
+      color: colors.textSecondary,
+    },
+
+    tabCountTextActive: { color: COLORS.white },
+
+    // ========================================================
+    // SHEETS
+    // ========================================================
+
+    sheetOverlay: { flex: 1, justifyContent: 'flex-end' },
     sheetBackdrop: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(0,0,0,0.45)',
     },
-
     sheetHandle: {
       alignSelf: 'center',
       width: 42,
@@ -3853,19 +3481,13 @@ const createStyles = (colors, isDark) => {
       backgroundColor: colors.borderStrong,
       marginBottom: 14,
     },
-
     sheetHeaderRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       marginBottom: 16,
     },
-
-    sheetTitle: {
-      fontSize: 16,
-      fontWeight: '900',
-      color: colors.text,
-    },
+    sheetTitle: { fontSize: 16, fontWeight: '900', color: colors.text },
 
     dateSheet: {
       backgroundColor: colors.card,
@@ -3875,13 +3497,7 @@ const createStyles = (colors, isDark) => {
       paddingTop: 14,
       paddingBottom: 24,
     },
-
-    dateSheetButtonsRow: {
-      flexDirection: 'row',
-      gap: 10,
-      marginTop: 18,
-    },
-
+    dateSheetButtonsRow: { flexDirection: 'row', gap: 10, marginTop: 18 },
     dateSheetClearButton: {
       flex: 1,
       minHeight: 46,
@@ -3892,13 +3508,7 @@ const createStyles = (colors, isDark) => {
       justifyContent: 'center',
       gap: 6,
     },
-
-    dateSheetClearText: {
-      fontSize: 13,
-      fontWeight: '800',
-      color: COLORS.red,
-    },
-
+    dateSheetClearText: { fontSize: 13, fontWeight: '800', color: COLORS.red },
     dateSheetApplyButton: {
       flex: 1,
       minHeight: 46,
@@ -3909,7 +3519,6 @@ const createStyles = (colors, isDark) => {
       justifyContent: 'center',
       gap: 6,
     },
-
     dateSheetApplyText: {
       fontSize: 13,
       fontWeight: '800',
@@ -3924,63 +3533,33 @@ const createStyles = (colors, isDark) => {
       paddingTop: 14,
       paddingBottom: 28,
     },
-
     actionsSheetSubtitle: {
       marginTop: 2,
       fontSize: 12,
       color: colors.textSecondary,
     },
-
-    actionsSheetDetail: {
-      marginTop: 14,
-      minHeight: 46,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surfaceLight,
+    actionsSingleRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent: 'space-between',
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingTop: 14,
+      marginTop: 4,
+      gap: 4,
+    },
+    actionText: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: 6,
+      paddingVertical: 6,
+      paddingHorizontal: 4,
+      flexShrink: 1,
     },
-
-    actionsSheetDetailText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: colors.textSecondary,
-    },
-
-    // ========================================================
-    // KEBAB / TOGGLE
-    // ========================================================
-
-    kebabButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'transparent',
-      marginLeft: 6,
-      flexShrink: 0,
-      borderWidth: 0,
-    },
-
-    tableToggle: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
-      alignSelf: 'center',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: primarySoft,
-    },
-
-    tableToggleActive: {
-      backgroundColor: primarySoft,
-      borderColor: COLORS.primary,
+    actionTextLabel: {
+      fontSize: 12.5,
+      fontWeight: '800',
+      color: COLORS.primary,
     },
 
     // ========================================================
@@ -3992,32 +3571,13 @@ const createStyles = (colors, isDark) => {
       alignItems: 'flex-end',
       width: '100%',
     },
-
-    dateFieldWrap: {
-      flex: 1,
-      minWidth: 0,
-    },
-
+    dateFieldWrap: { flex: 1, minWidth: 0 },
     dateFieldLabel: {
       marginBottom: 6,
       fontSize: 10,
       fontWeight: '800',
       color: colors.textSecondary,
     },
-
-    webDateInputWrap: {
-      minHeight: 44,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.background,
-      paddingHorizontal: 9,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 7,
-      overflow: 'hidden',
-    },
-
     nativeDateButton: {
       minHeight: 44,
       borderRadius: 10,
@@ -4029,7 +3589,6 @@ const createStyles = (colors, isDark) => {
       alignItems: 'center',
       gap: 7,
     },
-
     nativeDateText: {
       flex: 1,
       minWidth: 0,
@@ -4037,12 +3596,10 @@ const createStyles = (colors, isDark) => {
       fontWeight: '700',
       color: colors.text,
     },
-
     nativeDatePlaceholder: {
       color: colors.textSecondary,
       fontWeight: '600',
     },
-
     dateArrow: {
       width: 30,
       alignItems: 'center',
@@ -4051,74 +3608,13 @@ const createStyles = (colors, isDark) => {
     },
 
     // ========================================================
-    // TABS
-    // ========================================================
-
-    tabsContent: {
-      gap: 8,
-      paddingVertical: 2,
-      paddingRight: 6,
-    },
-
-    tab: {
-      minHeight: 36,
-      paddingHorizontal: 14,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.card,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 7,
-    },
-
-    tabActive: {
-      backgroundColor: COLORS.primary,
-      borderColor: COLORS.primary,
-    },
-
-    tabText: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: colors.textSecondary,
-    },
-
-    tabTextActive: {
-      color: COLORS.white,
-    },
-
-    tabCount: {
-      minWidth: 22,
-      height: 20,
-      borderRadius: 10,
-      paddingHorizontal: 5,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors.background,
-    },
-
-    tabCountActive: {
-      backgroundColor: 'rgba(255,255,255,0.25)',
-    },
-
-    tabCountText: {
-      fontSize: 10,
-      fontWeight: '800',
-      color: colors.textSecondary,
-    },
-
-    tabCountTextActive: {
-      color: COLORS.white,
-    },
-
-    // ========================================================
     // ERROR / LOADING / EMPTY
     // ========================================================
 
     errorBox: {
-      marginHorizontal: 18,
-      marginTop: 10,
-      padding: 12,
+      marginHorizontal: 14,
+      marginTop: 8,
+      padding: 10,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: isDark ? '#5C2B2B' : '#F1C4C4',
@@ -4127,18 +3623,8 @@ const createStyles = (colors, isDark) => {
       alignItems: 'center',
       gap: 8,
     },
-
-    errorText: {
-      flex: 1,
-      fontSize: 12,
-      color: COLORS.red,
-    },
-
-    retryText: {
-      fontSize: 12,
-      fontWeight: '800',
-      color: COLORS.primary,
-    },
+    errorText: { flex: 1, fontSize: 12, color: COLORS.red },
+    retryText: { fontSize: 12, fontWeight: '800', color: COLORS.primary },
 
     loadingContainer: {
       flex: 1,
@@ -4147,15 +3633,9 @@ const createStyles = (colors, isDark) => {
       justifyContent: 'center',
       gap: 10,
     },
+    loadingText: { fontSize: 13, color: colors.textSecondary },
 
-    loadingText: {
-      fontSize: 13,
-      color: colors.textSecondary,
-    },
-
-    listEmptyContent: {
-      flexGrow: 1,
-    },
+    listEmptyContent: { flexGrow: 1 },
 
     emptyContainer: {
       flex: 1,
@@ -4164,7 +3644,6 @@ const createStyles = (colors, isDark) => {
       justifyContent: 'center',
       paddingHorizontal: 25,
     },
-
     emptyIcon: {
       width: 72,
       height: 72,
@@ -4174,14 +3653,12 @@ const createStyles = (colors, isDark) => {
       justifyContent: 'center',
       marginBottom: 14,
     },
-
     emptyTitle: {
       fontSize: 17,
       fontWeight: '800',
       color: colors.text,
       marginBottom: 6,
     },
-
     emptyText: {
       fontSize: 12.5,
       color: colors.textSecondary,
@@ -4189,7 +3666,6 @@ const createStyles = (colors, isDark) => {
       maxWidth: 340,
       lineHeight: 18,
     },
-
     emptyRefresh: {
       marginTop: 16,
       minHeight: 42,
@@ -4200,7 +3676,6 @@ const createStyles = (colors, isDark) => {
       alignItems: 'center',
       gap: 7,
     },
-
     emptyRefreshText: {
       color: COLORS.white,
       fontSize: 12.5,
@@ -4208,53 +3683,228 @@ const createStyles = (colors, isDark) => {
     },
 
     // ========================================================
-    // MOBILE CARD
+    // CARD
     // ========================================================
 
-    mobileList: {
-      padding: 14,
-      paddingBottom: 32,
-    },
+    mobileList: { padding: 12, paddingBottom: 28 },
 
-    mobileCard: {
-      width: '100%',
+    card: {
+      flex: 1,
       backgroundColor: colors.card,
-      borderRadius: 16,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: colors.border,
-      padding: 13,
       marginBottom: 10,
-      shadowColor: '#000',
-      shadowOpacity: 0.06,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 2,
+      overflow: 'hidden',
     },
 
-    cardHover: {
-      borderColor: COLORS.primary,
-      backgroundColor: hoverBg,
+    cardHover: { borderColor: COLORS.primary },
+    cardPressed: { opacity: 0.92 },
+
+    cardTopRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      padding: 12,
+      paddingBottom: 10,
+      gap: 10,
     },
 
-    mobileHeader: {
+    cardTopInfo: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    cardNameRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 10,
+      gap: 6,
     },
+
+    cardName: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 13,
+      fontWeight: '800',
+      color: colors.text,
+    },
+
+    cardStatusPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 7,
+      paddingVertical: 2.5,
+      borderRadius: 999,
+      flexShrink: 0,
+    },
+
+    cardStatusDot: { width: 5, height: 5, borderRadius: 3 },
+    cardStatusText: { fontSize: 9, fontWeight: '800' },
+
+    cardBookingId: {
+      fontSize: 10.5,
+      color: colors.textSecondary,
+      fontWeight: '600',
+      marginTop: 2,
+    },
+
+    cardSubRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 3,
+    },
+
+    cardSubText: {
+      flex: 1,
+      minWidth: 0,
+      fontSize: 11,
+      color: colors.textSecondary,
+    },
+
+    cardMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 4,
+    },
+
+    cardMetaText: {
+      fontSize: 10.5,
+      fontWeight: '700',
+      color: colors.text,
+      flexShrink: 1,
+      maxWidth: 120,
+    },
+
+    cardMetaDot: {
+      width: 3,
+      height: 3,
+      borderRadius: 1.5,
+      backgroundColor: colors.borderStrong,
+    },
+
+    cardPublishedRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 4,
+    },
+
+    cardPublishedText: {
+      fontSize: 10.5,
+      fontWeight: '700',
+      color: COLORS.primary,
+    },
+
+    cardDateRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 3,
+    },
+
+    cardDateText: {
+      fontSize: 10.5,
+      color: colors.textSecondary,
+      fontWeight: '600',
+    },
+
+    cardBottomRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 6,
+    },
+
+    cardDistanceWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+    },
+
+    cardDistanceText: {
+      fontSize: 10.5,
+      fontWeight: '800',
+      color: COLORS.red,
+    },
+
+    cardPrice: {
+      fontSize: 14,
+      fontWeight: '900',
+      color: COLORS.primary,
+      marginLeft: 'auto',
+      letterSpacing: -0.2,
+    },
+
+    cardExpiryRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 3,
+    },
+
+    cardExpiryText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: COLORS.orange,
+    },
+
+    cardExpiryTextUrgent: { color: COLORS.red },
+
+    // ✅ Barre d'actions :
+    //    - gauche : boutons alignés à gauche
+    //    - droite : bouton "Plus" grâce à cardSmallActionRight
+    cardActionsBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-start',
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingHorizontal: 8,
+      paddingVertical: 8,
+      backgroundColor: colors.card,
+      gap: 4,
+    },
+
+    cardActionsLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      flexShrink: 1,
+      flexWrap: 'wrap',
+    },
+
+    // ✅ Petit bouton texte (icône + label), pas de gros pills
+    cardSmallAction: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 4,
+      paddingHorizontal: 6,
+      flexShrink: 0,
+    },
+
+    // ✅ "Plus" pousse automatiquement vers la droite
+    cardSmallActionRight: {
+      marginLeft: 'auto',
+    },
+
+    cardSmallActionText: {
+      fontSize: 11,
+      fontWeight: '800',
+      color: COLORS.primary,
+    },
+
+    // ========================================================
+    // AVATAR
+    // ========================================================
 
     avatarFrame: {
       position: 'relative',
       flexShrink: 0,
-      marginRight: 11,
       backgroundColor: avatarBg,
-      borderWidth: 2,
-      borderColor: colors.card,
       overflow: 'visible',
-      elevation: 3,
-      shadowColor: '#000',
-      shadowOpacity: 0.1,
-      shadowRadius: 5,
-      shadowOffset: { width: 0, height: 2 },
     },
 
     avatar: {
@@ -4266,257 +3916,34 @@ const createStyles = (colors, isDark) => {
       overflow: 'hidden',
     },
 
-    avatarText: {
-      fontWeight: '800',
-      color: COLORS.primary,
-    },
+    avatarText: { fontWeight: '800', color: COLORS.primary },
+    avatarImage: { backgroundColor: avatarBg },
 
-    avatarImage: {
-      backgroundColor: avatarBg,
-    },
-
-    clientInfo: {
-      flex: 1,
-      minWidth: 0,
-    },
-
-    clientNameRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: 6,
-    },
-
-    clientName: {
-      fontSize: 15,
-      lineHeight: 19,
-      fontWeight: '800',
-      color: colors.text,
-      flexShrink: 1,
-    },
-
-    metaLine: {
-      marginTop: 3,
-      fontSize: 11,
-      color: colors.textSecondary,
-    },
-
-    expiryRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-      marginTop: 8,
-      paddingHorizontal: 8,
-      paddingVertical: 5,
-      borderRadius: 8,
-      backgroundColor: isDark ? '#332912' : COLORS.orangeSoft,
-      alignSelf: 'flex-start',
-    },
-
-    expiryLine: {
-      fontSize: 10.5,
-      fontWeight: '700',
-      color: COLORS.orange,
-    },
-
-    expiryLineUrgent: {
-      color: COLORS.red,
-    },
-
-    webContactLine: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      marginBottom: 2,
-    },
-
-    statusBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 10,
-      flexShrink: 0,
-      marginRight: 4,
-    },
-
-    statusText: {
-      fontSize: 9.5,
-      fontWeight: '800',
-    },
-
-    compactInfoRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      flexWrap: 'wrap',
-      gap: 7,
-      marginBottom: 8,
-    },
-
-    compactInfoItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      flexShrink: 1,
-      minWidth: 0,
-    },
-
-    compactInfoDivider: {
-      width: 1,
-      height: 11,
-      backgroundColor: colors.border,
-    },
-
-    compactInfoText: {
-      fontSize: 11.5,
-      fontWeight: '700',
-      color: colors.text,
-      flexShrink: 1,
-    },
-
-    addressRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingVertical: 7,
-      paddingHorizontal: 9,
-      borderRadius: 10,
-      backgroundColor: isDark ? '#1B2A22' : '#F6FAF7',
-      marginBottom: 8,
-    },
-
-    address: {
-      flex: 1,
-      fontSize: 11.5,
-      lineHeight: 15,
-      color: colors.textSecondary,
-    },
-
-    dateRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-    },
-
-    dateText: {
-      fontSize: 11,
-      color: colors.textSecondary,
-    },
-
-    footerRow: {
-      paddingTop: 9,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 8,
-    },
-
-    footerDateBlock: {
-      flex: 1,
-      minWidth: 0,
-      gap: 3,
-    },
-
-    price: {
-      fontSize: 17,
-      fontWeight: '900',
-      color: COLORS.primary,
-      letterSpacing: -0.2,
-    },
-
-    confirmedBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-      paddingHorizontal: 10,
-      paddingVertical: 7,
-      borderRadius: 10,
-      backgroundColor: primarySoft,
-      flexShrink: 0,
-    },
-
-    confirmedText: {
-      fontSize: 10.5,
-      fontWeight: '800',
-      color: COLORS.primary,
-    },
-
-    actionHint: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: 9,
-      paddingVertical: 6,
-      borderRadius: 10,
-      backgroundColor: primarySoft,
-      flexShrink: 0,
-    },
-
-    actionHintText: {
-      fontSize: 10,
-      fontWeight: '800',
-      color: COLORS.primary,
-    },
-
-    // ========================================================
-    // ACTIONS (bottom sheet)
-    // ========================================================
-
-    actionsRow: {
-      flexDirection: 'row',
-      gap: 8,
-      marginTop: 12,
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-
-    actionButton: {
-      flex: 1,
-      minHeight: 46,
-      borderRadius: 12,
+    onlineIndicator: {
+      position: 'absolute',
+      right: -3,
+      bottom: -3,
+      width: 14,
+      height: 14,
+      borderRadius: 7,
+      backgroundColor: colors.card,
       alignItems: 'center',
       justifyContent: 'center',
-      flexDirection: 'row',
-      gap: 6,
+      zIndex: 5,
+    },
+
+    onlineIndicatorInner: {
+      width: 9,
+      height: 9,
+      borderRadius: 5,
+      backgroundColor: COLORS.green,
       borderWidth: 1,
+      borderColor: COLORS.greenDark,
     },
 
-    acceptButton: {
-      backgroundColor: COLORS.primary,
-      borderColor: COLORS.primary,
-    },
-
-    acceptButtonText: {
-      color: COLORS.white,
-      fontSize: 12.5,
-      fontWeight: '800',
-    },
-
-    negotiationButton: {
-      backgroundColor: primarySoft,
-      borderColor: COLORS.primary,
-    },
-
-    negotiationText: {
-      color: COLORS.primary,
-      fontSize: 12.5,
-      fontWeight: '800',
-    },
-
-    rejectButton: {
-      backgroundColor: redSoft,
-      borderColor: isDark ? '#5C2B2B' : '#F0CACA',
-    },
-
-    rejectText: {
-      color: COLORS.red,
-      fontSize: 12.5,
-      fontWeight: '800',
-    },
+    // ========================================================
+    // BOTTOM SHEET — CONFIRMED
+    // ========================================================
 
     confirmedRow: {
       marginTop: 12,
@@ -4535,304 +3962,66 @@ const createStyles = (colors, isDark) => {
       color: COLORS.primary,
     },
 
-    disabled: {
-      opacity: 0.55,
-    },
-
-    pressed: {
-      opacity: 0.75,
-    },
+    disabled: { opacity: 0.55 },
+    pressed: { opacity: 0.75 },
 
     // ========================================================
-    // WEB TABLE
+    // WEB GRID
     // ========================================================
 
-    webTableContainer: {
+    webCardsContainer: {
       flex: 1,
       width: '100%',
-      backgroundColor: colors.card,
-      overflow: 'hidden',
-      ...Platform.select({
-        web: {
-          borderRadius: 0,
-          borderWidth: 0,
-          borderTopWidth: 1,
-          borderColor: colors.border,
-        },
-        default: {},
-      }),
+      alignSelf: 'stretch',
+      paddingHorizontal: 0,
+      paddingBottom: 12,
     },
 
-    tableHeader: {
-      minHeight: 46,
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: tableHeaderBg,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      position: 'sticky',
-      top: 0,
-      zIndex: 10,
+    webCardsContent: {
+      paddingHorizontal: 14,
+      paddingTop: 10,
+      paddingBottom: 22,
     },
 
-    tableHeaderText: {
-      fontSize: 9.5,
-      fontWeight: '900',
-      color: colors.textSecondary,
-      letterSpacing: 0.5,
-    },
-
-    tableRow: {
-      minHeight: 68,
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.card,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-
-    tableRowHover: {
-      backgroundColor: hoverBg,
-    },
-
-    colClient: {
-      width: '15%',
-      paddingHorizontal: 12,
-    },
-
-    colContact: {
-      width: '12%',
-      paddingHorizontal: 8,
-    },
-
-    colMassage: {
-      width: '10%',
-      paddingHorizontal: 8,
-    },
-
-    colTravel: {
-      width: '6%',
-      paddingHorizontal: 6,
-    },
-
-    colDuration: {
-      width: '6%',
-      paddingHorizontal: 6,
-    },
-
-    colAddress: {
-      width: '13%',
-      paddingHorizontal: 8,
-    },
-
-    colDates: {
-      width: '13%',
-      paddingHorizontal: 8,
-    },
-
-    colPrice: {
-      width: '8%',
-      paddingHorizontal: 6,
-    },
-
-    colStatus: {
-      width: '8%',
-      paddingHorizontal: 6,
-    },
-
-    colActions: {
-      width: '9%',
-      paddingHorizontal: 6,
-    },
-
-    webClient: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-
-    onlineIndicator: {
-      position: 'absolute',
-      right: -4,
-      bottom: -4,
-      width: 17,
-      height: 17,
-      borderRadius: 9,
-      backgroundColor: colors.card,
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 5,
-    },
-
-    onlineIndicatorInner: {
-      width: 11,
-      height: 11,
-      borderRadius: 6,
-      backgroundColor: COLORS.green,
-      borderWidth: 1,
-      borderColor: COLORS.greenDark,
-    },
-
-    webClientInfo: {
-      flex: 1,
-      minWidth: 0,
-    },
-
-    webClientName: {
-      fontSize: 11.5,
-      fontWeight: '800',
-      color: colors.text,
-    },
-
-    webBookingId: {
-      fontSize: 9.5,
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
-
-    tableMainText: {
-      fontSize: 10.5,
-      fontWeight: '700',
-      color: colors.text,
-    },
-
-    tableSubText: {
-      fontSize: 9.5,
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
-
-    webAddress: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 4,
-    },
-
-    tableAddress: {
-      flex: 1,
-      fontSize: 9.5,
-      lineHeight: 13,
-      color: colors.textSecondary,
-    },
-
-    tablePrice: {
-      fontSize: 11.5,
-      fontWeight: '900',
-      color: COLORS.primary,
-    },
-
-    tableStatus: {
-      minHeight: 28,
-      paddingHorizontal: 8,
-      borderRadius: 14,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 4,
-      alignSelf: 'flex-start',
-    },
-
-    tableStatusText: {
-      fontSize: 9.5,
-      fontWeight: '800',
-    },
-
-    // ========================================================
-    // LIST / MAP VIEW SWITCHER
-    // ========================================================
-
-    viewModeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginTop: 10,
-      marginBottom: 2,
+    cardsColumnWrapper: {
       gap: 10,
-    },
-
-    viewModeLabel: {
-      flex: 1,
-      fontSize: 11,
-      color: colors.textSecondary,
-    },
-
-    viewSwitcher: {
-      flexDirection: 'row',
-      backgroundColor: isDark ? '#1B2A22' : '#F0F5F1',
-      borderRadius: 12,
-      padding: 3,
-      gap: 3,
-    },
-
-    viewSwitchButton: {
-      width: 34,
-      height: 30,
-      borderRadius: 9,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-
-    viewSwitchButtonActive: {
-      backgroundColor: COLORS.primary,
+      alignItems: 'stretch',
     },
 
     // ========================================================
-    // MAP SECTION (carte des adresses clients + liste)
+    // MAP
     // ========================================================
 
-    mapSection: {
-      flex: 1,
-      marginTop: 12,
-    },
-
-    mapSectionWeb: {
-      flexDirection: 'row',
-      gap: 16,
-    },
-
-    mapSectionMobile: {
-      flexDirection: 'column',
-    },
+    mapSection: { marginTop: 10, paddingHorizontal: 0 },
+    mapSectionWeb: { flexDirection: 'column' },
+    mapSectionMobile: { flexDirection: 'column' },
 
     mapPane: {
-      borderRadius: 18,
+      borderRadius: 0,
       overflow: 'hidden',
       backgroundColor: '#E5E7EB',
       position: 'relative',
     },
 
-    mapPaneWeb: {
-      flex: 1.6,
-      minHeight: 480,
-    },
+    mapPaneWeb: { minHeight: 620 },
+    mapPaneMobile: { minHeight: 420 },
 
-    mapPaneMobile: {
-      minHeight: 320,
-      marginBottom: 12,
-    },
-
-    map: {
-      flex: 1,
-    },
+    map: { flex: 1 },
 
     mapTopBadge: {
       position: 'absolute',
-      // ✅ FIXÉ : avant, ce badge était collé exactement au même
-      // endroit (top:12, left:12) que le bouton "Satellite/Plan" du
-      // MapViewWrapper (top:10, left:10) — il le recouvrait
-      // entièrement, rendant ce bouton invisible/inaccessible.
-      // On le descend sous le bouton pour ne plus le cacher.
-      top: 54,
+      top: 50,
       left: 12,
-      minHeight: 32,
-      paddingHorizontal: 10,
-      borderRadius: 10,
+      minHeight: 26,
+      paddingHorizontal: 9,
+      borderRadius: 999,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
+      gap: 5,
       backgroundColor: 'rgba(255,255,255,0.95)',
       ...Platform.select({
-        web: { boxShadow: '0 2px 8px rgba(0,0,0,0.12)' },
-        default: { elevation: 3 },
+        web: { boxShadow: '0 1px 6px rgba(0,0,0,0.12)' },
+        default: { elevation: 2 },
       }),
     },
 
@@ -4844,13 +4033,11 @@ const createStyles = (colors, isDark) => {
 
     locationWarningBadge: {
       position: 'absolute',
-      // ✅ Descendu pour laisser la place au badge "X demandes
-      // localisées" juste au-dessus (voir mapTopBadge).
-      top: 94,
+      top: 86,
       left: 12,
       right: 12,
       paddingHorizontal: 10,
-      paddingVertical: 8,
+      paddingVertical: 7,
       borderRadius: 10,
       flexDirection: 'row',
       alignItems: 'center',
@@ -4869,40 +4056,6 @@ const createStyles = (colors, isDark) => {
       color: '#92400E',
     },
 
-    // ✅ Carte "info trajet" — endrika international (mitovitovy
-    // amin'ny Google Maps / Uber) : rounded card, ombre douce,
-    // avatar + nom + adresse, distance en rouge bien visible, puis
-    // 3 "chips" ETA (à pied / vélo / moto) affichés en même temps.
-    routePanel: {
-      position: 'absolute',
-      top: 12,
-      right: 12,
-      width: 280,
-      maxWidth: '92%',
-      padding: 12,
-      borderRadius: 16,
-      backgroundColor: 'rgba(255,255,255,0.98)',
-      ...Platform.select({
-        web: { boxShadow: '0 6px 20px rgba(0,0,0,0.16)' },
-        default: { elevation: 6 },
-      }),
-    },
-
-    routePanelHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-
-    routePanelAvatar: {
-      width: 26,
-      height: 26,
-      borderRadius: 13,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: COLORS.red,
-    },
-
     routePanelName: {
       fontSize: 13,
       fontWeight: '800',
@@ -4912,7 +4065,13 @@ const createStyles = (colors, isDark) => {
     routePanelAddress: {
       marginTop: 1,
       fontSize: 10.5,
-      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+
+    routePanelSubMeta: {
+      marginTop: 2,
+      fontSize: 10,
+      fontWeight: '600',
       color: colors.textSecondary,
     },
 
@@ -4930,22 +4089,18 @@ const createStyles = (colors, isDark) => {
       marginTop: 8,
     },
 
-    // ✅ Distance affichée en rouge (menamena), bien lisible.
     routeDistanceRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      marginTop: 10,
-      paddingTop: 10,
-      borderTopWidth: 1,
-      borderTopColor: '#F1F1F1',
+      gap: 5,
+      marginTop: 8,
     },
 
     routeDistanceValue: {
-      fontSize: 17,
-      fontWeight: '800',
+      fontSize: 15,
+      fontWeight: '900',
       color: COLORS.red,
-      letterSpacing: 0.2,
+      letterSpacing: 0.1,
     },
 
     routePanelEstimateTag: {
@@ -4954,217 +4109,140 @@ const createStyles = (colors, isDark) => {
       color: '#92400E',
       backgroundColor: '#FEF3C7',
       paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 6,
+      paddingVertical: 1,
+      borderRadius: 5,
       overflow: 'hidden',
     },
 
     etaRow: {
       flexDirection: 'row',
+      gap: 14,
+      marginTop: 8,
+      alignItems: 'center',
+    },
+
+    etaChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingVertical: 3,
+    },
+
+    etaChipActive: {},
+
+    etaChipTime: {
+      fontSize: 12.5,
+      fontWeight: '800',
+      color: colors.textSecondary,
+    },
+
+    etaChipTimeActive: {
+      color: COLORS.red,
+      fontWeight: '900',
+    },
+
+    mapFocusLink: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 8,
+      paddingVertical: 4,
+    },
+
+    mapFocusLinkText: {
+      fontSize: 11.5,
+      fontWeight: '800',
+      color: COLORS.primary,
+      textDecorationLine: 'underline',
+    },
+
+    clientDetailCard: {
+      position: 'absolute',
+      bottom: 12,
+      left: 12,
+      right: 12,
+      padding: 11,
+      borderRadius: 14,
+      backgroundColor: 'rgba(255,255,255,0.98)',
+      ...Platform.select({
+        web: { boxShadow: '0 4px 16px rgba(0,0,0,0.16)' },
+        default: { elevation: 4 },
+      }),
+    },
+
+    clientDetailCardWeb: {
+      left: undefined,
+      right: 12,
+      width: 300,
+    },
+
+    clientDetailClose: {
+      position: 'absolute',
+      top: 6,
+      right: 6,
+      zIndex: 2,
+    },
+
+    clientDetailHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingRight: 18,
+    },
+
+    clientDetailInfo: { flex: 1, minWidth: 0 },
+
+    clientDetailActions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
       gap: 6,
       marginTop: 8,
     },
 
-    etaChip: {
-      flex: 1,
+    iconRoundButton: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
       alignItems: 'center',
-      gap: 2,
-      paddingVertical: 7,
-      borderRadius: 12,
-      borderWidth: 1.5,
-      borderColor: '#FCA5A5',
-      backgroundColor: '#FEF2F2',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: isDark ? '#1E4030' : COLORS.primaryTint,
+      backgroundColor: isDark ? '#132A1E' : COLORS.primarySoft,
     },
 
-    etaChipActive: {
-      backgroundColor: COLORS.red,
-      borderColor: COLORS.red,
+    iconRoundButtonPrimary: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: COLORS.primary,
     },
 
-    etaChipTime: {
-      fontSize: 12,
-      fontWeight: '800',
-      color: COLORS.red,
-    },
-
-    etaChipTimeActive: {
-      color: COLORS.white,
-    },
-
-    etaChipLabel: {
-      fontSize: 9,
-      fontWeight: '600',
-      color: '#B91C1C',
-    },
-
-    etaChipLabelActive: {
-      color: 'rgba(255,255,255,0.9)',
-    },
-
-    mapLegend: {
+    mapHintPill: {
       position: 'absolute',
-      left: 12,
       bottom: 12,
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-      borderRadius: 10,
+      alignSelf: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 11,
+      paddingVertical: 7,
+      borderRadius: 999,
       backgroundColor: 'rgba(255,255,255,0.95)',
-      gap: 4,
       ...Platform.select({
         web: { boxShadow: '0 2px 8px rgba(0,0,0,0.12)' },
         default: { elevation: 3 },
       }),
     },
 
-    mapLegendItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-    },
-
-    mapLegendDot: {
-      width: 7,
-      height: 7,
-      borderRadius: 4,
-    },
-
-    mapLegendText: {
-      fontSize: 9,
-      fontWeight: '700',
-      color: COLORS.text,
-    },
-
-    mapListPane: {},
-
-    mapListPaneWeb: {
-      flex: 1,
-      maxWidth: 380,
-    },
-
-    mapListPaneMobile: {
-      flex: 1,
-      minHeight: 180,
-    },
-
-    mapListContent: {
-      paddingBottom: 16,
-    },
-
-    mapListCard: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 14,
-      padding: 12,
-      backgroundColor: colors.card,
-      marginBottom: 10,
-    },
-
-    mapListCardActive: {
-      borderColor: COLORS.primary,
-      backgroundColor: isDark ? '#132A1E' : COLORS.primarySoft,
-    },
-
-    mapListCardTop: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-    },
-
-    mapListInfo: {
-      flex: 1,
-      minWidth: 0,
-    },
-
-    mapListName: {
-      fontSize: 12.5,
-      fontWeight: '800',
-      color: colors.text,
-    },
-
-    mapListMassage: {
+    mapHintText: {
       fontSize: 10.5,
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
-
-    mapListStatusDot: {
-      width: 9,
-      height: 9,
-      borderRadius: 5,
-    },
-
-    mapListAddressRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 5,
-      marginTop: 8,
-    },
-
-    mapListAddressText: {
-      flex: 1,
-      fontSize: 10.5,
-      lineHeight: 14,
+      fontWeight: '600',
       color: colors.textSecondary,
     },
 
-    mapListContactRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 12,
-      marginTop: 7,
-    },
-
-    mapListContactItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-    },
-
-    mapListContactText: {
-      fontSize: 10,
-      color: colors.textSecondary,
-    },
-
-    mapListActionsRow: {
-      flexDirection: 'row',
-      gap: 8,
-      marginTop: 10,
-    },
-
-    mapListDirectionsButton: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 5,
-      paddingVertical: 8,
-      borderRadius: 10,
-      borderWidth: 1,
-      borderColor: COLORS.primary,
-    },
-
-    mapListDirectionsText: {
-      fontSize: 10.5,
-      fontWeight: '800',
-      color: COLORS.primary,
-    },
-
-    mapListOpenButton: {
-      flex: 1.2,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 4,
-      paddingVertical: 8,
-      borderRadius: 10,
-      backgroundColor: COLORS.primary,
-    },
-
-    mapListOpenButtonText: {
-      fontSize: 10.5,
-      fontWeight: '800',
-      color: COLORS.white,
-    },
+    mapListStatusDot: { width: 8, height: 8, borderRadius: 4 },
 
     mapEmptyState: {
       flex: 1,

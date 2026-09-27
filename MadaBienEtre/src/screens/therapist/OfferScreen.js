@@ -1,4 +1,15 @@
 // src/screens/therapist/OfferScreen.js
+//
+// Écran Détails + Négociation (thérapeute).
+// - Texte compact, UI épurée.
+// - Toutes les informations proviennent du backend.
+// - Boutons placés DANS leur section contextuelle :
+//     • Statut (si négociation) → Bouton "Négocier" en haut
+//     • Rendez-vous  → Naviguer
+//     • Service      → Négocier / Accepter prix client
+//     • Client       → Message / Appeler
+//     • Suivi        → Suivi en direct / SOS
+//     • Faire offre  → Envoyer / Accepter
 
 import {
   useCallback,
@@ -12,6 +23,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   RefreshControl,
   ScrollView,
@@ -21,43 +33,34 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import bookingService from '../../services/bookingService';
 import offerService from '../../services/offerService';
 
 import Header from '../../components/common/Header';
-
 import { useTheme } from '../../context/ThemeContext';
 
 // ============================================================
-// COLORS (alignés avec OffersScreen)
+// COLORS
 // ============================================================
 
 const COLORS = {
   primary: '#2E8B57',
   primaryDark: '#247447',
-  primaryDarker: '#1B5C36',
   primarySoft: '#EAF6EF',
   primaryTint: '#D6EEE0',
 
   white: '#FFFFFF',
-  black: '#202020',
-
-  background: '#F4F7F5',
-  card: '#FFFFFF',
-
   text: '#222B26',
   textSecondary: '#6B7A72',
-  textLight: '#FFFFFF',
 
   border: '#E4EAE6',
-  borderStrong: '#D2DCD6',
-  divider: '#EAF0EC',
 
   red: '#D93636',
   redSoft: '#FDECEC',
@@ -72,7 +75,6 @@ const COLORS = {
   purpleSoft: '#F1EDFE',
 
   green: '#22C55E',
-  greenDark: '#16A34A',
   greenSoft: '#E7F7EC',
 };
 
@@ -87,13 +89,34 @@ const money = (value) => {
 };
 
 const dateText = (value) => {
-  if (!value) return 'Non renseignée';
+  if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   return date.toLocaleString('fr-FR', {
     day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const dateShort = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleDateString('fr-FR', {
+    day: '2-digit',
     month: 'long',
     year: 'numeric',
+  });
+};
+
+const timeShort = (value) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -130,7 +153,6 @@ const genderLabel = (value) => {
     f: 'Femme',
     any: 'Peu importe',
     indifferent: 'Peu importe',
-    indifférent: 'Peu importe',
     no_preference: 'Peu importe',
     '': 'Non précisé',
   };
@@ -149,8 +171,9 @@ const statusLabel = (status) => {
     negotiating: 'Négociation',
     completed: 'Terminée',
     cancelled: 'Annulée',
-    cancelled_by_client: 'Annulée par le client',
-    cancelled_by_therapist: 'Annulée par le thérapeute',
+    cancelled_by_client: 'Annulée (client)',
+    cancelled_by_therapist: 'Annulée (moi)',
+    in_progress: 'En cours',
   };
   return labels[value] || status || 'Inconnu';
 };
@@ -160,10 +183,28 @@ const statusColor = (status) => {
   if (value === 'accepted' || value === 'confirmed' || value === 'completed') {
     return COLORS.primary;
   }
-  if (value === 'rejected' || value === 'expired' || value === 'cancelled') {
+  if (
+    value === 'rejected' ||
+    value === 'expired' ||
+    value.startsWith('cancelled')
+  ) {
     return COLORS.red;
   }
+  if (value === 'in_progress') return COLORS.purple;
   return COLORS.orange;
+};
+
+const statusIcon = (status) => {
+  const value = String(status || '').toLowerCase();
+  if (value === 'pending' || value === 'sent') return 'time-outline';
+  if (value === 'negotiating') return 'chatbubble-ellipses-outline';
+  if (value === 'confirmed' || value === 'accepted')
+    return 'checkmark-circle-outline';
+  if (value === 'in_progress') return 'play-circle-outline';
+  if (value === 'completed') return 'checkmark-done-outline';
+  if (value.startsWith('cancelled')) return 'close-circle-outline';
+  if (value === 'expired') return 'alert-circle-outline';
+  return 'help-circle-outline';
 };
 
 const getOfferUserName = (offer) => {
@@ -180,6 +221,14 @@ const getOfferUserName = (offer) => {
     'Utilisateur'
   );
 };
+
+// ============================================================
+// NORMALISATION
+// ============================================================
+
+const NEGOTIABLE_STATUSES = ['pending', 'negotiating'];
+const TRACKABLE_STATUSES = ['confirmed', 'in_progress'];
+const CONTACTABLE_STATUSES = ['confirmed', 'in_progress', 'completed'];
 
 // ============================================================
 // MAIN SCREEN
@@ -203,10 +252,12 @@ export default function OfferScreen({ route, navigation }) {
   const [toast, setToast] = useState(null);
 
   const { colors, isDark } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
+  const isDesktop = screenWidth >= 900;
 
   const styles = useMemo(
-    () => createStyles(colors, isDark),
-    [colors, isDark]
+    () => createStyles(colors, isDark, screenWidth),
+    [colors, isDark, screenWidth]
   );
 
   // ==========================================================
@@ -298,7 +349,7 @@ export default function OfferScreen({ route, navigation }) {
   }, [loadData]);
 
   // ==========================================================
-  // AUTO REFRESH
+  // AUTO REFRESH + COUNTDOWN
   // ==========================================================
 
   useEffect(() => {
@@ -306,21 +357,16 @@ export default function OfferScreen({ route, navigation }) {
     return () => clearInterval(interval);
   }, [loadData]);
 
-  // ==========================================================
-  // COUNTDOWN
-  // ==========================================================
-
   useEffect(() => {
-    const update = () => {
+    const update = () =>
       setRemainingTime(getRemaining(booking?.expires_at));
-    };
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
   }, [booking?.expires_at]);
 
   // ==========================================================
-  // BOOKING DATA
+  // DONNÉES DEPUIS LE BACKEND
   // ==========================================================
 
   const client = booking?.client || {};
@@ -334,16 +380,18 @@ export default function OfferScreen({ route, navigation }) {
     'Client';
 
   const clientPhone =
-    client?.phone ||
-    booking?.client_phone ||
-    booking?.phone ||
-    'Non renseigné';
+    client?.phone || booking?.client_phone || booking?.phone || null;
 
   const clientEmail =
-    client?.email ||
-    booking?.client_email ||
-    booking?.email ||
-    'Non renseigné';
+    client?.email || booking?.client_email || booking?.email || null;
+
+  const clientPhoto =
+    client?.avatar_url ||
+    client?.avatar ||
+    client?.photo_url ||
+    client?.photo ||
+    booking?.client_photo ||
+    null;
 
   const massageName =
     massage?.name || booking?.massage_type_name || 'Massage';
@@ -372,9 +420,7 @@ export default function OfferScreen({ route, navigation }) {
     booking?.duration ??
     60;
 
-  const distance =
-    booking?.distance_km ?? booking?.distanceKm ?? null;
-
+  const distance = booking?.distance_km ?? booking?.distanceKm ?? null;
   const eta = booking?.eta_minutes ?? booking?.etaMinutes ?? null;
 
   const scheduledDate =
@@ -387,11 +433,10 @@ export default function OfferScreen({ route, navigation }) {
 
   const latitude =
     booking?.client_latitude ?? booking?.latitude ?? null;
-
   const longitude =
     booking?.client_longitude ?? booking?.longitude ?? null;
 
-  const gender = booking?.preferred_gender ?? 'Non précisé';
+  const gender = booking?.preferred_gender ?? null;
   const genderDisplay = genderLabel(gender);
 
   const instructions = booking?.special_instructions || null;
@@ -400,10 +445,7 @@ export default function OfferScreen({ route, navigation }) {
   const expiresAt = booking?.expires_at ?? booking?.expiresAt ?? null;
 
   const offersCount = Number(
-    booking?.offers_count ??
-      booking?.offersCount ??
-      offers.length ??
-      0
+    booking?.offers_count ?? booking?.offersCount ?? offers.length ?? 0
   );
 
   const myTherapistId =
@@ -424,10 +466,7 @@ export default function OfferScreen({ route, navigation }) {
   );
 
   const myOffer =
-    myThreadOffers[0] ??
-    booking?.my_offer ??
-    booking?.myOffer ??
-    null;
+    myThreadOffers[0] ?? booking?.my_offer ?? booking?.myOffer ?? null;
 
   const hasMyOffer = Boolean(myOffer);
 
@@ -435,18 +474,24 @@ export default function OfferScreen({ route, navigation }) {
   const isExpired = remainingTime <= 0;
 
   const canNegotiate =
-    !isExpired &&
-    ![
-      'confirmed',
-      'completed',
-      'expired',
-      'cancelled',
-      'cancelled_by_client',
-      'cancelled_by_therapist',
-    ].includes(bookingStatus);
+    !isExpired && NEGOTIABLE_STATUSES.includes(bookingStatus);
+  const canTrack = TRACKABLE_STATUSES.includes(bookingStatus);
+  const canContact = CONTACTABLE_STATUSES.includes(bookingStatus);
+
+  // ✅ Nouveau : flag "en négociation" pour afficher le bouton en haut
+  const isNegotiating = bookingStatus === 'negotiating';
+
+  const statusInfo = useMemo(
+    () => ({
+      label: statusLabel(bookingStatus),
+      color: statusColor(bookingStatus),
+      icon: statusIcon(bookingStatus),
+    }),
+    [bookingStatus]
+  );
 
   // ==========================================================
-  // SEND OFFER
+  // ACTIONS — SEND OFFER
   // ==========================================================
 
   const sendOffer = async () => {
@@ -489,7 +534,7 @@ export default function OfferScreen({ route, navigation }) {
   };
 
   // ==========================================================
-  // ACCEPT CLIENT PRICE
+  // ACTIONS — ACCEPT CLIENT PRICE
   // ==========================================================
 
   const acceptClientPrice = () => {
@@ -504,7 +549,10 @@ export default function OfferScreen({ route, navigation }) {
         );
 
         if (!result?.success) {
-          showToast('error', result?.error || 'Impossible d’accepter le prix.');
+          showToast(
+            'error',
+            result?.error || 'Impossible d’accepter le prix.'
+          );
           return;
         }
 
@@ -533,7 +581,7 @@ export default function OfferScreen({ route, navigation }) {
   };
 
   // ==========================================================
-  // COUNTER OFFER
+  // ACTIONS — COUNTER OFFER
   // ==========================================================
 
   const sendCounterOffer = (offer) => {
@@ -592,7 +640,67 @@ export default function OfferScreen({ route, navigation }) {
   };
 
   // ==========================================================
-  // OFFER CARD
+  // ACTIONS — NAVIGATION VERS AUTRES ÉCRANS
+  // ==========================================================
+
+  const goToNavigation = () => {
+    if (latitude === null || longitude === null) {
+      Alert.alert(
+        'Position indisponible',
+        'Les coordonnées GPS du client ne sont pas disponibles.'
+      );
+      return;
+    }
+    navigation.navigate('Navigation', {
+      bookingId: booking?.id ?? bookingId,
+      clientAddress: address,
+      clientLatitude: Number(latitude),
+      clientLongitude: Number(longitude),
+    });
+  };
+
+  const goToNegotiation = () => {
+    if (!booking) return;
+    navigation.navigate('Negotiation', {
+      bookingId: booking?.id ?? bookingId,
+      booking,
+      currentPrice: clientPrice,
+      clientName,
+    });
+  };
+
+  const goToTracking = () => {
+    navigation.navigate('Tracking', {
+      bookingId: booking?.id ?? bookingId,
+    });
+  };
+
+  const goToChat = () => {
+    navigation.navigate('TherapistChat', {
+      bookingId: booking?.id ?? bookingId,
+      clientId: client?.id ?? booking?.client_id ?? null,
+      clientName,
+    });
+  };
+
+  const goToSOS = () => {
+    navigation.navigate('TherapistSOS', {
+      bookingId: booking?.id ?? bookingId,
+    });
+  };
+
+  const callClient = () => {
+    if (!clientPhone) {
+      Alert.alert('Numéro indisponible', 'Aucun numéro renseigné.');
+      return;
+    }
+    Linking.openURL(`tel:${clientPhone}`).catch(() => {
+      Alert.alert('Erreur', "Impossible d'ouvrir le téléphone.");
+    });
+  };
+
+  // ==========================================================
+  // RENDER OFFER
   // ==========================================================
 
   const renderOffer = (offer) => {
@@ -627,23 +735,22 @@ export default function OfferScreen({ route, navigation }) {
           >
             <Ionicons
               name={isTherapist ? 'person' : 'person-outline'}
-              size={20}
+              size={16}
               color={isTherapist ? COLORS.primary : COLORS.green}
             />
           </View>
 
           <View style={styles.offerUser}>
-            <Text style={styles.offerUserName}>{offerName}</Text>
+            <Text style={styles.offerUserName} numberOfLines={1}>
+              {offerName}
+            </Text>
             <Text style={styles.offerRole}>
               {isTherapist ? 'Thérapeute' : 'Client'}
             </Text>
           </View>
 
           <View
-            style={[
-              styles.offerStatus,
-              { backgroundColor: `${color}18` },
-            ]}
+            style={[styles.offerStatus, { backgroundColor: `${color}18` }]}
           >
             <Text style={[styles.offerStatusText, { color }]}>
               {statusLabel(status)}
@@ -662,17 +769,18 @@ export default function OfferScreen({ route, navigation }) {
           <View style={styles.messageBox}>
             <Ionicons
               name="chatbox-outline"
-              size={17}
+              size={14}
               color={colors.textSecondary}
             />
-            <Text style={styles.offerMessage}>{offer.message}</Text>
+            <Text style={styles.offerMessage} numberOfLines={4}>
+              {offer.message}
+            </Text>
           </View>
         ) : null}
 
         <View style={styles.offerFooter}>
-          <Text style={styles.offerDate}>{dateText(offer?.created_at)}</Text>
-          <Text style={[styles.offerStatusFooter, { color }]}>
-            {statusLabel(status)}
+          <Text style={styles.offerDate}>
+            {dateText(offer?.created_at)}
           </Text>
         </View>
 
@@ -680,19 +788,15 @@ export default function OfferScreen({ route, navigation }) {
           <TouchableOpacity
             disabled={submitting}
             onPress={() => sendCounterOffer(offer)}
-            style={[
-              styles.counterButton,
-              submitting && styles.disabled,
-            ]}
+            style={[styles.counterButton, submitting && styles.disabled]}
+            activeOpacity={0.85}
           >
             <Ionicons
               name="swap-horizontal"
-              size={19}
+              size={16}
               color={COLORS.primary}
             />
-            <Text style={styles.counterButtonText}>
-              Envoyer une contre-offre
-            </Text>
+            <Text style={styles.counterButtonText}>Contre-offre</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -712,15 +816,13 @@ export default function OfferScreen({ route, navigation }) {
           barStyle="light-content"
         />
         <Header
-          title="Détails et négociation"
+          title="Détails"
           showBack
           onBackPress={() => navigation?.goBack?.()}
         />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>
-            Chargement de la réservation...
-          </Text>
+          <Text style={styles.loadingText}>Chargement…</Text>
         </View>
       </SafeAreaView>
     );
@@ -742,7 +844,9 @@ export default function OfferScreen({ route, navigation }) {
         <View
           style={[
             styles.toast,
-            toast.type === 'success' ? styles.toastSuccess : styles.toastError,
+            toast.type === 'success'
+              ? styles.toastSuccess
+              : styles.toastError,
           ]}
         >
           <Ionicons
@@ -751,7 +855,7 @@ export default function OfferScreen({ route, navigation }) {
                 ? 'checkmark-circle'
                 : 'alert-circle'
             }
-            size={20}
+            size={18}
             color={COLORS.white}
           />
           <Text style={styles.toastText}>{toast.text}</Text>
@@ -773,7 +877,7 @@ export default function OfferScreen({ route, navigation }) {
             {refreshing ? (
               <ActivityIndicator size="small" color={COLORS.white} />
             ) : (
-              <Ionicons name="refresh" size={21} color={COLORS.white} />
+              <Ionicons name="refresh" size={19} color={COLORS.white} />
             )}
           </TouchableOpacity>
         }
@@ -796,102 +900,74 @@ export default function OfferScreen({ route, navigation }) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* ==================================================
+              STATUT
+          ================================================== */}
 
-          {/* =================================================
-              STATUS CARD
-          ================================================= */}
+          <LinearGradient
+            colors={[statusInfo.color, `${statusInfo.color}CC`]}
+            style={styles.statusCard}
+          >
+            <View style={styles.statusIconContainer}>
+              <Ionicons name={statusInfo.icon} size={22} color="#FFFFFF" />
+            </View>
 
-          <View style={styles.statusCard}>
-            <View style={styles.statusLeft}>
-              <View
-                style={[
-                  styles.statusDot,
-                  {
-                    backgroundColor: statusColor(bookingStatus),
-                  },
-                ]}
-              />
-              <View>
-                <Text style={styles.statusLabel}>STATUT</Text>
-                <Text
-                  style={[
-                    styles.statusValue,
-                    { color: statusColor(bookingStatus) },
-                  ]}
-                >
-                  {statusLabel(bookingStatus)}
-                </Text>
-              </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.statusSmall}>STATUT</Text>
+              <Text style={styles.statusTitle}>{statusInfo.label}</Text>
             </View>
 
             {expiresAt ? (
-              <View
-                style={[
-                  styles.timerBox,
-                  isExpired && styles.timerDanger,
-                ]}
-              >
+              <View style={styles.timerPill}>
                 <Ionicons
                   name="time-outline"
-                  size={19}
-                  color={isExpired ? COLORS.red : COLORS.orange}
+                  size={12}
+                  color={isExpired ? COLORS.red : '#FFFFFF'}
                 />
-                <View>
-                  <Text style={styles.timerLabel}>Temps restant</Text>
-                  <Text
-                    style={[
-                      styles.timer,
-                      isExpired && styles.timerDangerText,
-                    ]}
-                  >
-                    {isExpired
-                      ? 'EXPIRÉ'
-                      : formatRemaining(remainingTime)}
-                  </Text>
-                </View>
+                <Text
+                  style={[
+                    styles.timerPillText,
+                    isExpired && { color: COLORS.red },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {isExpired ? 'Expiré' : formatRemaining(remainingTime)}
+                </Text>
               </View>
             ) : null}
-          </View>
+          </LinearGradient>
 
-          {/* =================================================
-              GRID WEB (2 colonnes)
-          ================================================= */}
+          {/* ==================================================
+              GRID WEB : 2 colonnes
+          ================================================== */}
 
           <View style={styles.webGrid}>
-
-            {/* CLIENT */}
+            {/* --------------------------------------------
+                CLIENT + Actions Message/Appeler
+            -------------------------------------------- */}
             <Section title="Client" style={styles.gridItem}>
               <View style={styles.profileHeader}>
                 <View style={styles.profileAvatarFrame}>
-                  {client?.avatar_url ||
-                  client?.avatar ||
-                  client?.photo_url ||
-                  client?.photo ||
-                  client?.profile_photo_url ? (
+                  {clientPhoto ? (
                     <Image
-                      source={{
-                        uri:
-                          client?.avatar_url ||
-                          client?.avatar ||
-                          client?.photo_url ||
-                          client?.photo ||
-                          client?.profile_photo_url,
-                      }}
+                      source={{ uri: clientPhoto }}
                       style={styles.profileAvatarImage}
                       resizeMode="cover"
                     />
                   ) : (
                     <Ionicons
                       name="person"
-                      size={28}
+                      size={22}
                       color={COLORS.primary}
                     />
                   )}
                 </View>
 
                 <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>{clientName}</Text>
-                  <Text style={styles.profileId}>
+                  <Text style={styles.profileName} numberOfLines={1}>
+                    {clientName}
+                  </Text>
+                  <Text style={styles.profileId} numberOfLines={1}>
                     Client #{booking?.client_id ?? client?.id ?? '-'}
                   </Text>
                 </View>
@@ -900,29 +976,68 @@ export default function OfferScreen({ route, navigation }) {
               <InfoRow
                 icon="call-outline"
                 label="Téléphone"
-                value={clientPhone}
+                value={clientPhone || 'Non renseigné'}
               />
               <InfoRow
                 icon="mail-outline"
                 label="Email"
-                value={clientEmail}
+                value={clientEmail || 'Non renseigné'}
               />
+
+              {canContact ? (
+                <View style={styles.inlineActionsRow}>
+                  <TouchableOpacity
+                    style={styles.inlineAction}
+                    onPress={goToChat}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons
+                      name="chatbubble-outline"
+                      size={15}
+                      color={COLORS.primary}
+                    />
+                    <Text style={styles.inlineActionText}>Message</Text>
+                  </TouchableOpacity>
+
+                  {clientPhone ? (
+                    <TouchableOpacity
+                      style={styles.inlineAction}
+                      onPress={callClient}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons
+                        name="call-outline"
+                        size={15}
+                        color={COLORS.primary}
+                      />
+                      <Text style={styles.inlineActionText}>Appeler</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ) : null}
             </Section>
 
-            {/* SERVICE */}
+            {/* --------------------------------------------
+                SERVICE + Actions Négocier
+            -------------------------------------------- */}
             <Section title="Service demandé" style={styles.gridItem}>
               <View style={styles.serviceHeader}>
                 <View style={styles.serviceIcon}>
                   <Ionicons
                     name="heart-outline"
-                    size={25}
+                    size={20}
                     color={COLORS.primary}
                   />
                 </View>
                 <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName}>{massageName}</Text>
+                  <Text style={styles.serviceName} numberOfLines={1}>
+                    {massageName}
+                  </Text>
                   {category ? (
-                    <Text style={styles.serviceCategory}>
+                    <Text
+                      style={styles.serviceCategory}
+                      numberOfLines={1}
+                    >
                       Catégorie : {category}
                     </Text>
                   ) : null}
@@ -958,14 +1073,49 @@ export default function OfferScreen({ route, navigation }) {
                 label="Durée"
                 value={`${duration} minutes`}
               />
+
+              {canNegotiate ? (
+                <View style={styles.inlineActionsRow}>
+                  <TouchableOpacity
+                    style={[
+                      styles.inlineAction,
+                      styles.primaryNegotiationAction,
+                      isNegotiating && styles.inlineActionNegotiation,
+                    ]}
+                    onPress={goToNegotiation}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons
+                      name="swap-horizontal-outline"
+                      size={15}
+                      color={isNegotiating ? COLORS.orange : COLORS.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.inlineActionText,
+                        isNegotiating && styles.inlineActionNegotiationText,
+                      ]}
+                    >
+                      {isNegotiating ? 'Négociation' : 'Négocier'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
             </Section>
 
-            {/* RENDEZ-VOUS */}
+            {/* --------------------------------------------
+                RENDEZ-VOUS + Action Naviguer
+            -------------------------------------------- */}
             <Section title="Rendez-vous" style={styles.gridItem}>
               <InfoRow
                 icon="calendar-outline"
                 label="Date prévue"
-                value={dateText(scheduledDate)}
+                value={dateShort(scheduledDate)}
+              />
+              <InfoRow
+                icon="clock-outline"
+                label="Heure prévue"
+                value={timeShort(scheduledDate)}
               />
               <InfoRow
                 icon="location-outline"
@@ -977,7 +1127,7 @@ export default function OfferScreen({ route, navigation }) {
                 label="Distance"
                 value={
                   distance !== null && distance !== undefined
-                    ? `${Number(distance).toFixed(2)} km`
+                    ? `${Number(distance).toFixed(1)} km`
                     : 'Non disponible'
                 }
               />
@@ -995,79 +1145,157 @@ export default function OfferScreen({ route, navigation }) {
                 label="Genre préféré"
                 value={genderDisplay}
               />
-              <InfoRow
-                icon="map-outline"
-                label="GPS client"
-                value={
-                  latitude !== null && longitude !== null
-                    ? `${latitude}, ${longitude}`
-                    : 'Coordonnées non disponibles'
-                }
-              />
+
+              {latitude !== null && longitude !== null ? (
+                <View style={styles.inlineActionsRow}>
+                  <TouchableOpacity
+                    style={styles.inlineAction}
+                    onPress={goToNavigation}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons
+                      name="navigate-outline"
+                      size={15}
+                      color={COLORS.primary}
+                    />
+                    <Text style={styles.inlineActionText}>
+                      Naviguer
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
             </Section>
 
-            {/* SYSTEM */}
-            <Section title="Informations système" style={styles.gridItem}>
-              <InfoRow
-                icon="add-circle-outline"
-                label="Créée le"
-                value={dateText(createdAt)}
-              />
-              <InfoRow
-                icon="hourglass-outline"
-                label="Expire le"
-                value={dateText(expiresAt)}
-              />
-              <InfoRow
-                icon="chatbubbles-outline"
-                label="Nombre d'offres"
-                value={String(offersCount)}
-              />
-              <InfoRow
-                icon={
-                  hasMyOffer
-                    ? 'checkmark-circle-outline'
-                    : 'close-circle-outline'
-                }
-                label="Mon offre"
-                value={hasMyOffer ? 'Déjà envoyée' : 'Aucune offre'}
-                valueStyle={
-                  hasMyOffer ? styles.successValue : styles.mutedValue
-                }
-              />
-            </Section>
+            {/* --------------------------------------------
+                SUIVI + Actions Suivi / SOS
+            -------------------------------------------- */}
+            {canTrack ? (
+              <Section title="Suivi" style={styles.gridItem}>
+                <InfoRow
+                  icon="information-circle-outline"
+                  label="État"
+                  value={statusInfo.label}
+                  valueStyle={{
+                    color: statusInfo.color,
+                    fontWeight: '900',
+                  }}
+                />
 
+                <InfoRow
+                  icon="chatbubbles-outline"
+                  label="Nombre d'offres"
+                  value={String(offersCount)}
+                />
+
+                <View style={styles.inlineActionsRow}>
+                  <TouchableOpacity
+                    style={styles.inlineAction}
+                    onPress={goToTracking}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons
+                      name="locate-outline"
+                      size={15}
+                      color={COLORS.primary}
+                    />
+                    <Text style={styles.inlineActionText}>
+                      Suivi en direct
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.inlineAction, styles.inlineActionDanger]}
+                    onPress={goToSOS}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons
+                      name="alert-circle-outline"
+                      size={15}
+                      color={COLORS.red}
+                    />
+                    <Text
+                      style={[
+                        styles.inlineActionText,
+                        { color: COLORS.red },
+                      ]}
+                    >
+                      SOS Urgence
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </Section>
+            ) : (
+              <Section
+                title="Informations système"
+                style={styles.gridItem}
+              >
+                <InfoRow
+                  icon="add-circle-outline"
+                  label="Créée le"
+                  value={dateText(createdAt)}
+                />
+                <InfoRow
+                  icon="hourglass-outline"
+                  label="Expire le"
+                  value={dateText(expiresAt)}
+                />
+                <InfoRow
+                  icon="chatbubbles-outline"
+                  label="Nombre d'offres"
+                  value={String(offersCount)}
+                />
+                <InfoRow
+                  icon={
+                    hasMyOffer
+                      ? 'checkmark-circle-outline'
+                      : 'close-circle-outline'
+                  }
+                  label="Mon offre"
+                  value={hasMyOffer ? 'Déjà envoyée' : 'Aucune offre'}
+                  valueStyle={
+                    hasMyOffer
+                      ? styles.successValue
+                      : styles.mutedValue
+                  }
+                />
+              </Section>
+            )}
           </View>
-          {/* fin GRID WEB */}
 
-          {/* =================================================
+          {/* ==================================================
               INSTRUCTIONS
-          ================================================= */}
+          ================================================== */}
 
           {instructions ? (
             <Section title="Instructions spéciales">
               <View style={styles.instructions}>
                 <Ionicons
                   name="document-text-outline"
-                  size={23}
+                  size={18}
                   color={COLORS.primary}
                 />
-                <Text style={styles.instructionsText}>{instructions}</Text>
+                <Text style={styles.instructionsText}>
+                  {instructions}
+                </Text>
               </View>
             </Section>
           ) : null}
 
-          {/* =================================================
+          {/* ==================================================
               MON OFFRE ACTUELLE
-          ================================================= */}
+          ================================================== */}
 
           {myOffer ? (
             <Section title="Mon offre actuelle">
               <View style={styles.myOfferCard}>
-                <View>
-                  <Text style={styles.myOfferLabel}>Montant proposé</Text>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.myOfferLabel}>
+                    Montant proposé
+                  </Text>
                   <Text style={styles.myOfferPrice}>
-                    {money(myOffer?.price_offered ?? myOffer?.price ?? 0)}
+                    {money(
+                      myOffer?.price_offered ?? myOffer?.price ?? 0
+                    )}
                   </Text>
                 </View>
 
@@ -1095,19 +1323,22 @@ export default function OfferScreen({ route, navigation }) {
               </View>
 
               {myOffer?.message ? (
-                <Text style={styles.myOfferMessage}>{myOffer.message}</Text>
+                <Text style={styles.myOfferMessage}>
+                  {myOffer.message}
+                </Text>
               ) : null}
             </Section>
           ) : null}
 
-          {/* =================================================
+          {/* ==================================================
               FAIRE UNE OFFRE
-          ================================================= */}
+          ================================================== */}
 
           {canNegotiate ? (
             <Section title="Faire une offre">
               <Text style={styles.helper}>
-                Proposez votre tarif au client ou acceptez directement son prix.
+                Proposez votre tarif ou acceptez directement le prix du
+                client.
               </Text>
 
               <TextInput
@@ -1125,65 +1356,101 @@ export default function OfferScreen({ route, navigation }) {
                 placeholder="Message au client (optionnel)"
                 placeholderTextColor={colors.textSecondary}
                 multiline
-                numberOfLines={4}
+                numberOfLines={3}
                 textAlignVertical="top"
                 style={[styles.input, styles.messageInput]}
               />
 
-              <TouchableOpacity
-                disabled={submitting}
-                onPress={sendOffer}
-                style={[
-                  styles.primaryButton,
-                  submitting && styles.disabled,
-                ]}
-              >
-                {submitting ? (
-                  <ActivityIndicator color={COLORS.white} />
-                ) : (
-                  <>
-                    <Ionicons
-                      name="send"
-                      size={19}
-                      color={COLORS.white}
-                    />
-                    <Text style={styles.primaryButtonText}>
-                      Envoyer mon offre
-                    </Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              <View style={styles.offerButtonsRow}>
+                <TouchableOpacity
+                  disabled={submitting}
+                  onPress={sendOffer}
+                  style={[
+                    styles.primaryButton,
+                    submitting && styles.disabled,
+                  ]}
+                  activeOpacity={0.85}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color={COLORS.white} />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name="send"
+                        size={16}
+                        color={COLORS.white}
+                      />
+                      <Text style={styles.primaryButtonText}>
+                        Envoyer
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                disabled={submitting || clientPrice <= 0}
-                onPress={acceptClientPrice}
-                style={[
-                  styles.acceptButton,
-                  (submitting || clientPrice <= 0) && styles.disabled,
-                ]}
-              >
-                <Ionicons
-                  name="checkmark-circle"
-                  size={20}
-                  color={COLORS.white}
-                />
-                <Text style={styles.primaryButtonText}>
-                  Accepter {money(clientPrice)}
-                </Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  disabled={submitting || clientPrice <= 0}
+                  onPress={acceptClientPrice}
+                  style={[
+                    styles.acceptButton,
+                    (submitting || clientPrice <= 0) && styles.disabled,
+                  ]}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={16}
+                    color={COLORS.white}
+                  />
+                  <Text
+                    style={styles.primaryButtonText}
+                    numberOfLines={1}
+                  >
+                    Accepter {money(clientPrice)}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </Section>
           ) : null}
 
-          {/* =================================================
+          {/* ==================================================
               HISTORIQUE
-          ================================================= */}
+          ================================================== */}
 
           <Section title="Historique de négociation">
+            {isNegotiating ? (
+              <TouchableOpacity
+                style={styles.historyNegotiationButton}
+                onPress={goToNegotiation}
+                activeOpacity={0.85}
+              >
+                <View style={styles.historyNegotiationIcon}>
+                  <Ionicons
+                    name="swap-horizontal-outline"
+                    size={17}
+                    color={COLORS.orange}
+                  />
+                </View>
+                <View style={styles.historyNegotiationContent}>
+                  <Text style={styles.historyNegotiationTitle}>
+                    Négociation en cours
+                  </Text>
+                  <Text style={styles.historyNegotiationSubtitle}>
+                    Ouvrir la négociation pour continuer l’échange
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward-outline"
+                  size={18}
+                  color={COLORS.orange}
+                />
+              </TouchableOpacity>
+            ) : null}
+
             {offers.length === 0 ? (
               <View style={styles.noOffers}>
                 <Ionicons
                   name="chatbubbles-outline"
-                  size={42}
+                  size={32}
                   color={colors.textSecondary}
                 />
                 <Text style={styles.noOffersTitle}>Aucune offre</Text>
@@ -1196,7 +1463,7 @@ export default function OfferScreen({ route, navigation }) {
             )}
           </Section>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: 30 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -1236,11 +1503,11 @@ function InfoRow({ icon, label, value, valueStyle }) {
   return (
     <View style={styles.infoRow}>
       <View style={styles.infoIcon}>
-        <Ionicons name={icon} size={17} color={COLORS.primary} />
+        <Ionicons name={icon} size={14} color={COLORS.primary} />
       </View>
       <View style={styles.infoContent}>
         <Text style={styles.infoLabel}>{label}</Text>
-        <Text style={[styles.infoValue, valueStyle]}>
+        <Text style={[styles.infoValue, valueStyle]} numberOfLines={2}>
           {value === null || value === undefined || value === ''
             ? 'Non renseigné'
             : String(value)}
@@ -1254,16 +1521,10 @@ function InfoRow({ icon, label, value, valueStyle }) {
 // STYLES
 // ============================================================
 
-const createStyles = (colors, isDark) =>
+const createStyles = (colors, isDark, screenWidth = 390) =>
   StyleSheet.create({
-    safe: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-
-    flex: {
-      flex: 1,
-    },
+    safe: { flex: 1, backgroundColor: colors.background },
+    flex: { flex: 1 },
 
     center: {
       flex: 1,
@@ -1273,9 +1534,9 @@ const createStyles = (colors, isDark) =>
     },
 
     loadingText: {
-      marginTop: 12,
+      marginTop: 10,
       color: colors.textSecondary,
-      fontSize: 13,
+      fontSize: 12,
     },
 
     // --------------------------------------------------------
@@ -1290,39 +1551,36 @@ const createStyles = (colors, isDark) =>
       right: 14,
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 14,
-      borderRadius: 14,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+      borderRadius: 12,
       elevation: 8,
-      shadowColor: '#000',
-      shadowOpacity: 0.18,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 4 },
+      ...Platform.select({
+        web: { boxShadow: '0 8px 24px rgba(0,0,0,0.18)' },
+        default: {
+          shadowColor: '#000',
+          shadowOpacity: 0.18,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 4 },
+        },
+      }),
     },
 
-    toastSuccess: {
-      backgroundColor: COLORS.primary,
-    },
-
-    toastError: {
-      backgroundColor: COLORS.red,
-    },
+    toastSuccess: { backgroundColor: COLORS.primary },
+    toastError: { backgroundColor: COLORS.red },
 
     toastText: {
       flex: 1,
-      marginLeft: 9,
+      marginLeft: 8,
       color: COLORS.white,
       fontWeight: '700',
-      fontSize: 13,
+      fontSize: 12.5,
     },
 
-    // --------------------------------------------------------
-    // REFRESH BUTTON
-    // --------------------------------------------------------
-
     refreshButton: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: 'rgba(255,255,255,0.16)',
@@ -1337,110 +1595,88 @@ const createStyles = (colors, isDark) =>
     content: {
       width: '100%',
       maxWidth: '100%',
-      alignSelf: 'stretch',
-      padding: Platform.OS === 'web' ? 24 : 14,
-      paddingBottom: 50,
+      alignSelf: 'center',
+      paddingHorizontal: Platform.OS === 'web' ? (screenWidth >= 900 ? 24 : 16) : 12,
+      paddingTop: Platform.OS === 'web' ? 18 : 12,
+      paddingBottom: Platform.OS === 'web' ? 56 : 40,
     },
 
-    // --------------------------------------------------------
-    // WEB GRID
-    // --------------------------------------------------------
+    webGrid: {
+      flexDirection: screenWidth >= 900 ? 'row' : 'column',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      alignItems: 'stretch',
+    },
 
-    webGrid: Platform.select({
-      web: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-      },
-      default: {},
-    }),
-
-    gridItem: Platform.select({
-      web: {
-        width: '49%',
-      },
-      default: {
-        width: '100%',
-      },
-    }),
+    gridItem: {
+      width: screenWidth >= 900 ? '49.25%' : '100%',
+    },
 
     // --------------------------------------------------------
     // STATUS
     // --------------------------------------------------------
 
     statusCard: {
+      width: '100%',
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: 16,
-      borderRadius: 18,
-      backgroundColor: colors.surface,
-      borderWidth: 1,
-      borderColor: colors.border,
-      marginBottom: 14,
-      shadowColor: '#000',
-      shadowOpacity: 0.04,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 3 },
-      elevation: 1,
+      paddingHorizontal: screenWidth >= 900 ? 18 : 13,
+      paddingVertical: screenWidth >= 900 ? 16 : 13,
+      borderRadius: screenWidth >= 900 ? 20 : 16,
+      marginBottom: 4,
+      gap: 11,
+      ...Platform.select({
+        web: {
+          boxShadow: '0 10px 30px rgba(46,139,87,0.16)',
+        },
+        default: {
+          shadowColor: COLORS.primary,
+          shadowOpacity: 0.16,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: 5 },
+          elevation: 3,
+        },
+      }),
     },
 
-    statusLeft: {
-      flexDirection: 'row',
+    statusIconContainer: {
+      width: screenWidth >= 900 ? 46 : 40,
+      height: screenWidth >= 900 ? 46 : 40,
+      borderRadius: screenWidth >= 900 ? 23 : 20,
+      backgroundColor: 'rgba(255,255,255,0.22)',
       alignItems: 'center',
-      flex: 1,
+      justifyContent: 'center',
     },
 
-    statusDot: {
-      width: 12,
-      height: 12,
-      borderRadius: 6,
-      marginRight: 10,
-    },
-
-    statusLabel: {
-      fontSize: 10,
-      color: colors.textSecondary,
-      fontWeight: '800',
-      letterSpacing: 0.5,
-    },
-
-    statusValue: {
-      marginTop: 3,
-      fontSize: 16,
-      fontWeight: '900',
-    },
-
-    timerBox: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 10,
-      paddingVertical: 8,
-      borderRadius: 12,
-      backgroundColor: isDark ? '#332912' : COLORS.orangeSoft,
-      gap: 8,
-    },
-
-    timerDanger: {
-      backgroundColor: isDark ? '#3A1717' : COLORS.redSoft,
-    },
-
-    timerLabel: {
+    statusSmall: {
+      color: 'rgba(255,255,255,0.85)',
       fontSize: 9,
-      color: colors.textSecondary,
-      fontWeight: '700',
-    },
-
-    timer: {
-      marginTop: 1,
-      fontSize: 14,
       fontWeight: '900',
-      color: COLORS.orange,
-      letterSpacing: 0.4,
+      letterSpacing: 0.8,
     },
 
-    timerDangerText: {
-      color: COLORS.red,
+    statusTitle: {
+      color: '#FFFFFF',
+      fontSize: screenWidth >= 900 ? 16 : 14,
+      fontWeight: '900',
+      marginTop: 2,
+    },
+
+    timerPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+      borderRadius: 999,
+      backgroundColor: 'rgba(255,255,255,0.22)',
+      maxWidth: 140,
+    },
+
+    timerPillText: {
+      color: '#FFFFFF',
+      fontSize: 11,
+      fontWeight: '800',
     },
 
     // --------------------------------------------------------
@@ -1449,24 +1685,33 @@ const createStyles = (colors, isDark) =>
 
     section: {
       marginTop: 12,
-      padding: 16,
+      padding: screenWidth >= 900 ? 18 : 14,
       backgroundColor: colors.surface,
-      borderRadius: 18,
+      borderRadius: screenWidth >= 900 ? 18 : 15,
       borderWidth: 1,
       borderColor: colors.border,
-      shadowColor: '#000',
-      shadowOpacity: 0.03,
-      shadowRadius: 6,
-      shadowOffset: { width: 0, height: 2 },
-      elevation: 1,
+      ...Platform.select({
+        web: {
+          boxShadow: isDark
+            ? '0 8px 28px rgba(0,0,0,0.16)'
+            : '0 8px 28px rgba(20,55,38,0.06)',
+        },
+        default: {
+          shadowColor: '#183B2A',
+          shadowOpacity: isDark ? 0.12 : 0.06,
+          shadowRadius: 16,
+          shadowOffset: { width: 0, height: 5 },
+          elevation: 2,
+        },
+      }),
     },
 
     sectionTitle: {
-      fontSize: 13.5,
+      fontSize: screenWidth >= 900 ? 14 : 12.5,
       fontWeight: '900',
       color: colors.text,
       marginBottom: 12,
-      letterSpacing: 0.2,
+      letterSpacing: 0.1,
     },
 
     // --------------------------------------------------------
@@ -1476,40 +1721,33 @@ const createStyles = (colors, isDark) =>
     profileHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 10,
+      marginBottom: 6,
+      gap: 10,
     },
 
     profileAvatarFrame: {
-      width: 64,
-      height: 64,
+      width: 52,
+      height: 52,
       borderRadius: 16,
       overflow: 'hidden',
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: isDark ? '#132A1E' : COLORS.primarySoft,
-      borderWidth: 1,
-      borderColor: colors.border,
     },
 
-    profileAvatarImage: {
-      width: '100%',
-      height: '100%',
-    },
+    profileAvatarImage: { width: '100%', height: '100%' },
 
-    profileInfo: {
-      marginLeft: 12,
-      flex: 1,
-    },
+    profileInfo: { flex: 1, minWidth: 0 },
 
     profileName: {
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: '900',
       color: colors.text,
     },
 
     profileId: {
-      marginTop: 3,
-      fontSize: 11,
+      marginTop: 2,
+      fontSize: 10.5,
       color: colors.textSecondary,
     },
 
@@ -1519,65 +1757,52 @@ const createStyles = (colors, isDark) =>
 
     infoRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      paddingVertical: 9,
+      alignItems: 'center',
+      paddingVertical: 6,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      gap: 8,
     },
 
     infoIcon: {
-      width: 34,
-      height: 34,
-      borderRadius: 10,
+      width: 26,
+      height: 26,
+      borderRadius: 8,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: isDark ? '#132A1E' : COLORS.primarySoft,
-      marginRight: 10,
     },
 
-    infoContent: {
-      flex: 1,
-      minWidth: 0,
-      justifyContent: 'center',
-      paddingTop: 1,
-    },
+    infoContent: { flex: 1, minWidth: 0 },
 
     infoLabel: {
-      fontSize: 9.5,
+      fontSize: 9,
       fontWeight: '800',
       color: colors.textSecondary,
       textTransform: 'uppercase',
-      letterSpacing: 0.4,
+      letterSpacing: 0.3,
     },
 
     infoValue: {
-      marginTop: 4,
-      fontSize: 12,
-      lineHeight: 18,
+      marginTop: 2,
+      fontSize: 11.5,
+      lineHeight: 16,
       fontWeight: '600',
       color: colors.text,
     },
 
     priceValue: {
-      fontSize: 14,
+      fontSize: 12.5,
       fontWeight: '900',
       color: COLORS.primary,
     },
-
     finalPrice: {
-      fontSize: 14,
+      fontSize: 12.5,
       fontWeight: '900',
       color: COLORS.primary,
     },
-
-    successValue: {
-      color: COLORS.primary,
-      fontWeight: '800',
-    },
-
-    mutedValue: {
-      color: colors.textSecondary,
-    },
+    successValue: { color: COLORS.primary, fontWeight: '800' },
+    mutedValue: { color: colors.textSecondary },
 
     // --------------------------------------------------------
     // SERVICE
@@ -1586,33 +1811,82 @@ const createStyles = (colors, isDark) =>
     serviceHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 8,
+      marginBottom: 6,
+      gap: 10,
     },
 
     serviceIcon: {
-      width: 52,
-      height: 52,
-      borderRadius: 15,
+      width: 40,
+      height: 40,
+      borderRadius: 12,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: isDark ? '#132A1E' : COLORS.primarySoft,
     },
 
-    serviceInfo: {
-      flex: 1,
-      marginLeft: 12,
-    },
+    serviceInfo: { flex: 1, minWidth: 0 },
 
     serviceName: {
-      fontSize: 15,
+      fontSize: 13,
       fontWeight: '900',
       color: colors.text,
     },
 
     serviceCategory: {
-      marginTop: 4,
-      fontSize: 11,
+      marginTop: 2,
+      fontSize: 10.5,
       color: colors.textSecondary,
+    },
+
+    // --------------------------------------------------------
+    // INLINE ACTIONS (dans les sections)
+    // --------------------------------------------------------
+
+    inlineActionsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginTop: 12,
+    },
+
+    inlineAction: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      minHeight: 38,
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 11,
+      borderWidth: 1,
+      borderColor: isDark ? '#1E4030' : COLORS.primaryTint,
+      backgroundColor: isDark ? '#132A1E' : COLORS.card,
+    },
+
+    inlineActionDanger: {
+      borderColor: isDark ? '#5C2B2B' : '#F0CACA',
+      backgroundColor: isDark ? '#3A1717' : COLORS.redSoft,
+    },
+
+    inlineActionText: {
+      fontSize: 11.5,
+      fontWeight: '800',
+      color: COLORS.primary,
+    },
+
+    primaryNegotiationAction: {
+      minHeight: 42,
+      paddingHorizontal: 16,
+      borderRadius: 12,
+    },
+
+    inlineActionNegotiation: {
+      borderColor: isDark ? '#6B4A16' : '#F2D39A',
+      backgroundColor: isDark ? '#3A2A12' : COLORS.orangeSoft,
+    },
+
+    inlineActionNegotiationText: {
+      color: COLORS.orange,
     },
 
     // --------------------------------------------------------
@@ -1622,16 +1896,16 @@ const createStyles = (colors, isDark) =>
     instructions: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      padding: 13,
-      borderRadius: 13,
+      padding: 10,
+      borderRadius: 10,
       backgroundColor: isDark ? '#132A1E' : COLORS.primarySoft,
-      gap: 10,
+      gap: 8,
     },
 
     instructionsText: {
       flex: 1,
-      fontSize: 12,
-      lineHeight: 19,
+      fontSize: 11.5,
+      lineHeight: 17,
       color: colors.text,
     },
 
@@ -1643,103 +1917,105 @@ const createStyles = (colors, isDark) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: 14,
-      borderRadius: 14,
+      padding: 12,
+      borderRadius: 12,
       backgroundColor: isDark ? '#132A1E' : COLORS.primarySoft,
       borderWidth: 1,
       borderColor: isDark ? '#1E4030' : COLORS.primaryTint,
+      gap: 10,
     },
 
     myOfferLabel: {
-      fontSize: 10,
+      fontSize: 9.5,
       color: colors.textSecondary,
       fontWeight: '800',
-      letterSpacing: 0.4,
+      letterSpacing: 0.3,
       textTransform: 'uppercase',
     },
 
     myOfferPrice: {
-      marginTop: 4,
-      fontSize: 20,
+      marginTop: 3,
+      fontSize: 16,
       fontWeight: '900',
       color: COLORS.primary,
     },
 
     myOfferMessage: {
-      marginTop: 10,
-      fontSize: 12,
-      lineHeight: 19,
+      marginTop: 8,
+      fontSize: 11.5,
+      lineHeight: 17,
       color: colors.text,
     },
 
     // --------------------------------------------------------
-    // INPUT
+    // INPUTS
     // --------------------------------------------------------
 
     helper: {
-      fontSize: 12,
-      lineHeight: 18,
+      fontSize: 11,
+      lineHeight: 16,
       color: colors.textSecondary,
-      marginBottom: 12,
+      marginBottom: 10,
     },
 
     input: {
       minHeight: 48,
       paddingHorizontal: 14,
-      paddingVertical: 12,
+      paddingVertical: 11,
       marginBottom: 10,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 12,
+      borderRadius: 13,
       backgroundColor: colors.input,
       color: colors.text,
-      fontSize: 13,
+      fontSize: 12.5,
       ...Platform.select({
         web: { outlineStyle: 'none' },
         default: {},
       }),
     },
 
-    messageInput: {
-      minHeight: 100,
+    messageInput: { minHeight: 92 },
+
+    offerButtonsRow: {
+      flexDirection: screenWidth >= 520 ? 'row' : 'column',
+      gap: 9,
+      marginTop: 5,
     },
 
     primaryButton: {
-      minHeight: 50,
+      flex: screenWidth >= 520 ? 1 : 0,
+      width: screenWidth >= 520 ? undefined : '100%',
+      minHeight: 48,
       borderRadius: 13,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: COLORS.primary,
-      marginTop: 4,
-      gap: 8,
-      shadowColor: COLORS.primary,
-      shadowOpacity: 0.25,
-      shadowRadius: 8,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 3,
+      gap: 6,
+      paddingHorizontal: 8,
     },
 
     acceptButton: {
-      minHeight: 50,
+      flex: screenWidth >= 520 ? 1 : 0,
+      width: screenWidth >= 520 ? undefined : '100%',
+      minHeight: 48,
       borderRadius: 13,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: COLORS.primaryDark,
-      marginTop: 10,
-      gap: 8,
+      gap: 6,
+      paddingHorizontal: 8,
     },
 
     primaryButtonText: {
       color: COLORS.white,
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: '900',
     },
 
-    disabled: {
-      opacity: 0.55,
-    },
+    disabled: { opacity: 0.55 },
 
     // --------------------------------------------------------
     // OFFERS
@@ -1747,29 +2023,71 @@ const createStyles = (colors, isDark) =>
 
     noOffers: {
       alignItems: 'center',
-      paddingVertical: 25,
+      paddingVertical: 18,
     },
 
     noOffersTitle: {
-      marginTop: 9,
-      fontSize: 14,
+      marginTop: 7,
+      fontSize: 12.5,
       fontWeight: '900',
       color: colors.text,
     },
 
     noOffersText: {
-      marginTop: 5,
+      marginTop: 4,
       textAlign: 'center',
-      fontSize: 12,
-      lineHeight: 18,
+      fontSize: 11,
+      lineHeight: 16,
       color: colors.textSecondary,
-      maxWidth: 280,
+      maxWidth: 260,
+    },
+
+    // Bouton affiché dans l’historique lorsque la demande est
+    // toujours en cours de négociation.
+    historyNegotiationButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 11,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: isDark ? '#6B4A16' : '#F2D39A',
+      backgroundColor: isDark ? '#3A2A12' : COLORS.orangeSoft,
+      gap: 9,
+    },
+
+    historyNegotiationIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: isDark ? '#4A3517' : '#FFF7E8',
+    },
+
+    historyNegotiationContent: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    historyNegotiationTitle: {
+      fontSize: 11.5,
+      fontWeight: '900',
+      color: COLORS.orange,
+    },
+
+    historyNegotiationSubtitle: {
+      marginTop: 2,
+      fontSize: 10,
+      lineHeight: 14,
+      color: colors.textSecondary,
     },
 
     offerCard: {
-      padding: 14,
-      marginBottom: 11,
-      borderRadius: 15,
+      padding: screenWidth >= 900 ? 14 : 12,
+      marginBottom: 10,
+      borderRadius: 14,
       borderWidth: 1,
       backgroundColor: colors.surface,
     },
@@ -1787,79 +2105,77 @@ const createStyles = (colors, isDark) =>
     offerHeader: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: 8,
     },
 
     offerAvatar: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
     },
 
-    offerUser: {
-      flex: 1,
-      marginLeft: 10,
-    },
+    offerUser: { flex: 1, minWidth: 0 },
 
     offerUserName: {
-      fontSize: 13,
+      fontSize: 12,
       fontWeight: '900',
       color: colors.text,
     },
 
     offerRole: {
-      marginTop: 2,
-      fontSize: 10.5,
+      marginTop: 1,
+      fontSize: 10,
       color: colors.textSecondary,
     },
 
     offerStatus: {
-      paddingHorizontal: 10,
-      paddingVertical: 5,
-      borderRadius: 20,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
     },
 
     offerStatusText: {
-      fontSize: 10,
+      fontSize: 9.5,
       fontWeight: '800',
     },
 
     offerPriceBox: {
-      marginTop: 12,
-      padding: 11,
-      borderRadius: 11,
+      marginTop: 8,
+      padding: 8,
+      borderRadius: 9,
       backgroundColor: colors.surfaceLight,
     },
 
     offerPriceLabel: {
-      fontSize: 10,
+      fontSize: 9,
       color: colors.textSecondary,
       fontWeight: '700',
       textTransform: 'uppercase',
-      letterSpacing: 0.4,
+      letterSpacing: 0.3,
     },
 
     offerPrice: {
-      marginTop: 3,
-      fontSize: 18,
+      marginTop: 2,
+      fontSize: 14,
       fontWeight: '900',
       color: COLORS.primary,
     },
 
     messageBox: {
       flexDirection: 'row',
-      marginTop: 10,
-      padding: 10,
-      borderRadius: 10,
+      marginTop: 8,
+      padding: 8,
+      borderRadius: 8,
       backgroundColor: colors.surfaceLight,
-      gap: 8,
+      gap: 6,
     },
 
     offerMessage: {
       flex: 1,
-      fontSize: 12,
-      lineHeight: 18,
+      fontSize: 11,
+      lineHeight: 16,
       color: colors.text,
     },
 
@@ -1867,36 +2183,30 @@ const createStyles = (colors, isDark) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginTop: 10,
+      marginTop: 6,
     },
 
     offerDate: {
-      flex: 1,
-      fontSize: 10.5,
+      fontSize: 9.5,
       color: colors.textSecondary,
-    },
-
-    offerStatusFooter: {
-      fontSize: 10.5,
-      fontWeight: '800',
     },
 
     counterButton: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: 11,
-      paddingVertical: 11,
-      borderRadius: 11,
+      marginTop: 8,
+      paddingVertical: 8,
+      borderRadius: 9,
       borderWidth: 1,
       borderColor: isDark ? '#1E4030' : COLORS.primaryTint,
       backgroundColor: isDark ? '#132A1E' : COLORS.primarySoft,
-      gap: 7,
+      gap: 5,
     },
 
     counterButtonText: {
       color: COLORS.primary,
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: '800',
     },
   });
