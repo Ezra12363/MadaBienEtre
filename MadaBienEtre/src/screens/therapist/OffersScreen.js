@@ -705,6 +705,52 @@ const getScheduledDate = booking =>
   null;
 
 // ============================================================
+// DATE PRÉVUE DU MASSAGE (scheduled_date)
+//
+// Le backend stocke des TIMESTAMP UTC sans timezone : FastAPI
+// les renvoie donc sans "Z" (ex: "2026-09-30T11:30:00").
+// new Date() les lirait comme heure LOCALE -> décalage de 3h
+// à Madagascar (UTC+3). parseServerDate() force l'UTC.
+// ============================================================
+
+const parseServerDate = value => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+
+  if (typeof value === 'string') {
+    const text = value.trim();
+
+    // "2026-09-30T11:30:00" / "2026-09-30 11:30:00.123" (sans Z ni offset)
+    if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(text)) {
+      return new Date(`${text.replace(' ', 'T')}Z`);
+    }
+
+    return new Date(text);
+  }
+
+  return new Date(value);
+};
+
+const formatScheduledDateLong = value => {
+  const date = parseServerDate(value);
+  if (!date || Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
+const formatScheduledTime = value => {
+  const date = parseServerDate(value);
+  if (!date || Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+// ============================================================
 // RELATIVE TIME
 // ============================================================
 
@@ -1955,10 +2001,11 @@ export default function OffersScreen({ navigation, route }) {
         ? `Publié ${relativeLabel}`
         : '';
 
-      const requestDateLabel = formatDateLong(requestedAt);
-      const requestTimeLabel = requestedAt
-        ? formatTimeShort(requestedAt)
-        : '';
+      // ✅ Date & heure PRÉVUES du massage (repli sur la date de
+      // création uniquement pour les anciennes réservations).
+      const plannedAt = getScheduledDate(booking) ?? requestedAt;
+      const plannedDateLabel = formatScheduledDateLong(plannedAt);
+      const plannedTimeLabel = formatScheduledTime(plannedAt);
 
       return (
         <Pressable
@@ -2063,7 +2110,7 @@ export default function OffersScreen({ navigation, route }) {
                 </View>
               ) : null}
 
-              {requestDateLabel ? (
+              {plannedDateLabel ? (
                 <View style={styles.cardDateRow}>
                   <Ionicons
                     name="calendar-outline"
@@ -2071,8 +2118,8 @@ export default function OffersScreen({ navigation, route }) {
                     color={colors.textSecondary}
                   />
                   <Text style={styles.cardDateText} numberOfLines={1}>
-                    {requestDateLabel}
-                    {requestTimeLabel ? ` · ${requestTimeLabel}` : ''}
+                    {plannedDateLabel}
+                    {plannedTimeLabel ? ` · ${plannedTimeLabel}` : ''}
                   </Text>
                 </View>
               ) : null}
@@ -4540,6 +4587,10 @@ export {
   getClientPhoto,
   getClientOnline,
   getRequestedAt,
+  getScheduledDate,
+  parseServerDate,
+  formatScheduledDateLong,
+  formatScheduledTime,
   getExpiresAt,
   isOfferExpired,
   getMassageName,

@@ -66,28 +66,80 @@ const getBookingId = (booking) => {
   );
 };
 
-const getBookingDate = (booking) => {
-  const value =
+// ------------------------------------------------------------
+// ✅ DATE / HEURE RÉELLES (heure locale de l'appareil)
+//
+// Le backend renvoie des datetimes UTC SANS "Z"
+// (ex: "2026-09-30T11:30:00"). new Date() les lirait comme
+// heure locale -> décalage de 3h à Madagascar (UTC+3).
+// parseServerDate() force l'UTC, puis on lit la date/heure
+// avec getHours() / getDate()... (= heure locale).
+// ------------------------------------------------------------
+
+const parseServerDate = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  const text = String(value).trim();
+
+  const isNaiveDateTime =
+    /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(text);
+
+  const date = new Date(
+    isNaiveDateTime ? `${text.replace(' ', 'T')}Z` : text,
+  );
+
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getScheduledValue = (booking) => {
+  return (
     booking?.scheduled_date ??
     booking?.scheduledDate ??
-    booking?.date ??
-    booking?.booking_date ??
-    booking?.bookingDate ??
     booking?.scheduled_at ??
     booking?.scheduledAt ??
-    null;
+    booking?.booking_date ??
+    booking?.bookingDate ??
+    booking?.date ??
+    null
+  );
+};
+
+const isDateOnly = (value) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(String(value).trim());
+
+// Retourne "YYYY-MM-DD" en heure LOCALE
+const getBookingDate = (booking) => {
+  const value = getScheduledValue(booking);
 
   if (!value) {
     return null;
   }
 
-  const stringValue = String(value);
+  // Date seule (sans heure) : aucune conversion de fuseau à faire
+  if (isDateOnly(value)) {
+    return String(value).trim();
+  }
 
-  return stringValue.includes('T')
-    ? stringValue.split('T')[0]
-    : stringValue.substring(0, 10);
+  const date = parseServerDate(value);
+
+  if (!date) {
+    return null;
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
 };
 
+// Retourne "HH:MM" en heure LOCALE (heure réelle du rendez-vous)
 const getBookingTime = (booking) => {
   const directTime =
     booking?.scheduled_time ??
@@ -99,28 +151,22 @@ const getBookingTime = (booking) => {
     return String(directTime).slice(0, 5);
   }
 
-  const dateTime =
-    booking?.scheduled_date ??
-    booking?.scheduledDate ??
-    booking?.scheduled_at ??
-    booking?.scheduledAt ??
-    null;
+  const value = getScheduledValue(booking);
 
-  if (!dateTime) {
+  if (!value || isDateOnly(value)) {
     return '--:--';
   }
 
-  const value = String(dateTime);
+  const date = parseServerDate(value);
 
-  if (value.includes('T')) {
-    const timePart = value.split('T')[1];
-
-    if (timePart) {
-      return timePart.substring(0, 5);
-    }
+  if (!date) {
+    return '--:--';
   }
 
-  return '--:--';
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `${hours}:${minutes}`;
 };
 
 const getClientName = (booking) => {

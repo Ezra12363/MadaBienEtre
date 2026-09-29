@@ -50,6 +50,9 @@ import {
   getClientPhoto,
   getClientOnline,
   getRequestedAt,
+  getScheduledDate,
+  formatScheduledDateLong,
+  formatScheduledTime,
   getExpiresAt,
   isOfferExpired,
   getMassageName,
@@ -62,7 +65,6 @@ import {
   getRelativeTimeLabel,
   formatPrice,
   formatDateLong,
-  formatTimeShort,
   getOfferId,
   isActiveClientOffer,
 } from './OffersScreen';
@@ -1424,17 +1426,21 @@ export default function ClientGroupScreen({
             ? `Publié ${relativeLabel}`
             : '';
 
-        const requestDateLabel =
-          formatDateLong(
-            requestedAt
+        // ✅ Date & heure PRÉVUES du massage (repli sur la date de
+        // création uniquement pour les anciennes réservations).
+        const plannedAt =
+          getScheduledDate(booking) ??
+          requestedAt;
+
+        const plannedDateLabel =
+          formatScheduledDateLong(
+            plannedAt
           );
 
-        const requestTimeLabel =
-          requestedAt
-            ? formatTimeShort(
-                requestedAt
-              )
-            : '';
+        const plannedTimeLabel =
+          formatScheduledTime(
+            plannedAt
+          );
 
         return (
           <Pressable
@@ -1644,7 +1650,7 @@ export default function ClientGroupScreen({
                   </View>
                 ) : null}
 
-                {requestDateLabel ? (
+                {plannedDateLabel ? (
                   <View
                     style={
                       baseStyles.cardDateRow
@@ -1664,10 +1670,10 @@ export default function ClientGroupScreen({
                       }
                       numberOfLines={1}
                     >
-                      {requestDateLabel}
+                      {plannedDateLabel}
 
-                      {requestTimeLabel
-                        ? ` · ${requestTimeLabel}`
+                      {plannedTimeLabel
+                        ? ` · ${plannedTimeLabel}`
                         : ''}
                     </Text>
                   </View>

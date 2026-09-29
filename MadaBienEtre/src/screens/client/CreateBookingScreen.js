@@ -26,6 +26,8 @@ import AddressMapPickerModal from '../../components/map/AddressMapPickerModal';
 import useLocationTracking from '../../hooks/useLocationTracking';
 
 import massageTypeService from '../../services/massageTypeService';
+// ⚠️ À adapter si ton service de réservation a un autre nom / chemin
+import bookingService from '../../services/bookingService';
 import { getMassageTypeIconIonicons } from '../../constants/massageTypeIcons';
 import {
   getAddressSuggestions,
@@ -35,8 +37,117 @@ import {
 import { GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
 
 /* ============================================================
+   ✅ DATE & HEURE — helpers
+   Date  : JJ/MM/AAAA
+   Heure : HH:MM:SS  (ex: 14:30:00)
+   ============================================================ */
+
+// Délai minimum entre "maintenant" et le rendez-vous (minutes)
+const MIN_LEAD_MINUTES = 5;
+
+// Durée par défaut envoyée au backend (minutes)
+const DEFAULT_DURATION_MINUTES = 60;
+
+const pad2 = (n) => String(n).padStart(2, '0');
+
+const formatDateForInput = (date) =>
+  `${pad2(date.getDate())}/${pad2(date.getMonth() + 1)}/${date.getFullYear()}`;
+
+// Masque de saisie : 05102026 -> 05/10/2026
+const maskDateInput = (text) => {
+  const digits = text.replace(/\D/g, '').slice(0, 8);
+  let out = digits.slice(0, 2);
+  if (digits.length > 2) out += '/' + digits.slice(2, 4);
+  if (digits.length > 4) out += '/' + digits.slice(4, 8);
+  return out;
+};
+
+// Masque de saisie : 143000 -> 14:30:00
+const maskTimeInput = (text) => {
+  const digits = text.replace(/\D/g, '').slice(0, 6);
+  let out = digits.slice(0, 2);
+  if (digits.length > 2) out += ':' + digits.slice(2, 4);
+  if (digits.length > 4) out += ':' + digits.slice(4, 6);
+  return out;
+};
+
+// Complète l'heure quand l'utilisateur quitte le champ :
+// "9" -> "09:00:00", "14" -> "14:00:00", "930" -> "09:30:00",
+// "1430" -> "14:30:00", "14:30" -> "14:30:00"
+const normalizeTimeInput = (text) => {
+  let digits = text.replace(/\D/g, '').slice(0, 6);
+  if (!digits) return '';
+
+  if (digits.length === 1 || digits.length === 3) digits = '0' + digits;
+
+  digits = digits.padEnd(6, '0');
+
+  return `${digits.slice(0, 2)}:${digits.slice(2, 4)}:${digits.slice(4, 6)}`;
+};
+
+const parseDateInput = (value) => {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value || '');
+  if (!match) return null;
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+
+  if (year < 2000) return null;
+
+  // Vérifie que la date existe vraiment (ex: refuse 31/02/2026)
+  const check = new Date(year, month - 1, day);
+  if (
+    check.getFullYear() !== year ||
+    check.getMonth() !== month - 1 ||
+    check.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return { day, month, year };
+};
+
+const parseTimeInput = (value) => {
+  const match = /^(\d{2}):(\d{2}):(\d{2})$/.exec(value || '');
+  if (!match) return null;
+
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const seconds = Number(match[3]);
+
+  if (hours > 23 || minutes > 59 || seconds > 59) return null;
+
+  return { hours, minutes, seconds };
+};
+
+// Combine date + heure saisies (heure LOCALE de l'appareil) en objet Date
+const buildScheduledDate = (dateText, timeText) => {
+  const d = parseDateInput(dateText);
+  const t = parseTimeInput(timeText);
+  if (!d || !t) return null;
+
+  return new Date(d.year, d.month - 1, d.day, t.hours, t.minutes, t.seconds, 0);
+};
+
+// Extrait un message lisible d'une erreur FastAPI / axios
+const extractApiError = (error) => {
+  const detail = error?.response?.data?.detail;
+
+  if (typeof detail === 'string') return detail;
+
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d) => d?.msg || d?.message)
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  return error?.message || 'Une erreur est survenue. Réessayez.';
+};
+
+/* ============================================================
    ✅ CARTE GOOGLE MAPS (aperçu statique)
-   Fonctionne sur Web ET natif (c'est juste une image).
    ============================================================ */
 
 const getStaticMapPreviewUrl = (latitude, longitude) => {
@@ -57,9 +168,6 @@ const getStaticMapPreviewUrl = (latitude, longitude) => {
 
 /* ============================================================
    ✅ GÉOLOCALISATION NAVIGATEUR (Web)
-   Isolée dans une Promise pour transformer chaque cas d'erreur
-   du navigateur en un message clair, affiché via le toast de
-   l'app (jamais une popup native bloquante).
    ============================================================ */
 
 const requestBrowserLocation = () =>
@@ -89,9 +197,7 @@ const TypeVisual = ({ imageUrl, iconName, size = 30, tintColor }) => {
   const [failed, setFailed] = useState(false);
 
   if (!imageUrl || failed) {
-    return (
-      <Ionicons name={iconName} size={size} color={tintColor} />
-    );
+    return <Ionicons name={iconName} size={size} color={tintColor} />;
   }
 
   return (
@@ -122,6 +228,13 @@ const CreateBookingScreen = ({ navigation }) => {
   const [selectedType, setSelectedType] = useState(null);
   const [address, setAddress] = useState('');
   const [price, setPrice] = useState('');
+
+  // ✅ Date & heure du rendez-vous (texte saisi)
+  const [dateText, setDateText] = useState(''); // JJ/MM/AAAA
+  const [timeText, setTimeText] = useState(''); // HH:MM:SS
+
+  // ✅ Envoi en cours
+  const [submitting, setSubmitting] = useState(false);
 
   // Coordonnées liées à l'adresse choisie
   const [selectedCoords, setSelectedCoords] = useState(null);
@@ -157,6 +270,7 @@ const CreateBookingScreen = ({ navigation }) => {
   const toastOpacity = useRef(new Animated.Value(0)).current;
   const toastTranslateY = useRef(new Animated.Value(-20)).current;
   const toastTimer = useRef(null);
+  const navigateTimer = useRef(null);
 
   /* ============================================================
      GPS TRACKING
@@ -243,12 +357,7 @@ const CreateBookingScreen = ({ navigation }) => {
     });
   };
 
-  const showToast = (
-    message,
-    type = 'info',
-    duration = 2600,
-    title = ''
-  ) => {
+  const showToast = (message, type = 'info', duration = 2600, title = '') => {
     // Annule l'ancien timer
     if (toastTimer.current) {
       clearTimeout(toastTimer.current);
@@ -300,67 +409,50 @@ const CreateBookingScreen = ({ navigation }) => {
   };
 
   /* ============================================================
-     CLEANUP TOAST TIMER
+     CLEANUP TIMERS
      ============================================================ */
 
   useEffect(() => {
     return () => {
-      if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
-      }
-      if (suggestionsTimer.current) {
-        clearTimeout(suggestionsTimer.current);
-      }
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      if (suggestionsTimer.current) clearTimeout(suggestionsTimer.current);
+      if (navigateTimer.current) clearTimeout(navigateTimer.current);
     };
   }, []);
 
   /* ============================================================
-     TOAST ICON
+     TOAST ICON / COLOR
      ============================================================ */
 
   const getToastIcon = () => {
     switch (toast.type) {
       case 'success':
         return 'checkmark-circle';
-
       case 'error':
         return 'close-circle';
-
       case 'warning':
         return 'warning';
-
       case 'location':
         return 'location';
-
       case 'map':
         return 'map';
-
       default:
         return 'information-circle';
     }
   };
 
-  /* ============================================================
-     TOAST COLOR
-     ============================================================ */
-
   const getToastColor = () => {
     switch (toast.type) {
       case 'success':
         return '#00C853';
-
       case 'error':
         return '#E53935';
-
       case 'warning':
         return '#F59E0B';
-
       case 'location':
         return '#1A4FB5';
-
       case 'map':
         return '#0D2B7E';
-
       default:
         return '#1A4FB5';
     }
@@ -372,23 +464,48 @@ const CreateBookingScreen = ({ navigation }) => {
 
   const handleSelectMassage = (type) => {
     setSelectedType(type.id);
-
-    showToast(
-      `${type.name} sélectionné`,
-      'success'
-    );
+    showToast(`${type.name} sélectionné`, 'success');
   };
+
+  /* ============================================================
+     ✅ DATE & HEURE HANDLERS
+     ============================================================ */
+
+  const handleDateChange = (text) => {
+    setDateText(maskDateInput(text));
+  };
+
+  const handleTimeChange = (text) => {
+    setTimeText(maskTimeInput(text));
+  };
+
+  // À la sortie du champ : complète en HH:MM:SS
+  const handleTimeBlur = () => {
+    setTimeText((current) => normalizeTimeInput(current));
+  };
+
+  const handleQuickDate = (daysFromToday) => {
+    const target = new Date();
+    target.setDate(target.getDate() + daysFromToday);
+    setDateText(formatDateForInput(target));
+  };
+
+  // Aperçu : date+heure valides -> objet Date, sinon null
+  const scheduledPreview = buildScheduledDate(
+    dateText,
+    normalizeTimeInput(timeText)
+  );
+
+  const scheduledIsFuture =
+    scheduledPreview !== null &&
+    scheduledPreview.getTime() > Date.now() + MIN_LEAD_MINUTES * 60 * 1000;
 
   /* ============================================================
      USE CURRENT LOCATION
      ============================================================ */
 
   const handleUseCurrentLocation = async () => {
-    /* ----------------------------------------------------------
-       WEB : géolocalisation directe du navigateur.
-       Toute erreur (permission refusée, indisponible, timeout)
-       est traduite en toast — jamais de popup navigateur brute.
-       ---------------------------------------------------------- */
+    // WEB : géolocalisation directe du navigateur
     if (Platform.OS === 'web') {
       if (locatingWeb) return;
 
@@ -455,27 +572,19 @@ const CreateBookingScreen = ({ navigation }) => {
       return;
     }
 
-    /* ----------------------------------------------------------
-       NATIF (iOS / Android) : logique existante via le hook +
-       la modale de sélection sur carte.
-       ---------------------------------------------------------- */
+    // NATIF (iOS / Android)
     if (liveLocation) {
       setMapInitialCoordinate({
         latitude: liveLocation.latitude,
         longitude: liveLocation.longitude,
       });
 
-      showToast(
-        'Votre position actuelle est disponible',
-        'location'
-      );
+      showToast('Votre position actuelle est disponible', 'location');
     } else {
       setMapInitialCoordinate(null);
 
       showToast(
-        isLocating
-          ? 'Recherche de votre position...'
-          : 'Ouverture de la carte...',
+        isLocating ? 'Recherche de votre position...' : 'Ouverture de la carte...',
         'location'
       );
     }
@@ -502,21 +611,14 @@ const CreateBookingScreen = ({ navigation }) => {
     setMapInitialCoordinate(null);
     setShowMapPicker(true);
 
-    showToast(
-      'Choisissez votre position sur la carte',
-      'map'
-    );
+    showToast('Choisissez votre position sur la carte', 'map');
   };
 
   /* ============================================================
      MAP CONFIRM
      ============================================================ */
 
-  const handleMapConfirm = ({
-    address: pickedAddress,
-    latitude,
-    longitude,
-  }) => {
+  const handleMapConfirm = ({ address: pickedAddress, latitude, longitude }) => {
     setAddress(pickedAddress);
 
     setSelectedCoords({
@@ -526,10 +628,7 @@ const CreateBookingScreen = ({ navigation }) => {
 
     setShowMapPicker(false);
 
-    showToast(
-      'Adresse et position confirmées',
-      'success'
-    );
+    showToast('Adresse et position confirmées', 'success');
   };
 
   /* ============================================================
@@ -543,7 +642,7 @@ const CreateBookingScreen = ({ navigation }) => {
     try {
       const results = await getAddressSuggestions(text);
 
-      // Ignore une réponse arrivée en retard (l'utilisateur a retapé entre-temps)
+      // Ignore une réponse arrivée en retard
       if (requestId !== suggestionsRequestId.current) return;
 
       setSuggestions(results);
@@ -560,9 +659,7 @@ const CreateBookingScreen = ({ navigation }) => {
   const handleAddressChange = (text) => {
     setAddress(text);
 
-    // Si l'utilisateur modifie manuellement
-    // l'adresse, les anciennes coordonnées ne sont
-    // plus considérées comme fiables.
+    // Modification manuelle : les anciennes coordonnées ne sont plus fiables
     setSelectedCoords(null);
 
     if (suggestionsTimer.current) {
@@ -577,7 +674,7 @@ const CreateBookingScreen = ({ navigation }) => {
       return;
     }
 
-    // Debounce : évite un appel réseau à chaque frappe
+    // Debounce
     suggestionsTimer.current = setTimeout(() => {
       fetchSuggestions(trimmed);
     }, 400);
@@ -636,86 +733,112 @@ const CreateBookingScreen = ({ navigation }) => {
 
   const handlePriceChange = (text) => {
     // Autorise uniquement les chiffres
-    const numericValue = text.replace(/[^0-9]/g, '');
-
-    setPrice(numericValue);
+    setPrice(text.replace(/[^0-9]/g, ''));
   };
 
   /* ============================================================
-     SUBMIT BOOKING
+     ✅ SUBMIT BOOKING (envoi réel au backend)
      ============================================================ */
 
-  const handleSubmit = () => {
-    /* ----------------------------------------------------------
-       VALIDATION TYPE
-       ---------------------------------------------------------- */
+  const handleSubmit = async () => {
+    if (submitting) return;
 
+    // VALIDATION TYPE
     if (!selectedType) {
-      showToast(
-        'Veuillez sélectionner un type de massage',
-        'error',
-        3000
-      );
+      showToast('Veuillez sélectionner un type de massage', 'error', 3000);
       return;
     }
 
-    /* ----------------------------------------------------------
-       VALIDATION ADRESSE
-       ---------------------------------------------------------- */
-
+    // VALIDATION ADRESSE
     if (!address.trim()) {
+      showToast('Veuillez entrer votre adresse', 'error', 3000);
+      return;
+    }
+
+    // VALIDATION DATE
+    if (!parseDateInput(dateText)) {
       showToast(
-        'Veuillez entrer votre adresse',
+        'Entrez une date valide au format JJ/MM/AAAA (ex: 05/10/2026)',
         'error',
-        3000
+        3500,
+        'Date invalide'
       );
       return;
     }
 
-    /* ----------------------------------------------------------
-       VALIDATION PRIX
-       ---------------------------------------------------------- */
+    // VALIDATION HEURE (normalise d'abord : "14:30" -> "14:30:00")
+    const finalTimeText = normalizeTimeInput(timeText);
+    setTimeText(finalTimeText);
 
+    if (!parseTimeInput(finalTimeText)) {
+      showToast(
+        'Entrez une heure valide au format HH:MM:SS (ex: 14:30:00)',
+        'error',
+        3500,
+        'Heure invalide'
+      );
+      return;
+    }
+
+    // VALIDATION DATE+HEURE DANS LE FUTUR
+    const scheduledDate = buildScheduledDate(dateText, finalTimeText);
+
+    if (
+      !scheduledDate ||
+      scheduledDate.getTime() <= Date.now() + MIN_LEAD_MINUTES * 60 * 1000
+    ) {
+      showToast(
+        `Choisissez une date et une heure au moins ${MIN_LEAD_MINUTES} minutes dans le futur`,
+        'error',
+        3500,
+        'Rendez-vous trop proche'
+      );
+      return;
+    }
+
+    // VALIDATION PRIX
     if (!price.trim()) {
-      showToast(
-        'Veuillez proposer un prix',
-        'error',
-        3000
-      );
+      showToast('Veuillez proposer un prix', 'error', 3000);
       return;
     }
 
-    /* ----------------------------------------------------------
-       BOOKING DATA
-       ---------------------------------------------------------- */
-
-    const bookingData = {
-      massageType: selectedType,
+    // ------------------------------------------------------------
+    // PAYLOAD -> BookingCreate (FastAPI)
+    // scheduled_date est envoyé en UTC (ISO 8601 avec "Z") :
+    // le backend le convertit en UTC naïf et met
+    // expires_at = scheduled_date.
+    // ------------------------------------------------------------
+    const payload = {
+      massage_type_id: selectedType,
       address: address.trim(),
-      proposedPrice: Number(price),
+      client_price_proposed: Number(price),
       latitude: selectedCoords?.latitude ?? null,
       longitude: selectedCoords?.longitude ?? null,
+      scheduled_date: scheduledDate.toISOString(),
+      duration_minutes: DEFAULT_DURATION_MINUTES,
     };
 
-    console.log('Booking data:', bookingData);
+    setSubmitting(true);
 
-    /* ----------------------------------------------------------
-       SUCCESS TOAST
-       ---------------------------------------------------------- */
+    try {
+      await bookingService.createBooking(payload);
 
-    showToast(
-      'Votre demande a été envoyée aux thérapeutes',
-      'success',
-      3000
-    );
+      showToast(
+        'Votre demande a été envoyée aux thérapeutes',
+        'success',
+        3000
+      );
 
-    /* ----------------------------------------------------------
-       NAVIGATION
-       ---------------------------------------------------------- */
+      navigateTimer.current = setTimeout(() => {
+        navigation.navigate('Réservations');
+      }, 900);
+    } catch (error) {
+      console.error('❌ Erreur création réservation:', error);
 
-    setTimeout(() => {
-      navigation.navigate('Réservations');
-    }, 900);
+      showToast(extractApiError(error), 'error', 4500, "Échec de l'envoi");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   /* ============================================================
@@ -731,35 +854,20 @@ const CreateBookingScreen = ({ navigation }) => {
         },
       ]}
     >
-      {/* ========================================================
-          HEADER
-      ======================================================== */}
+      {/* HEADER */}
 
-      <Header
-        title="Nouvelle réservation"
-        showBack
-      />
+      <Header title="Nouvelle réservation" showBack />
 
-      {/* ========================================================
-          TOAST
-          Centre haut de l'écran
-      ======================================================== */}
+      {/* TOAST */}
 
       {toast.visible && (
-        <View
-          pointerEvents="box-none"
-          style={styles.toastWrapper}
-        >
+        <View pointerEvents="box-none" style={styles.toastWrapper}>
           <Animated.View
             style={[
               styles.toast,
               {
                 opacity: toastOpacity,
-                transform: [
-                  {
-                    translateY: toastTranslateY,
-                  },
-                ],
+                transform: [{ translateY: toastTranslateY }],
                 borderColor: getToastColor(),
               },
             ]}
@@ -768,25 +876,17 @@ const CreateBookingScreen = ({ navigation }) => {
               style={[
                 styles.toastIconContainer,
                 {
-                  backgroundColor:
-                    getToastColor() + '18',
+                  backgroundColor: getToastColor() + '18',
                 },
               ]}
             >
-              <Ionicons
-                name={getToastIcon()}
-                size={20}
-                color={getToastColor()}
-              />
+              <Ionicons name={getToastIcon()} size={20} color={getToastColor()} />
             </View>
 
             <View style={styles.toastTextWrapper}>
               {!!toast.title && (
                 <Text
-                  style={[
-                    styles.toastTitle,
-                    { color: themeColors.text },
-                  ]}
+                  style={[styles.toastTitle, { color: themeColors.text }]}
                   numberOfLines={2}
                 >
                   {toast.title}
@@ -813,45 +913,26 @@ const CreateBookingScreen = ({ navigation }) => {
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={styles.toastCloseButton}
             >
-              <Ionicons
-                name="close"
-                size={16}
-                color={themeColors.textSecondary}
-              />
+              <Ionicons name="close" size={16} color={themeColors.textSecondary} />
             </TouchableOpacity>
           </Animated.View>
         </View>
       )}
 
-      {/* ========================================================
-          KEYBOARD
-      ======================================================== */}
+      {/* KEYBOARD */}
 
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={
-          Platform.OS === 'ios'
-            ? 'padding'
-            : undefined
-        }
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* ====================================================
-              TYPE DE MASSAGE
-          ==================================================== */}
+          {/* TYPE DE MASSAGE */}
 
-          <Text
-            style={[
-              styles.sectionTitle,
-              {
-                color: themeColors.text,
-              },
-            ]}
-          >
+          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
             Type de massage
           </Text>
 
@@ -861,39 +942,28 @@ const CreateBookingScreen = ({ navigation }) => {
             contentContainerStyle={styles.typesContainer}
           >
             {massageTypesLoading && massageTypes.length === 0 && (
-              <ActivityIndicator
-                size="small"
-                color={themeColors.primary}
-              />
+              <ActivityIndicator size="small" color={themeColors.primary} />
             )}
 
             {massageTypes.map((type) => {
-              const isSelected =
-                selectedType === type.id;
+              const isSelected = selectedType === type.id;
 
               return (
                 <TouchableOpacity
                   key={type.id}
                   style={[
                     styles.typeCard,
-                    {
-                      backgroundColor:
-                        themeColors.surface,
-                    },
-                    isSelected &&
-                      styles.typeCardActive,
+                    { backgroundColor: themeColors.surface },
+                    isSelected && styles.typeCardActive,
                   ]}
-                  onPress={() =>
-                    handleSelectMassage(type)
-                  }
+                  onPress={() => handleSelectMassage(type)}
                   activeOpacity={0.75}
                 >
                   <View
                     style={[
                       styles.typeIconContainer,
                       isSelected && {
-                        backgroundColor:
-                          colors.primary + '14',
+                        backgroundColor: colors.primary + '14',
                       },
                     ]}
                   >
@@ -902,34 +972,21 @@ const CreateBookingScreen = ({ navigation }) => {
                       iconName={type.icon}
                       size={30}
                       tintColor={
-                        isSelected
-                          ? colors.primary
-                          : themeColors.textSecondary
+                        isSelected ? colors.primary : themeColors.textSecondary
                       }
                     />
                   </View>
 
                   <Text
-                    style={[
-                      styles.typeName,
-                      {
-                        color: themeColors.text,
-                      },
-                    ]}
+                    style={[styles.typeName, { color: themeColors.text }]}
                     numberOfLines={2}
                   >
                     {type.name}
                   </Text>
 
                   {isSelected && (
-                    <View
-                      style={styles.selectedCheck}
-                    >
-                      <Ionicons
-                        name="checkmark"
-                        size={12}
-                        color="#fff"
-                      />
+                    <View style={styles.selectedCheck}>
+                      <Ionicons name="checkmark" size={12} color="#fff" />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -937,18 +994,9 @@ const CreateBookingScreen = ({ navigation }) => {
             })}
           </ScrollView>
 
-          {/* ====================================================
-              ADRESSE
-          ==================================================== */}
+          {/* ADRESSE */}
 
-          <Text
-            style={[
-              styles.sectionTitle,
-              {
-                color: themeColors.text,
-              },
-            ]}
-          >
+          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
             Adresse
           </Text>
 
@@ -956,10 +1004,7 @@ const CreateBookingScreen = ({ navigation }) => {
             <View
               style={[
                 styles.addressContainer,
-                {
-                  backgroundColor:
-                    themeColors.surface,
-                },
+                { backgroundColor: themeColors.surface },
               ]}
             >
               <Ionicons
@@ -969,16 +1014,9 @@ const CreateBookingScreen = ({ navigation }) => {
               />
 
               <TextInput
-                style={[
-                  styles.addressInput,
-                  {
-                    color: themeColors.text,
-                  },
-                ]}
+                style={[styles.addressInput, { color: themeColors.text }]}
                 placeholder="Entrez votre adresse"
-                placeholderTextColor={
-                  themeColors.textSecondary
-                }
+                placeholderTextColor={themeColors.textSecondary}
                 value={address}
                 onChangeText={handleAddressChange}
                 onFocus={() => {
@@ -986,7 +1024,6 @@ const CreateBookingScreen = ({ navigation }) => {
                 }}
                 onBlur={() => {
                   // Laisse le temps au onPress de la suggestion
-                  // de se déclencher avant de fermer le dropdown.
                   setTimeout(() => setShowSuggestions(false), 150);
                 }}
                 multiline
@@ -1054,48 +1091,27 @@ const CreateBookingScreen = ({ navigation }) => {
             )}
           </View>
 
-          {/* ====================================================
-              ACTIONS ADRESSE
-          ==================================================== */}
+          {/* ACTIONS ADRESSE */}
 
-          <View
-            style={styles.addressActionsRow}
-          >
+          <View style={styles.addressActionsRow}>
             {/* GPS */}
 
             <TouchableOpacity
               style={[
                 styles.addressActionButton,
-                {
-                  backgroundColor:
-                    colors.primary + '12',
-                },
+                { backgroundColor: colors.primary + '12' },
               ]}
-              onPress={
-                handleUseCurrentLocation
-              }
+              onPress={handleUseCurrentLocation}
               activeOpacity={0.8}
             >
-              {(locatingWeb || (isLocating && !liveLocation)) ? (
-                <ActivityIndicator
-                  size="small"
-                  color={colors.primary}
-                />
+              {locatingWeb || (isLocating && !liveLocation) ? (
+                <ActivityIndicator size="small" color={colors.primary} />
               ) : (
-                <Ionicons
-                  name="locate"
-                  size={18}
-                  color={colors.primary}
-                />
+                <Ionicons name="locate" size={18} color={colors.primary} />
               )}
 
               <Text
-                style={[
-                  styles.addressActionText,
-                  {
-                    color: colors.primary,
-                  },
-                ]}
+                style={[styles.addressActionText, { color: colors.primary }]}
               >
                 Utiliser ma position actuelle
               </Text>
@@ -1107,73 +1123,41 @@ const CreateBookingScreen = ({ navigation }) => {
               style={[
                 styles.addressActionButton,
                 {
-                  backgroundColor:
-                    themeColors.surface,
+                  backgroundColor: themeColors.surface,
                   borderWidth: 1,
-                  borderColor:
-                    themeColors.border ??
-                    '#E5E7EB',
+                  borderColor: themeColors.border ?? '#E5E7EB',
                 },
               ]}
-              onPress={
-                handleOpenMapPicker
-              }
+              onPress={handleOpenMapPicker}
               activeOpacity={0.8}
             >
-              <Ionicons
-                name="map-outline"
-                size={18}
-                color={themeColors.text}
-              />
+              <Ionicons name="map-outline" size={18} color={themeColors.text} />
 
               <Text
-                style={[
-                  styles.addressActionText,
-                  {
-                    color: themeColors.text,
-                  },
-                ]}
+                style={[styles.addressActionText, { color: themeColors.text }]}
               >
                 Choisir sur la carte
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* ====================================================
-              TRACKING ERROR
-          ==================================================== */}
+          {/* TRACKING ERROR */}
 
-          {!liveLocation &&
-            trackingError && (
-              <View
-                style={styles.errorInfo}
-              >
-                <Ionicons
-                  name="warning-outline"
-                  size={15}
-                  color="#EF4444"
-                />
+          {!liveLocation && trackingError && (
+            <View style={styles.errorInfo}>
+              <Ionicons name="warning-outline" size={15} color="#EF4444" />
 
-                <Text
-                  style={styles.trackingErrorText}
-                >
-                  {trackingError}
-                </Text>
-              </View>
-            )}
+              <Text style={styles.trackingErrorText}>{trackingError}</Text>
+            </View>
+          )}
 
-          {/* ====================================================
-              COORDINATES CONFIRMATION
-          ==================================================== */}
+          {/* COORDINATES CONFIRMATION */}
 
           {selectedCoords && (
             <View
               style={[
                 styles.coordsConfirm,
-                {
-                  backgroundColor:
-                    colors.primary + '0A',
-                },
+                { backgroundColor: colors.primary + '0A' },
               ]}
             >
               <Ionicons
@@ -1184,34 +1168,21 @@ const CreateBookingScreen = ({ navigation }) => {
 
               <View style={styles.coordsTextWrapper}>
                 <Text
-                  style={[
-                    styles.coordsConfirmTitle,
-                    {
-                      color: themeColors.text,
-                    },
-                  ]}
+                  style={[styles.coordsConfirmTitle, { color: themeColors.text }]}
                 >
                   Position confirmée
                 </Text>
 
-                <Text
-                  style={styles.coordsConfirmText}
-                >
-                  {selectedCoords.latitude.toFixed(
-                    5
-                  )}
+                <Text style={styles.coordsConfirmText}>
+                  {selectedCoords.latitude.toFixed(5)}
                   {'  •  '}
-                  {selectedCoords.longitude.toFixed(
-                    5
-                  )}
+                  {selectedCoords.longitude.toFixed(5)}
                 </Text>
               </View>
             </View>
           )}
 
-          {/* ====================================================
-              APERÇU CARTE GOOGLE MAPS
-          ==================================================== */}
+          {/* APERÇU CARTE GOOGLE MAPS */}
 
           {selectedCoords && (
             <TouchableOpacity
@@ -1266,95 +1237,183 @@ const CreateBookingScreen = ({ navigation }) => {
           )}
 
           {/* ====================================================
-              PRIX
+              ✅ DATE & HEURE DU RENDEZ-VOUS
           ==================================================== */}
 
-          <Text
-            style={[
-              styles.sectionTitle,
-              {
-                color: themeColors.text,
-              },
-            ]}
-          >
+          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
+            Date et heure du massage
+          </Text>
+
+          <View style={styles.dateTimeRow}>
+            {/* DATE */}
+
+            <View
+              style={[
+                styles.dateTimeContainer,
+                styles.dateContainer,
+                { backgroundColor: themeColors.surface },
+              ]}
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={19}
+                color={themeColors.textSecondary}
+              />
+
+              <TextInput
+                style={[styles.dateTimeInput, { color: themeColors.text }]}
+                placeholder="JJ/MM/AAAA"
+                placeholderTextColor={themeColors.textSecondary}
+                value={dateText}
+                onChangeText={handleDateChange}
+                keyboardType="number-pad"
+                maxLength={10}
+                returnKeyType="next"
+              />
+            </View>
+
+            {/* HEURE */}
+
+            <View
+              style={[
+                styles.dateTimeContainer,
+                styles.timeContainer,
+                { backgroundColor: themeColors.surface },
+              ]}
+            >
+              <Ionicons
+                name="time-outline"
+                size={19}
+                color={themeColors.textSecondary}
+              />
+
+              <TextInput
+                style={[styles.dateTimeInput, { color: themeColors.text }]}
+                placeholder="HH:MM:SS"
+                placeholderTextColor={themeColors.textSecondary}
+                value={timeText}
+                onChangeText={handleTimeChange}
+                onBlur={handleTimeBlur}
+                keyboardType="number-pad"
+                maxLength={8}
+                returnKeyType="done"
+              />
+            </View>
+          </View>
+
+          {/* RACCOURCIS DATE */}
+
+          <View style={styles.quickDatesRow}>
+            {[
+              { label: "Aujourd'hui", days: 0 },
+              { label: 'Demain', days: 1 },
+              { label: 'Après-demain', days: 2 },
+            ].map((item) => (
+              <TouchableOpacity
+                key={item.label}
+                style={[
+                  styles.quickDateChip,
+                  {
+                    backgroundColor: colors.primary + '12',
+                  },
+                ]}
+                onPress={() => handleQuickDate(item.days)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.quickDateText, { color: colors.primary }]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* INFO EXPIRATION */}
+
+          {scheduledPreview && scheduledIsFuture ? (
+            <View
+              style={[
+                styles.expiryInfo,
+                { backgroundColor: colors.primary + '0A' },
+              ]}
+            >
+              <Ionicons
+                name="hourglass-outline"
+                size={16}
+                color={colors.primary}
+              />
+              <Text style={[styles.expiryInfoText, { color: themeColors.text }]}>
+                Votre demande reste ouverte aux thérapeutes jusqu'au{' '}
+                {formatDateForInput(scheduledPreview)} à{' '}
+                {normalizeTimeInput(timeText)}, puis elle expire automatiquement.
+              </Text>
+            </View>
+          ) : scheduledPreview ? (
+            <View style={styles.errorInfo}>
+              <Ionicons name="warning-outline" size={15} color="#EF4444" />
+              <Text style={styles.trackingErrorText}>
+                Choisissez une date et une heure au moins {MIN_LEAD_MINUTES}{' '}
+                minutes dans le futur.
+              </Text>
+            </View>
+          ) : null}
+
+          {/* PRIX */}
+
+          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
             Prix proposé
           </Text>
 
           <View
             style={[
               styles.priceContainer,
-              {
-                backgroundColor:
-                  themeColors.surface,
-              },
+              { backgroundColor: themeColors.surface },
             ]}
           >
-            <Text style={styles.currency}>
-              Ar
-            </Text>
+            <Text style={styles.currency}>Ar</Text>
 
             <TextInput
-              style={[
-                styles.priceInput,
-                {
-                  color: themeColors.text,
-                },
-              ]}
+              style={[styles.priceInput, { color: themeColors.text }]}
               placeholder="Prix proposé"
-              placeholderTextColor={
-                themeColors.textSecondary
-              }
+              placeholderTextColor={themeColors.textSecondary}
               value={price}
-              onChangeText={
-                handlePriceChange
-              }
+              onChangeText={handlePriceChange}
               keyboardType="numeric"
               returnKeyType="done"
             />
           </View>
 
-          {/* ====================================================
-              SUBMIT
-          ==================================================== */}
+          {/* SUBMIT */}
 
           <TouchableOpacity
-            style={styles.submitButton}
+            style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
             onPress={handleSubmit}
+            disabled={submitting}
             activeOpacity={0.85}
           >
-            <Ionicons
-              name="paper-plane-outline"
-              size={19}
-              color="#fff"
-            />
+            {submitting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="paper-plane-outline" size={19} color="#fff" />
+            )}
 
-            <Text
-              style={styles.submitButtonText}
-            >
-              Soumettre ma demande
+            <Text style={styles.submitButtonText}>
+              {submitting ? 'Envoi en cours...' : 'Soumettre ma demande'}
             </Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ========================================================
-          MAP MODAL
-      ======================================================== */}
+      {/* MAP MODAL */}
 
       <AddressMapPickerModal
         visible={showMapPicker}
         onClose={() => {
           setShowMapPicker(false);
 
-          showToast(
-            'Sélection de position annulée',
-            'info'
-          );
+          showToast('Sélection de position annulée', 'info');
         }}
         onConfirm={handleMapConfirm}
-        initialCoordinate={
-          mapInitialCoordinate
-        }
+        initialCoordinate={mapInitialCoordinate}
       />
     </SafeAreaView>
   );
@@ -1378,9 +1437,7 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
   },
 
-  /* ============================================================
-     TOAST
-  ============================================================ */
+  /* TOAST */
 
   toastWrapper: {
     position: 'absolute',
@@ -1421,8 +1478,7 @@ const styles = StyleSheet.create({
     // Ombre Web
     ...(Platform.OS === 'web'
       ? {
-          boxShadow:
-            '0px 6px 22px rgba(0,0,0,0.15)',
+          boxShadow: '0px 6px 22px rgba(0,0,0,0.15)',
         }
       : {}),
   },
@@ -1459,21 +1515,16 @@ const styles = StyleSheet.create({
     padding: 2,
   },
 
-  /* ============================================================
-     SECTION
-  ============================================================ */
+  /* SECTION */
 
   sectionTitle: {
     fontSize: typography.fontSize.md,
-    fontFamily:
-      typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold,
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
 
-  /* ============================================================
-     MASSAGE TYPES
-  ============================================================ */
+  /* MASSAGE TYPES */
 
   typesContainer: {
     flexDirection: 'row',
@@ -1507,8 +1558,7 @@ const styles = StyleSheet.create({
 
   typeName: {
     fontSize: typography.fontSize.sm,
-    fontFamily:
-      typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium,
     marginTop: spacing.xs,
     textAlign: 'center',
   },
@@ -1525,9 +1575,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  /* ============================================================
-     ADDRESS
-  ============================================================ */
+  /* ADDRESS */
 
   addressContainer: {
     flexDirection: 'row',
@@ -1540,16 +1588,13 @@ const styles = StyleSheet.create({
   addressInput: {
     flex: 1,
     fontSize: typography.fontSize.md,
-    fontFamily:
-      typography.fontFamily.regular,
+    fontFamily: typography.fontFamily.regular,
     padding: 0,
     minHeight: 42,
     textAlignVertical: 'top',
   },
 
-  /* ============================================================
-     ADDRESS AUTOCOMPLETE
-  ============================================================ */
+  /* ADDRESS AUTOCOMPLETE */
 
   addressWrapper: {
     position: 'relative',
@@ -1603,9 +1648,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
   },
 
-  /* ============================================================
-     MAP PREVIEW
-  ============================================================ */
+  /* MAP PREVIEW */
 
   mapPreviewContainer: {
     marginTop: spacing.sm,
@@ -1654,9 +1697,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.semiBold,
   },
 
-  /* ============================================================
-     ADDRESS ACTIONS
-  ============================================================ */
+  /* ADDRESS ACTIONS */
 
   addressActionsRow: {
     flexDirection: 'row',
@@ -1678,14 +1719,11 @@ const styles = StyleSheet.create({
 
   addressActionText: {
     fontSize: 12,
-    fontFamily:
-      typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium,
     textAlign: 'center',
   },
 
-  /* ============================================================
-     ERROR
-  ============================================================ */
+  /* ERROR */
 
   errorInfo: {
     flexDirection: 'row',
@@ -1699,13 +1737,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 11,
     color: '#EF4444',
-    fontFamily:
-      typography.fontFamily.regular,
+    fontFamily: typography.fontFamily.regular,
   },
 
-  /* ============================================================
-     COORDINATES
-  ============================================================ */
+  /* COORDINATES */
 
   coordsConfirm: {
     flexDirection: 'row',
@@ -1722,21 +1757,84 @@ const styles = StyleSheet.create({
 
   coordsConfirmTitle: {
     fontSize: 12,
-    fontFamily:
-      typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold,
     marginBottom: 2,
   },
 
   coordsConfirmText: {
     fontSize: 10,
     color: colors.primary,
-    fontFamily:
-      typography.fontFamily.regular,
+    fontFamily: typography.fontFamily.regular,
   },
 
-  /* ============================================================
-     PRICE
-  ============================================================ */
+  /* ✅ DATE & HEURE */
+
+  dateTimeRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+
+  dateTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: 14,
+  },
+
+  dateContainer: {
+    flex: 1.15,
+  },
+
+  timeContainer: {
+    flex: 1,
+  },
+
+  dateTimeInput: {
+    flex: 1,
+    fontSize: typography.fontSize.md,
+    fontFamily: typography.fontFamily.semiBold,
+    padding: 0,
+    // Chiffres de même largeur : le masque ne "saute" pas pendant la saisie
+    fontVariant: ['tabular-nums'],
+  },
+
+  quickDatesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+
+  quickDateChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+
+  quickDateText: {
+    fontSize: 12,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  expiryInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: spacing.sm,
+    padding: 10,
+    borderRadius: 12,
+  },
+
+  expiryInfoText: {
+    flex: 1,
+    fontSize: 11.5,
+    lineHeight: 16,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  /* PRICE */
 
   priceContainer: {
     flexDirection: 'row',
@@ -1747,8 +1845,7 @@ const styles = StyleSheet.create({
 
   currency: {
     fontSize: typography.fontSize.lg,
-    fontFamily:
-      typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold,
     color: colors.primary,
     marginRight: spacing.sm,
   },
@@ -1756,14 +1853,11 @@ const styles = StyleSheet.create({
   priceInput: {
     flex: 1,
     fontSize: typography.fontSize.lg,
-    fontFamily:
-      typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold,
     padding: 0,
   },
 
-  /* ============================================================
-     SUBMIT BUTTON
-  ============================================================ */
+  /* SUBMIT BUTTON */
 
   submitButton: {
     backgroundColor: colors.primary,
@@ -1787,11 +1881,14 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
 
+  submitButtonDisabled: {
+    opacity: 0.7,
+  },
+
   submitButtonText: {
     color: '#fff',
     fontSize: typography.fontSize.md,
-    fontFamily:
-      typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold,
   },
 });
 

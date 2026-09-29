@@ -216,50 +216,81 @@ const getOpenStatus = (weekly, onlineAvailable, now = new Date()) => {
   return { state: "closed", color: CLOSED_COLOR, label: "Fermé", detail: "" };
 };
 
-// Trouve le prochain créneau libre dans la réponse /therapists/:id/slots
-const findNextSlot = (data) => {
-  const flat = [];
-  const push = (date, time, extra) => {
-    if (!date && !time) return;
-    flat.push({ date, time, ...extra });
-  };
-  const walk = (node, dateHint) => {
-    if (!node) return;
-    if (Array.isArray(node)) return node.forEach((n) => walk(n, dateHint));
-    if (typeof node === "string") {
-      if (node.includes("T") || node.includes(" ")) {
-        const [d, t] = node.split(/[T ]/);
-        return push(d, hhmm(t));
-      }
-      return push(dateHint, hhmm(node));
-    }
-    if (typeof node === "object") {
-      if (Array.isArray(node.slots)) return walk(node.slots, node.date || dateHint);
-      if (Array.isArray(node.times)) return walk(node.times, node.date || dateHint);
-      const date = node.date || node.slot_date || dateHint;
-      const time = node.start_time || node.start || node.time || node.from;
-      if (time && String(time).includes("T")) {
-        const [d, t] = String(time).split("T");
-        return push(d, hhmm(t));
-      }
-      if (node.is_available === false || node.available === false || node.booked === true) return;
-      if (time) return push(date, hhmm(time));
-      Object.keys(node).forEach((k) => {
-        if (/^\d{4}-\d{2}-\d{2}$/.test(k)) walk(node[k], k);
-      });
-    }
-  };
-  walk(data && data.data ? data.data : data);
+/* ------------------------------------------------------------
+   DISPONIBILITÉS RÉELLES (base de données)
+   Source : GET /therapists/{id}/slots  (availability.py)
+   Réponse : [{ date:"YYYY-MM-DD", start:"HH:MM", end:"HH:MM",
+                is_available:true, therapist_id }]
+   Le backend ne renvoie QUE les jours réellement réservables :
+   planning hebdo actif, hors dates bloquées, hors créneaux déjà
+   réservés, et dont l'heure de début est dans le futur.
+------------------------------------------------------------ */
 
-  const now = Date.now();
-  const valid = flat
-    .map((s) => {
-      const ts = new Date(`${s.date}T${s.time || "00:00"}:00`).getTime();
-      return { ...s, ts };
+const AVAIL_DAYS = 14;
+const AVAIL_TTL = 2 * 60 * 1000; // rafraîchissement du cache : 2 min
+
+const pad2 = (n) => String(n).padStart(2, "0");
+// Date LOCALE au format YYYY-MM-DD (évite le décalage UTC de toISOString)
+const toLocalISO = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+const normalizeSlots = (data) => {
+  const rows = Array.isArray(data) ? data
+    : Array.isArray(data?.data) ? data.data
+    : Array.isArray(data?.slots) ? data.slots : [];
+
+  return rows
+    .filter((r) => r && r.date && (r.start ?? r.start_time) && r.is_available !== false)
+    .map((r) => {
+      const date = String(r.date).slice(0, 10);
+      const start = hhmm(r.start ?? r.start_time);
+      const end = hhmm(r.end ?? r.end_time);
+      const [y, m, d] = date.split("-").map(Number);
+      const [sh, sm] = start.split(":").map(Number);
+      const ts = new Date(y, m - 1, d, sh || 0, sm || 0).getTime();
+      return { date, start, end, ts, dayIndex: new Date(y, m - 1, d).getDay() };
     })
-    .filter((s) => Number.isFinite(s.ts) && s.ts >= now)
+    .filter((r) => Number.isFinite(r.ts))
     .sort((a, b) => a.ts - b.ts);
-  return valid[0] || null;
+};
+
+// Planning hebdomadaire déduit des créneaux réels (jour → début/fin)
+const deriveWeekly = (slots) => {
+  const map = {};
+  slots.forEach((sl) => {
+    if (!map[sl.dayIndex]) {
+      map[sl.dayIndex] = { day: sl.dayIndex, start: sl.start, end: sl.end, is_available: true };
+    }
+  });
+  return [0, 1, 2, 3, 4, 5, 6].map(
+    (d) => map[d] || { day: d, start: "", end: "", is_available: false },
+  );
+};
+
+const availCache = new Map();
+const availInflight = new Map();
+
+const fetchTherapistAvailability = (id) => {
+  const key = String(id);
+  const hit = availCache.get(key);
+  if (hit && Date.now() - hit.ts < AVAIL_TTL) return Promise.resolve(hit);
+  if (availInflight.has(key)) return availInflight.get(key);
+
+  const promise = (async () => {
+    const from = new Date();
+    const to = new Date();
+    to.setDate(to.getDate() + AVAIL_DAYS - 1);
+    const res = await availabilityService.getTherapistSlots(id, toLocalISO(from), toLocalISO(to));
+    const entry = {
+      ts: Date.now(),
+      ok: !!res?.success,
+      slots: res?.success ? normalizeSlots(res.data) : [],
+    };
+    availCache.set(key, entry);
+    return entry;
+  })().finally(() => availInflight.delete(key));
+
+  availInflight.set(key, promise);
+  return promise;
 };
 
 const formatSlotDate = (slot) => {
@@ -273,10 +304,8 @@ const formatSlotDate = (slot) => {
     : same(d, tomorrow)
       ? "Demain"
       : `${DAYS_SHORT[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
-  return `${label} à ${slot.time || hhmm(String(d.toTimeString()))}`;
+  return `${label} à ${slot.start}`;
 };
-
-const slotsCache = new Map();
 
 const formatRating = (n) => Number(n || 0).toFixed(1).replace(".", ",");
 
@@ -294,44 +323,229 @@ const MONTHS_FULL = ["janvier", "février", "mars", "avril", "mai", "juin", "jui
 const formatSlotFull = (slot) => {
   if (!slot) return "";
   const d = new Date(slot.ts);
-  return `${d.getDate()} ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()} · ${slot.time || ""}`;
+  return `${d.getDate()} ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()} · ${slot.start || ""}`;
 };
 
-// Récupère le prochain créneau (avec cache) + planning si absent
-const useNextSlot = (item) => {
-  const [nextSlot, setNextSlot] = useState(() => slotsCache.get(String(item.id)) || null);
-  const [weekly, setWeekly] = useState(item.weekly || null);
+// Charge les créneaux réels du thérapeute (cache + partage des requêtes)
+const useTherapistAvailability = (item) => {
+  const key = String(item?.id ?? "");
+  const valid = !!key && !key.startsWith("therapist-");
+
+  const [state, setState] = useState(() => {
+    const hit = valid ? availCache.get(key) : null;
+    return hit
+      ? { loaded: true, ok: hit.ok, slots: hit.slots }
+      : { loaded: false, ok: true, slots: [] };
+  });
 
   useEffect(() => {
+    if (!valid) {
+      setState({ loaded: true, ok: false, slots: [] });
+      return undefined;
+    }
     let cancelled = false;
-    if (!item?.id || String(item.id).startsWith("therapist-")) return undefined;
-    if (slotsCache.has(String(item.id))) return undefined;
-
-    const iso = (d) => d.toISOString().slice(0, 10);
-    availabilityService
-      .getTherapistSlots(item.id, iso(new Date()), iso(new Date(Date.now() + 7 * 86400000)))
-      .then((res) => {
-        if (cancelled || !res?.success) return;
-        const slot = findNextSlot(res.data);
-        slotsCache.set(String(item.id), slot);
-        setNextSlot(slot);
-        if (!item.weekly) {
-          const w = normalizeWeekly(res.data?.weekly || res.data?.availability);
-          if (w) setWeekly(w);
-        }
+    fetchTherapistAvailability(key)
+      .then((entry) => {
+        if (!cancelled) setState({ loaded: true, ok: entry.ok, slots: entry.slots });
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setState({ loaded: true, ok: false, slots: [] });
+      });
     return () => { cancelled = true; };
-  }, [item.id, item.weekly]);
+  }, [key, valid]);
 
-  return { nextSlot, weekly };
+  const weekly = useMemo(
+    () => item.weekly || (state.slots.length ? deriveWeekly(state.slots) : null),
+    [item.weekly, state.slots],
+  );
+  const nextSlot = useMemo(
+    () => state.slots.find((sl) => sl.ts > Date.now()) || null,
+    [state.slots],
+  );
+
+  return { ...state, weekly, nextSlot };
+};
+
+// 14 prochains jours : créneau réservable / en cours / indisponible
+const buildCalendarDays = (slots, weekly) => {
+  const now = new Date();
+  const byDate = new Map(slots.map((sl) => [sl.date, sl]));
+
+  return Array.from({ length: AVAIL_DAYS }).map((_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    const iso = toLocalISO(d);
+    const slot = byDate.get(iso) || null;
+
+    // Aujourd'hui, en pleine journée d'ouverture : le backend n'envoie plus
+    // le créneau (l'heure de début est passée) mais le thérapeute travaille.
+    let inProgress = null;
+    if (!slot && i === 0 && weekly) {
+      const w = weekly.find((x) => x.day === d.getDay());
+      if (w?.is_available) {
+        const st = toMinutes(w.start);
+        const en = toMinutes(w.end);
+        const mins = now.getHours() * 60 + now.getMinutes();
+        if (st != null && en != null && mins >= st && mins < en) inProgress = w;
+      }
+    }
+
+    return {
+      date: iso,
+      dayIndex: d.getDay(),
+      dayNum: d.getDate(),
+      month: MONTHS_SHORT[d.getMonth()],
+      monthFull: MONTHS_FULL[d.getMonth()],
+      isToday: i === 0,
+      slot,
+      inProgress,
+    };
+  });
+};
+
+/* ---------- CALENDRIER + HORAIRES (dépliable dans la card) ---------- */
+const AvailabilityCalendar = ({ item, avail, colors, isDark, onPickSlot }) => {
+  const days = useMemo(
+    () => buildCalendarDays(avail.slots, avail.weekly),
+    [avail.slots, avail.weekly],
+  );
+  const firstBookable = days.find((d) => d.slot)?.date || null;
+  const [selected, setSelected] = useState(firstBookable);
+
+  const sel = days.find((d) => d.date === selected) || null;
+  const sub = colors.textSecondary;
+  const box = isDark ? "#1F232B" : "#F7F9FB";
+  const line = isDark ? "#2A2F38" : "#E8EBEF";
+  const today = new Date().getDay();
+  const weekOrder = [1, 2, 3, 4, 5, 6, 0];
+
+  return (
+    <View style={[cardStyles.calBox, { backgroundColor: box, borderColor: line }]}>
+      <View style={cardStyles.calHeader}>
+        <Ionicons name="calendar" size={14} color={PRIMARY} />
+        <Text style={[cardStyles.calTitle, { color: colors.text }]}>
+          Calendrier · {AVAIL_DAYS} prochains jours
+        </Text>
+      </View>
+
+      {!avail.loaded ? (
+        <View style={cardStyles.calLoading}>
+          <ActivityIndicator size="small" color={PRIMARY} />
+          <Text style={[cardStyles.calHint, { color: sub }]}>Chargement des disponibilités…</Text>
+        </View>
+      ) : !avail.ok ? (
+        <Text style={[cardStyles.calHint, { color: CLOSED_COLOR }]}>
+          Impossible de charger les disponibilités pour le moment.
+        </Text>
+      ) : (
+        <>
+          <ScrollView
+            horizontal
+            nestedScrollEnabled
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={cardStyles.calStrip}
+          >
+            {days.map((d) => {
+              const bookable = !!d.slot;
+              const active = selected === d.date;
+              return (
+                <TouchableOpacity
+                  key={d.date}
+                  activeOpacity={0.8}
+                  disabled={!bookable && !d.inProgress}
+                  onPress={() => setSelected(d.date)}
+                  style={[
+                    cardStyles.dayChip,
+                    {
+                      backgroundColor: active ? PRIMARY : bookable ? `${PRIMARY}14` : isDark ? "#242832" : "#FFFFFF",
+                      borderColor: active ? PRIMARY : bookable ? `${PRIMARY}55` : d.isToday ? PRIMARY : line,
+                      opacity: bookable || d.inProgress ? 1 : 0.55,
+                    },
+                  ]}
+                >
+                  <Text style={[cardStyles.dayName, { color: active ? "#FFFFFF" : sub }]}>
+                    {d.isToday ? "auj." : DAYS_SHORT[d.dayIndex]}
+                  </Text>
+                  <Text style={[cardStyles.dayNum, { color: active ? "#FFFFFF" : colors.text }]}>{d.dayNum}</Text>
+                  <Text style={[cardStyles.dayMonth, { color: active ? "#FFFFFF" : sub }]}>{d.month}</Text>
+                  {bookable ? (
+                    <Text style={[cardStyles.dayHours, { color: active ? "#FFFFFF" : PRIMARY }]}>
+                      {d.slot.start}{"\n"}{d.slot.end}
+                    </Text>
+                  ) : d.inProgress ? (
+                    <Text style={[cardStyles.dayHours, { color: OPEN_COLOR }]}>En cours</Text>
+                  ) : (
+                    <Text style={[cardStyles.dayHours, { color: sub }]}>—</Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {/* Jour sélectionné */}
+          {sel?.slot ? (
+            <View style={[cardStyles.selRow, { borderTopColor: line }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[cardStyles.selTitle, { color: colors.text }]}>
+                  {DAYS_FULL[sel.dayIndex]} {sel.dayNum} {sel.monthFull}
+                </Text>
+                <Text style={[cardStyles.selSub, { color: sub }]}>
+                  Disponible de {sel.slot.start} à {sel.slot.end}
+                </Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                disabled={!item.available}
+                onPress={() => onPickSlot?.(sel.slot)}
+                style={[cardStyles.selBtn, { backgroundColor: item.available ? PRIMARY : isDark ? "#343943" : "#E5E7EB" }]}
+              >
+                <Text style={[cardStyles.selBtnText, { color: item.available ? "#FFFFFF" : "#999999" }]}>
+                  {item.available ? "Réserver" : "Hors ligne"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : avail.slots.length === 0 ? (
+            <Text style={[cardStyles.calHint, { color: sub, marginTop: 8 }]}>
+              Aucun créneau disponible sur les {AVAIL_DAYS} prochains jours
+              (planning inactif, dates bloquées ou créneaux déjà réservés).
+            </Text>
+          ) : null}
+
+          {/* Horaires habituels (déduits du planning enregistré) */}
+          {avail.weekly && (
+            <View style={[cardStyles.weekBox, { borderTopColor: line }]}>
+              <Text style={[cardStyles.calTitle, { color: colors.text, marginBottom: 4 }]}>Horaires habituels</Text>
+              {weekOrder.map((idx) => {
+                const w = avail.weekly.find((x) => x.day === idx) || { is_available: false };
+                const isToday = idx === today;
+                return (
+                  <View key={idx} style={cardStyles.weekRow}>
+                    <Text style={[cardStyles.weekDay, { color: isToday ? colors.text : sub, fontFamily: isToday ? typography.fontFamily.bold : typography.fontFamily.regular }]}>
+                      {DAYS_FULL[idx]}
+                    </Text>
+                    <Text style={[cardStyles.weekHours, { color: w.is_available ? (isToday ? colors.text : sub) : CLOSED_COLOR, fontFamily: isToday ? typography.fontFamily.bold : typography.fontFamily.regular }]}>
+                      {w.is_available ? `${w.start} – ${w.end}` : "Indisponible"}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </>
+      )}
+    </View>
+  );
 };
 
 /* ---------- CARD THÉRAPEUTE (style carte "Réservation") ---------- */
 const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, onPress, onBook }) => {
-  const { nextSlot, weekly } = useNextSlot(item);
+  const avail = useTherapistAvailability(item);
+  const { nextSlot, weekly } = avail;
+  const [calOpen, setCalOpen] = useState(false);
 
-  const status = getOpenStatus(weekly, item.available);
+  let status = getOpenStatus(weekly, item.available);
+  if (avail.loaded && avail.ok && !weekly && avail.slots.length === 0) {
+    status = { state: "closed", color: CLOSED_COLOR, label: "Aucun créneau", detail: `sous ${AVAIL_DAYS} jours` };
+  }
   const online = !!item.available;
 
   // Pastille en haut à droite
@@ -436,17 +650,26 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, on
               </View>
             )}
 
-            {/* Disponibilité + calendrier : UNE seule ligne */}
-            <View style={[cardStyles.inline, { marginTop: 6 }]}>
+            {/* Disponibilité + calendrier : UNE ligne (touchez pour déplier) */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setCalOpen((v) => !v)}
+              style={[cardStyles.inline, { marginTop: 6 }]}
+            >
               <Ionicons name="time-outline" size={13} color={status.color} />
               <Text numberOfLines={1} style={[cardStyles.greenLine, { color: status.color }]}>
                 {status.label}{status.detail ? ` · ${status.detail}` : ""}
               </Text>
               <Ionicons name="calendar-outline" size={13} color={sub} style={{ marginLeft: 8 }} />
-              <Text numberOfLines={1} style={[cardStyles.dateLine, { color: sub }]}>
-                {nextSlot ? formatSlotDate(nextSlot) : "Voir créneaux"}
-              </Text>
-            </View>
+              {!avail.loaded ? (
+                <ActivityIndicator size="small" color={PRIMARY} style={{ marginLeft: 5, transform: [{ scale: 0.7 }] }} />
+              ) : (
+                <Text numberOfLines={1} style={[cardStyles.dateLine, { color: nextSlot ? sub : CLOSED_COLOR }]}>
+                  {nextSlot ? formatSlotDate(nextSlot) : "Aucun créneau"}
+                </Text>
+              )}
+              <Ionicons name={calOpen ? "chevron-up" : "chevron-down"} size={14} color={PRIMARY} style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
 
             {/* Distance (rouge) + prix (vert) */}
             <View style={cardStyles.bottomRow}>
@@ -460,6 +683,16 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, on
             </View>
           </View>
         </View>
+
+        {calOpen && (
+          <AvailabilityCalendar
+            item={item}
+            avail={avail}
+            colors={colors}
+            isDark={isDark}
+            onPickSlot={(slot) => onBook(slot)}
+          />
+        )}
 
       </TouchableOpacity>
 
@@ -481,7 +714,7 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, on
           activeOpacity={0.7}
           disabled={!online}
           style={[cardStyles.action, !online && { opacity: 0.4 }]}
-          onPress={onBook}
+          onPress={() => onBook()}
         >
           <Ionicons name="calendar-outline" size={16} color={green} />
           <Text style={[cardStyles.actionText, { color: green }]}>Réserver</Text>
@@ -537,6 +770,27 @@ const cardStyles = StyleSheet.create({
   chipText: { fontSize: 8.5, fontFamily: typography.fontFamily.medium },
   catPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
   catPillText: { color: PRIMARY, fontSize: 8.5, fontFamily: typography.fontFamily.semiBold },
+
+  calBox: { marginTop: 12, borderWidth: 1, borderRadius: 14, padding: 10 },
+  calHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
+  calTitle: { fontSize: 10.5, fontFamily: typography.fontFamily.bold },
+  calHint: { fontSize: 9.5, lineHeight: 14, fontFamily: typography.fontFamily.regular },
+  calLoading: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
+  calStrip: { gap: 7, paddingRight: 6 },
+  dayChip: { width: 58, alignItems: "center", paddingVertical: 8, borderRadius: 12, borderWidth: 1 },
+  dayName: { fontSize: 9, fontFamily: typography.fontFamily.semiBold },
+  dayNum: { fontSize: 16, marginTop: 1, fontFamily: typography.fontFamily.bold },
+  dayMonth: { fontSize: 8.5, fontFamily: typography.fontFamily.medium },
+  dayHours: { marginTop: 5, fontSize: 9, lineHeight: 12, textAlign: "center", fontFamily: typography.fontFamily.bold },
+  selRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10, paddingTop: 10, borderTopWidth: 1 },
+  selTitle: { fontSize: 11, fontFamily: typography.fontFamily.bold },
+  selSub: { fontSize: 9.5, marginTop: 2, fontFamily: typography.fontFamily.regular },
+  selBtn: { paddingHorizontal: 16, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
+  selBtnText: { fontSize: 10.5, fontFamily: typography.fontFamily.bold },
+  weekBox: { marginTop: 10, paddingTop: 10, borderTopWidth: 1 },
+  weekRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 },
+  weekDay: { fontSize: 10 },
+  weekHours: { fontSize: 10 },
 
   moreBox: { marginTop: 11, paddingTop: 10, borderTopWidth: 1 },
   moreTitle: { fontSize: 10, marginBottom: 5, fontFamily: typography.fontFamily.bold },
@@ -1671,10 +1925,18 @@ const SearchMassageScreen = ({ navigation, route }) => {
               });
             }
           }}
-          onBook={() => {
+          onBook={(slot) => {
             if (item.available) {
-              navigation.navigate("BookingDetail", { therapist: item });
-              showToast(`Réservation pour ${item.name}`, "success");
+              navigation.navigate("BookingDetail", {
+                therapist: item,
+                ...(slot?.date ? { selectedSlot: slot } : {}),
+              });
+              showToast(
+                slot?.date
+                  ? `Réservation pour ${item.name} · ${slot.date} ${slot.start}`
+                  : `Réservation pour ${item.name}`,
+                "success",
+              );
             }
           }}
         />
