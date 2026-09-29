@@ -21,6 +21,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -37,7 +38,7 @@ import therapistService from '../../services/therapistService';
 import { typography } from '../../theme';
 
 // ============================================================
-// PALETTE VERTE UNIFIÉE
+// PALETTE
 // ============================================================
 
 const COLORS = {
@@ -60,15 +61,13 @@ const COLORS = {
 
   orange: '#E08E0B',
   orangeSoft: '#FDF3E2',
+  price: '#E8590C',
 
   purple: '#7B61FF',
   purpleSoft: '#F1EDFE',
 
   blue: '#3B82F6',
   blueSoft: '#EFF6FF',
-
-  green: '#22C55E',
-  greenSoft: '#E7F7EC',
 };
 
 // ============================================================
@@ -529,40 +528,15 @@ const formatDuration = (value) => {
 };
 
 // ============================================================
-// VISUELS PAR TYPE DE MASSAGE
+// VISUELS PAR TYPE DE MASSAGE (fallback miniature)
 // ============================================================
 
 const MASSAGE_TYPE_VISUALS = [
-  {
-    match: /relax/i,
-    icon: 'leaf',
-    color: COLORS.primary,
-    backgroundColor: COLORS.primarySoft,
-  },
-  {
-    match: /th[ée]rap/i,
-    icon: 'medkit',
-    color: '#2563EB',
-    backgroundColor: COLORS.blueSoft,
-  },
-  {
-    match: /sport/i,
-    icon: 'barbell',
-    color: '#EA580C',
-    backgroundColor: '#FFEDD5',
-  },
-  {
-    match: /pierre|stone/i,
-    icon: 'flame',
-    color: '#B45309',
-    backgroundColor: '#FEF3C7',
-  },
-  {
-    match: /femme enceinte|prénatal|prenatal/i,
-    icon: 'flower',
-    color: '#DB2777',
-    backgroundColor: '#FCE7F3',
-  },
+  { match: /relax/i, icon: 'leaf', color: COLORS.primary, backgroundColor: COLORS.primarySoft },
+  { match: /th[ée]rap/i, icon: 'medkit', color: '#2563EB', backgroundColor: COLORS.blueSoft },
+  { match: /sport/i, icon: 'barbell', color: '#EA580C', backgroundColor: '#FFEDD5' },
+  { match: /pierre|stone/i, icon: 'flame', color: '#B45309', backgroundColor: '#FEF3C7' },
+  { match: /femme enceinte|prénatal|prenatal/i, icon: 'flower', color: '#DB2777', backgroundColor: '#FCE7F3' },
 ];
 
 const getMassageTypeVisual = (massageType) => {
@@ -580,72 +554,31 @@ const getMassageTypeVisual = (massageType) => {
 };
 
 // ============================================================
-// STATUS CONFIG (thème vert unifié)
+// STATUS CONFIG
 // ============================================================
 
+const CANCELLED_STYLE = {
+  label: 'Annulée',
+  color: COLORS.red,
+  backgroundColor: COLORS.redSoft,
+};
+
+const NEGOTIATION_STYLE = {
+  label: 'Négociation',
+  color: '#5B3DE0',
+  backgroundColor: COLORS.purpleSoft,
+};
+
 const STATUS_CONFIG = {
-  pending: {
-    label: 'En attente',
-    color: '#B26A00',
-    backgroundColor: COLORS.orangeSoft,
-    icon: 'time-outline',
-  },
-
-  negotiation: {
-    label: 'Négociation',
-    color: '#5B3DE0',
-    backgroundColor: COLORS.purpleSoft,
-    icon: 'chatbubbles-outline',
-  },
-
-  negotiating: {
-    label: 'Négociation',
-    color: '#5B3DE0',
-    backgroundColor: COLORS.purpleSoft,
-    icon: 'chatbubbles-outline',
-  },
-
-  confirmed: {
-    label: 'Confirmée',
-    color: COLORS.primary,
-    backgroundColor: COLORS.primarySoft,
-    icon: 'checkmark-circle-outline',
-  },
-
-  in_progress: {
-    label: 'En cours',
-    color: '#5B3DE0',
-    backgroundColor: COLORS.purpleSoft,
-    icon: 'walk-outline',
-  },
-
-  completed: {
-    label: 'Terminée',
-    color: COLORS.primary,
-    backgroundColor: COLORS.primarySoft,
-    icon: 'checkmark-done-circle-outline',
-  },
-
-  cancelled: {
-    label: 'Annulée',
-    color: COLORS.red,
-    backgroundColor: COLORS.redSoft,
-    icon: 'close-circle-outline',
-  },
-
-  cancelled_by_client: {
-    label: 'Annulée',
-    color: COLORS.red,
-    backgroundColor: COLORS.redSoft,
-    icon: 'close-circle-outline',
-  },
-
-  cancelled_by_therapist: {
-    label: 'Annulée',
-    color: COLORS.red,
-    backgroundColor: COLORS.redSoft,
-    icon: 'close-circle-outline',
-  },
+  pending: { label: 'En attente', color: '#B26A00', backgroundColor: COLORS.orangeSoft },
+  negotiation: NEGOTIATION_STYLE,
+  negotiating: NEGOTIATION_STYLE,
+  confirmed: { label: 'Confirmée', color: COLORS.primary, backgroundColor: COLORS.primarySoft },
+  in_progress: { label: 'En cours', color: '#5B3DE0', backgroundColor: COLORS.purpleSoft },
+  completed: { label: 'Terminée', color: COLORS.primary, backgroundColor: COLORS.primarySoft },
+  cancelled: CANCELLED_STYLE,
+  cancelled_by_client: CANCELLED_STYLE,
+  cancelled_by_therapist: CANCELLED_STYLE,
 };
 
 const getStatusConfig = (status) =>
@@ -653,7 +586,6 @@ const getStatusConfig = (status) =>
     label: status || 'Inconnu',
     color: COLORS.textSecondary,
     backgroundColor: '#F1F5F9',
-    icon: 'help-circle-outline',
   };
 
 // ============================================================
@@ -661,21 +593,9 @@ const getStatusConfig = (status) =>
 // ============================================================
 
 const TOAST_CONFIG = {
-  success: {
-    icon: 'checkmark-circle',
-    color: COLORS.primary,
-    background: COLORS.primarySoft,
-  },
-  error: {
-    icon: 'close-circle',
-    color: COLORS.red,
-    background: COLORS.redSoft,
-  },
-  info: {
-    icon: 'information-circle',
-    color: '#4F46E5',
-    background: '#E0E7FF',
-  },
+  success: { icon: 'checkmark-circle', color: COLORS.primary, background: COLORS.primarySoft },
+  error: { icon: 'close-circle', color: COLORS.red, background: COLORS.redSoft },
+  info: { icon: 'information-circle', color: '#4F46E5', background: '#E0E7FF' },
 };
 
 const Toast = ({ visible, type, message, onHide }) => {
@@ -714,10 +634,7 @@ const Toast = ({ visible, type, message, onHide }) => {
     >
       <View style={[styles.toastCard, { backgroundColor: config.background }]}>
         <Ionicons name={config.icon} size={20} color={config.color} />
-        <Text
-          numberOfLines={2}
-          style={[styles.toastText, { color: config.color }]}
-        >
+        <Text numberOfLines={2} style={[styles.toastText, { color: config.color }]}>
           {message}
         </Text>
       </View>
@@ -759,9 +676,7 @@ const ConfirmModal = ({
         <View
           style={[
             styles.confirmIconWrap,
-            {
-              backgroundColor: destructive ? COLORS.redSoft : COLORS.primarySoft,
-            },
+            { backgroundColor: destructive ? COLORS.redSoft : COLORS.primarySoft },
           ]}
         >
           <Ionicons
@@ -775,9 +690,7 @@ const ConfirmModal = ({
           {title}
         </Text>
 
-        <Text
-          style={[styles.confirmMessage, { color: themeColors.textSecondary }]}
-        >
+        <Text style={[styles.confirmMessage, { color: themeColors.textSecondary }]}>
           {message}
         </Text>
 
@@ -792,12 +705,7 @@ const ConfirmModal = ({
               { borderColor: themeColors.border },
             ]}
           >
-            <Text
-              style={[
-                styles.confirmButtonGhostText,
-                { color: themeColors.text },
-              ]}
-            >
+            <Text style={[styles.confirmButtonGhostText, { color: themeColors.text }]}>
               {cancelLabel}
             </Text>
           </TouchableOpacity>
@@ -808,9 +716,7 @@ const ConfirmModal = ({
             onPress={onConfirm}
             style={[
               styles.confirmButton,
-              {
-                backgroundColor: destructive ? COLORS.red : COLORS.primary,
-              },
+              { backgroundColor: destructive ? COLORS.red : COLORS.primary },
             ]}
           >
             {loading ? (
@@ -854,27 +760,18 @@ const BookingActionSheet = ({
             styles.actionSheet,
             {
               backgroundColor: themeColors.card,
-              paddingBottom:
-                20 + (Platform.OS === 'android' ? insets.bottom : 0),
+              paddingBottom: 20 + (Platform.OS === 'android' ? insets.bottom : 0),
             },
           ]}
           onPress={() => {}}
         >
           <View style={styles.actionSheetHandle} />
 
-          <Text
-            numberOfLines={1}
-            style={[styles.actionSheetTitle, { color: themeColors.text }]}
-          >
+          <Text numberOfLines={1} style={[styles.actionSheetTitle, { color: themeColors.text }]}>
             {booking?.massageType || 'Réservation'}
           </Text>
 
-          <Text
-            style={[
-              styles.actionSheetSubtitle,
-              { color: themeColors.textSecondary },
-            ]}
-          >
+          <Text style={[styles.actionSheetSubtitle, { color: themeColors.textSecondary }]}>
             #{booking?.bookingId}
           </Text>
 
@@ -883,18 +780,10 @@ const BookingActionSheet = ({
             onPress={onViewDetails}
             style={styles.actionSheetRow}
           >
-            <View
-              style={[
-                styles.actionSheetIcon,
-                { backgroundColor: COLORS.primarySoft },
-              ]}
-            >
+            <View style={[styles.actionSheetIcon, { backgroundColor: COLORS.primarySoft }]}>
               <Ionicons name="eye-outline" size={18} color={COLORS.primary} />
             </View>
-
-            <Text
-              style={[styles.actionSheetRowText, { color: themeColors.text }]}
-            >
+            <Text style={[styles.actionSheetRowText, { color: themeColors.text }]}>
               Voir les détails
             </Text>
           </TouchableOpacity>
@@ -905,22 +794,10 @@ const BookingActionSheet = ({
               onPress={onCancel}
               style={styles.actionSheetRow}
             >
-              <View
-                style={[
-                  styles.actionSheetIcon,
-                  { backgroundColor: COLORS.redSoft },
-                ]}
-              >
-                <Ionicons
-                  name="close-circle-outline"
-                  size={18}
-                  color={COLORS.red}
-                />
+              <View style={[styles.actionSheetIcon, { backgroundColor: COLORS.redSoft }]}>
+                <Ionicons name="close-circle-outline" size={18} color={COLORS.red} />
               </View>
-
-              <Text
-                style={[styles.actionSheetRowText, { color: COLORS.red }]}
-              >
+              <Text style={[styles.actionSheetRowText, { color: COLORS.red }]}>
                 Annuler la réservation
               </Text>
             </TouchableOpacity>
@@ -931,12 +808,7 @@ const BookingActionSheet = ({
             onPress={onClose}
             style={styles.actionSheetCloseButton}
           >
-            <Text
-              style={[
-                styles.actionSheetCloseText,
-                { color: themeColors.textSecondary },
-              ]}
-            >
+            <Text style={[styles.actionSheetCloseText, { color: themeColors.textSecondary }]}>
               Fermer
             </Text>
           </TouchableOpacity>
@@ -953,18 +825,8 @@ const BookingActionSheet = ({
 const WEEKDAY_LABELS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 const MONTH_LABELS = [
-  'Janvier',
-  'Février',
-  'Mars',
-  'Avril',
-  'Mai',
-  'Juin',
-  'Juillet',
-  'Août',
-  'Septembre',
-  'Octobre',
-  'Novembre',
-  'Décembre',
+  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
 ];
 
 const toDateKey = (date) => {
@@ -1018,15 +880,11 @@ const CalendarFilterModal = ({
   const cells = useMemo(() => buildMonthGrid(viewDate), [viewDate]);
 
   const goPrevMonth = useCallback(() => {
-    setViewDate(
-      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
-    );
+    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   }, []);
 
   const goNextMonth = useCallback(() => {
-    setViewDate(
-      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
-    );
+    setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   }, []);
 
   const todayKey = toDateKey(new Date());
@@ -1048,24 +906,17 @@ const CalendarFilterModal = ({
             Platform.OS === 'web' && styles.calendarSheetWeb,
             {
               backgroundColor: themeColors.card,
-              paddingBottom:
-                20 + (Platform.OS === 'android' ? insets.bottom : 0),
+              paddingBottom: 20 + (Platform.OS === 'android' ? insets.bottom : 0),
             },
           ]}
           onPress={() => {}}
         >
           <View style={styles.actionSheetHandle} />
 
-          <Text
-            style={[
-              styles.calendarModalTitle,
-              { color: themeColors.text },
-            ]}
-          >
+          <Text style={[styles.calendarModalTitle, { color: themeColors.text }]}>
             Filtrer par période
           </Text>
 
-          {/* Champs Du / Au */}
           <View style={styles.rangeFieldsRow}>
             <View
               style={[
@@ -1076,19 +927,10 @@ const CalendarFilterModal = ({
                 },
               ]}
             >
-              <Text
-                style={[
-                  styles.rangeFieldLabel,
-                  { color: themeColors.textSecondary },
-                ]}
-              >
+              <Text style={[styles.rangeFieldLabel, { color: themeColors.textSecondary }]}>
                 Du
               </Text>
-
-              <Text
-                numberOfLines={1}
-                style={[styles.rangeFieldValue, { color: themeColors.text }]}
-              >
+              <Text numberOfLines={1} style={[styles.rangeFieldValue, { color: themeColors.text }]}>
                 {range?.start ? formatDate(range.start) : 'Choisir'}
               </Text>
             </View>
@@ -1104,36 +946,20 @@ const CalendarFilterModal = ({
               style={[
                 styles.rangeField,
                 {
-                  borderColor:
-                    !!range?.start && !endKey
-                      ? COLORS.primary
-                      : themeColors.border,
-                  backgroundColor:
-                    !!range?.start && !endKey
-                      ? COLORS.primarySoft
-                      : 'transparent',
+                  borderColor: !!range?.start && !endKey ? COLORS.primary : themeColors.border,
+                  backgroundColor: !!range?.start && !endKey ? COLORS.primarySoft : 'transparent',
                 },
               ]}
             >
-              <Text
-                style={[
-                  styles.rangeFieldLabel,
-                  { color: themeColors.textSecondary },
-                ]}
-              >
+              <Text style={[styles.rangeFieldLabel, { color: themeColors.textSecondary }]}>
                 Au
               </Text>
-
-              <Text
-                numberOfLines={1}
-                style={[styles.rangeFieldValue, { color: themeColors.text }]}
-              >
+              <Text numberOfLines={1} style={[styles.rangeFieldValue, { color: themeColors.text }]}>
                 {range?.end ? formatDate(range.end) : 'Choisir'}
               </Text>
             </View>
           </View>
 
-          {/* Header mois */}
           <View style={styles.calendarHeaderRow}>
             <TouchableOpacity
               onPress={goPrevMonth}
@@ -1142,12 +968,7 @@ const CalendarFilterModal = ({
               <Ionicons name="chevron-back" size={20} color={themeColors.text} />
             </TouchableOpacity>
 
-            <Text
-              style={[
-                styles.calendarHeaderTitle,
-                { color: themeColors.text },
-              ]}
-            >
+            <Text style={[styles.calendarHeaderTitle, { color: themeColors.text }]}>
               {MONTH_LABELS[viewDate.getMonth()]} {viewDate.getFullYear()}
             </Text>
 
@@ -1155,46 +976,32 @@ const CalendarFilterModal = ({
               onPress={goNextMonth}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={themeColors.text}
-              />
+              <Ionicons name="chevron-forward" size={20} color={themeColors.text} />
             </TouchableOpacity>
           </View>
 
-          {/* Jours de la semaine */}
           <View style={styles.calendarWeekRow}>
             {WEEKDAY_LABELS.map((label, index) => (
               <Text
                 key={`${label}-${index}`}
-                style={[
-                  styles.calendarWeekLabel,
-                  { color: themeColors.textSecondary },
-                ]}
+                style={[styles.calendarWeekLabel, { color: themeColors.textSecondary }]}
               >
                 {label}
               </Text>
             ))}
           </View>
 
-          {/* Grille */}
           <View style={styles.calendarGrid}>
             {cells.map((cellDate, index) => {
               if (!cellDate) {
-                return (
-                  <View key={`empty-${index}`} style={styles.calendarCell} />
-                );
+                return <View key={`empty-${index}`} style={styles.calendarCell} />;
               }
 
               const key = toDateKey(cellDate);
               const isStart = key === startKey;
               const isEnd = key === endKey;
               const isEdge = isStart || isEnd;
-
-              const isInRange =
-                !!startKey && !!endKey && key > startKey && key < endKey;
-
+              const isInRange = !!startKey && !!endKey && key > startKey && key < endKey;
               const isToday = key === todayKey;
               const hasBooking = bookingDateSet?.has(key);
 
@@ -1225,18 +1032,13 @@ const CalendarFilterModal = ({
                       styles.calendarDayCircle,
                       isEdge && { backgroundColor: COLORS.primary },
                       !isEdge &&
-                        isToday && {
-                          borderWidth: 1.5,
-                          borderColor: COLORS.primary,
-                        },
+                        isToday && { borderWidth: 1.5, borderColor: COLORS.primary },
                     ]}
                   >
                     <Text
                       style={[
                         styles.calendarDayText,
-                        {
-                          color: isEdge ? COLORS.white : themeColors.text,
-                        },
+                        { color: isEdge ? COLORS.white : themeColors.text },
                       ]}
                     >
                       {cellDate.getDate()}
@@ -1244,24 +1046,14 @@ const CalendarFilterModal = ({
                   </View>
 
                   {hasBooking && !isEdge && (
-                    <View
-                      style={[
-                        styles.calendarDayDot,
-                        { backgroundColor: COLORS.primary },
-                      ]}
-                    />
+                    <View style={[styles.calendarDayDot, { backgroundColor: COLORS.primary }]} />
                   )}
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          <Text
-            style={[
-              styles.calendarHint,
-              { color: themeColors.textSecondary },
-            ]}
-          >
+          <Text style={[styles.calendarHint, { color: themeColors.textSecondary }]}>
             {!range?.start
               ? 'Touchez un jour pour définir le début de la période.'
               : !range?.end
@@ -1279,12 +1071,7 @@ const CalendarFilterModal = ({
                 { borderColor: themeColors.border },
               ]}
             >
-              <Text
-                style={[
-                  styles.confirmButtonGhostText,
-                  { color: themeColors.text },
-                ]}
-              >
+              <Text style={[styles.confirmButtonGhostText, { color: themeColors.text }]}>
                 Réinitialiser
               </Text>
             </TouchableOpacity>
@@ -1295,11 +1082,7 @@ const CalendarFilterModal = ({
               onPress={onApply}
               style={[
                 styles.confirmButton,
-                {
-                  backgroundColor: range?.start
-                    ? COLORS.primary
-                    : themeColors.border,
-                },
+                { backgroundColor: range?.start ? COLORS.primary : themeColors.border },
               ]}
             >
               <Text style={styles.confirmButtonText}>Appliquer</Text>
@@ -1308,50 +1091,6 @@ const CalendarFilterModal = ({
         </Pressable>
       </Pressable>
     </Modal>
-  );
-};
-
-// ============================================================
-// THERAPIST COMPACT
-// ============================================================
-
-const TherapistCompact = ({ therapist, themeColors }) => {
-  if (!therapist?.isAssigned) return null;
-
-  const therapistName = therapist.name || 'Thérapeute assigné';
-  const assignedAtLabel = formatDateTime(therapist.assignedAt);
-
-  return (
-    <View style={styles.metaRow}>
-      <View style={styles.metaItem}>
-        <View
-          style={[styles.metaIconWrap, { backgroundColor: COLORS.purpleSoft }]}
-        >
-          <Ionicons name="person-outline" size={13} color={COLORS.purple} />
-        </View>
-
-        <Text
-          numberOfLines={1}
-          style={[styles.metaText, { color: themeColors.text }]}
-        >
-          <Text style={{ fontFamily: typography.fontFamily.bold }}>
-            {therapistName}
-          </Text>
-
-          {!!assignedAtLabel && (
-            <Text
-              style={{
-                color: themeColors.textSecondary,
-                fontFamily: typography.fontFamily.regular,
-              }}
-            >
-              {'  •  Assigné le '}
-              {assignedAtLabel}
-            </Text>
-          )}
-        </Text>
-      </View>
-    </View>
   );
 };
 
@@ -1377,9 +1116,7 @@ const FilterButton = ({ label, value, activeFilter, onPress, themeColors }) => {
       <Text
         style={[
           styles.filterButtonText,
-          {
-            color: isActive ? COLORS.white : themeColors.textSecondary,
-          },
+          { color: isActive ? COLORS.white : themeColors.textSecondary },
         ]}
       >
         {label}
@@ -1389,24 +1126,36 @@ const FilterButton = ({ label, value, activeFilter, onPress, themeColors }) => {
 };
 
 // ============================================================
-// BOOKING CARD
+// BOOKING CARD (structure "annonce" : photo | infos | tags)
 // ============================================================
 
-const BookingCard = ({
-  booking,
-  index: _index,
-  themeColors,
-  onPress,
-  onMenuPress,
-}) => {
+const Tag = ({ label, themeColors }) => (
+  <View style={[styles.tag, { backgroundColor: themeColors.tagBackground || '#F1F5F3' }]}>
+    <Text numberOfLines={1} style={[styles.tagText, { color: themeColors.textSecondary }]}>
+      {label}
+    </Text>
+  </View>
+);
+
+const BookingCard = ({ booking, themeColors, onPress, onMenuPress }) => {
+  const { width } = useWindowDimensions();
+  const isWide = width >= 768;
   const statusConfig = getStatusConfig(booking.status);
   const typeVisual = getMassageTypeVisual(booking.massageType);
   const formattedPrice = formatPrice(booking.displayPrice);
   const formattedDuration = formatDuration(booking.duration);
 
-  const dateTimeLabel = `${formatDate(booking.scheduledDate)} · ${formatTime(
-    booking.scheduledTime,
-  )}${formattedDuration ? ` (${formattedDuration})` : ''}`;
+  const therapist = booking.therapist;
+  const showTherapist = !!therapist?.isAssigned;
+  const therapistInitial = (therapist?.name || 'T').trim().charAt(0).toUpperCase();
+  const assignedAtLabel = formatDateTime(therapist?.assignedAt);
+
+  const tags = [
+    booking.scheduledDate ? formatDate(booking.scheduledDate) : null,
+    booking.scheduledTime ? formatTime(booking.scheduledTime) : null,
+    formattedDuration,
+    assignedAtLabel ? `Assigné le ${assignedAtLabel}` : null,
+  ].filter(Boolean);
 
   return (
     <TouchableOpacity
@@ -1414,17 +1163,15 @@ const BookingCard = ({
       onPress={() => onPress(booking)}
       style={[
         styles.bookingCard,
-        {
-          backgroundColor: themeColors.card,
-          borderColor: themeColors.border,
-        },
+        { backgroundColor: themeColors.card, borderColor: themeColors.border },
       ]}
     >
-      {/* TOP ROW */}
       <View style={styles.cardTopRow}>
+        {/* PHOTO */}
         <View
           style={[
             styles.thumbnailWrapper,
+            isWide && styles.thumbnailWrapperWide,
             { backgroundColor: typeVisual.backgroundColor },
           ]}
         >
@@ -1435,163 +1182,92 @@ const BookingCard = ({
               resizeMode="cover"
             />
           ) : (
-            <View style={styles.thumbnailFallback}>
-              <Ionicons
-                name={typeVisual.icon}
-                size={26}
-                color={typeVisual.color}
-              />
-            </View>
+            <Ionicons name={typeVisual.icon} size={30} color={typeVisual.color} />
           )}
         </View>
 
-        <View style={styles.cardMiddleColumn}>
-          <View
-            style={[
-              styles.miniStatusBadge,
-              { backgroundColor: statusConfig.backgroundColor },
-            ]}
-          >
-            <Ionicons
-              name={statusConfig.icon}
-              size={11}
-              color={statusConfig.color}
-            />
+        {/* INFOS */}
+        <View style={styles.cardInfoColumn}>
+          <View style={styles.titleRow}>
             <Text
-              numberOfLines={1}
-              style={[styles.miniStatusText, { color: statusConfig.color }]}
-            >
-              {statusConfig.label}
-            </Text>
-          </View>
-
-          <Text
-            numberOfLines={1}
-            style={[styles.cardMainTitle, { color: themeColors.text }]}
-          >
-            {booking.massageType}
-          </Text>
-
-          <View style={styles.typeRow}>
-            <Ionicons
-              name={typeVisual.icon}
-              size={12}
-              color={typeVisual.color}
-            />
-            <Text
-              numberOfLines={1}
-              style={[styles.typeText, { color: themeColors.textSecondary }]}
+              numberOfLines={2}
+              style={[
+                styles.cardMainTitle,
+                isWide && styles.cardMainTitleWide,
+                { color: themeColors.text },
+              ]}
             >
               {booking.massageType}
             </Text>
-          </View>
-        </View>
 
-        <View style={styles.cardRightColumn}>
-          {!!formattedPrice && (
-            <View
-              style={[
-                styles.priceBadge,
-                { backgroundColor: COLORS.primarySoft },
-              ]}
-            >
-              <Ionicons
-                name="cash-outline"
-                size={13}
-                color={COLORS.primary}
-              />
-              <Text
-                numberOfLines={1}
-                style={[styles.priceBadgeText, { color: COLORS.primary }]}
-              >
-                {formattedPrice}
+            <View style={[styles.statusPill, { backgroundColor: statusConfig.backgroundColor }]}>
+              <View style={[styles.statusDot, { backgroundColor: statusConfig.color }]} />
+              <Text numberOfLines={1} style={[styles.statusPillText, { color: statusConfig.color }]}>
+                {statusConfig.label}
               </Text>
             </View>
-          )}
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            onPress={() => onMenuPress?.(booking)}
-            style={[styles.menuButton, { backgroundColor: COLORS.primarySoft }]}
-          >
-            <Ionicons
-              name="ellipsis-vertical"
-              size={16}
-              color={COLORS.primary}
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* META GROUP */}
-      <View style={[styles.metaGroup, { borderTopColor: themeColors.border }]}>
-        <View style={styles.metaRow}>
-          <View style={styles.metaItem}>
-            <View
-              style={[
-                styles.metaIconWrap,
-                { backgroundColor: COLORS.primarySoft },
-              ]}
-            >
-              <Ionicons
-                name="calendar-outline"
-                size={13}
-                color={COLORS.primary}
-              />
-            </View>
-
-            <Text
-              numberOfLines={1}
-              style={[styles.metaText, { color: themeColors.text }]}
-            >
-              {dateTimeLabel}
-            </Text>
           </View>
-        </View>
 
-        <View style={styles.metaRow}>
-          <View style={styles.metaItem}>
-            <View
-              style={[
-                styles.metaIconWrap,
-                { backgroundColor: COLORS.blueSoft },
-              ]}
-            >
-              <Ionicons
-                name="location-outline"
-                size={13}
-                color={COLORS.blue}
-              />
-            </View>
-
+          <View style={styles.addressRow}>
+            <Ionicons name="location-outline" size={13} color={themeColors.textSecondary} />
             <Text
               numberOfLines={1}
-              style={[styles.metaText, { color: themeColors.textSecondary }]}
+              style={[styles.addressText, { color: themeColors.textSecondary }]}
             >
               {booking.address || 'Adresse non définie'}
             </Text>
           </View>
-        </View>
 
-        <TherapistCompact
-          therapist={booking.therapist}
-          themeColors={themeColors}
-        />
+          {showTherapist && (
+            <View style={styles.therapistRow}>
+              <View style={styles.therapistAvatar}>
+                <Text style={styles.therapistAvatarText}>{therapistInitial}</Text>
+              </View>
+              <Text
+                numberOfLines={1}
+                style={[styles.therapistName, { color: themeColors.text }]}
+              >
+                {therapist.name}
+              </Text>
+              <View style={styles.roleBadge}>
+                <Text style={styles.roleBadgeText}>Thérapeute</Text>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.priceRow}>
+            <View style={styles.priceBox}>
+              <Text numberOfLines={1} style={styles.priceText}>
+                {formattedPrice || 'Prix à définir'}
+              </Text>
+              {!!formattedPrice && (
+                <Text style={[styles.priceUnit, { color: themeColors.textSecondary }]}>
+                  /séance
+                </Text>
+              )}
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => onMenuPress?.(booking)}
+              style={styles.menuButton}
+            >
+              <Ionicons name="ellipsis-vertical" size={16} color={COLORS.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
-      {/* FOOTER */}
-      <View style={[styles.cardFooter, { borderTopColor: themeColors.border }]}>
-        <Text style={[styles.detailsText, { color: COLORS.primary }]}>
-          Voir les détails
-        </Text>
-
-        <View
-          style={[styles.arrowCircle, { backgroundColor: COLORS.primarySoft }]}
-        >
-          <Ionicons name="arrow-forward" size={15} color={COLORS.primary} />
+      {/* TAGS */}
+      {tags.length > 0 && (
+        <View style={styles.tagsWrap}>
+          {tags.map((label, index) => (
+            <Tag key={`${label}-${index}`} label={label} themeColors={themeColors} />
+          ))}
         </View>
-      </View>
+      )}
+
     </TouchableOpacity>
   );
 };
@@ -1605,15 +1281,10 @@ const EmptyState = ({ activeFilter, onCreateBooking, themeColors }) => {
 
   return (
     <View style={styles.emptyState}>
-      <View
-        style={[
-          styles.emptyIconContainer,
-          { backgroundColor: COLORS.primarySoft },
-        ]}
-      >
+      <View style={[styles.emptyIconContainer, { backgroundColor: COLORS.primarySoft }]}>
         <Ionicons
           name={isFiltered ? 'filter-outline' : 'calendar-outline'}
-          size={45}
+          size={40}
           color={COLORS.primary}
         />
       </View>
@@ -1622,9 +1293,7 @@ const EmptyState = ({ activeFilter, onCreateBooking, themeColors }) => {
         {isFiltered ? 'Aucune réservation trouvée' : 'Aucune réservation'}
       </Text>
 
-      <Text
-        style={[styles.emptyDescription, { color: themeColors.textSecondary }]}
-      >
+      <Text style={[styles.emptyDescription, { color: themeColors.textSecondary }]}>
         {isFiltered
           ? 'Aucune réservation ne correspond à ce filtre.'
           : 'Vous n’avez pas encore effectué de demande de massage.'}
@@ -1634,10 +1303,7 @@ const EmptyState = ({ activeFilter, onCreateBooking, themeColors }) => {
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={onCreateBooking}
-          style={[
-            styles.emptyActionButton,
-            { backgroundColor: COLORS.primary },
-          ]}
+          style={[styles.emptyActionButton, { backgroundColor: COLORS.primary }]}
         >
           <Ionicons name="add" size={19} color={COLORS.white} />
           <Text style={styles.emptyActionButtonText}>Faire une demande</Text>
@@ -1670,9 +1336,7 @@ const HistoryScreen = ({ navigation }) => {
   const [massageTypesById, setMassageTypesById] = useState({});
   const [massageTypesByName, setMassageTypesByName] = useState({});
 
-  // ==========================================================
-  // TYPES DE MASSAGE
-  // ==========================================================
+  // ---------- TYPES DE MASSAGE ----------
 
   useEffect(() => {
     let cancelled = false;
@@ -1697,10 +1361,7 @@ const HistoryScreen = ({ navigation }) => {
         setMassageTypesById(byId);
         setMassageTypesByName(byName);
       } catch (typesError) {
-        console.log(
-          'Erreur chargement types de massage:',
-          typesError?.message,
-        );
+        console.log('Erreur chargement types de massage:', typesError?.message);
       }
     })();
 
@@ -1734,9 +1395,7 @@ const HistoryScreen = ({ navigation }) => {
     [massageTypesById, massageTypesByName],
   );
 
-  // ==========================================================
-  // ENRICHISSEMENT THÉRAPEUTE
-  // ==========================================================
+  // ---------- ENRICHISSEMENT THÉRAPEUTE ----------
 
   const enrichTherapistNames = useCallback(async (bookingList) => {
     const idsToFetch = [];
@@ -1800,9 +1459,7 @@ const HistoryScreen = ({ navigation }) => {
     return hasChanges ? enrichedList : bookingList;
   }, []);
 
-  // ==========================================================
-  // LOAD BOOKINGS
-  // ==========================================================
+  // ---------- LOAD BOOKINGS ----------
 
   const loadBookings = useCallback(
     async (showLoader = true) => {
@@ -1854,9 +1511,7 @@ const HistoryScreen = ({ navigation }) => {
     loadBookings(false);
   }, [loadBookings]);
 
-  // ==========================================================
-  // BOOKINGS PAR DATE + FILTRES
-  // ==========================================================
+  // ---------- FILTRES ----------
 
   const bookingDateSet = useMemo(() => {
     const set = new Set();
@@ -1886,10 +1541,7 @@ const HistoryScreen = ({ navigation }) => {
         }
 
         if (activeFilter === 'negotiation') {
-          return (
-            booking.status === 'negotiation' ||
-            booking.status === 'negotiating'
-          );
+          return booking.status === 'negotiation' || booking.status === 'negotiating';
         }
 
         return booking.status === activeFilter;
@@ -1898,9 +1550,7 @@ const HistoryScreen = ({ navigation }) => {
 
     if (appliedRange.start) {
       const startKey = toDateKey(appliedRange.start);
-      const endKey = appliedRange.end
-        ? toDateKey(appliedRange.end)
-        : startKey;
+      const endKey = appliedRange.end ? toDateKey(appliedRange.end) : startKey;
 
       const [lowKey, highKey] =
         startKey <= endKey ? [startKey, endKey] : [endKey, startKey];
@@ -1919,9 +1569,7 @@ const HistoryScreen = ({ navigation }) => {
     return result;
   }, [bookings, activeFilter, appliedRange]);
 
-  // ==========================================================
-  // CALENDAR HANDLERS
-  // ==========================================================
+  // ---------- CALENDAR HANDLERS ----------
 
   const handleSelectCalendarDate = useCallback((date) => {
     setDraftRange((prev) => {
@@ -1962,9 +1610,7 @@ const HistoryScreen = ({ navigation }) => {
     setDraftRange({ start: null, end: null });
   }, []);
 
-  // ==========================================================
-  // ACTIONS
-  // ==========================================================
+  // ---------- ACTIONS ----------
 
   const handleBookingPress = useCallback(
     (booking) => {
@@ -1980,15 +1626,9 @@ const HistoryScreen = ({ navigation }) => {
     navigation.navigate('CreateBooking');
   }, [navigation]);
 
-  // ==========================================================
-  // TOAST
-  // ==========================================================
+  // ---------- TOAST ----------
 
-  const [toast, setToast] = useState({
-    visible: false,
-    type: 'success',
-    message: '',
-  });
+  const [toast, setToast] = useState({ visible: false, type: 'success', message: '' });
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ visible: true, type, message });
@@ -1998,9 +1638,7 @@ const HistoryScreen = ({ navigation }) => {
     setToast((previous) => ({ ...previous, visible: false }));
   }, []);
 
-  // ==========================================================
-  // MENU / CANCEL
-  // ==========================================================
+  // ---------- MENU / CANCEL ----------
 
   const [menuTarget, setMenuTarget] = useState(null);
   const [cancelTarget, setCancelTarget] = useState(null);
@@ -2041,9 +1679,7 @@ const HistoryScreen = ({ navigation }) => {
       );
 
       if (!result?.success) {
-        throw new Error(
-          result?.error || "Impossible d'annuler la réservation.",
-        );
+        throw new Error(result?.error || "Impossible d'annuler la réservation.");
       }
 
       setCancelTarget(null);
@@ -2051,10 +1687,7 @@ const HistoryScreen = ({ navigation }) => {
       loadBookings(false);
     } catch (cancelError) {
       console.error('Erreur annulation réservation:', cancelError);
-      showToast(
-        cancelError?.message || "Impossible d'annuler la réservation.",
-        'error',
-      );
+      showToast(cancelError?.message || "Impossible d'annuler la réservation.", 'error');
     } finally {
       setIsCancelling(false);
     }
@@ -2068,7 +1701,7 @@ const HistoryScreen = ({ navigation }) => {
   );
 
   const renderBooking = useCallback(
-    ({ item, index }) => {
+    ({ item }) => {
       const resolvedImageUrl = resolveBookingImage(item);
 
       const bookingWithImage =
@@ -2079,19 +1712,13 @@ const HistoryScreen = ({ navigation }) => {
       return (
         <BookingCard
           booking={bookingWithImage}
-          index={index}
           themeColors={themeColors}
           onPress={handleBookingPress}
           onMenuPress={handleMenuPress}
         />
       );
     },
-    [
-      themeColors,
-      handleBookingPress,
-      handleMenuPress,
-      resolveBookingImage,
-    ],
+    [themeColors, handleBookingPress, handleMenuPress, resolveBookingImage],
   );
 
   const keyExtractor = useCallback(
@@ -2110,28 +1737,18 @@ const HistoryScreen = ({ navigation }) => {
   ];
 
   return (
-    <View
-      style={[styles.container, { backgroundColor: themeColors.background }]}
-    >
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <Header title="Mes réservations" showBack />
 
       <View style={styles.content}>
-        {/* PAGE HEADER */}
+        {/* PAGE HEADER COMPACT */}
         <View style={styles.pageHeader}>
-          <View>
-            <Text style={[styles.pageTitle, { color: themeColors.text }]}>
-              Historique
+          <Text style={[styles.pageTitle, { color: themeColors.text }]}>
+            Historique
+            <Text style={[styles.pageCount, { color: themeColors.textSecondary }]}>
+              {`  ${filteredBookings.length}`}
             </Text>
-
-            <Text
-              style={[
-                styles.pageSubtitle,
-                { color: themeColors.textSecondary },
-              ]}
-            >
-              Consultez vos demandes de massage
-            </Text>
-          </View>
+          </Text>
 
           <View style={styles.pageHeaderActions}>
             <TouchableOpacity
@@ -2139,10 +1756,7 @@ const HistoryScreen = ({ navigation }) => {
               onPress={openCalendarModal}
               style={[
                 styles.headerCalendarButton,
-                {
-                  backgroundColor: COLORS.primarySoft,
-                  borderColor: COLORS.primaryTint,
-                },
+                { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primaryTint },
                 !!appliedRange.start && styles.headerCalendarButtonActive,
               ]}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -2151,20 +1765,19 @@ const HistoryScreen = ({ navigation }) => {
             >
               <Ionicons
                 name="calendar-outline"
-                size={20}
-                color={COLORS.primary}
+                size={17}
+                color={appliedRange.start ? COLORS.white : COLORS.primary}
               />
             </TouchableOpacity>
 
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={handleCreateBooking}
-              style={[
-                styles.newBookingButton,
-                { backgroundColor: COLORS.primary },
-              ]}
+              style={[styles.newBookingButton, { backgroundColor: COLORS.primary }]}
+              accessibilityRole="button"
+              accessibilityLabel="Nouvelle réservation"
             >
-              <Ionicons name="add" size={21} color={COLORS.white} />
+              <Ionicons name="add" size={19} color={COLORS.white} />
             </TouchableOpacity>
           </View>
         </View>
@@ -2194,26 +1807,13 @@ const HistoryScreen = ({ navigation }) => {
             <View
               style={[
                 styles.dateFilterChip,
-                {
-                  backgroundColor: COLORS.primarySoft,
-                  borderColor: COLORS.primary,
-                },
+                { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primary },
               ]}
             >
-              <Ionicons
-                name="calendar-outline"
-                size={13}
-                color={COLORS.primary}
-              />
-
-              <Text
-                style={[styles.dateFilterChipText, { color: COLORS.primary }]}
-              >
+              <Text style={[styles.dateFilterChipText, { color: COLORS.primary }]}>
                 {appliedRange.end &&
                 toDateKey(appliedRange.end) !== toDateKey(appliedRange.start)
-                  ? `${formatDate(appliedRange.start)} – ${formatDate(
-                      appliedRange.end,
-                    )}`
+                  ? `${formatDate(appliedRange.start)} – ${formatDate(appliedRange.end)}`
                   : formatDate(appliedRange.start)}
               </Text>
 
@@ -2222,11 +1822,7 @@ const HistoryScreen = ({ navigation }) => {
                 onPress={clearAppliedRange}
                 hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
-                <Ionicons
-                  name="close-circle"
-                  size={15}
-                  color={COLORS.primary}
-                />
+                <Ionicons name="close-circle" size={15} color={COLORS.primary} />
               </TouchableOpacity>
             </View>
           </View>
@@ -2236,38 +1832,27 @@ const HistoryScreen = ({ navigation }) => {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text
-              style={[
-                styles.loadingText,
-                { color: themeColors.textSecondary },
-              ]}
-            >
+            <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
               Chargement de vos réservations...
             </Text>
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
-            <Ionicons name="cloud-offline-outline" size={45} color={COLORS.red} />
+            <Ionicons name="cloud-offline-outline" size={42} color={COLORS.red} />
 
             <Text style={[styles.errorTitle, { color: themeColors.text }]}>
               Une erreur est survenue
             </Text>
 
-            <Text
-              style={[styles.errorText, { color: themeColors.textSecondary }]}
-            >
+            <Text style={[styles.errorText, { color: themeColors.textSecondary }]}>
               {error}
             </Text>
 
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={() => loadBookings(true)}
-              style={[
-                styles.retryButton,
-                { backgroundColor: COLORS.primary },
-              ]}
+              style={[styles.retryButton, { backgroundColor: COLORS.primary }]}
             >
-              <Ionicons name="refresh-outline" size={18} color={COLORS.white} />
               <Text style={styles.retryButtonText}>Réessayer</Text>
             </TouchableOpacity>
           </View>
@@ -2355,55 +1940,49 @@ const styles = StyleSheet.create({
 
   content: {
     flex: 1,
-    paddingHorizontal: 15,
+    width: '100%',
+    paddingHorizontal: Platform.OS === 'web' ? 20 : 12,
   },
+
+  // ---------- PAGE HEADER (compact) ----------
 
   pageHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 16,
-    paddingBottom: 11,
+    paddingTop: 10,
+    paddingBottom: 8,
+  },
+
+  pageTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  pageCount: {
+    fontSize: 12,
+    fontFamily: typography.fontFamily.medium,
   },
 
   pageHeaderActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginLeft: 12,
-  },
-
-  pageTitle: {
-    fontSize: 23,
-    lineHeight: 29,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  pageSubtitle: {
-    marginTop: 3,
-    fontSize: 12,
-    lineHeight: 17,
-    fontFamily: typography.fontFamily.regular,
+    gap: 8,
   },
 
   newBookingButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: COLORS.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
   },
 
   headerCalendarButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -2416,7 +1995,7 @@ const styles = StyleSheet.create({
 
   dateFilterChipRow: {
     flexDirection: 'row',
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   dateFilterChip: {
@@ -2424,7 +2003,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: 10,
     borderWidth: 1,
   },
@@ -2435,18 +2014,18 @@ const styles = StyleSheet.create({
   },
 
   filtersWrapper: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
 
   filtersContent: {
     paddingRight: 10,
-    gap: 7,
+    gap: 6,
   },
 
   filterButton: {
-    minHeight: 34,
-    paddingHorizontal: 13,
-    borderRadius: 17,
+    minHeight: 32,
+    paddingHorizontal: 14,
+    borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -2458,7 +2037,7 @@ const styles = StyleSheet.create({
   },
 
   listContent: {
-    paddingTop: 3,
+    paddingTop: 2,
     paddingBottom: 28,
   },
 
@@ -2466,15 +2045,14 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
 
-  // ==========================================================
-  // BOOKING CARD
-  // ==========================================================
+  // ---------- BOOKING CARD ----------
 
   bookingCard: {
+    width: '100%',
     borderWidth: 1,
-    borderRadius: 18,
-    padding: 12,
-    marginBottom: 11,
+    borderRadius: 16,
+    padding: Platform.OS === 'web' ? 14 : 10,
+    marginBottom: 10,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.04,
@@ -2485,17 +2063,25 @@ const styles = StyleSheet.create({
 
   cardTopRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'stretch',
+    gap: 10,
   },
 
   thumbnailWrapper: {
-    width: 58,
-    height: 58,
-    borderRadius: 16,
+    width: 78,
+    height: 104,
+    alignSelf: 'flex-start',
+    borderRadius: 12,
     overflow: 'hidden',
-    marginRight: 11,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  thumbnailWrapperWide: {
+    width: 96,
+    height: 128,
+    alignSelf: 'flex-start',
+    borderRadius: 14,
   },
 
   thumbnailImage: {
@@ -2503,50 +2089,61 @@ const styles = StyleSheet.create({
     height: '100%',
   },
 
-  thumbnailFallback: {
-    flex: 1,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  cardMiddleColumn: {
+  cardInfoColumn: {
     flex: 1,
     minWidth: 0,
-    marginRight: 8,
+    justifyContent: 'flex-start',
   },
 
-  miniStatusBadge: {
-    alignSelf: 'flex-start',
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+
+  cardMainTitle: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 14,
+    lineHeight: 18,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  cardMainTitleWide: {
+    fontSize: 16,
+    lineHeight: 21,
+  },
+
+  statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 3,
-    borderRadius: 8,
-    marginBottom: 5,
+    borderRadius: 10,
+    flexShrink: 0,
   },
 
-  miniStatusText: {
+  statusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+  },
+
+  statusPillText: {
     fontSize: 10,
     lineHeight: 13,
     fontFamily: typography.fontFamily.bold,
   },
 
-  cardMainTitle: {
-    fontSize: 15,
-    lineHeight: 19,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  typeRow: {
+  addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginTop: 3,
+    gap: 4,
+    marginTop: 4,
   },
 
-  typeText: {
+  addressText: {
     flex: 1,
     minWidth: 0,
     fontSize: 11.5,
@@ -2554,96 +2151,109 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
   },
 
-  cardRightColumn: {
-    alignItems: 'flex-end',
-  },
-
-  priceBadge: {
+  therapistRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginBottom: 8,
+    gap: 6,
+    marginTop: 8,
   },
 
-  priceBadgeText: {
-    fontSize: 11.5,
-    lineHeight: 14,
+  therapistAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#5B6470',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  therapistAvatarText: {
+    color: COLORS.white,
+    fontSize: 10,
     fontFamily: typography.fontFamily.bold,
   },
 
+  therapistName: {
+    flexShrink: 1,
+    fontSize: 12,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  roleBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: COLORS.purpleSoft,
+  },
+
+  roleBadgeText: {
+    fontSize: 9.5,
+    color: '#5B3DE0',
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+
+  priceBox: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 3,
+  },
+
+  priceText: {
+    fontSize: 16,
+    lineHeight: 20,
+    color: COLORS.price,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  priceUnit: {
+    fontSize: 10.5,
+    fontFamily: typography.fontFamily.regular,
+  },
+
   menuButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
   },
 
-  metaGroup: {
-    marginTop: 11,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    gap: 8,
-  },
-
-  metaRow: {
+  tagsWrap: {
     flexDirection: 'row',
-    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
   },
 
-  metaItem: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  tag: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
 
-  metaIconWrap: {
-    width: 26,
-    height: 26,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  metaText: {
-    flex: 1,
-    minWidth: 0,
-    fontSize: 11.5,
+  tagText: {
+    fontSize: 11,
     lineHeight: 15,
     fontFamily: typography.fontFamily.medium,
   },
 
-  cardFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: 10,
-    paddingTop: 9,
-    borderTopWidth: 1,
-    gap: 6,
-  },
-
-  detailsText: {
-    fontSize: 11,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  arrowCircle: {
-    width: 25,
-    height: 25,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // ==========================================================
-  // EMPTY / LOADING / ERROR
-  // ==========================================================
+  // ---------- EMPTY / LOADING / ERROR ----------
 
   emptyState: {
     flex: 1,
@@ -2654,18 +2264,18 @@ const styles = StyleSheet.create({
   },
 
   emptyIconContainer: {
-    width: 92,
-    height: 92,
-    borderRadius: 30,
+    width: 84,
+    height: 84,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 18,
   },
 
   emptyTitle: {
     textAlign: 'center',
-    fontSize: 18,
-    lineHeight: 24,
+    fontSize: 17,
+    lineHeight: 23,
     fontFamily: typography.fontFamily.bold,
   },
 
@@ -2716,9 +2326,9 @@ const styles = StyleSheet.create({
   },
 
   errorTitle: {
-    marginTop: 15,
-    fontSize: 18,
-    lineHeight: 24,
+    marginTop: 14,
+    fontSize: 17,
+    lineHeight: 23,
     textAlign: 'center',
     fontFamily: typography.fontFamily.bold,
   },
@@ -2732,12 +2342,10 @@ const styles = StyleSheet.create({
   },
 
   retryButton: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     marginTop: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
     paddingVertical: 12,
     borderRadius: 13,
   },
@@ -2748,9 +2356,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.bold,
   },
 
-  // ==========================================================
-  // TOAST
-  // ==========================================================
+  // ---------- TOAST ----------
 
   toastOverlay: {
     position: 'absolute',
@@ -2785,9 +2391,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.medium,
   },
 
-  // ==========================================================
-  // MODAL BACKDROP
-  // ==========================================================
+  // ---------- MODALS ----------
 
   modalBackdrop: {
     flex: 1,
@@ -2795,10 +2399,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
-
-  // ==========================================================
-  // CONFIRM MODAL
-  // ==========================================================
 
   confirmCard: {
     alignSelf: 'center',
@@ -2870,25 +2470,12 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.bold,
   },
 
-  // ==========================================================
-  // ACTION SHEET
-  // ==========================================================
-
   actionSheet: {
     width: '100%',
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     paddingHorizontal: 18,
     paddingTop: 10,
-  },
-
-  actionSheetHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: 'rgba(148,163,184,0.5)',
-    marginBottom: 14,
   },
 
   actionSheetTitle: {
@@ -2934,9 +2521,16 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.bold,
   },
 
-  // ==========================================================
-  // CALENDAR FILTER MODAL
-  // ==========================================================
+  actionSheetHandle: {
+    alignSelf: 'center',
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(148,163,184,0.5)',
+    marginBottom: 14,
+  },
+
+  // ---------- CALENDAR ----------
 
   calendarSheet: {
     width: '100%',

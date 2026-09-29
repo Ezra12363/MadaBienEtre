@@ -454,51 +454,138 @@ export default function NavigationScreen({ route: navRoute }) {
             </View>
           ) : null}
 
+          {/* ✅ CARD UNIQUE : Adresse + Distance/Temps fusionnés */}
           <View
             style={[
-              styles.addressBadge,
+              styles.infoCard,
               {
                 backgroundColor: themeColors.surface,
                 borderColor: themeColors.border || '#E5E5E5',
               },
             ]}
           >
-            <View
-              style={[
-                styles.addressIcon,
-                { backgroundColor: `${END_COLOR}15` },
-              ]}
-            >
-              <Ionicons name="location" size={16} color={END_COLOR} />
-            </View>
-
-            <View style={styles.addressTextWrap}>
-              <Text
+            {/* Ligne 1 : Adresse */}
+            <View style={styles.addressRow}>
+              <View
                 style={[
-                  styles.addressLabel,
-                  { color: themeColors.textSecondary },
+                  styles.addressIcon,
+                  { backgroundColor: `${END_COLOR}15` },
                 ]}
               >
-                Adresse du client
-              </Text>
+                <Ionicons name="location" size={14} color={END_COLOR} />
+              </View>
 
-              <Text
-                style={[styles.addressValue, { color: themeColors.text }]}
-                numberOfLines={2}
-              >
-                {clientAddress}
-              </Text>
-
-              {bookingId ? (
+              <View style={styles.addressTextWrap}>
                 <Text
                   style={[
-                    styles.addressBookingId,
+                    styles.addressLabel,
                     { color: themeColors.textSecondary },
                   ]}
                 >
-                  Réservation #{bookingId}
+                  Adresse du client
                 </Text>
-              ) : null}
+
+                <Text
+                  style={[styles.addressValue, { color: themeColors.text }]}
+                  numberOfLines={2}
+                >
+                  {clientAddress}
+                </Text>
+
+                {bookingId ? (
+                  <Text
+                    style={[
+                      styles.addressBookingId,
+                      { color: themeColors.textSecondary },
+                    ]}
+                  >
+                    Réservation #{bookingId}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+
+            {/* Ligne 2 : Stats (Distance, Voiture, À pied) */}
+            <View
+              style={[
+                styles.routeInfoRow,
+                { borderTopColor: themeColors.border || '#E5E5E5' },
+              ]}
+            >
+              <View style={styles.routeInfoItem}>
+                <Ionicons name="navigate-outline" size={14} color={END_COLOR} />
+                <Text
+                  style={[
+                    styles.routeInfoLabel,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  Distance
+                </Text>
+                <Text
+                  style={[styles.routeInfoValue, { color: themeColors.text }]}
+                >
+                  {routeInfo?.distanceText || formatDistance(straightDistance)}
+                </Text>
+              </View>
+
+              <View
+                style={[
+                  styles.routeInfoDivider,
+                  { backgroundColor: themeColors.border || '#E5E5E5' },
+                ]}
+              />
+
+              <View style={styles.routeInfoItem}>
+                <Ionicons name="car-outline" size={14} color={PRIMARY} />
+                <Text
+                  style={[
+                    styles.routeInfoLabel,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  Voiture
+                </Text>
+
+                {routeLoading ? (
+                  <ActivityIndicator size="small" color={PRIMARY} />
+                ) : (
+                  <Text
+                    style={[styles.routeInfoValue, { color: themeColors.text }]}
+                  >
+                    {routeInfo?.drivingDurationText || '—'}
+                  </Text>
+                )}
+              </View>
+
+              <View
+                style={[
+                  styles.routeInfoDivider,
+                  { backgroundColor: themeColors.border || '#E5E5E5' },
+                ]}
+              />
+
+              <View style={styles.routeInfoItem}>
+                <Ionicons name="walk-outline" size={14} color={PRIMARY} />
+                <Text
+                  style={[
+                    styles.routeInfoLabel,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  À pied
+                </Text>
+
+                {routeLoading ? (
+                  <ActivityIndicator size="small" color={PRIMARY} />
+                ) : (
+                  <Text
+                    style={[styles.routeInfoValue, { color: themeColors.text }]}
+                  >
+                    {routeInfo?.walkingDurationText || '—'}
+                  </Text>
+                )}
+              </View>
             </View>
           </View>
         </View>
@@ -540,86 +627,6 @@ export default function NavigationScreen({ route: navRoute }) {
             </View>
           </View>
 
-          <View
-            style={[
-              styles.routeInfoRow,
-              { borderTopColor: themeColors.border || '#E5E5E5' },
-            ]}
-          >
-            <View style={styles.routeInfoItem}>
-              <Ionicons name="navigate-outline" size={18} color={END_COLOR} />
-              <Text
-                style={[
-                  styles.routeInfoLabel,
-                  { color: themeColors.textSecondary },
-                ]}
-              >
-                Distance
-              </Text>
-              <Text style={[styles.routeInfoValue, { color: themeColors.text }]}>
-                {routeInfo?.distanceText || formatDistance(straightDistance)}
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.routeInfoDivider,
-                { backgroundColor: themeColors.border || '#E5E5E5' },
-              ]}
-            />
-
-            <View style={styles.routeInfoItem}>
-              <Ionicons name="car-outline" size={18} color={PRIMARY} />
-              <Text
-                style={[
-                  styles.routeInfoLabel,
-                  { color: themeColors.textSecondary },
-                ]}
-              >
-                Voiture
-              </Text>
-
-              {routeLoading ? (
-                <ActivityIndicator size="small" color={PRIMARY} />
-              ) : (
-                <Text
-                  style={[styles.routeInfoValue, { color: themeColors.text }]}
-                >
-                  {routeInfo?.drivingDurationText || '—'}
-                </Text>
-              )}
-            </View>
-
-            <View
-              style={[
-                styles.routeInfoDivider,
-                { backgroundColor: themeColors.border || '#E5E5E5' },
-              ]}
-            />
-
-            <View style={styles.routeInfoItem}>
-              <Ionicons name="walk-outline" size={18} color={PRIMARY} />
-              <Text
-                style={[
-                  styles.routeInfoLabel,
-                  { color: themeColors.textSecondary },
-                ]}
-              >
-                À pied
-              </Text>
-
-              {routeLoading ? (
-                <ActivityIndicator size="small" color={PRIMARY} />
-              ) : (
-                <Text
-                  style={[styles.routeInfoValue, { color: themeColors.text }]}
-                >
-                  {routeInfo?.walkingDurationText || '—'}
-                </Text>
-              )}
-            </View>
-          </View>
-
           {/* ✅ Choix de l'itinéraire (le plus rapide + alternatives) */}
           {routeOptions.length > 1 && (
             <View style={styles.routeOptionsList}>
@@ -633,26 +640,40 @@ export default function NavigationScreen({ route: navRoute }) {
                     onPress={() => setSelectedRouteId(option.id)}
                     style={[
                       styles.routeOption,
-                      { borderColor: active ? PRIMARY : themeColors.border || '#E5E5E5' },
+                      {
+                        borderColor: active
+                          ? PRIMARY
+                          : themeColors.border || '#E5E5E5',
+                      },
                       active && { backgroundColor: `${PRIMARY}12` },
                     ]}
                   >
                     <Text
                       numberOfLines={1}
-                      style={[styles.routeOptionTitle, { color: themeColors.text }]}
+                      style={[
+                        styles.routeOptionTitle,
+                        { color: themeColors.text },
+                      ]}
                     >
                       {`${index + 1}. ${option.tag}`}
                     </Text>
 
                     <Text
                       numberOfLines={1}
-                      style={[styles.routeOptionMeta, { color: themeColors.textSecondary }]}
+                      style={[
+                        styles.routeOptionMeta,
+                        { color: themeColors.textSecondary },
+                      ]}
                     >
                       {`🚗 ${option.drivingDurationText}  ·  🚶 ${option.walkingDurationText}  ·  ${option.distanceText}`}
                     </Text>
 
                     {active && (
-                      <Ionicons name="checkmark-circle" size={16} color={PRIMARY} />
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={16}
+                        color={PRIMARY}
+                      />
                     )}
                   </TouchableOpacity>
                 );
@@ -714,15 +735,6 @@ const styles = StyleSheet.create({
   map: { flex: 1 },
 
   mapBottomOverlay: {
-    // ✅ FIXÉ : avant, ce bloc était collé à droite avec une largeur
-    // fixe de 76% ("width: '76%'" + "right" seulement), ce qui
-    // laissait un grand vide à gauche et coupait le texte de
-    // l'adresse. Désormais ancré à la fois à `left` ET `right` :
-    // il occupe toute la largeur disponible (havia ka hatramin'ny
-    // havanana), tout en restant sous le bouton "recentrer" et le
-    // contrôle satellite (haut-gauche), qui restent au-dessus.
-    // Le `bottom` est relevé pour ne jamais passer sous le
-    // bandeau flottant (bottomSheetFloating).
     position: 'absolute',
     left: spacing.sm,
     right: spacing.sm,
@@ -730,27 +742,33 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
 
-  addressBadge: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+  // ==========================================================
+  // CARD UNIQUE (Adresse + Stats)
+  // ==========================================================
+
+  infoCard: {
     borderRadius: 16,
     borderWidth: 1,
     padding: spacing.sm,
-    gap: spacing.sm,
-    // Ombre plus marquée + fond opaque pour rester lisible
-    // même sur un fond de carte chargé (mode satellite),
-    // sur web comme sur mobile.
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.18,
     shadowRadius: 8,
     elevation: 5,
+    gap: spacing.xs,
+  },
+
+  // --- Ligne Adresse ---
+  addressRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
   },
 
   addressIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -766,6 +784,35 @@ const styles = StyleSheet.create({
   },
 
   addressBookingId: { fontSize: 10, marginTop: 3 },
+
+  // --- Ligne Stats (Distance / Voiture / À pied) ---
+  routeInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    paddingTop: spacing.sm,
+    marginTop: spacing.xs,
+  },
+
+  routeInfoItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4, // Réduit pour les petits écrans
+  },
+
+  routeInfoDivider: { width: 1, height: 20, marginHorizontal: 4 },
+
+  routeInfoLabel: { fontSize: 10 }, // Réduit
+
+  routeInfoValue: {
+    fontSize: typography.fontSize.xs, // Réduit
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  // ==========================================================
+  // BOUTON RECENTRER & GPS
+  // ==========================================================
 
   locateButton: {
     position: 'absolute',
@@ -839,30 +886,6 @@ const styles = StyleSheet.create({
   legendDot: { width: 8, height: 8, borderRadius: 4 },
 
   legendText: { fontSize: typography.fontSize.xs },
-
-  routeInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    paddingTop: spacing.sm,
-    marginBottom: spacing.md,
-  },
-
-  routeInfoItem: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-
-  routeInfoDivider: { width: 1, height: 24, marginHorizontal: spacing.sm },
-
-  routeInfoLabel: { fontSize: typography.fontSize.xs },
-
-  routeInfoValue: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.bold,
-  },
 
   routeOptionsList: { marginBottom: spacing.md, gap: 6 },
 

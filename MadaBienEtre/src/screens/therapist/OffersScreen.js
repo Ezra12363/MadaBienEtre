@@ -14,6 +14,7 @@ import {
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   FlatList,
   Image,
   Linking,
@@ -191,44 +192,54 @@ function ConfirmationModal({
   if (!visible) return null;
 
   return (
-    <View style={confirmationStyles.overlay}>
-      <Pressable style={confirmationStyles.backdrop} onPress={onCancel} />
-      <View style={confirmationStyles.modal}>
-        <View
-          style={[
-            confirmationStyles.iconCircle,
-            destructive && {
-              backgroundColor: isDark ? '#3A1717' : '#FFF0F0',
-            },
-          ]}
-        >
-          <Ionicons
-            name={destructive ? 'warning-outline' : 'help-circle-outline'}
-            size={26}
-            color={destructive ? COLORS.red : COLORS.primary}
-          />
-        </View>
-        <Text style={confirmationStyles.title}>{title}</Text>
-        <Text style={confirmationStyles.message}>{message}</Text>
-        <View style={confirmationStyles.buttons}>
-          <Pressable
-            style={confirmationStyles.cancelButton}
-            onPress={onCancel}
-          >
-            <Text style={confirmationStyles.cancelText}>Annuler</Text>
-          </Pressable>
-          <Pressable
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+      statusBarTranslucent
+    >
+      <View style={confirmationStyles.overlay}>
+        <Pressable style={confirmationStyles.backdrop} onPress={onCancel} />
+        <View style={confirmationStyles.modal}>
+          <View
             style={[
-              confirmationStyles.confirmButton,
-              destructive && confirmationStyles.confirmDanger,
+              confirmationStyles.iconCircle,
+              destructive && {
+                backgroundColor: isDark ? '#3A1717' : '#FFF0F0',
+              },
             ]}
-            onPress={onConfirm}
           >
-            <Text style={confirmationStyles.confirmText}>{confirmLabel}</Text>
-          </Pressable>
+            <Ionicons
+              name={destructive ? 'warning-outline' : 'help-circle-outline'}
+              size={26}
+              color={destructive ? COLORS.red : COLORS.primary}
+            />
+          </View>
+          <Text style={confirmationStyles.title}>{title}</Text>
+          <Text style={confirmationStyles.message}>{message}</Text>
+          <View style={confirmationStyles.buttons}>
+            <Pressable
+              style={confirmationStyles.cancelButton}
+              onPress={onCancel}
+            >
+              <Text style={confirmationStyles.cancelText}>Annuler</Text>
+            </Pressable>
+            <Pressable
+              style={[
+                confirmationStyles.confirmButton,
+                destructive && confirmationStyles.confirmDanger,
+              ]}
+              onPress={onConfirm}
+            >
+              <Text style={confirmationStyles.confirmText}>
+                {confirmLabel}
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </View>
-    </View>
+    </Modal>
   );
 }
 
@@ -1092,7 +1103,7 @@ function ClientAvatar({ photoUrl, name, size = 52, isOnline = false }) {
 // MAIN SCREEN
 // ============================================================
 
-export default function OffersScreen({ navigation }) {
+export default function OffersScreen({ navigation, route }) {
   const { width, height } = useWindowDimensions();
   const isWeb = Platform.OS === 'web';
   const isMobile = !isWeb || width < 850;
@@ -1415,6 +1426,43 @@ export default function OffersScreen({ navigation }) {
   }, [activeTab, bookings, dateFrom, dateTo, searchQuery]);
 
   // ==========================================================
+  // GROUPEMENT PAR CLIENT (même nom => une seule carte)
+  // ==========================================================
+
+  const groupedClientBookings = useMemo(() => {
+    const groups = new Map();
+
+    filteredBookings.forEach(booking => {
+      const rawName = getClientName(booking) || 'Client';
+      const key = rawName.trim().toLowerCase();
+
+      if (!groups.has(key)) {
+        groups.set(key, { key, name: rawName, bookings: [] });
+      }
+      groups.get(key).bookings.push(booking);
+    });
+
+    return Array.from(groups.values()).map(group => {
+      const sortedBookings = [...group.bookings].sort((a, b) => {
+        const dateA = getRequestedAt(a)
+          ? new Date(getRequestedAt(a)).getTime()
+          : 0;
+        const dateB = getRequestedAt(b)
+          ? new Date(getRequestedAt(b)).getTime()
+          : 0;
+        return dateB - dateA;
+      });
+
+      return {
+        ...group,
+        bookings: sortedBookings,
+        latestBooking: sortedBookings[0],
+        count: sortedBookings.length,
+      };
+    });
+  }, [filteredBookings]);
+
+  // ==========================================================
   // MAP DATA
   // ==========================================================
 
@@ -1588,6 +1636,63 @@ export default function OffersScreen({ navigation }) {
   }, [geolocatedBookings, selectedRouteBooking, handleClearRoute]);
 
   // ==========================================================
+  // RETOUR (header + bouton retour Android)
+  // 1) ferme d'abord ce qui est ouvert (modale, sheet, itinéraire)
+  // 2) sinon revient à l'écran précédent
+  // 3) s'il n'y a pas d'historique → écran d'accueil du thérapeute
+  // ==========================================================
+
+  const handleBack = useCallback(() => {
+    if (confirmModal) {
+      setConfirmModal(null);
+      return true;
+    }
+    if (showDateModal) {
+      setShowDateModal(false);
+      return true;
+    }
+    if (actionSheetBooking) {
+      setActionSheetBooking(null);
+      return true;
+    }
+    if (selectedRouteBooking) {
+      setSelectedRouteBooking(null);
+      return true;
+    }
+
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+      return true;
+    }
+
+    // Pas d'historique (ouvert via notification / lien direct)
+    const parent = navigation?.getParent?.();
+    if (parent?.canGoBack?.()) {
+      parent.goBack();
+      return true;
+    }
+    return false;
+  }, [
+    confirmModal,
+    showDateModal,
+    actionSheetBooking,
+    selectedRouteBooking,
+    navigation,
+  ]);
+
+  // Bouton retour matériel Android : même comportement que le header.
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return undefined;
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        handleBack
+      );
+      return () => subscription.remove();
+    }, [handleBack])
+  );
+
+  // ==========================================================
   // OPEN BOOKING
   // ==========================================================
 
@@ -1597,9 +1702,13 @@ export default function OffersScreen({ navigation }) {
         Alert.alert('Erreur', 'Identifiant de réservation invalide.');
         return;
       }
-      navigation.navigate('Offer', { bookingId: booking.id, booking });
+      navigation.navigate('Offer', {
+        bookingId: booking.id,
+        booking,
+        returnTo: route?.name,
+      });
     },
-    [navigation]
+    [navigation, route?.name]
   );
 
   const handleNegotiation = useCallback(
@@ -1824,7 +1933,7 @@ export default function OffersScreen({ navigation }) {
   // ==========================================================
 
   const renderMobileCard = useCallback(
-    ({ item }) => {
+    ({ item, onPressOverride, badgeCount }) => {
       const booking = item;
       const status = normalizeStatus(booking);
       const statusUI = getStatusUI(booking, isDark);
@@ -1853,7 +1962,9 @@ export default function OffersScreen({ navigation }) {
 
       return (
         <Pressable
-          onPress={() => openBooking(booking)}
+          onPress={() =>
+            onPressOverride ? onPressOverride() : openBooking(booking)
+          }
           style={({ pressed }) => [
             styles.card,
             hoveredId === booking.id && styles.cardHover,
@@ -1863,12 +1974,27 @@ export default function OffersScreen({ navigation }) {
           onHoverOut={() => isWeb && setHoveredId(null)}
         >
           <View style={styles.cardTopRow}>
-            <ClientAvatar
-              photoUrl={getClientPhoto(booking)}
-              name={getClientName(booking)}
-              size={46}
-              isOnline={getClientOnline(booking)}
-            />
+            <View style={styles.avatarColumn}>
+              <ClientAvatar
+                photoUrl={getClientPhoto(booking)}
+                name={getClientName(booking)}
+                size={46}
+                isOnline={getClientOnline(booking)}
+              />
+
+              {badgeCount ? (
+                <View style={styles.clientCountBadge}>
+                  <Ionicons
+                    name="albums-outline"
+                    size={9}
+                    color={COLORS.primary}
+                  />
+                  <Text style={styles.clientCountBadgeText} numberOfLines={1}>
+                    {badgeCount} demande{badgeCount > 1 ? 's' : ''}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
 
             <View style={styles.cardTopInfo}>
               <View style={styles.cardNameRow}>
@@ -2140,6 +2266,33 @@ export default function OffersScreen({ navigation }) {
       handleCallClient,
       handleOpenDirections,
     ]
+  );
+
+  // ==========================================================
+  // CARTE GROUPÉE PAR CLIENT (liste principale)
+  // → ouvre désormais une PAGE dédiée (ClientGroupDetails)
+  //   au lieu d'une bottom-sheet/modale.
+  // ==========================================================
+
+  const openClientGroupPage = useCallback(
+    group => {
+      if (!group) return;
+      navigation.navigate('ClientGroupDetails', {
+        group,
+        returnTo: route?.name,
+      });
+    },
+    [navigation, route?.name]
+  );
+
+  const renderClientGroupCard = useCallback(
+    ({ item: group }) =>
+      renderMobileCard({
+        item: group.latestBooking,
+        onPressOverride: () => openClientGroupPage(group),
+        badgeCount: group.count,
+      }),
+    [renderMobileCard, openClientGroupPage]
   );
 
   // ==========================================================
@@ -3070,10 +3223,13 @@ export default function OffersScreen({ navigation }) {
           <Header
             title="Réservation"
             showBack
-            onBackPress={() => navigation.goBack()}
+            onBackPress={handleBack}
           />
 
           <Toast toast={toast} />
+
+          {renderDateModal()}
+          {renderActionsSheet()}
 
           <ConfirmationModal
             visible={!!confirmModal}
@@ -3084,9 +3240,6 @@ export default function OffersScreen({ navigation }) {
             onCancel={() => setConfirmModal(null)}
             onConfirm={confirmModal?.onConfirm}
           />
-
-          {renderDateModal()}
-          {renderActionsSheet()}
 
           <View style={styles.webContentWrap}>
             {viewMode === 'map' ? (
@@ -3113,16 +3266,16 @@ export default function OffersScreen({ navigation }) {
                   ) : (
                     <FlatList
                       key={`web-grid-${numColumns}`}
-                      data={filteredBookings}
-                      keyExtractor={item => String(item.id)}
-                      renderItem={renderMobileCard}
+                      data={groupedClientBookings}
+                      keyExtractor={group => group.key}
+                      renderItem={renderClientGroupCard}
                       numColumns={numColumns}
                       columnWrapperStyle={
                         numColumns > 1 ? styles.cardsColumnWrapper : undefined
                       }
                       ListEmptyComponent={renderEmpty}
                       contentContainerStyle={
-                        filteredBookings.length === 0
+                        groupedClientBookings.length === 0
                           ? styles.listEmptyContent
                           : styles.webCardsContent
                       }
@@ -3161,10 +3314,13 @@ export default function OffersScreen({ navigation }) {
         <Header
           title="Réservation"
           showBack
-          onBackPress={() => navigation.goBack()}
+          onBackPress={handleBack}
         />
 
         <Toast toast={toast} />
+
+        {renderDateModal()}
+        {renderActionsSheet()}
 
         <ConfirmationModal
           visible={!!confirmModal}
@@ -3175,9 +3331,6 @@ export default function OffersScreen({ navigation }) {
           onCancel={() => setConfirmModal(null)}
           onConfirm={confirmModal?.onConfirm}
         />
-
-        {renderDateModal()}
-        {renderActionsSheet()}
 
         {viewMode === 'map' ? (
           <ScrollView
@@ -3202,16 +3355,16 @@ export default function OffersScreen({ navigation }) {
             ) : (
               <FlatList
                 key={`mobile-grid-${numColumns}`}
-                data={filteredBookings}
-                keyExtractor={item => String(item.id)}
-                renderItem={renderMobileCard}
+                data={groupedClientBookings}
+                keyExtractor={group => group.key}
+                renderItem={renderClientGroupCard}
                 numColumns={numColumns}
                 columnWrapperStyle={
                   numColumns > 1 ? styles.cardsColumnWrapper : undefined
                 }
                 ListEmptyComponent={renderEmpty}
                 contentContainerStyle={
-                  filteredBookings.length === 0
+                  groupedClientBookings.length === 0
                     ? styles.listEmptyContent
                     : styles.mobileList
                 }
@@ -3242,11 +3395,12 @@ const createStyles = (colors, isDark) => {
   const avatarBg = isDark ? '#16301F' : COLORS.avatar;
 
   return StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: colors.background },
-    screen: { flex: 1, backgroundColor: colors.background },
+    safeArea: { flex: 1, minHeight: 0, backgroundColor: colors.background },
+    screen: { flex: 1, minHeight: 0, backgroundColor: colors.background },
 
     webContentWrap: {
       flex: 1,
+      minHeight: 0,
       width: '100%',
       height: '100%',
       alignSelf: 'stretch',
@@ -3497,6 +3651,40 @@ const createStyles = (colors, isDark) => {
       paddingTop: 14,
       paddingBottom: 24,
     },
+
+    clientGroupSheet: {
+      backgroundColor: colors.card,
+      borderTopLeftRadius: 22,
+      borderTopRightRadius: 22,
+      paddingHorizontal: 18,
+      paddingTop: 14,
+      maxHeight: '82%',
+      minHeight: 0,
+      flexShrink: 1,
+      display: 'flex',
+      flexDirection: 'column',
+    },
+
+    clientGroupHeaderInfo: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      flex: 1,
+      minWidth: 0,
+    },
+
+    clientGroupHeaderTextWrap: { flex: 1, minWidth: 0 },
+
+    clientGroupSubtitle: {
+      fontSize: 11.5,
+      fontWeight: '700',
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+
+    clientGroupList: { flex: 1, minHeight: 0, flexShrink: 1 },
+
+    clientGroupListContent: { paddingBottom: 8, gap: 10, flexGrow: 1 },
     dateSheetButtonsRow: { flexDirection: 'row', gap: 10, marginTop: 18 },
     dateSheetClearButton: {
       flex: 1,
@@ -3907,6 +4095,29 @@ const createStyles = (colors, isDark) => {
       overflow: 'visible',
     },
 
+    avatarColumn: {
+      alignItems: 'center',
+      flexShrink: 0,
+    },
+
+    clientCountBadge: {
+      marginTop: 4,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 999,
+      backgroundColor: primarySoft,
+      maxWidth: 72,
+    },
+
+    clientCountBadgeText: {
+      fontSize: 9,
+      fontWeight: '800',
+      color: COLORS.primary,
+    },
+
     avatar: {
       width: '100%',
       height: '100%',
@@ -3971,6 +4182,7 @@ const createStyles = (colors, isDark) => {
 
     webCardsContainer: {
       flex: 1,
+      minHeight: 0,
       width: '100%',
       alignSelf: 'stretch',
       paddingHorizontal: 0,
@@ -3989,10 +4201,37 @@ const createStyles = (colors, isDark) => {
     },
 
     // ========================================================
+    // CLIENT GROUP — PAGE DÉDIÉE (ClientGroupScreen)
+    // ========================================================
+
+    groupPageSubHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      backgroundColor: colors.card,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+
+    groupPageSubHeaderText: {
+      fontSize: 12.5,
+      fontWeight: '800',
+      color: colors.textSecondary,
+    },
+
+    groupPageWebWrap: {
+      maxWidth: 760,
+      width: '100%',
+      alignSelf: 'center',
+    },
+
+    // ========================================================
     // MAP
     // ========================================================
 
-    mapSection: { marginTop: 10, paddingHorizontal: 0 },
+    mapSection: { marginTop: 10, paddingHorizontal: 8 }, // ~2mm (≈7.56dp) de marge havia/havana
     mapSectionWeb: { flexDirection: 'column' },
     mapSectionMobile: { flexDirection: 'column' },
 
@@ -4276,4 +4515,46 @@ const createStyles = (colors, isDark) => {
       maxWidth: 280,
     },
   });
+};
+
+// ============================================================
+// EXPORTS PARTAGÉS
+// (réutilisés par ClientGroupScreen.js — la page dédiée au
+// "groupe de demandes par client / même nom")
+// ============================================================
+
+export {
+  COLORS,
+  ANDROID_STATUS_BAR_HEIGHT,
+  Toast,
+  ConfirmationModal,
+  ClientAvatar,
+  createStyles,
+  normalizeArray,
+  normalizeStatus,
+  isCancelledStatus,
+  getStatusUI,
+  getClientName,
+  getPhone,
+  getEmail,
+  getClientPhoto,
+  getClientOnline,
+  getRequestedAt,
+  getExpiresAt,
+  isOfferExpired,
+  getMassageName,
+  getPrice,
+  getDuration,
+  getDistance,
+  getAddress,
+  getLatitude,
+  getLongitude,
+  hasValidCoordinates,
+  getRelativeTimeLabel,
+  formatPrice,
+  formatDateLong,
+  formatTimeShort,
+  getOfferId,
+  isActiveClientOffer,
+  isActiveTherapistOffer,
 };

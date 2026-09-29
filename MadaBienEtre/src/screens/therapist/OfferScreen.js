@@ -21,6 +21,7 @@ import {
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Linking,
@@ -39,6 +40,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 
 import bookingService from '../../services/bookingService';
 import offerService from '../../services/offerService';
@@ -640,6 +642,39 @@ export default function OfferScreen({ route, navigation }) {
   };
 
   // ==========================================================
+  // RETOUR (header + bouton retour Android)
+  // 1) écran précédent s'il existe (liste, groupe client…)
+  // 2) sinon → l'écran d'où l'on vient (params.returnTo)
+  // 3) sinon → écran des réservations ('Offers')
+  // ==========================================================
+
+  const handleBack = useCallback(() => {
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+      return true;
+    }
+
+    const target = route?.params?.returnTo || 'Offers';
+    try {
+      navigation?.navigate?.(target);
+    } catch (error) {
+      console.warn('⚠️ OfferScreen retour impossible:', error?.message);
+    }
+    return true;
+  }, [navigation, route?.params?.returnTo]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return undefined;
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        handleBack
+      );
+      return () => subscription.remove();
+    }, [handleBack])
+  );
+
+  // ==========================================================
   // ACTIONS — NAVIGATION VERS AUTRES ÉCRANS
   // ==========================================================
 
@@ -662,6 +697,7 @@ export default function OfferScreen({ route, navigation }) {
   const goToNegotiation = () => {
     if (!booking) return;
     navigation.navigate('Negotiation', {
+      returnTo: 'Offer',
       bookingId: booking?.id ?? bookingId,
       booking,
       currentPrice: clientPrice,
@@ -818,7 +854,7 @@ export default function OfferScreen({ route, navigation }) {
         <Header
           title="Détails"
           showBack
-          onBackPress={() => navigation?.goBack?.()}
+          onBackPress={handleBack}
         />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -866,7 +902,7 @@ export default function OfferScreen({ route, navigation }) {
         title="Détails et négociation"
         subtitle={`Réservation #${booking?.id || bookingId}`}
         showBack
-        onBackPress={() => navigation?.goBack?.()}
+        onBackPress={handleBack}
         rightComponent={
           <TouchableOpacity
             onPress={() => loadData(true)}

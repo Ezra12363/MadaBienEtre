@@ -77,6 +77,7 @@ import UploadDocumentsScreen from '../screens/therapist/UploadDocumentsScreen';
 // ============================================================
 
 import BookingDetailScreen from '../screens/therapist/BookingDetailScreen';
+import ClientGroupScreen from '../screens/therapist/ClientGroupScreen';
 
 // ============================================================
 // NAVIGATORS
@@ -261,6 +262,11 @@ const RequestsStack = () => {
       <Stack.Screen
         name="Offers"
         component={OffersScreen}
+      />
+
+      <Stack.Screen
+        name="ClientGroupDetails"
+        component={ClientGroupScreen}
       />
 
       {/* ======================================================

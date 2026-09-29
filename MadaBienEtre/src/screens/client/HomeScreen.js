@@ -43,6 +43,13 @@ import {
 } from '../../theme';
 
 import massageTypeService from '../../services/massageTypeService';
+import therapistService from '../../services/therapistService';
+import {
+  TherapistPost,
+  TherapistPostGrid,
+  getPostColumns,
+  normalizeTherapistPost,
+} from './TherapistPost';
 import { getMassageTypeIconMCI } from '../../constants/massageTypeIcons';
 import ClientOnlineStatusCard from '../../components/client/ClientOnlineStatusCard';
 
@@ -51,6 +58,12 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IS_WEB = Platform.OS === 'web';
 const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 const TABLET_BREAKPOINT = 768;
+
+// Espace latéral des publications thérapeutes ≈ 2 mm
+// (8 px sur le web, 12 dp sur mobile). Les sections ont 16 px de
+// marge : on compense pour que les publications soient plus larges.
+const POST_SIDE_GAP = IS_WEB ? 8 : 12;
+const POST_NEGATIVE_MARGIN = POST_SIDE_GAP - 16;
 
 /* ============================================================
    THEME DU HEADER (hook local)
@@ -525,7 +538,13 @@ const HomeScreen = ({ navigation }) => {
   const [massageTypes, setMassageTypes] = useState([]);
   const [massageTypesLoading, setMassageTypesLoading] = useState(true);
 
+  const [therapistPosts, setTherapistPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+
   const isTabletWidth = screenWidth >= TABLET_BREAKPOINT;
+
+  // Même grille que l'écran plein (1 / 2 / 3 colonnes)
+  const homePostColumns = getPostColumns(screenWidth);
 
   /* ==========================================================
      RESPONSIVE
@@ -640,6 +659,72 @@ const HomeScreen = ({ navigation }) => {
       isMounted = false;
     };
   }, []);
+
+  /* ==========================================================
+     PUBLICATIONS THÉRAPEUTES (chargées après les types de massage
+     pour associer chaque spécialité à son image)
+  ========================================================== */
+
+  useEffect(() => {
+    if (massageTypesLoading) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const loadPosts = async () => {
+      try {
+        setPostsLoading(true);
+
+        const response = await therapistService.getTherapists();
+
+        if (cancelled) {
+          return;
+        }
+
+        const payload = response?.data;
+        const rows = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.therapists)
+            ? payload.therapists
+            : Array.isArray(payload?.items)
+              ? payload.items
+              : Array.isArray(payload?.data)
+                ? payload.data
+                : [];
+
+        const posts = rows
+          .map((raw, index) =>
+            normalizeTherapistPost(raw, index, massageTypes)
+          )
+          // En ligne d'abord, puis mieux notés
+          .sort(
+            (a, b) =>
+              Number(b.online) - Number(a.online) ||
+              b.rating - a.rating
+          )
+          .slice(0, 6);
+
+        setTherapistPosts(posts);
+      } catch (error) {
+        console.error('Erreur chargement publications:', error);
+
+        if (!cancelled) {
+          setTherapistPosts([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setPostsLoading(false);
+        }
+      }
+    };
+
+    loadPosts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [massageTypesLoading, massageTypes]);
 
   /* ==========================================================
      CAROUSEL MASSAGES
@@ -2042,6 +2127,169 @@ const HomeScreen = ({ navigation }) => {
                 />
               </View>
             </LinearGradient>
+          </TouchableOpacity>
+        </Reveal>
+
+        {/* ====================================================
+            PUBLICATIONS DES THÉRAPEUTES (style page Facebook)
+        ==================================================== */}
+
+        <Reveal
+          animation="fadeInUp"
+          delay={380}
+          duration={500}
+          style={styles.sectionContainer}
+        >
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: text },
+                ]}
+              >
+                Publications des thérapeutes
+              </Text>
+
+              <Text
+                style={[
+                  styles.sectionSubtitle,
+                  { color: textSecondary },
+                ]}
+              >
+                Découvrez les profils, savoir-faire et soins proposés
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              onPress={() =>
+                navigate(
+                  'TherapistPublications',
+                  undefined,
+                  'Ouverture des publications'
+                )
+              }
+            >
+              <Text style={styles.seeAllText}>
+                Tout voir
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {postsLoading && therapistPosts.length === 0 ? (
+            <View style={styles.massagesLoadingBox}>
+              <ActivityIndicator
+                size="small"
+                color={PRIMARY}
+              />
+
+              <Text
+                style={[
+                  styles.massagesLoadingText,
+                  { color: textSecondary },
+                ]}
+              >
+                Chargement des publications…
+              </Text>
+            </View>
+          ) : therapistPosts.length === 0 ? (
+            <View style={styles.massagesLoadingBox}>
+              <Ionicons
+                name="people-outline"
+                size={26}
+                color={textSecondary}
+              />
+
+              <Text
+                style={[
+                  styles.massagesLoadingText,
+                  { color: textSecondary },
+                ]}
+              >
+                Aucune publication de thérapeute pour le moment
+              </Text>
+            </View>
+          ) : (
+            <View style={{ marginHorizontal: POST_NEGATIVE_MARGIN }}>
+              <TherapistPostGrid
+                posts={therapistPosts.slice(
+                  0,
+                  homePostColumns === 1 ? 2 : homePostColumns
+                )}
+                columns={homePostColumns}
+                gap={POST_SIDE_GAP}
+                renderPost={(post) => (
+                  <TherapistPost
+                    post={post}
+                    isDark={isDark}
+                    surface={surface}
+                    border={border}
+                    text={text}
+                    textSecondary={textSecondary}
+                    onToast={showToast}
+                    fill
+                    onOpen={() =>
+                      navigate(
+                        'SearchMassage',
+                        { therapistId: post.id },
+                        `Profil de ${post.name}`
+                      )
+                    }
+                    onBook={() => {
+                      if (post.online) {
+                        navigate(
+                          'BookingDetail',
+                          { therapist: post },
+                          `Réservation avec ${post.name}`,
+                          'success'
+                        );
+                      } else {
+                        showToast(
+                          `${post.name} est hors ligne pour le moment`,
+                          'warning'
+                        );
+                      }
+                    }}
+                  />
+                )}
+              />
+            </View>
+          )}
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() =>
+              navigate(
+                'TherapistPublications',
+                undefined,
+                'Ouverture des publications'
+              )
+            }
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              height: 46,
+              borderRadius: 23,
+              backgroundColor: PRIMARY,
+              marginTop: 2,
+            }}
+          >
+            <Ionicons
+              name="expand-outline"
+              size={17}
+              color="#FFFFFF"
+            />
+
+            <Text
+              style={{
+                color: '#FFFFFF',
+                fontSize: 13,
+                fontFamily: typography.fontFamily.bold,
+              }}
+            >
+              Voir toutes les publications
+            </Text>
           </TouchableOpacity>
         </Reveal>
 

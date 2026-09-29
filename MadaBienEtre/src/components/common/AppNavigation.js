@@ -370,8 +370,10 @@ export const TopNavBar = ({
       {/* -------------------------------------------------- */}
 
       <View style={styles.mainBar}>
-        {/* Marque */}
-        <View style={styles.brand}>
+        {/* ================================================== */}
+        {/* GAUCHE — LOGO + NOM DE L'APPLICATION               */}
+        {/* ================================================== */}
+        <View style={styles.brandLeft}>
           <View style={styles.logoBox}>
             <Image
               source={require('../../../assets/logo.png')}
@@ -379,237 +381,322 @@ export const TopNavBar = ({
               resizeMode="contain"
             />
           </View>
-          <Text numberOfLines={1} style={styles.brandText}>
-            {brandLabel}
-          </Text>
+
+          <View style={styles.brandTextWrap}>
+            <Text numberOfLines={1} style={styles.brandText}>
+              {brandLabel}
+            </Text>
+            <Text numberOfLines={1} style={styles.brandSubtitle}>
+              Bien-être &amp; massages
+            </Text>
+          </View>
         </View>
 
-        {/* Menu complet */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.menuScroll}
-          contentContainerStyle={styles.menuScrollContent}
-        >
-          {state.routes.map((route, index) => {
-            const { options } = descriptors[route.key];
-            const focused = state.index === index;
+        {/* ================================================== */}
+        {/* CENTRE / DROITE — TOUS LES MENUS                   */}
+        {/* ================================================== */}
+        <View style={styles.menuArea}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.menuScroll}
+            contentContainerStyle={styles.menuScrollContent}
+          >
+            {state.routes.map((route, index) => {
+              const { options } = descriptors[route.key];
+              const focused = state.index === index;
 
-            const label = getLabel
-              ? getLabel(route.name)
-              : options.tabBarLabel ?? route.name;
+              const label = getLabel
+                ? getLabel(route.name)
+                : options.tabBarLabel ?? route.name;
 
-            const iconName = getIcon
-              ? getIcon(route.name, focused)
-              : focused
-              ? 'ellipse'
-              : 'ellipse-outline';
+              const iconName = getIcon
+                ? getIcon(route.name, focused)
+                : focused
+                ? 'ellipse'
+                : 'ellipse-outline';
 
-            const onPress = () => {
-              const event = navigation.emit({
-                type: 'tabPress',
-                target: route.key,
-                canPreventDefault: true,
-              });
-              if (!focused && !event.defaultPrevented) {
-                navigation.navigate(route.name);
-              }
-            };
+              const onPress = () => {
+                const event = navigation.emit({
+                  type: 'tabPress',
+                  target: route.key,
+                  canPreventDefault: true,
+                });
 
-            return (
+                if (!focused && !event.defaultPrevented) {
+                  navigation.navigate(route.name);
+                }
+              };
+
+              return (
+                <Pressable
+                  key={route.key}
+                  onPress={onPress}
+                  accessibilityRole="button"
+                  accessibilityState={focused ? { selected: true } : {}}
+                  style={({ hovered }) => [
+                    styles.menuItem,
+                    focused && styles.menuItemActive,
+                    !focused && hovered && styles.menuItemHovered,
+                  ]}
+                >
+                  <Ionicons
+                    name={iconName}
+                    size={17}
+                    color={focused ? '#FFFFFF' : 'rgba(255,255,255,0.88)'}
+                  />
+
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.menuItemLabel,
+                      focused && styles.menuItemLabelActive,
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* ================================================== */}
+        {/* DROITE — MESSAGE + NOTIFICATION + PROFIL            */}
+        {/* ================================================== */}
+        <View style={styles.rightNav}>
+          <View style={styles.headerActions}>
+            {messagesRoute && (
               <Pressable
-                key={route.key}
-                onPress={onPress}
+                onPress={openMessages}
                 accessibilityRole="button"
-                accessibilityState={focused ? { selected: true } : {}}
+                accessibilityLabel="Ouvrir les messages"
                 style={({ hovered }) => [
-                  styles.menuItem,
-                  focused && styles.menuItemActive,
-                  !focused && hovered && styles.menuItemHovered,
+                  styles.headerActionButton,
+                  hovered && styles.headerActionButtonHovered,
                 ]}
               >
                 <Ionicons
-                  name={iconName}
-                  size={17}
-                  color={focused ? '#FFFFFF' : 'rgba(255,255,255,0.82)'}
+                  name={
+                    messagesUnreadCount > 0
+                      ? 'chatbubble-ellipses'
+                      : 'chatbubble-ellipses-outline'
+                  }
+                  size={21}
+                  color="#FFFFFF"
                 />
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.menuItemLabel,
-                    focused && styles.menuItemLabelActive,
-                  ]}
-                >
-                  {label}
-                </Text>
+
+                {messagesUnreadCount > 0 && (
+                  <View style={styles.headerActionBadge}>
+                    <Text style={styles.headerActionBadgeText}>
+                      {messagesUnreadCount > 99 ? '99+' : messagesUnreadCount}
+                    </Text>
+                  </View>
+                )}
               </Pressable>
-            );
-          })}
-        </ScrollView>
+            )}
 
-        {/* Notifications + Messages — accès direct, avant le profil */}
-        <View style={styles.headerActions}>
-          {messagesRoute && (
-            <Pressable
-              onPress={openMessages}
-              accessibilityRole="button"
-              accessibilityLabel="Ouvrir les messages"
-              style={({ hovered }) => [
-                styles.headerActionButton,
-                hovered && styles.headerActionButtonHovered,
-              ]}
-            >
-              <Ionicons
-                name={
-                  messagesUnreadCount > 0
-                    ? 'chatbubble-ellipses'
-                    : 'chatbubble-ellipses-outline'
-                }
-                size={20}
-                color="#FFFFFF"
-              />
-              {messagesUnreadCount > 0 && (
-                <View style={styles.headerActionBadge}>
-                  <Text style={styles.headerActionBadgeText}>
-                    {messagesUnreadCount > 99 ? '99+' : messagesUnreadCount}
-                  </Text>
-                </View>
-              )}
-            </Pressable>
-          )}
-
-          {notificationsTarget && (
-            <Pressable
-              onPress={openNotifications}
-              accessibilityRole="button"
-              accessibilityLabel="Ouvrir les notifications"
-              style={({ hovered }) => [
-                styles.headerActionButton,
-                hovered && styles.headerActionButtonHovered,
-              ]}
-            >
-              <Ionicons
-                name={
-                  notificationsUnreadCount > 0
-                    ? 'notifications'
-                    : 'notifications-outline'
-                }
-                size={20}
-                color="#FFFFFF"
-              />
-              {notificationsUnreadCount > 0 && (
-                <View style={styles.headerActionBadge}>
-                  <Text style={styles.headerActionBadgeText}>
-                    {notificationsUnreadCount > 99
-                      ? '99+'
-                      : notificationsUnreadCount}
-                  </Text>
-                </View>
-              )}
-            </Pressable>
-          )}
-        </View>
-
-        {/* Profil */}
-        <View style={styles.profileWrap}>
-          <Pressable
-            onPress={() => setProfileOpen((prev) => !prev)}
-            style={({ hovered }) => [
-              styles.profileButton,
-              hovered && styles.profileButtonHovered,
-            ]}
-          >
-            <View style={styles.avatar}>
-              {avatarSource ? (
-                <Image
-                  source={{ uri: avatarSource }}
-                  style={styles.avatarImage}
-                />
-              ) : (
-                <Text style={styles.avatarInitial}>{initial}</Text>
-              )}
-            </View>
-
-            <View style={styles.profileTexts}>
-              <Text numberOfLines={1} style={styles.profileName}>
-                {user?.fullname || user?.name || 'Utilisateur'}
-              </Text>
-              <Text numberOfLines={1} style={styles.profileRole}>
-                {roleLabel(user?.role)}
-              </Text>
-            </View>
-
-            <Ionicons
-              name={profileOpen ? 'chevron-up' : 'chevron-down'}
-              size={14}
-              color="rgba(255,255,255,0.85)"
-            />
-          </Pressable>
-
-          {profileOpen && (
-            <>
-              {/* Zone invisible pour fermer au clic extérieur */}
+            {notificationsTarget && (
               <Pressable
-                style={styles.dropdownBackdrop}
-                onPress={() => setProfileOpen(false)}
-              />
-
-              <View
-                style={[
-                  styles.dropdown,
-                  {
-                    backgroundColor: themeColors.surface,
-                    borderColor:
-                      themeColors.border ||
-                      (isDark ? 'rgba(255,255,255,0.1)' : '#E7E9EF'),
-                  },
+                onPress={openNotifications}
+                accessibilityRole="button"
+                accessibilityLabel="Ouvrir les notifications"
+                style={({ hovered }) => [
+                  styles.headerActionButton,
+                  hovered && styles.headerActionButtonHovered,
                 ]}
               >
-                {hasProfileRoute && (
-                  <Pressable
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setProfileOpen(false);
-                      navigation.navigate('Profil');
-                    }}
-                  >
-                    <Ionicons
-                      name="person-outline"
-                      size={16}
-                      color={themeColors.text}
-                    />
-                    <Text style={[styles.dropdownLabel, { color: themeColors.text }]}>
-                      Mon profil
+                <Ionicons
+                  name={
+                    notificationsUnreadCount > 0
+                      ? 'notifications'
+                      : 'notifications-outline'
+                  }
+                  size={21}
+                  color="#FFFFFF"
+                />
+
+                {notificationsUnreadCount > 0 && (
+                  <View style={styles.headerActionBadge}>
+                    <Text style={styles.headerActionBadgeText}>
+                      {notificationsUnreadCount > 99
+                        ? '99+'
+                        : notificationsUnreadCount}
                     </Text>
-                  </Pressable>
+                  </View>
                 )}
+              </Pressable>
+            )}
+          </View>
+
+          {/* Menu utilisateur : photo de profil dans un cercle blanc */}
+          <View style={styles.profileWrap}>
+            <Pressable
+              onPress={() => setProfileOpen((prev) => !prev)}
+              accessibilityRole="button"
+              accessibilityLabel="Ouvrir le menu utilisateur"
+              style={({ hovered }) => [
+                styles.profileButton,
+                hovered && styles.profileButtonHovered,
+              ]}
+            >
+              <View style={styles.profileCircle}>
+                {avatarSource ? (
+                  <Image
+                    source={{ uri: avatarSource }}
+                    style={styles.profileCircleImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={styles.profileCircleFallback}>
+                    <Ionicons
+                      name="person"
+                      size={25}
+                      color={PRIMARY}
+                    />
+                  </View>
+                )}
+
+                <View style={styles.profileOnlineDot} />
+              </View>
+            </Pressable>
+
+            {profileOpen && (
+              <>
+                <Pressable
+                  style={styles.dropdownBackdrop}
+                  onPress={() => setProfileOpen(false)}
+                />
 
                 <View
                   style={[
-                    styles.dropdownDivider,
+                    styles.dropdown,
                     {
-                      backgroundColor:
+                      backgroundColor: themeColors.surface,
+                      borderColor:
                         themeColors.border ||
-                        (isDark ? 'rgba(255,255,255,0.1)' : '#E7E9EF'),
+                        (isDark
+                          ? 'rgba(255,255,255,0.1)'
+                          : '#E7E9EF'),
                     },
                   ]}
-                />
-
-                <Pressable
-                  style={styles.dropdownItem}
-                  onPress={() => {
-                    setProfileOpen(false);
-                    logout?.();
-                  }}
                 >
-                  <Ionicons name="log-out-outline" size={16} color="#E74C3C" />
-                  <Text style={[styles.dropdownLabel, { color: '#E74C3C' }]}>
-                    Déconnexion
-                  </Text>
-                </Pressable>
-              </View>
-            </>
-          )}
+                  <View style={styles.profileDropdownHeader}>
+                    <View style={styles.dropdownAvatar}>
+                      {avatarSource ? (
+                        <Image
+                          source={{ uri: avatarSource }}
+                          style={styles.avatarImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <Text style={styles.avatarInitial}>
+                          {initial}
+                        </Text>
+                      )}
+                    </View>
+
+                    <View style={styles.profileDropdownTexts}>
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.profileDropdownName,
+                          { color: themeColors.text },
+                        ]}
+                      >
+                        {user?.fullname || user?.name || 'Utilisateur'}
+                      </Text>
+
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.profileDropdownRole,
+                          {
+                            color:
+                              themeColors.textSecondary ||
+                              (isDark ? '#AEB7C6' : '#6B7280'),
+                          },
+                        ]}
+                      >
+                        {roleLabel(user?.role)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.dropdownDivider,
+                      {
+                        backgroundColor:
+                          themeColors.border ||
+                          (isDark
+                            ? 'rgba(255,255,255,0.1)'
+                            : '#E7E9EF'),
+                      },
+                    ]}
+                  />
+
+                  {hasProfileRoute && (
+                    <Pressable
+                      style={({ hovered }) => [
+                        styles.dropdownItem,
+                        hovered && styles.dropdownItemHovered,
+                      ]}
+                      onPress={() => {
+                        setProfileOpen(false);
+                        navigation.navigate('Profil');
+                      }}
+                    >
+                      <View style={styles.dropdownIconBox}>
+                        <Ionicons
+                          name="person-outline"
+                          size={17}
+                          color={PRIMARY}
+                        />
+                      </View>
+
+                      <Text
+                        style={[
+                          styles.dropdownLabel,
+                          { color: themeColors.text },
+                        ]}
+                      >
+                        Mon profil
+                      </Text>
+                    </Pressable>
+                  )}
+
+                  <Pressable
+                    style={({ hovered }) => [
+                      styles.dropdownItem,
+                      hovered && styles.dropdownItemHovered,
+                    ]}
+                    onPress={() => {
+                      setProfileOpen(false);
+                      logout?.();
+                    }}
+                  >
+                    <View style={styles.dropdownIconBoxLogout}>
+                      <Ionicons
+                        name="log-out-outline"
+                        size={17}
+                        color="#E74C3C"
+                      />
+                    </View>
+
+                    <Text
+                      style={[
+                        styles.dropdownLabel,
+                        { color: '#E74C3C' },
+                      ]}
+                    >
+                      Déconnexion
+                    </Text>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </View>
         </View>
       </View>
 
@@ -660,8 +747,9 @@ export const TopNavBar = ({
 // isMerged = Platform.OS === 'web' && width >= TOPNAV_BREAKPOINT).
 // Couleurs de marque (thème vert) — mêmes que AppHeader.js (dupliquées
 // ici pour éviter un import circulaire AppHeader <-> AppNavigation).
-const PRIMARY = '#2E7D32';
-const PRIMARY_DARK = '#164B2A';
+const PRIMARY = '#007517';
+const PRIMARY_DARK = '#0B633C';
+const PRIMARY_SOFT = '#EAF7F0';
 
 const styles = StyleSheet.create({
   wrap: {
@@ -676,79 +764,133 @@ const styles = StyleSheet.create({
   // ---------- barre principale ----------
   mainBar: {
     width: '100%',
-    minHeight: 64,
+    minHeight: 74,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: PRIMARY,
     borderBottomWidth: 1,
     borderBottomColor: PRIMARY_DARK,
-    paddingHorizontal: spacing.lg || 24,
-    gap: spacing.lg || 24,
+    paddingHorizontal: 22,
+    gap: 10,
     ...Platform.select({
-      web: { boxShadow: '0px 3px 14px rgba(0,0,0,0.12)' },
-      default: { elevation: 8 },
+      web: {
+        boxShadow: '0px 3px 18px rgba(0,0,0,0.14)',
+      },
+      default: {
+        elevation: 8,
+      },
     }),
   },
 
-  brand: {
+  // ---------- logo + marque à gauche ----------
+  brandLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 10,
     flexShrink: 0,
+    minWidth: 215,
+    maxWidth: 255,
   },
 
   logoBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    flexShrink: 0,
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 2px 7px rgba(0,0,0,0.14)',
+      },
+      default: {
+        elevation: 3,
+      },
+    }),
   },
 
   logo: {
-    width: 28,
-    height: 28,
+    width: 34,
+    height: 34,
+  },
+
+  brandTextWrap: {
+    minWidth: 0,
+    maxWidth: 175,
+    justifyContent: 'center',
   },
 
   brandText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 17,
+    lineHeight: 21,
     fontFamily: typography.fontFamily.bold,
-    maxWidth: 180,
   },
 
-  // ---------- menu ----------
-  menuScroll: {
+  brandSubtitle: {
+    color: 'rgba(255,255,255,0.82)',
+    fontSize: 9.5,
+    lineHeight: 13,
+    fontFamily: typography.fontFamily.medium,
+    marginTop: 1,
+  },
+
+  // ---------- zone menus ----------
+  menuArea: {
     flex: 1,
+    minWidth: 0,
+    height: '100%',
+    justifyContent: 'center',
+  },
+
+  menuScroll: {
+    width: '100%',
+    maxWidth: '100%',
   },
 
   menuScrollContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    paddingVertical: 8,
+    paddingRight: 8,
+    gap: 3,
   },
 
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    minHeight: 42,
+    flexShrink: 0,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+      default: {},
+    }),
   },
 
   menuItemHovered: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.10)',
   },
 
   menuItemActive: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.20)',
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 2px 8px rgba(0,0,0,0.10)',
+      },
+      default: {},
+    }),
   },
 
   menuItemLabel: {
-    color: 'rgba(255,255,255,0.82)',
+    color: 'rgba(255,255,255,0.88)',
     fontSize: 13.5,
     fontFamily: typography.fontFamily.medium,
   },
@@ -758,22 +900,35 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.bold,
   },
 
-  // ---------- notifications / messages ----------
+  // ---------- actions à droite ----------
+  rightNav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 5,
+    flexShrink: 0,
+  },
+
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 2,
     flexShrink: 0,
   },
 
   headerActionButton: {
-    width: 40,
-    height: 40,
+    width: 42,
+    height: 42,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    ...Platform.select({ web: { cursor: 'pointer' }, default: {} }),
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+      default: {},
+    }),
   },
 
   headerActionButtonHovered: {
@@ -782,8 +937,8 @@ const styles = StyleSheet.create({
 
   headerActionBadge: {
     position: 'absolute',
-    top: 3,
-    right: 3,
+    top: 2,
+    right: 2,
     minWidth: 17,
     height: 17,
     borderRadius: 9,
@@ -802,34 +957,97 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.bold,
   },
 
-  // ---------- profil ----------
+  // ---------- profil rond ----------
   profileWrap: {
     flexShrink: 0,
     position: 'relative',
+    zIndex: 80,
   },
 
   profileButton: {
-    flexDirection: 'row',
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     alignItems: 'center',
-    gap: 9,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    ...Platform.select({ web: { cursor: 'pointer' }, default: {} }),
+    justifyContent: 'center',
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+      default: {},
+    }),
   },
 
   profileButtonHovered: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
 
-  avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: 'rgba(255,255,255,0.24)',
+  profileCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible',
+    position: 'relative',
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 3px 10px rgba(0,0,0,0.18)',
+      },
+      default: {
+        elevation: 4,
+      },
+    }),
+  },
+
+  profileCircleImage: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#F2F4F7',
+  },
+
+  profileCircleFallback: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F2F4F7',
+  },
+
+  profileOnlineDot: {
+    position: 'absolute',
+    right: 1,
+    bottom: 1,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#2EAD72',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+
+  profileDropdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+
+  dropdownAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: PRIMARY_SOFT,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+    flexShrink: 0,
   },
 
   avatarImage: {
@@ -838,24 +1056,24 @@ const styles = StyleSheet.create({
   },
 
   avatarInitial: {
-    color: '#FFFFFF',
-    fontSize: 15,
+    color: PRIMARY,
+    fontSize: 17,
     fontFamily: typography.fontFamily.bold,
   },
 
-  profileTexts: {
-    maxWidth: 130,
+  profileDropdownTexts: {
+    flex: 1,
+    minWidth: 0,
   },
 
-  profileName: {
-    color: '#FFFFFF',
-    fontSize: 13,
+  profileDropdownName: {
+    fontSize: 13.5,
     fontFamily: typography.fontFamily.bold,
   },
 
-  profileRole: {
-    color: 'rgba(255,255,255,0.78)',
+  profileDropdownRole: {
     fontSize: 11,
+    marginTop: 2,
   },
 
   dropdownBackdrop: {
@@ -869,16 +1087,20 @@ const styles = StyleSheet.create({
 
   dropdown: {
     position: 'absolute',
-    top: 52,
+    top: 58,
     right: 0,
-    minWidth: 190,
-    borderRadius: 14,
+    width: 230,
+    borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     paddingVertical: 6,
     zIndex: 70,
     ...Platform.select({
-      web: { boxShadow: '0px 8px 24px rgba(0,0,0,0.16)' },
-      default: { elevation: 10 },
+      web: {
+        boxShadow: '0px 10px 30px rgba(0,0,0,0.18)',
+      },
+      default: {
+        elevation: 10,
+      },
     }),
   },
 
@@ -886,8 +1108,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 10,
+    paddingVertical: 11,
     paddingHorizontal: 14,
+    borderRadius: 10,
+    marginHorizontal: 5,
+  },
+
+  dropdownItemHovered: {
+    backgroundColor: PRIMARY_SOFT,
+  },
+
+  dropdownIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: PRIMARY_SOFT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  dropdownIconBoxLogout: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    backgroundColor: '#FDECEC',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   dropdownLabel: {

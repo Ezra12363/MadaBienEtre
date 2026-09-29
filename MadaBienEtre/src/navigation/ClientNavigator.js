@@ -4,18 +4,15 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
 } from 'react';
 
 import {
-  Platform,
   SafeAreaView,
   StatusBar,
   StyleSheet,
-  View,
 } from 'react-native';
 
 import {
@@ -53,6 +50,9 @@ import HistoryScreen from '../screens/client/HistoryScreen';
 import NegotiationScreen from '../screens/client/NegotiationScreen';
 import OffersScreen from '../screens/client/OffersScreen';
 
+// ✅ NOUVEAU : écran plein "Publications des thérapeutes"
+import TherapistPublicationsScreen from '../screens/client/TherapistPublicationsScreen';
+
 // ============================================================
 // NAVIGATORS
 // ============================================================
@@ -66,9 +66,6 @@ const Tab = createBottomTabNavigator();
 
 const SCROLL_THRESHOLD = 8;
 const SHOW_AT_TOP = 10;
-const HIDE_TRANSLATE_Y = 100;
-
-const ANIMATION_DURATION = 240;
 
 // ============================================================
 // CONTEXT
@@ -88,22 +85,30 @@ export const useClientTabBar = () => {
 };
 
 // ============================================================
+// OPTIONS COMMUNES DES STACKS
+// ============================================================
+
+const useStackScreenOptions = () => {
+  const { colors: themeColors } = useTheme();
+
+  return {
+    headerShown: false,
+    animation: 'fade',
+    contentStyle: {
+      backgroundColor: themeColors.background,
+    },
+  };
+};
+
+// ============================================================
 // HOME STACK
 // ============================================================
 
 const HomeStack = () => {
-  const { colors: themeColors } = useTheme();
+  const screenOptions = useStackScreenOptions();
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: 'fade',
-        contentStyle: {
-          backgroundColor: themeColors.background,
-        },
-      }}
-    >
+    <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="HomeScreen"
         component={HomeScreen}
@@ -112,6 +117,16 @@ const HomeStack = () => {
       <Stack.Screen
         name="SearchMassage"
         component={SearchMassageScreen}
+      />
+
+      {/* ==========================================================
+          ✅ NOUVEAU : Publications des thérapeutes (plein écran,
+          responsive web + mobile). Ouvert depuis HomeScreen via
+          navigate('TherapistPublications').
+          ========================================================== */}
+      <Stack.Screen
+        name="TherapistPublications"
+        component={TherapistPublicationsScreen}
       />
 
       <Stack.Screen
@@ -192,18 +207,10 @@ const HomeStack = () => {
 // ============================================================
 
 const BookingStack = () => {
-  const { colors: themeColors } = useTheme();
+  const screenOptions = useStackScreenOptions();
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: 'fade',
-        contentStyle: {
-          backgroundColor: themeColors.background,
-        },
-      }}
-    >
+    <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="BookingScreen"
         component={BookingScreen}
@@ -268,18 +275,10 @@ const BookingStack = () => {
 // ============================================================
 
 const ChatStack = () => {
-  const { colors: themeColors } = useTheme();
+  const screenOptions = useStackScreenOptions();
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: 'fade',
-        contentStyle: {
-          backgroundColor: themeColors.background,
-        },
-      }}
-    >
+    <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="ChatList"
         component={ChatScreen}
@@ -303,18 +302,10 @@ const ChatStack = () => {
 // ============================================================
 
 const ProfileStack = () => {
-  const { colors: themeColors } = useTheme();
+  const screenOptions = useStackScreenOptions();
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: 'fade',
-        contentStyle: {
-          backgroundColor: themeColors.background,
-        },
-      }}
-    >
+    <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="ProfileScreen"
         component={ProfileScreen}
@@ -357,26 +348,17 @@ const ProfileStack = () => {
 // HISTORY STACK
 // ============================================================
 //
-// Nouvel onglet "Historique" du client. Regroupe HistoryScreen et
-// tous les écrans qu'il peut ouvrir (voir dans HistoryScreen.js :
-// navigation.navigate('BookingDetail', ...) et
-// navigation.navigate('CreateBooking')), pour que la navigation
-// imbriquée reste cohérente que l'on soit sur cet onglet ou un autre.
+// Onglet "Historique" du client. Regroupe HistoryScreen et tous
+// les écrans qu'il peut ouvrir (BookingDetail, CreateBooking, ...),
+// pour que la navigation imbriquée reste cohérente que l'on soit
+// sur cet onglet ou un autre.
 // ============================================================
 
 const HistoryStack = () => {
-  const { colors: themeColors } = useTheme();
+  const screenOptions = useStackScreenOptions();
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: 'fade',
-        contentStyle: {
-          backgroundColor: themeColors.background,
-        },
-      }}
-    >
+    <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="HistoryScreen"
         component={HistoryScreen}
@@ -434,35 +416,22 @@ const HistoryStack = () => {
 // TAB ICONS
 // ============================================================
 
-const getTabIcon = (
-  routeName,
-  focused
-) => {
+const getTabIcon = (routeName, focused) => {
   switch (routeName) {
     case 'Accueil':
-      return focused
-        ? 'home'
-        : 'home-outline';
+      return focused ? 'home' : 'home-outline';
 
     case 'Réservations':
-      return focused
-        ? 'calendar'
-        : 'calendar-outline';
+      return focused ? 'calendar' : 'calendar-outline';
 
     case 'Historique':
-      return focused
-        ? 'time'
-        : 'time-outline';
+      return focused ? 'time' : 'time-outline';
 
     case 'Messages':
-      return focused
-        ? 'chatbubbles'
-        : 'chatbubbles-outline';
+      return focused ? 'chatbubbles' : 'chatbubbles-outline';
 
     case 'Profil':
-      return focused
-        ? 'person'
-        : 'person-outline';
+      return focused ? 'person' : 'person-outline';
 
     default:
       return 'home-outline';
@@ -473,9 +442,7 @@ const getTabIcon = (
 // TAB LABEL
 // ============================================================
 
-const getTabLabel = (
-  routeName
-) => {
+const getTabLabel = (routeName) => {
   switch (routeName) {
     case 'Accueil':
       return 'Accueil';
@@ -508,395 +475,216 @@ const ClientNavigator = () => {
   } = useTheme();
 
   // ----------------------------------------------------------
-  // Etat visibilité
+  // Etat visibilité de la barre d'onglets
   // ----------------------------------------------------------
 
-  const [
-    tabBarVisible,
-    setTabBarVisible,
-  ] = useState(true);
+  const [tabBarVisible, setTabBarVisible] = useState(true);
 
-  // ----------------------------------------------------------
-  // Dernier scroll
-  // ----------------------------------------------------------
+  // Dernière position de scroll
+  const lastScrollY = useRef(0);
 
-  const lastScrollY =
-    useRef(0);
+  // Timestamp du dernier scroll
+  const lastScrollTime = useRef(0);
 
-  // ----------------------------------------------------------
-  // Timestamp
-  // ----------------------------------------------------------
-
-  const lastScrollTime =
-    useRef(0);
-
-  // ----------------------------------------------------------
-  // Animation lock
-  // ----------------------------------------------------------
-
-  const scrollDirection =
-    useRef('idle');
+  // Direction courante : 'idle' | 'up' | 'down'
+  const scrollDirection = useRef('idle');
 
   // ==========================================================
-  // SHOW
+  // SHOW / HIDE / TOGGLE / RESET
   // ==========================================================
 
-  const showClientTabBar =
-    useCallback(() => {
-      setTabBarVisible(
-        true
-      );
-    }, []);
+  const showClientTabBar = useCallback(() => {
+    setTabBarVisible(true);
+  }, []);
 
-  // ==========================================================
-  // HIDE
-  // ==========================================================
+  const hideClientTabBar = useCallback(() => {
+    setTabBarVisible(false);
+  }, []);
 
-  const hideClientTabBar =
-    useCallback(() => {
-      setTabBarVisible(
-        false
-      );
-    }, []);
+  const toggleClientTabBar = useCallback(() => {
+    setTabBarVisible((previous) => !previous);
+  }, []);
 
-  // ==========================================================
-  // TOGGLE
-  // ==========================================================
+  const resetClientScroll = useCallback(() => {
+    lastScrollY.current = 0;
+    lastScrollTime.current = 0;
+    scrollDirection.current = 'idle';
 
-  const toggleClientTabBar =
-    useCallback(() => {
-      setTabBarVisible(
-        previous =>
-          !previous
-      );
-    }, []);
-
-  // ==========================================================
-  // RESET
-  // ==========================================================
-
-  const resetClientScroll =
-    useCallback(() => {
-      lastScrollY.current =
-        0;
-
-      lastScrollTime.current =
-        0;
-
-      scrollDirection.current =
-        'idle';
-
-      setTabBarVisible(
-        true
-      );
-    }, []);
+    setTabBarVisible(true);
+  }, []);
 
   // ==========================================================
   // SCROLL HANDLER GLOBAL
   // ==========================================================
   //
-  // currentY > previousY
-  //       => scroll vers le haut
-  //       => menu disparaît
-  //
-  // currentY < previousY
-  //       => scroll vers le bas
-  //       => menu apparaît
+  // currentY > previousY  => scroll vers le haut => menu disparaît
+  // currentY < previousY  => scroll vers le bas  => menu apparaît
   //
   // ==========================================================
 
-  const handleClientScroll =
-    useCallback(
-      (event) => {
-        if (
-          !event ||
-          !event.nativeEvent
-        ) {
-          return;
+  const handleClientScroll = useCallback(
+    (event) => {
+      if (!event || !event.nativeEvent) {
+        return;
+      }
+
+      const currentY =
+        event.nativeEvent.contentOffset?.y || 0;
+
+      // Toujours visible tout en haut
+      if (currentY <= SHOW_AT_TOP) {
+        if (!tabBarVisible) {
+          setTabBarVisible(true);
         }
 
-        const currentY =
-          event.nativeEvent
-            .contentOffset?.y || 0;
+        lastScrollY.current = currentY;
 
-        // -----------------------------------------------
-        // Toujours visible tout en haut
-        // -----------------------------------------------
+        return;
+      }
 
-        if (
-          currentY <=
-          SHOW_AT_TOP
-        ) {
-          if (
-            !tabBarVisible
-          ) {
-            setTabBarVisible(
-              true
-            );
-          }
+      const delta = currentY - lastScrollY.current;
 
-          lastScrollY.current =
-            currentY;
+      // Mouvement trop petit : on ignore
+      if (Math.abs(delta) < SCROLL_THRESHOLD) {
+        return;
+      }
 
-          return;
+      if (delta > 0) {
+        // Contenu qui monte => on cache la barre
+        if (scrollDirection.current !== 'up') {
+          scrollDirection.current = 'up';
+
+          setTabBarVisible(false);
         }
+      } else if (delta < 0) {
+        // Contenu qui redescend => on montre la barre
+        if (scrollDirection.current !== 'down') {
+          scrollDirection.current = 'down';
 
-        // -----------------------------------------------
-        // Delta
-        // -----------------------------------------------
-
-        const delta =
-          currentY -
-          lastScrollY.current;
-
-        // -----------------------------------------------
-        // Trop petit mouvement
-        // -----------------------------------------------
-
-        if (
-          Math.abs(delta) <
-          SCROLL_THRESHOLD
-        ) {
-          return;
+          setTabBarVisible(true);
         }
+      }
 
-        // -----------------------------------------------
-        // SCROLL VERS LE HAUT
-        // -----------------------------------------------
-        //
-        // Finger moving up:
-        // contentOffset.y augmente
-        //
-        // -----------------------------------------------
-
-        if (
-          delta > 0
-        ) {
-          if (
-            scrollDirection.current !==
-            'up'
-          ) {
-            scrollDirection.current =
-              'up';
-
-            setTabBarVisible(
-              false
-            );
-          }
-        }
-
-        // -----------------------------------------------
-        // SCROLL VERS LE BAS
-        // -----------------------------------------------
-        //
-        // contentOffset.y diminue
-        //
-        // -----------------------------------------------
-
-        else if (
-          delta < 0
-        ) {
-          if (
-            scrollDirection.current !==
-            'down'
-          ) {
-            scrollDirection.current =
-              'down';
-
-            setTabBarVisible(
-              true
-            );
-          }
-        }
-
-        lastScrollY.current =
-          currentY;
-
-        lastScrollTime.current =
-          Date.now();
-      },
-      [
-        tabBarVisible,
-      ]
-    );
+      lastScrollY.current = currentY;
+      lastScrollTime.current = Date.now();
+    },
+    [tabBarVisible]
+  );
 
   // ==========================================================
-  // CONTEXT
+  // CONTEXT VALUE
   // ==========================================================
 
-  const contextValue =
-    useMemo(
-      () => ({
-        showClientTabBar,
-        hideClientTabBar,
-        toggleClientTabBar,
-        handleClientScroll,
-        resetClientScroll,
-        tabBarVisible,
-      }),
-      [
-        showClientTabBar,
-        hideClientTabBar,
-        toggleClientTabBar,
-        handleClientScroll,
-        resetClientScroll,
-        tabBarVisible,
-      ]
-    );
+  const contextValue = useMemo(
+    () => ({
+      showClientTabBar,
+      hideClientTabBar,
+      toggleClientTabBar,
+      handleClientScroll,
+      resetClientScroll,
+      tabBarVisible,
+    }),
+    [
+      showClientTabBar,
+      hideClientTabBar,
+      toggleClientTabBar,
+      handleClientScroll,
+      resetClientScroll,
+      tabBarVisible,
+    ]
+  );
 
   // ==========================================================
   // RENDER
   // ==========================================================
 
   return (
-    <ClientTabBarContext.Provider
-      value={
-        contextValue
-      }
-    >
-    <NavBridgeProvider>
-      <SafeAreaView
-        style={[
-          styles.container,
-          {
-            backgroundColor:
-              themeColors.background,
-          },
-        ]}
-      >
-        {/* ================================================== */}
-        {/* STATUS BAR */}
-        {/* ================================================== */}
+    <ClientTabBarContext.Provider value={contextValue}>
+      <NavBridgeProvider>
+        <SafeAreaView
+          style={[
+            styles.container,
+            {
+              backgroundColor: themeColors.background,
+            },
+          ]}
+        >
+          {/* ================================================== */}
+          {/* STATUS BAR */}
+          {/* ================================================== */}
 
-        <StatusBar
-          barStyle={
-            isDark
-              ? 'light-content'
-              : 'dark-content'
-          }
+          <StatusBar
+            barStyle={
+              isDark
+                ? 'light-content'
+                : 'dark-content'
+            }
+            backgroundColor={themeColors.background}
+            translucent={false}
+          />
 
-          backgroundColor={
-            themeColors.background
-          }
+          <TopNavBar brandLabel="Mada Bien-être" />
 
-          translucent={
-            false
-          }
-        />
+          {/* ================================================== */}
+          {/* TABS */}
+          {/* ================================================== */}
 
-        <TopNavBar brandLabel="Mada Bien-être" />
-
-        {/* ================================================== */}
-        {/* TABS */}
-        {/* ================================================== */}
-
-        <Tab.Navigator
-          tabBar={
-            props => (
+          <Tab.Navigator
+            tabBar={(props) => (
               <TabBarConnector
                 {...props}
                 visible={tabBarVisible}
                 getIcon={getTabIcon}
                 getLabel={getTabLabel}
               />
-            )
-          }
-
-          screenOptions={{
-            headerShown:
-              false,
-
-            lazy: true,
-
-            tabBarHideOnKeyboard:
-              true,
-
-            sceneStyle: {
-              backgroundColor:
-                themeColors.background,
-            },
-
-            freezeOnBlur:
-              false,
-          }}
-        >
-          {/* ================================================= */}
-          {/* ACCUEIL */}
-          {/* ================================================= */}
-
-          <Tab.Screen
-            name="Accueil"
-            component={
-              HomeStack
-            }
-            options={{
-              tabBarLabel:
-                'Accueil',
+            )}
+            screenOptions={{
+              headerShown: false,
+              lazy: true,
+              tabBarHideOnKeyboard: true,
+              sceneStyle: {
+                backgroundColor: themeColors.background,
+              },
+              freezeOnBlur: false,
             }}
-          />
+          >
+            {/* ACCUEIL */}
+            <Tab.Screen
+              name="Accueil"
+              component={HomeStack}
+              options={{ tabBarLabel: 'Accueil' }}
+            />
 
-          {/* ================================================= */}
-          {/* RÉSERVATIONS */}
-          {/* ================================================= */}
+            {/* RÉSERVATIONS */}
+            <Tab.Screen
+              name="Réservations"
+              component={BookingStack}
+              options={{ tabBarLabel: 'Réservations' }}
+            />
 
-          <Tab.Screen
-            name="Réservations"
-            component={
-              BookingStack
-            }
-            options={{
-              tabBarLabel:
-                'Réservations',
-            }}
-          />
+            {/* HISTORIQUE */}
+            <Tab.Screen
+              name="Historique"
+              component={HistoryStack}
+              options={{ tabBarLabel: 'Historique' }}
+            />
 
-          {/* ================================================= */}
-          {/* HISTORIQUE */}
-          {/* ================================================= */}
+            {/* MESSAGES */}
+            <Tab.Screen
+              name="Messages"
+              component={ChatStack}
+              options={{ tabBarLabel: 'Messages' }}
+            />
 
-          <Tab.Screen
-            name="Historique"
-            component={
-              HistoryStack
-            }
-            options={{
-              tabBarLabel:
-                'Historique',
-            }}
-          />
-
-          {/* ================================================= */}
-          {/* MESSAGES */}
-          {/* ================================================= */}
-
-          <Tab.Screen
-            name="Messages"
-            component={
-              ChatStack
-            }
-            options={{
-              tabBarLabel:
-                'Messages',
-            }}
-          />
-
-          {/* ================================================= */}
-          {/* PROFIL */}
-          {/* ================================================= */}
-
-          <Tab.Screen
-            name="Profil"
-            component={
-              ProfileStack
-            }
-            options={{
-              tabBarLabel:
-                'Profil',
-            }}
-          />
-        </Tab.Navigator>
-      </SafeAreaView>
-    </NavBridgeProvider>
+            {/* PROFIL */}
+            <Tab.Screen
+              name="Profil"
+              component={ProfileStack}
+              options={{ tabBarLabel: 'Profil' }}
+            />
+          </Tab.Navigator>
+        </SafeAreaView>
+      </NavBridgeProvider>
     </ClientTabBarContext.Provider>
   );
 };
@@ -905,17 +693,10 @@ const ClientNavigator = () => {
 // STYLES
 // ============================================================
 
-const styles =
-  StyleSheet.create({
-
-    // ========================================================
-    // CONTAINER
-    // ========================================================
-
-    container: {
-      flex: 1,
-    },
-
-  });
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});
 
 export default ClientNavigator;

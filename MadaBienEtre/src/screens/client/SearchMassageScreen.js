@@ -24,6 +24,7 @@ import {
   Platform,
   Modal,
   KeyboardAvoidingView,
+  Linking,
 } from "react-native";
 
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -33,6 +34,7 @@ import { typography } from "../../theme";
 import Header from "../../components/common/Header";
 import massageTypeService from "../../services/massageTypeService";
 import therapistService from "../../services/therapistService";
+import availabilityService from "../../services/availabilityService";
 import MapViewWrapper from "../../components/map/MapViewWrapper";
 import useLocationTracking from "../../hooks/useLocationTracking";
 import { searchLocation, getAddressSuggestions, getPlaceDetails } from "../../services/geocoding";
@@ -126,6 +128,430 @@ const MASSAGE_CATEGORY_ICONS = {
 
 const getMassageCategoryIcon = (category) =>
   MASSAGE_CATEGORY_ICONS[String(category || "").toLowerCase()] || "spa";
+
+/* ============================================================
+   ✅ DISPONIBILITÉ / HORAIRES (style fiche Google)
+============================================================ */
+
+const DAYS_FULL = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
+const DAYS_SHORT = ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."];
+const MONTHS_SHORT = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+const OPEN_SOON_MINUTES = 60; // "Ferme bientôt" si ≤ 60 min avant la fermeture
+
+const OPEN_COLOR = "#1E8E3E";   // vert Google
+const CLOSING_COLOR = "#E37400"; // orange Google
+const CLOSED_COLOR = "#D93025";  // rouge Google
+
+const hhmm = (value) => (value ? String(value).slice(0, 5) : "");
+const toMinutes = (value) => {
+  const [h, m] = hhmm(value).split(":").map(Number);
+  return Number.isFinite(h) ? h * 60 + (Number.isFinite(m) ? m : 0) : null;
+};
+
+const DAY_NAME_TO_INDEX = {
+  dimanche: 0, sunday: 0, lundi: 1, monday: 1, mardi: 2, tuesday: 2,
+  mercredi: 3, wednesday: 3, jeudi: 4, thursday: 4, vendredi: 5, friday: 5,
+  samedi: 6, saturday: 6,
+};
+
+// Normalise le planning hebdomadaire renvoyé par l'API (formats variés)
+const normalizeWeekly = (input) => {
+  let rows = input;
+  if (rows && !Array.isArray(rows)) rows = rows.weekly || rows.schedule || rows.data || null;
+  if (!Array.isArray(rows) || rows.length === 0) return null;
+
+  const out = rows
+    .map((r) => {
+      let day = r?.day ?? r?.day_of_week ?? r?.weekday;
+      if (typeof day === "string" && Number.isNaN(Number(day))) {
+        day = DAY_NAME_TO_INDEX[day.toLowerCase()];
+      }
+      day = Number(day);
+      if (!Number.isFinite(day) || day < 0 || day > 6) return null;
+      const start = hhmm(r?.start ?? r?.start_time ?? r?.open ?? r?.opens_at);
+      const end = hhmm(r?.end ?? r?.end_time ?? r?.close ?? r?.closes_at);
+      const flag = r?.is_available ?? r?.available ?? r?.active ?? r?.enabled ?? true;
+      const isAvailable = !(flag === false || flag === 0 || flag === "0" || flag === "false");
+      return { day, start, end, is_available: isAvailable && !!start && !!end };
+    })
+    .filter(Boolean);
+
+  return out.length ? out : null;
+};
+
+// Calcule "Ouvert · Ferme à 18:00" / "Ferme bientôt" / "Fermé · Ouvre lundi à 09:00"
+const getOpenStatus = (weekly, onlineAvailable, now = new Date()) => {
+  if (!weekly) {
+    return onlineAvailable
+      ? { state: "open", color: OPEN_COLOR, label: "Disponible", detail: "maintenant" }
+      : { state: "closed", color: CLOSED_COLOR, label: "Indisponible", detail: "" };
+  }
+
+  const today = now.getDay();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const todayRow = weekly.find((d) => d.day === today);
+
+  if (todayRow?.is_available) {
+    const s = toMinutes(todayRow.start);
+    const e = toMinutes(todayRow.end);
+    if (s != null && e != null && minutes >= s && minutes < e) {
+      if (e - minutes <= OPEN_SOON_MINUTES) {
+        return { state: "closing", color: CLOSING_COLOR, label: "Ferme bientôt", detail: todayRow.end };
+      }
+      return { state: "open", color: OPEN_COLOR, label: "Ouvert", detail: `Ferme à ${todayRow.end}` };
+    }
+    if (s != null && minutes < s) {
+      return { state: "closed", color: CLOSED_COLOR, label: "Fermé", detail: `Ouvre à ${todayRow.start}` };
+    }
+  }
+
+  for (let i = 1; i <= 7; i += 1) {
+    const idx = (today + i) % 7;
+    const row = weekly.find((d) => d.day === idx);
+    if (row?.is_available) {
+      const when = i === 1 ? "demain" : DAYS_FULL[idx].toLowerCase();
+      return { state: "closed", color: CLOSED_COLOR, label: "Fermé", detail: `Ouvre ${when} à ${row.start}` };
+    }
+  }
+  return { state: "closed", color: CLOSED_COLOR, label: "Fermé", detail: "" };
+};
+
+// Trouve le prochain créneau libre dans la réponse /therapists/:id/slots
+const findNextSlot = (data) => {
+  const flat = [];
+  const push = (date, time, extra) => {
+    if (!date && !time) return;
+    flat.push({ date, time, ...extra });
+  };
+  const walk = (node, dateHint) => {
+    if (!node) return;
+    if (Array.isArray(node)) return node.forEach((n) => walk(n, dateHint));
+    if (typeof node === "string") {
+      if (node.includes("T") || node.includes(" ")) {
+        const [d, t] = node.split(/[T ]/);
+        return push(d, hhmm(t));
+      }
+      return push(dateHint, hhmm(node));
+    }
+    if (typeof node === "object") {
+      if (Array.isArray(node.slots)) return walk(node.slots, node.date || dateHint);
+      if (Array.isArray(node.times)) return walk(node.times, node.date || dateHint);
+      const date = node.date || node.slot_date || dateHint;
+      const time = node.start_time || node.start || node.time || node.from;
+      if (time && String(time).includes("T")) {
+        const [d, t] = String(time).split("T");
+        return push(d, hhmm(t));
+      }
+      if (node.is_available === false || node.available === false || node.booked === true) return;
+      if (time) return push(date, hhmm(time));
+      Object.keys(node).forEach((k) => {
+        if (/^\d{4}-\d{2}-\d{2}$/.test(k)) walk(node[k], k);
+      });
+    }
+  };
+  walk(data && data.data ? data.data : data);
+
+  const now = Date.now();
+  const valid = flat
+    .map((s) => {
+      const ts = new Date(`${s.date}T${s.time || "00:00"}:00`).getTime();
+      return { ...s, ts };
+    })
+    .filter((s) => Number.isFinite(s.ts) && s.ts >= now)
+    .sort((a, b) => a.ts - b.ts);
+  return valid[0] || null;
+};
+
+const formatSlotDate = (slot) => {
+  if (!slot) return "";
+  const d = new Date(slot.ts);
+  const today = new Date();
+  const tomorrow = new Date(Date.now() + 86400000);
+  const same = (a, b) => a.toDateString() === b.toDateString();
+  const label = same(d, today)
+    ? "Aujourd'hui"
+    : same(d, tomorrow)
+      ? "Demain"
+      : `${DAYS_SHORT[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+  return `${label} à ${slot.time || hhmm(String(d.toTimeString()))}`;
+};
+
+const slotsCache = new Map();
+
+const formatRating = (n) => Number(n || 0).toFixed(1).replace(".", ",");
+
+const openDirections = (item) => {
+  const c = item?.coordinate;
+  const url = c
+    ? `https://www.google.com/maps/dir/?api=1&destination=${c.latitude},${c.longitude}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item?.address || "")}`;
+  Linking.openURL(url).catch(() => {});
+};
+
+const MONTHS_FULL = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+
+// "28 septembre 2026 · 10:26"
+const formatSlotFull = (slot) => {
+  if (!slot) return "";
+  const d = new Date(slot.ts);
+  return `${d.getDate()} ${MONTHS_FULL[d.getMonth()]} ${d.getFullYear()} · ${slot.time || ""}`;
+};
+
+// Récupère le prochain créneau (avec cache) + planning si absent
+const useNextSlot = (item) => {
+  const [nextSlot, setNextSlot] = useState(() => slotsCache.get(String(item.id)) || null);
+  const [weekly, setWeekly] = useState(item.weekly || null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!item?.id || String(item.id).startsWith("therapist-")) return undefined;
+    if (slotsCache.has(String(item.id))) return undefined;
+
+    const iso = (d) => d.toISOString().slice(0, 10);
+    availabilityService
+      .getTherapistSlots(item.id, iso(new Date()), iso(new Date(Date.now() + 7 * 86400000)))
+      .then((res) => {
+        if (cancelled || !res?.success) return;
+        const slot = findNextSlot(res.data);
+        slotsCache.set(String(item.id), slot);
+        setNextSlot(slot);
+        if (!item.weekly) {
+          const w = normalizeWeekly(res.data?.weekly || res.data?.availability);
+          if (w) setWeekly(w);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [item.id, item.weekly]);
+
+  return { nextSlot, weekly };
+};
+
+/* ---------- CARD THÉRAPEUTE (style carte "Réservation") ---------- */
+const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, onPress, onBook }) => {
+  const { nextSlot, weekly } = useNextSlot(item);
+
+  const status = getOpenStatus(weekly, item.available);
+  const online = !!item.available;
+
+  // Pastille en haut à droite
+  let pill = { label: "Hors ligne", color: "#6B7280", bg: isDark ? "#2A2F38" : "#F1F3F5" };
+  if (online && status.state === "closing") pill = { label: "Ferme bientôt", color: CLOSING_COLOR, bg: "#FFF3E0" };
+  else if (online) pill = { label: "Disponible", color: OPEN_COLOR, bg: "#E6F4EA" };
+
+  const green = PRIMARY;
+  const sub = colors.textSecondary;
+  const divider = isDark ? "#2A2F38" : "#E8EBEF";
+
+  return (
+    <View
+      style={[
+        cardStyles.card,
+        { backgroundColor: colors.surface, borderColor: isSelected ? PRIMARY : isDark ? "#292D35" : "#E4E7EC" },
+      ]}
+    >
+      <TouchableOpacity activeOpacity={0.92} onPress={onPress} style={cardStyles.body}>
+        {isRecommended && (
+          <View style={styles.aiRecommendationBadge}>
+            <MaterialCommunityIcons name="auto-fix" size={11} color="#FFFFFF" />
+            <Text style={styles.aiRecommendationText}>RECOMMANDÉ PAR L'IA</Text>
+          </View>
+        )}
+
+        <View style={cardStyles.row}>
+          {/* ===== GAUCHE : PHOTO + BADGE AVIS ===== */}
+          <View style={cardStyles.left}>
+            {item.image ? (
+              <Image source={{ uri: item.image }} style={cardStyles.photo} />
+            ) : (
+              <View style={[cardStyles.photo, cardStyles.photoFallback]}>
+                <Text style={cardStyles.photoInitial}>{item.name?.charAt(0)?.toUpperCase()}</Text>
+              </View>
+            )}
+            <View style={cardStyles.countBadge}>
+              <Ionicons name="chatbubble-ellipses-outline" size={11} color={green} />
+              <Text style={cardStyles.countBadgeText}>
+                {item.reviews} avis
+              </Text>
+            </View>
+          </View>
+
+          {/* ===== DROITE : INFORMATIONS ===== */}
+          <View style={cardStyles.info}>
+            <View style={cardStyles.titleRow}>
+              <Text numberOfLines={1} style={[cardStyles.name, { color: colors.text }]}>{item.name}</Text>
+              <View style={[cardStyles.pill, { backgroundColor: pill.bg }]}>
+                <View style={[cardStyles.pillDot, { backgroundColor: pill.color }]} />
+                <Text style={[cardStyles.pillText, { color: pill.color }]} numberOfLines={1}>{pill.label}</Text>
+              </View>
+            </View>
+
+            {/* Types de massage + catégories : UNE ligne avec icônes */}
+            {(item.specialties?.length > 0 || item.categories?.length > 0) && (
+              <ScrollView
+                horizontal
+                nestedScrollEnabled
+                showsHorizontalScrollIndicator={false}
+                style={cardStyles.typesScroll}
+                contentContainerStyle={cardStyles.typesRowContent}
+              >
+                {(item.specialties || []).map((sp, i) => (
+                  <View key={`${item.id}-t-${i}`} style={cardStyles.typeItem}>
+                    <MaterialCommunityIcons name={getMassageCategoryIcon(sp.category)} size={11} color={PRIMARY} />
+                    <Text style={cardStyles.typeText}>{sp.name}</Text>
+                  </View>
+                ))}
+                {item.specialties?.length > 0 && item.categories?.length > 0 && (
+                  <Text style={[cardStyles.typeSep, { color: sub }]}>·</Text>
+                )}
+                {(item.categories || []).map((cat) => (
+                  <View key={`${item.id}-k-${cat}`} style={cardStyles.typeItem}>
+                    <MaterialCommunityIcons name={getMassageCategoryIcon(cat)} size={11} color={PRIMARY} />
+                    <Text style={cardStyles.typeText}>{getMassageCategoryLabel(cat)}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+
+            {/* Note · métier (comme "Réservation #126") */}
+            <View style={cardStyles.inline}>
+              <Ionicons name="star" size={11} color={STAR} />
+              <Text style={[cardStyles.subBold, { color: sub, marginLeft: 3 }]}>
+                {formatRating(item.rating)} · Massothérapeute
+              </Text>
+            </View>
+
+            {/* Adresse */}
+            <View style={[cardStyles.inline, { marginTop: 7 }]}>
+              <Ionicons name="location-outline" size={13} color={sub} />
+              <Text numberOfLines={1} style={[cardStyles.address, { color: sub }]}>{item.address}</Text>
+            </View>
+
+            {/* Ancienneté */}
+            {item.experience > 0 && (
+              <View style={cardStyles.serviceRow}>
+                <Text style={[cardStyles.duration, { color: colors.text }]}>
+                  {item.experience} an{item.experience > 1 ? "s" : ""} d'expérience
+                </Text>
+              </View>
+            )}
+
+            {/* Disponibilité + calendrier : UNE seule ligne */}
+            <View style={[cardStyles.inline, { marginTop: 6 }]}>
+              <Ionicons name="time-outline" size={13} color={status.color} />
+              <Text numberOfLines={1} style={[cardStyles.greenLine, { color: status.color }]}>
+                {status.label}{status.detail ? ` · ${status.detail}` : ""}
+              </Text>
+              <Ionicons name="calendar-outline" size={13} color={sub} style={{ marginLeft: 8 }} />
+              <Text numberOfLines={1} style={[cardStyles.dateLine, { color: sub }]}>
+                {nextSlot ? formatSlotDate(nextSlot) : "Voir créneaux"}
+              </Text>
+            </View>
+
+            {/* Distance (rouge) + prix (vert) */}
+            <View style={cardStyles.bottomRow}>
+              <View style={cardStyles.inline}>
+                <Ionicons name="navigate-outline" size={12} color={CLOSED_COLOR} />
+                <Text style={cardStyles.distance}>
+                  {item.distance < 999 ? formatDistance(item.distance) : "—"}
+                </Text>
+              </View>
+              <Text style={[cardStyles.price, { color: green }]}>{formatPrice(item.price || 0)}</Text>
+            </View>
+          </View>
+        </View>
+
+      </TouchableOpacity>
+
+      {/* ===== PIED : ACTIONS ===== */}
+      <View style={[cardStyles.footer, { borderTopColor: divider }]}>
+        {!!item.phone && (
+          <TouchableOpacity activeOpacity={0.7} style={cardStyles.action} onPress={() => Linking.openURL(`tel:${item.phone}`).catch(() => {})}>
+            <Ionicons name="call-outline" size={16} color={green} />
+            <Text style={[cardStyles.actionText, { color: green }]}>Appeler</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity activeOpacity={0.7} style={cardStyles.action} onPress={() => openDirections(item)}>
+          <Ionicons name="navigate-outline" size={16} color={green} />
+          <Text style={[cardStyles.actionText, { color: green }]}>Itinéraire</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.7}
+          disabled={!online}
+          style={[cardStyles.action, !online && { opacity: 0.4 }]}
+          onPress={onBook}
+        >
+          <Ionicons name="calendar-outline" size={16} color={green} />
+          <Text style={[cardStyles.actionText, { color: green }]}>Réserver</Text>
+        </TouchableOpacity>
+
+      </View>
+    </View>
+  );
+};
+
+const cardStyles = StyleSheet.create({
+  card: { borderRadius: 20, borderWidth: 1, overflow: "hidden" },
+  body: { paddingHorizontal: 13, paddingTop: 13, paddingBottom: 11 },
+  row: { flexDirection: "row", alignItems: "flex-start" },
+
+  left: { width: 68, alignItems: "center", marginRight: 11 },
+  photo: { width: 64, height: 64, borderRadius: 15 },
+  photoFallback: { backgroundColor: "#E3F1E7", alignItems: "center", justifyContent: "center" },
+  photoInitial: { color: PRIMARY, fontSize: 26, fontFamily: typography.fontFamily.bold },
+  countBadge: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 6, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10, backgroundColor: "#E3F1E7" },
+  countBadgeText: { color: PRIMARY, fontSize: 8.5, fontFamily: typography.fontFamily.bold },
+
+  info: { flex: 1, minWidth: 0 },
+  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
+  name: { flex: 1, fontSize: 13.5, fontFamily: typography.fontFamily.bold },
+  pill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10, maxWidth: 105 },
+  pillDot: { width: 5, height: 5, borderRadius: 3, marginRight: 4 },
+  pillText: { fontSize: 8.5, fontFamily: typography.fontFamily.bold },
+
+  inline: { flexDirection: "row", alignItems: "center" },
+  subBold: { fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+  address: { flex: 1, fontSize: 9.5, marginLeft: 4, fontFamily: typography.fontFamily.regular },
+  serviceRow: { flexDirection: "row", alignItems: "center", marginTop: 5, gap: 12 },
+  service: { flexShrink: 1, fontSize: 10, fontFamily: typography.fontFamily.bold },
+  duration: { fontSize: 10, fontFamily: typography.fontFamily.medium },
+  greenLine: { flexShrink: 1, fontSize: 9.5, marginLeft: 4, fontFamily: typography.fontFamily.bold },
+  dateLine: { flexShrink: 1, fontSize: 9.5, marginLeft: 4, fontFamily: typography.fontFamily.regular },
+
+  bottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 },
+  distance: { color: CLOSED_COLOR, fontSize: 9.5, marginLeft: 4, fontFamily: typography.fontFamily.bold },
+  price: { fontSize: 13.5, fontFamily: typography.fontFamily.bold },
+
+  typesScroll: { marginTop: 4, flexGrow: 0 },
+  typesRowContent: { alignItems: "center", gap: 8, paddingRight: 8 },
+  typeItem: { flexDirection: "row", alignItems: "center", gap: 3 },
+  typeText: { color: PRIMARY, fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+  typeSep: { fontSize: 11 },
+  typesLine: { marginTop: 3, fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+  typesBox: { marginTop: 11, paddingTop: 9, borderTopWidth: 1 },
+  catBox: { marginTop: 9 },
+  sectionLabel: { fontSize: 8.5, marginBottom: 5, letterSpacing: 0.3, textTransform: "uppercase", fontFamily: typography.fontFamily.semiBold },
+  chip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  chipText: { fontSize: 8.5, fontFamily: typography.fontFamily.medium },
+  catPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
+  catPillText: { color: PRIMARY, fontSize: 8.5, fontFamily: typography.fontFamily.semiBold },
+
+  moreBox: { marginTop: 11, paddingTop: 10, borderTopWidth: 1 },
+  moreTitle: { fontSize: 10, marginBottom: 5, fontFamily: typography.fontFamily.bold },
+  hoursList: {},
+  hoursRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 },
+  hoursDay: { fontSize: 9.5 },
+  hoursValue: { fontSize: 9.5 },
+  tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 5 },
+  shareRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 11 },
+
+  footer: { flexDirection: "row", alignItems: "center", borderTopWidth: 1, paddingHorizontal: 13, paddingVertical: 10, gap: 14 },
+  action: { flexDirection: "row", alignItems: "center", gap: 5 },
+  actionText: { fontSize: 10.5, fontFamily: typography.fontFamily.bold },
+});
+
 
 /* ============================================================
    COMPOSANT TOAST
@@ -616,6 +1042,8 @@ const SearchMassageScreen = ({ navigation, route }) => {
           // est resté à true en base après sa dernière session.
           available:bool(first(raw?.available_now,raw?.available,(raw?.is_online!=null&&raw?.is_available!=null)?(bool(raw.is_online)&&bool(raw.is_available)):undefined,raw?.is_available,raw?.online,raw?.is_online,raw?.isOnline,raw?.status === "online" ? true : undefined,raw?.status === "available" ? true : undefined),false),
           coordinate:coordinate(raw),
+          phone:first(raw?.phone,raw?.phone_number,raw?.telephone,raw?.mobile,raw?.whatsapp,user?.phone,user?.phone_number,user?.telephone,null),
+          weekly:normalizeWeekly(first(raw?.weekly,raw?.weekly_schedule,raw?.availability?.weekly,raw?.availability,raw?.schedule,raw?.working_hours,raw?.opening_hours,null)),
           address:String(first(raw?.address,raw?.full_address,raw?.formatted_address,raw?.location_name,raw?.quartier,raw?.neighborhood,user?.address,"Adresse non renseignée")),
           raw,
         };
@@ -1223,313 +1651,35 @@ const SearchMassageScreen = ({ navigation, route }) => {
   ========================================================== */
 
   const renderTherapistCard = useCallback(
-    ({ item, index }) => {
-      const isSelected = selectedMarker?.id === item.id;
-      const isRecommended = index === 0 && item.available;
-
-      return (
-        <Animated.View
-          style={[
-            styles.cardWrapper,
-            {
-              opacity: fadeAnim,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            activeOpacity={0.92}
-            style={[
-              styles.therapistCard,
-              {
-                backgroundColor: themeColors.surface,
-                borderColor: isSelected
-                  ? PRIMARY
-                  : isDark
-                    ? "#292D35"
-                    : "#E9EDF3",
-              },
-            ]}
-            onPress={() => {
-              setSelectedMarker(item);
-              showToast(`${item.name} sélectionné(e)`, "info");
-
-              if (showMap) {
-                mapRef.current?.animateToRegion({
-                  latitude: item.coordinate.latitude,
-                  longitude: item.coordinate.longitude,
-                  latitudeDelta: 0.018,
-                  longitudeDelta: 0.018,
-                });
-              }
-            }}
-          >
-            {isRecommended && (
-              <View style={styles.aiRecommendationBadge}>
-                <MaterialCommunityIcons name="auto-fix" size={11} color="#FFFFFF" />
-                <Text style={styles.aiRecommendationText}>RECOMMANDÉ PAR L'IA</Text>
-              </View>
-            )}
-
-            <View style={styles.cardTop}>
-              <View
-                style={[
-                  styles.avatar,
-                  {
-                    backgroundColor: `${PRIMARY}15`,
-                  },
-                ]}
-              >
-                {item.image ? (
-                  <Image source={{ uri: item.image }} style={styles.avatarImage} />
-                ) : (
-                  <Text style={styles.avatarText}>
-                    {item.name?.charAt(0)?.toUpperCase()}
-                  </Text>
-                )}
-                <View
-                  style={[
-                    styles.onlineDot,
-                    {
-                      backgroundColor: item.available ? SUCCESS : "#A0A5AD",
-                    },
-                  ]}
-                />
-              </View>
-
-              <View style={styles.cardInfo}>
-                <View style={styles.nameRow}>
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.therapistName,
-                      {
-                        color: themeColors.text,
-                      },
-                    ]}
-                  >
-                    {item.name}
-                  </Text>
-                </View>
-
-                <View style={styles.ratingRow}>
-                  <Ionicons name="star" size={13} color={STAR} />
-                  <Text
-                    style={[
-                      styles.ratingText,
-                      {
-                        color: themeColors.text,
-                      },
-                    ]}
-                  >
-                    {item.rating}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.reviewText,
-                      {
-                        color: themeColors.textSecondary,
-                      },
-                    ]}
-                  >
-                    ({item.reviews} avis)
-                  </Text>
-                </View>
-
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.experienceText,
-                    {
-                      color: themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  {item.experience} ans d'expérience
-                </Text>
-              </View>
-
-              <View style={styles.distanceContainer}>
-                <Ionicons name="location-outline" size={13} color={PRIMARY} />
-                <Text
-                  style={[
-                    styles.distanceText,
-                    {
-                      color: themeColors.text,
-                    },
-                  ]}
-                >
-                  {formatDistance(item.distance)}
-                </Text>
-              </View>
-            </View>
-
-            {/* ✅ CORRECTIF : affiche TOUTES les spécialités du
-                thérapeute (plus de limite à 2) — la ligne passe à la
-                ligne (flexWrap) pour ne jamais être coupée. */}
-            <View style={styles.specialtiesRow}>
-              {item.specialties?.map((specialty, specialtyIndex) => (
-                <View
-                  key={`${item.id}-${specialtyIndex}`}
-                  style={[
-                    styles.specialtyChip,
-                    {
-                      backgroundColor: isDark ? "#242832" : "#F3F6FA",
-                    },
-                  ]}
-                >
-                  {/* ✅ AJOUTÉ : icône + libellé de la vraie catégorie
-                      de massage (relaxant, thérapeutique, sportif, ...)
-                      renvoyée par l'API pour cette spécialité. */}
-                  {specialty.category && (
-                    <MaterialCommunityIcons
-                      name={getMassageCategoryIcon(specialty.category)}
-                      size={10}
-                      color={PRIMARY}
-                      style={{ marginRight: 4 }}
-                    />
-                  )}
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.specialtyText,
-                      {
-                        color: themeColors.textSecondary,
-                      },
-                    ]}
-                  >
-                    {specialty.name}
-                    {specialty.category ? ` · ${getMassageCategoryLabel(specialty.category)}` : ""}
-                  </Text>
-                </View>
-              ))}
-            </View>
-
-            {/* ✅ AJOUTÉ : bandeau récapitulatif de TOUTES les
-                catégories couvertes par ce thérapeute */}
-            {item.categories?.length > 0 && (
-              <View style={styles.categoriesRow}>
-                {item.categories.map((cat) => (
-                  <View
-                    key={`${item.id}-cat-${cat}`}
-                    style={[
-                      styles.categoryPill,
-                      { backgroundColor: `${PRIMARY}0F`, borderColor: `${PRIMARY}30` },
-                    ]}
-                  >
-                    <MaterialCommunityIcons name={getMassageCategoryIcon(cat)} size={10} color={PRIMARY} />
-                    <Text style={[styles.categoryPillText, { color: PRIMARY }]}>
-                      {getMassageCategoryLabel(cat)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-            <View style={styles.cardMeta}>
-              <View style={styles.metaItem}>
-                <Text
-                  style={[
-                    styles.metaText,
-                    {
-                      color: themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  {formatDistance(item.distance)}
-                </Text>
-              </View>
-              <View style={styles.metaDivider} />
-              <View style={styles.metaItem}>
-                <Text
-                  style={[
-                    styles.metaText,
-                    {
-                      color: themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  {formatPrice(item.price || 0)}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.addressRow}>
-              <Ionicons name="location-outline" size={13} color={themeColors.textSecondary} />
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.addressText,
-                  {
-                    color: themeColors.textSecondary,
-                  },
-                ]}
-              >
-                {item.address}
-              </Text>
-            </View>
-
-            <View style={styles.cardFooter}>
-              <View
-                style={[
-                  styles.statusBadge,
-                  {
-                    backgroundColor: item.available ? `${SUCCESS}12` : `${DANGER}10`,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.statusDot,
-                    {
-                      backgroundColor: item.available ? SUCCESS : "#A0A5AD",
-                    },
-                  ]}
-                />
-                <Text
-                  style={[
-                    styles.statusText,
-                    {
-                      color: item.available ? SUCCESS : "#8A8F98",
-                    },
-                  ]}
-                >
-                  {item.available ? "Disponible maintenant" : "Indisponible"}
-                </Text>
-              </View>
-
-              <TouchableOpacity
-                activeOpacity={0.85}
-                disabled={!item.available}
-                onPress={() => {
-                  if (item.available) {
-                    navigation.navigate("BookingDetail", { therapist: item });
-                    showToast(`Réservation pour ${item.name}`, "success");
-                  }
-                }}
-                style={[
-                  styles.bookButton,
-                  {
-                    backgroundColor: item.available ? PRIMARY : isDark ? "#343943" : "#E5E7EB",
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.bookButtonText,
-                    {
-                      color: item.available ? "#FFFFFF" : "#999999",
-                    },
-                  ]}
-                >
-                  {item.available ? "Voir & réserver" : "Indisponible"}
-                </Text>
-                {item.available && <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />}
-              </TouchableOpacity>
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-      );
-    },
+    ({ item, index }) => (
+      <Animated.View style={[styles.cardWrapper, { opacity: fadeAnim }]}>
+        <TherapistCardView
+          item={item}
+          colors={themeColors}
+          isDark={isDark}
+          isSelected={selectedMarker?.id === item.id}
+          isRecommended={index === 0 && item.available}
+          onPress={() => {
+            setSelectedMarker(item);
+            showToast(`${item.name} sélectionné(e)`, "info");
+            if (showMap && item.coordinate) {
+              mapRef.current?.animateToRegion({
+                latitude: item.coordinate.latitude,
+                longitude: item.coordinate.longitude,
+                latitudeDelta: 0.018,
+                longitudeDelta: 0.018,
+              });
+            }
+          }}
+          onBook={() => {
+            if (item.available) {
+              navigation.navigate("BookingDetail", { therapist: item });
+              showToast(`Réservation pour ${item.name}`, "success");
+            }
+          }}
+        />
+      </Animated.View>
+    ),
     [selectedMarker, themeColors, isDark, fadeAnim, showMap, navigation, showToast],
   );
 

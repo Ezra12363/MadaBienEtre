@@ -12,7 +12,6 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -53,82 +52,6 @@ const ANDROID_STATUS_BAR_HEIGHT =
 // (header remplacé par le composant commun `Header` — voir
 // import ci-dessus)
 // ============================================================
-
-// ============================================================
-// CLIENT AVATAR (photo de profil ou initiale)
-// ============================================================
-
-const ClientAvatar = ({
-  photoUrl,
-  name,
-  size = 58,
-}) => {
-  const [failed, setFailed] = useState(false);
-
-  const showImage = !!photoUrl && !failed;
-
-  const dimensionStyle = {
-    width: size,
-    height: size,
-    borderRadius: 12,
-  };
-
-  const initial = String(name || 'C')
-    .trim()
-    .charAt(0)
-    .toUpperCase();
-
-  return (
-    <View style={[clientAvatarStyles.wrapper, dimensionStyle]}>
-      {showImage ? (
-        <Image
-          source={{ uri: photoUrl }}
-          style={[clientAvatarStyles.image, dimensionStyle]}
-          onError={() => setFailed(true)}
-          accessibilityLabel={`Photo de profil de ${name}`}
-        />
-      ) : (
-        <View style={[clientAvatarStyles.fallback, dimensionStyle]}>
-          <Text
-            style={[
-              clientAvatarStyles.fallbackText,
-              { fontSize: size * 0.38 },
-            ]}
-          >
-            {initial || 'C'}
-          </Text>
-        </View>
-      )}
-
-    </View>
-  );
-};
-
-const clientAvatarStyles = StyleSheet.create({
-  wrapper: {
-    position: 'relative',
-    borderWidth: 2,
-    borderColor: `${colors.primary}33`,
-    backgroundColor: '#FFFFFF',
-  },
-
-  image: {
-    backgroundColor: `${colors.primary}14`,
-    borderWidth: 0,
-  },
-
-  fallback: {
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  fallbackText: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-  },
-
-});
 
 import offerService from '../../services/offerService';
 import bookingService from '../../services/bookingService';
@@ -425,25 +348,6 @@ const isApprovalError = (message) => {
 
 // ============================================================
 // BOOKING STATUS HELPERS
-//
-// Ireto avokoa ny "status" / "booking_status" hita ao
-// amin'ny base de données :
-//
-//   pending                 -> mbola tsy nisy offre
-//   negotiating             -> misy negociation mandeha
-//   confirmed               -> nisy offre neken'ny roa tonta
-//   in_progress             -> service efa nanomboka
-//   completed               -> vita ny service
-//   cancelled_by_client     -> nofoanan'ny client
-//   cancelled_by_therapist  -> nofoanan'ny thérapeute
-//   expired                 -> lany fotoana (tsy voavaly)
-//
-// Ny negociation (bouton Accepter / Envoyer) dia tokony
-// mandeha (== "clickable") RAHA ARY IHANY raha mbola
-// "pending" na "negotiating" ny booking. Amin'ny status
-// hafa rehetra (confirmed, in_progress, completed,
-// cancelled_*, expired) dia efa VITA/TAPAKA ny negociation
-// ka tsy tokony azo tsindriana intsony ireo bouton ireo.
 // ============================================================
 
 const NEGOTIABLE_BOOKING_STATUSES = [
@@ -533,18 +437,8 @@ const NegotiationScreen = ({
     params.booking?.client_name ??
     'Client';
 
-  const clientPhoto =
-    params.clientPhoto ??
-    params.client_photo ??
-    params.booking?.client?.profile_image ??
-    params.booking?.client?.photo ??
-    params.booking?.client?.avatar ??
-    params.booking?.client_photo ??
-    params.booking?.client_profile_image ??
-    null;
-
   // ==========================================================
-  // CLIENT CONTACT + ONLINE STATUS
+  // CLIENT CONTACT
   // ==========================================================
 
   const clientPhone =
@@ -556,34 +450,6 @@ const NegotiationScreen = ({
     params.booking?.client_phone ??
     params.booking?.client_phone_number ??
     'Non renseigné';
-
-  const clientEmail =
-    params.clientEmail ??
-    params.client_email ??
-    params.booking?.client?.email ??
-    params.booking?.client_email ??
-    'Non renseigné';
-
-  const clientOnlineValue =
-    params.clientOnline ??
-    params.client_online ??
-    params.isClientOnline ??
-    params.is_client_online ??
-    params.booking?.client?.is_online ??
-    params.booking?.client?.isOnline ??
-    params.booking?.client?.online ??
-    params.booking?.client?.online_status ??
-    params.booking?.client?.presence ??
-    false;
-
-  const isClientOnline =
-    clientOnlineValue === true ||
-    clientOnlineValue === 1 ||
-    String(clientOnlineValue).toLowerCase() === 'true' ||
-    String(clientOnlineValue).toLowerCase() === 'online' ||
-    String(clientOnlineValue).toLowerCase() === 'en ligne' ||
-    String(clientOnlineValue).toLowerCase() === 'connected' ||
-    String(clientOnlineValue).toLowerCase() === 'connecté';
 
   // ==========================================================
   // INITIAL CLIENT OFFER
@@ -841,14 +707,6 @@ const NegotiationScreen = ({
 
         // ====================================================
         // BOOKING STATUS
-        //
-        // Alaina ao amin'ny backend ny status marina
-        // an'ilay booking (pending / negotiating /
-        // confirmed / in_progress / completed /
-        // cancelled_by_client / cancelled_by_therapist /
-        // expired) mba hahafahana mamaha na mandrara
-        // ireo bouton Accepter/Envoyer araka izay tena
-        // status misy azy.
         // ====================================================
 
         try {
@@ -902,8 +760,6 @@ const NegotiationScreen = ({
         setNegotiationHistory(data);
 
         // Reset active IDs before recalculating the current turn.
-        // This prevents a previous offer ID from keeping buttons
-        // clickable after the offer has been accepted/rejected.
         setClientOfferId(null);
         setTherapistOfferId(null);
 
@@ -941,8 +797,6 @@ const NegotiationScreen = ({
           if (price > 0) {
             setCurrentPrice(price);
 
-            // Si le champ est vide, on remet
-            // le prix client.
             setCounterPrice(
               (previous) =>
                 previous
@@ -1148,27 +1002,6 @@ const NegotiationScreen = ({
 
   // ==========================================================
   // SEND OFFER / COUNTER OFFER
-  //
-  // THERAPIST
-  //
-  // Misy toe-javatra roa mety hitranga rehefa tsindrian'ny
-  // thérapeute ny bouton "Envoyer" :
-  //
-  //  1) MBOLA TSY MISY NEGOCIATION MIHITSY (booking vao
-  //     "pending", tsy mbola nisy Negotiation record) ->
-  //     ny prix voalohan'ny client dia eo amin'ny booking
-  //     mihitsy (client_price_proposed), TSY offre. Amin'io
-  //     toe-javatra io dia POST /offers/create no ilaina
-  //     (offerService.sendOffer), fa TSY /offers/{id}/counter,
-  //     satria tsy misy offre azo "countrarina".
-  //
-  //  2) MISY OFFRE CLIENT MIANDRY VALINY (clientOfferId
-  //     existe) -> eto vao POST /offers/{CLIENT_OFFER_ID}/counter
-  //     (offerService.counterOffer) no ilaina.
-  //
-  // Raha efa misy OFFRE THÉRAPEUTE MANDEHA (therapistOfferId,
-  // "sent") ka mbola tsy namaly ny client, dia tokony tsy
-  // azo alefa intsony ny "Envoyer" (miandry ny client).
   // ==========================================================
 
   const executeSendOffer =
@@ -1177,10 +1010,6 @@ const NegotiationScreen = ({
         return;
       }
 
-      // ------------------------------------------------------
-      // BOOKING STATUS
-      // ------------------------------------------------------
-
       if (!isNegotiableBookingStatus(bookingStatus)) {
         showToast(
           'error',
@@ -1188,10 +1017,6 @@ const NegotiationScreen = ({
         );
         return;
       }
-
-      // ------------------------------------------------------
-      // BOOKING
-      // ------------------------------------------------------
 
       if (!bookingId) {
         showToast('error', 'Identifiant de réservation manquant.');
@@ -1208,13 +1033,6 @@ const NegotiationScreen = ({
         therapistOfferId !== undefined &&
         therapistOfferId !== '';
 
-      // ------------------------------------------------------
-      // ATTENTE DU CLIENT
-      //
-      // Efa misy offre thérapeute mandeha ary mbola tsy
-      // namaly ny client -> aza avela handefa hafa.
-      // ------------------------------------------------------
-
       if (
         !hasActiveClientOffer &&
         hasActiveTherapistOffer
@@ -1222,10 +1040,6 @@ const NegotiationScreen = ({
         showToast('error', 'Votre proposition a déjà été envoyée. Attendez la réponse du client.');
         return;
       }
-
-      // ------------------------------------------------------
-      // PRICE
-      // ------------------------------------------------------
 
       const numericPrice =
         toNumber(
@@ -1241,10 +1055,6 @@ const NegotiationScreen = ({
         showToast('error', 'Veuillez saisir un prix valide.');
         return;
       }
-
-      // ------------------------------------------------------
-      // MINIMUM
-      // ------------------------------------------------------
 
       if (numericPrice < 10000) {
         showToast('error', 'Le prix minimum est de 10 000 Ar.');
@@ -1290,9 +1100,6 @@ const NegotiationScreen = ({
           '================================================'
         );
 
-        // IMPORTANT :
-        // - S'il existe une offre CLIENT active -> /counter
-        // - Sinon -> /create (première offre du thérapeute)
         const result =
           hasActiveClientOffer
             ? await offerService.counterOffer(
@@ -1316,10 +1123,6 @@ const NegotiationScreen = ({
             extractErrorMessage(
               result
             );
-
-          // --------------------------------------------------
-          // APPROVAL ERROR
-          // --------------------------------------------------
 
           if (
             isApprovalError(
@@ -1364,16 +1167,6 @@ const NegotiationScreen = ({
           );
         }
 
-        // IMPORTANT :
-        // Ne PAS faire :
-        //
-        // setClientOfferId(newTherapistOfferId)
-        //
-        // car /counter nécessite l'offre CLIENT.
-
-        // La contre-offre du thérapeute ferme l'offre
-        // client précédente : on la retire localement en
-        // attendant le rechargement complet ci-dessous.
         setClientOfferId(null);
 
         setCurrentPrice(
@@ -1468,25 +1261,7 @@ const NegotiationScreen = ({
   };
 
   // ==========================================================
-  // ACCEPT CLIENT PRICE
-  //
-  // THERAPIST
-  // ->
-  // CREATE OFFER AT SAME PRICE
-  // ==========================================================
-
-  // ==========================================================
   // ACCEPT CLIENT OFFER
-  //
-  // IMPORTANT:
-  // Le thérapeute accepte l'OFFRE CLIENT directement.
-  //
-  // POST /offers/{offer_id}/accept
-  //
-  // offerId = clientOfferId
-  //
-  // Ne plus utiliser bookingService.completeBooking() ici :
-  // l'acceptation doit passer par offerService.acceptOffer().
   // ==========================================================
 
   const executeAccept =
@@ -1571,13 +1346,6 @@ const NegotiationScreen = ({
           '================================================'
         );
 
-        // IMPORTANT:
-        // Le thérapeute accepte l'offre CLIENT par:
-        //
-        // POST /offers/{offer_id}/accept
-        //
-        // et non plus par:
-        // PUT /bookings/complete/{booking_id}
         const result =
           await offerService.acceptOffer(
             clientOfferId
@@ -1623,8 +1391,6 @@ const NegotiationScreen = ({
           )}). Réservation confirmée.`
         );
 
-        // Recharge les offres avant de revenir afin de garder
-        // l'état local cohérent avec le backend.
         await loadHistory(false);
 
         setTimeout(() => {
@@ -1704,49 +1470,14 @@ const NegotiationScreen = ({
     ) &&
     numericCounterPrice >= 10000;
 
-  // ==========================================================
-  // NEGOTIATION LOCK
-  //
-  // "pending" sy "negotiating" ihany no status mbola azo
-  // anaovana negociation. Ny status hafa (confirmed,
-  // in_progress, completed, cancelled_by_client,
-  // cancelled_by_therapist, expired) dia midika hoe VITA
-  // na TAPAKA ny booking ka tsy azo tsindriana intsony ny
-  // bouton Accepter/Envoyer.
-  // ==========================================================
-
   const isNegotiable =
     isNegotiableBookingStatus(
       bookingStatus
     );
 
-  // ==========================================================
-  // WAITING FOR CLIENT
-  //
-  // Efa nisy offre thérapeute nalefa ("sent") fa mbola
-  // tsy namaly ny client -> aza avela handefa hafa
-  // mandra-pahatongan'ny valin'ny client (na accepté na
-  // countré).
-  // ==========================================================
-
   const isWaitingForClient =
     hasActiveTherapistOffer &&
     !hasClientOffer;
-
-  // ==========================================================
-  // ENVOYER
-  //
-  // Azo tsindriana ("clickable") ny bouton "Envoyer" raha :
-  //  - mbola azo atao ny negociation (isNegotiable), SADY
-  //  - tsy miandry valin'ny client (!isWaitingForClient), SADY
-  //  - misy prix marina voasoratra (hasValidCounterPrice)
-  //
-  // Amin'io toe-javatra io dia:
-  //  - raha misy offre CLIENT active (hasClientOffer) ->
-  //    contre-offre (/offers/{id}/counter)
-  //  - raha tsy misy offre mihitsy (booking vao "pending") ->
-  //    offre voalohany (/offers/create)
-  // ==========================================================
 
   const canSend =
     isNegotiable &&
@@ -1764,10 +1495,6 @@ const NegotiationScreen = ({
 
   // ==========================================================
   // REJECT
-  //
-  // Refuse l'offre CLIENT active en cours de négociation.
-  //
-  // POST /offers/{offer_id}/reject
   // ==========================================================
 
   const canReject =
@@ -1857,7 +1584,8 @@ const NegotiationScreen = ({
         ]}
       >
         <Header
-          title="Réservation"          showBack
+          title="Réservation"
+          showBack
           onBackPress={() => navigation.goBack()}
         />
 
@@ -1915,7 +1643,8 @@ const NegotiationScreen = ({
         ]}
       >
         <Header
-          title="Réservation"          showBack
+          title="Réservation"
+          showBack
           onBackPress={() => navigation.goBack()}
         />
 
@@ -1959,7 +1688,7 @@ const NegotiationScreen = ({
     >
       <Header
         title="Négociation"
-showBack
+        showBack
         onBackPress={() => navigation.goBack()}
       />
 
@@ -2032,11 +1761,14 @@ showBack
               },
             ]}
           >
-            <ClientAvatar
-              photoUrl={clientPhoto}
-              name={clientName}
-              size={58}
-            />
+            {/* ✅ Avatar supprimé, remplacé par une icône simple */}
+            <View style={styles.clientIcon}>
+              <Ionicons
+                name="person"
+                size={24}
+                color="#FFFFFF"
+              />
+            </View>
 
             <View
               style={styles.headerInfo}
@@ -2067,6 +1799,7 @@ showBack
                 {clientName}
               </Text>
 
+              {/* ✅ Email et Statut "Hors ligne" supprimés */}
               <View style={styles.clientContactRow}>
                 <Ionicons
                   name="call-outline"
@@ -2081,39 +1814,6 @@ showBack
                   numberOfLines={1}
                 >
                   {clientPhone}
-                </Text>
-
-                <Ionicons
-                  name="mail-outline"
-                  size={12}
-                  color={themeColors.textSecondary}
-                  style={styles.contactEmailIcon}
-                />
-                <Text
-                  style={[
-                    styles.clientContactText,
-                    { color: themeColors.textSecondary },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {clientEmail}
-                </Text>
-              </View>
-
-              <View style={styles.onlineStatusRow}>
-                <View
-                  style={[
-                    styles.onlineStatusDot,
-                    { backgroundColor: isClientOnline ? '#22C55E' : '#9CA3AF' },
-                  ]}
-                />
-                <Text
-                  style={[
-                    styles.onlineStatusText,
-                    { color: isClientOnline ? '#16A34A' : themeColors.textSecondary },
-                  ]}
-                >
-                  {isClientOnline ? 'En ligne' : 'Hors ligne'}
                 </Text>
               </View>
             </View>
@@ -2678,170 +2378,164 @@ showBack
             <View
               style={styles.actionRow}
             >
-              {/* ==================================================
-                  ACCEPT
-              ================================================== */}
+              {/* ACCEPT */}
               {canAccept && (
-              <Pressable
-                onPress={handleAccept}
-                disabled={!canAccept}
-                style={[
-                  styles.actionButton,
-                  !canAccept &&
-                    styles.disabledButton,
-                ]}
-              >
-                <LinearGradient
-                  colors={
-                    canAccept
-                      ? [
-                          colors.primary,
-                          `${colors.primary}CC`,
-                        ]
-                      : [
-                          '#AFAFAF',
-                          '#C5C5C5',
-                        ]
-                  }
-                  style={
-                    styles.actionGradient
-                  }
+                <Pressable
+                  onPress={handleAccept}
+                  disabled={!canAccept}
+                  style={[
+                    styles.actionButton,
+                    !canAccept &&
+                      styles.disabledButton,
+                  ]}
                 >
-                  {accepting ? (
-                    <ActivityIndicator
-                      size="small"
-                      color="#FFFFFF"
-                    />
-                  ) : (
-                    <>
-                      <Ionicons
-                        name="checkmark-circle-outline"
-                        size={20}
-                        color="#FFFFFF"
-                      />
-
-                      <Text
-                        style={
-                          styles.actionText
-                        }
-                      >
-                        Accepter
-                      </Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </Pressable>
-              )}
-
-              {/* ==================================================
-                  SEND
-              ================================================== */}
-              {canSend && (
-              <Pressable
-                onPress={handleSubmitCounter}
-                disabled={!canSend}
-                style={[
-                  styles.actionButton,
-                  !canSend &&
-                    styles.disabledButton,
-                ]}
-              >
-                <LinearGradient
-                  colors={
-                    canSend
-                      ? [
-                          colors.primary,
-                          colors.primaryLight ||
+                  <LinearGradient
+                    colors={
+                      canAccept
+                        ? [
                             colors.primary,
-                        ]
-                      : [
-                          '#AFAFAF',
-                          '#C5C5C5',
-                        ]
-                  }
-                  style={
-                    styles.actionGradient
-                  }
-                >
-                  {submitting ? (
-                    <ActivityIndicator
-                      size="small"
-                      color="#FFFFFF"
-                    />
-                  ) : (
-                    <>
-                      <Ionicons
-                        name="send-outline"
-                        size={19}
+                            `${colors.primary}CC`,
+                          ]
+                        : [
+                            '#AFAFAF',
+                            '#C5C5C5',
+                          ]
+                    }
+                    style={
+                      styles.actionGradient
+                    }
+                  >
+                    {accepting ? (
+                      <ActivityIndicator
+                        size="small"
                         color="#FFFFFF"
                       />
+                    ) : (
+                      <>
+                        <Ionicons
+                          name="checkmark-circle-outline"
+                          size={20}
+                          color="#FFFFFF"
+                        />
 
-                      <Text
-                        style={
-                          styles.actionText
-                        }
-                      >
-                        Envoyer
-                      </Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </Pressable>
+                        <Text
+                          style={
+                            styles.actionText
+                          }
+                        >
+                          Accepter
+                        </Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </Pressable>
               )}
 
-              {/* ==================================================
-                  REJECT
-              ================================================== */}
-              {canReject && (
-              <Pressable
-                onPress={handleReject}
-                disabled={!canReject}
-                style={[
-                  styles.actionButton,
-                  !canReject &&
-                    styles.disabledButton,
-                ]}
-              >
-                <LinearGradient
-                  colors={
-                    canReject
-                      ? [
-                          '#E53935',
-                          '#EF5350',
-                        ]
-                      : [
-                          '#AFAFAF',
-                          '#C5C5C5',
-                        ]
-                  }
-                  style={
-                    styles.actionGradient
-                  }
+              {/* SEND */}
+              {canSend && (
+                <Pressable
+                  onPress={handleSubmitCounter}
+                  disabled={!canSend}
+                  style={[
+                    styles.actionButton,
+                    !canSend &&
+                      styles.disabledButton,
+                  ]}
                 >
-                  {rejecting ? (
-                    <ActivityIndicator
-                      size="small"
-                      color="#FFFFFF"
-                    />
-                  ) : (
-                    <>
-                      <Ionicons
-                        name="close-circle-outline"
-                        size={20}
+                  <LinearGradient
+                    colors={
+                      canSend
+                        ? [
+                            colors.primary,
+                            colors.primaryLight ||
+                              colors.primary,
+                          ]
+                        : [
+                            '#AFAFAF',
+                            '#C5C5C5',
+                          ]
+                    }
+                    style={
+                      styles.actionGradient
+                    }
+                  >
+                    {submitting ? (
+                      <ActivityIndicator
+                        size="small"
                         color="#FFFFFF"
                       />
+                    ) : (
+                      <>
+                        <Ionicons
+                          name="send-outline"
+                          size={19}
+                          color="#FFFFFF"
+                        />
 
-                      <Text
-                        style={
-                          styles.actionText
-                        }
-                      >
-                        Refuser
-                      </Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </Pressable>
+                        <Text
+                          style={
+                            styles.actionText
+                          }
+                        >
+                          Envoyer
+                        </Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </Pressable>
+              )}
+
+              {/* REJECT */}
+              {canReject && (
+                <Pressable
+                  onPress={handleReject}
+                  disabled={!canReject}
+                  style={[
+                    styles.actionButton,
+                    !canReject &&
+                      styles.disabledButton,
+                  ]}
+                >
+                  <LinearGradient
+                    colors={
+                      canReject
+                        ? [
+                            '#E53935',
+                            '#EF5350',
+                          ]
+                        : [
+                            '#AFAFAF',
+                            '#C5C5C5',
+                          ]
+                    }
+                    style={
+                      styles.actionGradient
+                    }
+                  >
+                    {rejecting ? (
+                      <ActivityIndicator
+                        size="small"
+                        color="#FFFFFF"
+                      />
+                    ) : (
+                      <>
+                        <Ionicons
+                          name="close-circle-outline"
+                          size={20}
+                          color="#FFFFFF"
+                        />
+
+                        <Text
+                          style={
+                            styles.actionText
+                          }
+                        >
+                          Refuser
+                        </Text>
+                      </>
+                    )}
+                  </LinearGradient>
+                </Pressable>
               )}
             </View>
 

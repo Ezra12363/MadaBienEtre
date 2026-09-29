@@ -5,11 +5,9 @@
 // CLIENT - NEGOTIATION
 //
 // Version UX/UI améliorée
-// - Boutons verts
+// - Boutons arrondis (pas carrés)
 // - Toast central sous le Header
-// - Profil thérapeute carré
-// - Nom / téléphone / email
-// - Disponibilité En ligne / Hors ligne
+// - Nom / téléphone (sans photo, sans email, sans statut, sans étapes)
 // - Modales de confirmation Web + Android
 // - API réelle offerService / bookingService
 //
@@ -449,65 +447,18 @@ const getTherapistPhoneFromData = (
 
 // ============================================================
 
-const getTherapistEmailFromData = (
-  source
-) => {
-  const therapist =
-    getTherapistObject(source);
-
-  return (
-    source?.therapist_email ??
-    source?.therapistEmail ??
-    source?.therapeute_email ??
-    source?.therapeuteEmail ??
-    therapist?.email ??
-    source?.email ??
-    ''
-  );
-};
+// ✅ Fonction supprimée : plus besoin de récupérer l'email
+// const getTherapistEmailFromData = ...
 
 // ============================================================
 
-const getTherapistAvatarFromData = (
-  source
-) => {
-  const therapist =
-    getTherapistObject(source);
-
-  return (
-    source?.therapist_avatar ??
-    source?.therapistAvatar ??
-    source?.therapist_photo ??
-    source?.therapistPhoto ??
-    source?.therapist_image ??
-    source?.therapistImage ??
-    source?.therapist_profile_image_url ??
-    source?.therapistProfileImageUrl ??
-    therapist?.avatar ??
-    therapist?.avatar_url ??
-    therapist?.avatarUrl ??
-    therapist?.photo ??
-    therapist?.photo_url ??
-    therapist?.photoUrl ??
-    therapist?.image ??
-    therapist?.image_url ??
-    therapist?.imageUrl ??
-    // ✅ Nom de champ réellement utilisé par le backend
-    // (voir therapistService / profil thérapeute) — c'était
-    // manquant ici, ce qui faisait que la vraie photo de
-    // profil n'était quasiment jamais trouvée.
-    therapist?.profile_image_url ??
-    therapist?.profileImageUrl ??
-    ''
-  );
-};
+// ✅ Fonction supprimée : plus besoin de récupérer l'avatar
+// const getTherapistAvatarFromData = ...
 
 // ============================================================
 
 // Identifiant du thérapeute, pour aller chercher son profil
 // COMPLET et RÉEL en base via therapistService.getTherapist(id)
-// (les objets "booking"/"offer" ne contiennent pas toujours
-// toutes les infos, notamment la photo).
 const getTherapistIdFromData = (
   source
 ) => {
@@ -528,71 +479,8 @@ const getTherapistIdFromData = (
 
 // ============================================================
 
-const getTherapistOnlineFromData = (
-  source
-) => {
-  const therapist =
-    getTherapistObject(source);
-
-  const value =
-    source?.therapist_online ??
-    source?.therapistOnline ??
-    source?.therapist_is_online ??
-    source?.therapistIsOnline ??
-    source?.is_online ??
-    source?.isOnline ??
-    therapist?.is_online ??
-    therapist?.isOnline ??
-    therapist?.online ??
-    therapist?.online_status ??
-    therapist?.availability_status ??
-    null;
-
-  if (typeof value === 'boolean') {
-    return value;
-  }
-
-  if (
-    typeof value === 'number'
-  ) {
-    return value === 1;
-  }
-
-  if (typeof value === 'string') {
-    const normalized =
-      value.trim().toLowerCase();
-
-    if (
-      [
-        'online',
-        'en ligne',
-        'available',
-        'disponible',
-        'true',
-        '1',
-        'active',
-      ].includes(normalized)
-    ) {
-      return true;
-    }
-
-    if (
-      [
-        'offline',
-        'hors ligne',
-        'indisponible',
-        'unavailable',
-        'false',
-        '0',
-        'inactive',
-      ].includes(normalized)
-    ) {
-      return false;
-    }
-  }
-
-  return null;
-};
+// ✅ Fonction supprimée : plus besoin de récupérer le statut en ligne
+// const getTherapistOnlineFromData = ...
 
 // ============================================================
 // COMPONENT
@@ -726,9 +614,7 @@ const NegotiationScreen = ({
   ] = useState({
     name: initialTherapistName,
     phone: '',
-    email: '',
-    avatar: '',
-    isOnline: null,
+    // ✅ email, avatar, isOnline supprimés
   });
 
   // Identifiant thérapeute déjà utilisé pour éviter de refaire
@@ -1079,26 +965,7 @@ const NegotiationScreen = ({
               ) ||
               previous.phone,
 
-            email:
-              getTherapistEmailFromData(
-                source
-              ) ||
-              previous.email,
-
-            avatar:
-              getTherapistAvatarFromData(
-                source
-              ) ||
-              previous.avatar,
-
-            isOnline:
-              getTherapistOnlineFromData(
-                source
-              ) !== null
-                ? getTherapistOnlineFromData(
-                    source
-                  )
-                : previous.isOnline,
+            // ✅ email, avatar, isOnline supprimés
           })
         );
       },
@@ -2313,55 +2180,13 @@ const NegotiationScreen = ({
                 styles.profileRow
               }
             >
-              {/* PROFIL AVATAR CARRÉ */}
-
-              <View
-                style={
-                  styles.profileSquare
-                }
-              >
-                {therapistProfile.avatar ? (
-                  <Animated.Image
-                    source={{
-                      uri:
-                        therapistProfile.avatar,
-                    }}
-                    style={
-                      styles.profileImage
-                    }
-                  />
-                ) : (
-                  <View
-                    style={
-                      styles.profilePlaceholder
-                    }
-                  >
-                    <Ionicons
-                      name="person"
-                      size={30}
-                      color={GREEN}
-                    />
-                  </View>
-                )}
-
-                {/* ✅ POINT INDICATEUR DE STATUT (En ligne /
-                    Hors ligne), affiché directement sur le
-                    cadre du profil du thérapeute. */}
-
-                {typeof therapistProfile.isOnline ===
-                  'boolean' && (
-                  <View
-                    style={[
-                      styles.onlineDot,
-                      {
-                        backgroundColor:
-                          therapistProfile.isOnline
-                            ? GREEN
-                            : RED,
-                      },
-                    ]}
-                  />
-                )}
+              {/* ✅ AVATAR SUPPRIMÉ, remplacé par une icône simple */}
+              <View style={styles.profileIconBox}>
+                <Ionicons
+                  name="person"
+                  size={28}
+                  color={GREEN}
+                />
               </View>
 
               <View
@@ -2396,8 +2221,7 @@ const NegotiationScreen = ({
                   }
                 </Text>
 
-                {/* ✅ TELEPHONE + EMAIL SUR UNE SEULE LIGNE */}
-
+                {/* ✅ TÉLÉPHONE UNIQUEMENT (email supprimé) */}
                 <View
                   style={
                     styles.contactRowCombined
@@ -2428,84 +2252,9 @@ const NegotiationScreen = ({
                         'Non renseigné'}
                     </Text>
                   </View>
-
-                  <View
-                    style={
-                      styles.contactDivider
-                    }
-                  />
-
-                  <View
-                    style={
-                      styles.contactItem
-                    }
-                  >
-                    <Ionicons
-                      name="mail-outline"
-                      size={13}
-                      color={GREEN}
-                    />
-
-                    <Text
-                      style={[
-                        styles.contactTextInline,
-                        {
-                          color:
-                            themeColors.textSecondary,
-                        },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {therapistProfile.email ||
-                        'Non renseigné'}
-                    </Text>
-                  </View>
                 </View>
 
-                {/* DISPONIBILITE (masqué si statut inconnu) */}
-
-                {typeof therapistProfile.isOnline ===
-                  'boolean' && (
-                  <View
-                    style={[
-                      styles.onlineStatus,
-                      {
-                        backgroundColor:
-                          therapistProfile.isOnline
-                            ? GREEN_PALE
-                            : '#FDECEC',
-                      },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.onlineStatusDot,
-                        {
-                          backgroundColor:
-                            therapistProfile.isOnline
-                              ? GREEN
-                              : RED,
-                        },
-                      ]}
-                    />
-
-                    <Text
-                      style={[
-                        styles.onlineStatusText,
-                        {
-                          color:
-                            therapistProfile.isOnline
-                              ? GREEN
-                              : RED,
-                        },
-                      ]}
-                    >
-                      {therapistProfile.isOnline
-                        ? 'En ligne'
-                        : 'Hors ligne'}
-                    </Text>
-                  </View>
-                )}
+                {/* ✅ STATUT EN LIGNE / HORS LIGNE SUPPRIMÉ */}
               </View>
 
               {/* BOOKING */}
@@ -2549,149 +2298,7 @@ const NegotiationScreen = ({
               </View>
             </View>
 
-            {/* STATUS STEPS */}
-
-            <View
-              style={
-                styles.statusSteps
-              }
-            >
-              <View
-                style={
-                  styles.statusStep
-                }
-              >
-                <View
-                  style={[
-                    styles.stepCircle,
-                    {
-                      backgroundColor:
-                        isPending ||
-                        isNegotiating ||
-                        isConfirmed
-                          ? GREEN
-                          : '#D1D5DB',
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="time-outline"
-                    size={13}
-                    color="#FFFFFF"
-                  />
-                </View>
-
-                <Text
-                  style={[
-                    styles.stepText,
-                    {
-                      color:
-                        themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  Demande
-                </Text>
-              </View>
-
-              <View
-                style={[
-                  styles.stepLine,
-                  {
-                    backgroundColor:
-                      isNegotiating ||
-                      isConfirmed
-                        ? GREEN
-                        : '#D1D5DB',
-                  },
-                ]}
-              />
-
-              <View
-                style={
-                  styles.statusStep
-                }
-              >
-                <View
-                  style={[
-                    styles.stepCircle,
-                    {
-                      backgroundColor:
-                        isNegotiating ||
-                        isConfirmed
-                          ? GREEN
-                          : '#D1D5DB',
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="chatbubbles-outline"
-                    size={13}
-                    color="#FFFFFF"
-                  />
-                </View>
-
-                <Text
-                  style={[
-                    styles.stepText,
-                    {
-                      color:
-                        themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  Négociation
-                </Text>
-              </View>
-
-              <View
-                style={[
-                  styles.stepLine,
-                  {
-                    backgroundColor:
-                      isConfirmed
-                        ? GREEN
-                        : '#D1D5DB',
-                  },
-                ]}
-              />
-
-              <View
-                style={
-                  styles.statusStep
-                }
-              >
-                <View
-                  style={[
-                    styles.stepCircle,
-                    {
-                      backgroundColor:
-                        isConfirmed
-                          ? GREEN
-                          : '#D1D5DB',
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="checkmark"
-                    size={14}
-                    color="#FFFFFF"
-                  />
-                </View>
-
-                <Text
-                  style={[
-                    styles.stepText,
-                    {
-                      color:
-                        themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  Confirmée
-                </Text>
-              </View>
-            </View>
+            {/* ✅ STATUS STEPS SUPPRIMÉS (Demande, Négociation, Confirmée) */}
           </View>
         </Animatable.View>
 
@@ -4154,7 +3761,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 560,
     minHeight: 54,
-    borderRadius: 13,
+    borderRadius: 16,
     borderWidth: 1,
     paddingHorizontal: 11,
     paddingVertical: 9,
@@ -4173,7 +3780,7 @@ const styles = StyleSheet.create({
   toastIcon: {
     width: 35,
     height: 35,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 9,
@@ -4201,7 +3808,7 @@ const styles = StyleSheet.create({
   therapistCard: {
     marginTop: 8,
     marginBottom: 12,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 13,
     elevation: 2,
     shadowColor: '#000',
@@ -4215,48 +3822,19 @@ const styles = StyleSheet.create({
 
   profileRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center', // Centré verticalement car plus d'avatar
   },
 
-  profileSquare: {
-    width: 68,
-    height: 68,
-    // Carré avec bordures légèrement arrondies, au lieu d'un
-    // cercle plein (borderRadius égal à la moitié de la
-    // largeur).
+  // ✅ NOUVEAU : Remplace profileSquare quand l'avatar est supprimé
+  profileIconBox: {
+    width: 56,
+    height: 56,
     borderRadius: 16,
     borderWidth: 2,
     borderColor: GREEN_BORDER,
     backgroundColor: GREEN_PALE,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'visible',
-  },
-
-  profileImage: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 14,
-  },
-
-  profilePlaceholder: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: GREEN_PALE,
-  },
-
-  onlineDot: {
-    position: 'absolute',
-    width: 15,
-    height: 15,
-    borderRadius: 8,
-    right: 0,
-    bottom: 1,
-    borderWidth: 2.5,
-    borderColor: '#FFFFFF',
   },
 
   profileInfo: {
@@ -4277,7 +3855,6 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
 
-  // ✅ Téléphone + email regroupés sur une seule ligne.
   contactRowCombined: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -4299,35 +3876,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
 
-  contactDivider: {
-    width: 1,
-    height: 10,
-    backgroundColor: '#D1D5DB',
-    marginHorizontal: 7,
-  },
-
-  onlineStatus: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 7,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
-    marginTop: 6,
-  },
-
-  onlineStatusDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    marginRight: 5,
-  },
-
-  onlineStatusText: {
-    fontSize: 8,
-    fontWeight: '800',
-  },
-
   bookingInfo: {
     alignItems: 'flex-end',
     marginLeft: 7,
@@ -4343,48 +3891,12 @@ const styles = StyleSheet.create({
     marginTop: 5,
     paddingHorizontal: 7,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 10,
   },
 
   statusBadgeText: {
     fontSize: 8,
     fontWeight: '800',
-  },
-
-  // ==========================================================
-  // STATUS STEPS
-  // ==========================================================
-
-  statusSteps: {
-    marginTop: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  statusStep: {
-    alignItems: 'center',
-    flex: 1,
-  },
-
-  stepCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  stepText: {
-    fontSize: 8,
-    fontWeight: '700',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-
-  stepLine: {
-    height: 2,
-    flex: 0.45,
-    marginBottom: 17,
   },
 
   // ==========================================================
@@ -4395,7 +3907,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FDECEC',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 10,
     marginBottom: 12,
     gap: 7,
@@ -4404,7 +3916,7 @@ const styles = StyleSheet.create({
   errorIconBox: {
     width: 28,
     height: 28,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -4420,7 +3932,7 @@ const styles = StyleSheet.create({
   retryButton: {
     paddingHorizontal: 8,
     paddingVertical: 6,
-    borderRadius: 7,
+    borderRadius: 10,
     backgroundColor: '#FFFFFF',
   },
 
@@ -4435,7 +3947,7 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   pendingCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 21,
     alignItems: 'center',
     elevation: 2,
@@ -4444,7 +3956,7 @@ const styles = StyleSheet.create({
   pendingIcon: {
     width: 58,
     height: 58,
-    borderRadius: 14,
+    borderRadius: 18,
     backgroundColor: '#FFF5DD',
     alignItems: 'center',
     justifyContent: 'center',
@@ -4469,7 +3981,7 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   offerCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 14,
     elevation: 2,
     shadowColor: '#000',
@@ -4501,7 +4013,7 @@ const styles = StyleSheet.create({
     backgroundColor: GREEN,
     paddingHorizontal: 8,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 10,
   },
 
   currentBadgeText: {
@@ -4528,7 +4040,7 @@ const styles = StyleSheet.create({
   },
 
   messageBox: {
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 10,
   },
 
@@ -4544,7 +4056,7 @@ const styles = StyleSheet.create({
   waitingCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 14,
+    borderRadius: 18,
     padding: 13,
     marginTop: 12,
     elevation: 1,
@@ -4583,7 +4095,7 @@ const styles = StyleSheet.create({
 
   greenButton: {
     minHeight: 52,
-    borderRadius: 12,
+    borderRadius: 16,
     backgroundColor: GREEN,
     flexDirection: 'row',
     alignItems: 'center',
@@ -4641,7 +4153,7 @@ const styles = StyleSheet.create({
   greenMiniIcon: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: GREEN,
     alignItems: 'center',
     justifyContent: 'center',
@@ -4669,7 +4181,7 @@ const styles = StyleSheet.create({
   suggestionCard: {
     width: 105,
     minHeight: 80,
-    borderRadius: 11,
+    borderRadius: 14,
     borderWidth: 1.5,
     marginRight: 8,
     padding: 8,
@@ -4699,7 +4211,7 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   counterCard: {
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 14,
     marginTop: 3,
     elevation: 2,
@@ -4714,7 +4226,7 @@ const styles = StyleSheet.create({
   priceInputContainer: {
     minHeight: 50,
     borderWidth: 1.5,
-    borderRadius: 10,
+    borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 11,
@@ -4744,7 +4256,7 @@ const styles = StyleSheet.create({
     minHeight: 84,
     maxHeight: 125,
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 14,
     padding: 10,
     fontSize: 11,
     marginBottom: 12,
@@ -4770,7 +4282,7 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   closedCard: {
-    borderRadius: 15,
+    borderRadius: 18,
     padding: 19,
     marginTop: 13,
     alignItems: 'center',
@@ -4795,7 +4307,7 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   confirmedCard: {
-    borderRadius: 17,
+    borderRadius: 20,
     padding: 21,
     marginTop: 13,
     alignItems: 'center',
@@ -4805,7 +4317,7 @@ const styles = StyleSheet.create({
   confirmedIcon: {
     width: 68,
     height: 68,
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 2,
     borderColor: GREEN_BORDER,
     backgroundColor: GREEN_PALE,
@@ -4848,14 +4360,14 @@ const styles = StyleSheet.create({
   refreshButton: {
     width: 38,
     height: 38,
-    borderRadius: 11,
+    borderRadius: 14,
     backgroundColor: GREEN_PALE,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   emptyHistory: {
-    borderRadius: 15,
+    borderRadius: 18,
     padding: 25,
     alignItems: 'center',
     elevation: 1,
@@ -4876,7 +4388,7 @@ const styles = StyleSheet.create({
 
   historyItem: {
     borderLeftWidth: 4,
-    borderRadius: 13,
+    borderRadius: 16,
     padding: 11,
     marginTop: 9,
     elevation: 1,
@@ -4917,7 +4429,7 @@ const styles = StyleSheet.create({
   historyStatus: {
     paddingHorizontal: 7,
     paddingVertical: 5,
-    borderRadius: 8,
+    borderRadius: 10,
   },
 
   historyStatusText: {
@@ -4941,7 +4453,7 @@ const styles = StyleSheet.create({
 
   tipCard: {
     flexDirection: 'row',
-    borderRadius: 13,
+    borderRadius: 16,
     padding: 12,
     marginTop: 14,
   },
@@ -4949,7 +4461,7 @@ const styles = StyleSheet.create({
   tipIcon: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -4987,7 +4499,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 430,
-    borderRadius: 18,
+    borderRadius: 20,
     padding: 20,
     alignItems: 'center',
     elevation: 12,
@@ -5003,7 +4515,7 @@ const styles = StyleSheet.create({
   modalIcon: {
     width: 58,
     height: 58,
-    borderRadius: 14,
+    borderRadius: 18,
     backgroundColor: GREEN_PALE,
     borderWidth: 1,
     borderColor: GREEN_BORDER,
@@ -5036,7 +4548,7 @@ const styles = StyleSheet.create({
   cancelModalButton: {
     flex: 1,
     minHeight: 48,
-    borderRadius: 11,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#D1D5DB',
     alignItems: 'center',
@@ -5053,7 +4565,7 @@ const styles = StyleSheet.create({
   confirmModalButton: {
     flex: 1,
     minHeight: 48,
-    borderRadius: 11,
+    borderRadius: 14,
     backgroundColor: GREEN,
     alignItems: 'center',
     justifyContent: 'center',
@@ -5079,7 +4591,7 @@ const styles = StyleSheet.create({
   centerIconBox: {
     width: 65,
     height: 65,
-    borderRadius: 14,
+    borderRadius: 18,
     backgroundColor: '#FDECEC',
     alignItems: 'center',
     justifyContent: 'center',

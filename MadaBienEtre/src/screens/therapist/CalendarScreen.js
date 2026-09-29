@@ -21,7 +21,6 @@ import {
   TextInput,
   Modal,
   Pressable,
-  ScrollView,
   Image,
 } from 'react-native';
 
@@ -517,461 +516,370 @@ const Toast = ({ visible, type, message, onHide }) => {
 };
 
 // ============================================================
-// DATE RANGE MODAL
+// CALENDAR PANEL (PERMANENT — plus de modal)
+// ------------------------------------------------------------
+// Affiché en permanence dans la page, au-dessus de la liste
+// des réservations. Chaque jour affiche :
+//   - un badge avec le nombre de réservations de ce jour
+//   - des points colorés selon les statuts présents ce jour
+// Permet aussi la sélection d'une période (Du / Au).
 // ============================================================
 
-const DateRangeModal = ({
-  visible,
-  range,
-  bookingDateSet,
+const CalendarPanel = ({
   themeColors,
-  onClose,
+  viewDate,
+  onPrevMonth,
+  onNextMonth,
+  onToday,
+  range,
   onSelectDate,
-  onReset,
-  onApply,
+  onResetRange,
+  bookingsByDate,
+  presentStatuses,
 }) => {
-  const insets = useSafeAreaInsets();
-
-  const [viewDate, setViewDate] = useState(
-    () => range?.start || new Date(),
-  );
-
-  useEffect(() => {
-    if (visible) {
-      setViewDate(range?.start || new Date());
-    }
-  }, [visible, range?.start]);
-
   const cells = useMemo(
     () => buildMonthGrid(viewDate),
     [viewDate],
   );
 
-  const goPrevMonth = useCallback(() => {
-    setViewDate(
-      (previous) =>
-        new Date(
-          previous.getFullYear(),
-          previous.getMonth() - 1,
-          1,
-        ),
-    );
-  }, []);
-
-  const goNextMonth = useCallback(() => {
-    setViewDate(
-      (previous) =>
-        new Date(
-          previous.getFullYear(),
-          previous.getMonth() + 1,
-          1,
-        ),
-    );
-  }, []);
-
   const todayKey = toDateKey(new Date());
-  const startKey = range?.start
-    ? toDateKey(range.start)
-    : null;
-  const endKey = range?.end
-    ? toDateKey(range.end)
-    : null;
+  const startKey = range?.start ? toDateKey(range.start) : null;
+  const endKey = range?.end ? toDateKey(range.end) : null;
+  const hasRange = !!startKey;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      statusBarTranslucent={Platform.OS === 'android'}
-      onRequestClose={onClose}
+    <View
+      style={[
+        styles.calendarPanelCard,
+        {
+          backgroundColor:
+            themeColors.surface || themeColors.card,
+          borderColor: themeColors.border,
+        },
+      ]}
     >
-      <Pressable
-        style={styles.modalBackdrop}
-        onPress={onClose}
-      >
-        <Pressable
-          style={[
-            styles.calendarSheet,
-            {
-              backgroundColor:
-                themeColors.card || themeColors.surface,
-              paddingBottom:
-                20 +
-                (Platform.OS === 'android'
-                  ? insets.bottom
-                  : 0),
-            },
-          ]}
-          onPress={() => {}}
-        >
-          <View style={styles.actionSheetHandle} />
+      {/* HEADER */}
 
-          <ScrollView
-            style={styles.calendarModalScroll}
-            contentContainerStyle={styles.calendarModalScrollContent}
-            showsVerticalScrollIndicator={Platform.OS === 'web'}
-            bounces={Platform.OS !== 'web'}
-            keyboardShouldPersistTaps="handled"
+      <View style={styles.calendarPanelHeaderRow}>
+        <View style={styles.calendarPanelTitleRow}>
+          <View
+            style={[
+              styles.calendarPanelIcon,
+              {
+                backgroundColor: `${PRIMARY_GREEN}18`,
+              },
+            ]}
           >
-          <View style={styles.modalTitleRow}>
-            <View
-              style={[
-                styles.modalTitleIcon,
-                {
-                  backgroundColor: `${PRIMARY_GREEN}18`,
-                },
-              ]}
-            >
-              <Ionicons
-                name="calendar-outline"
-                size={20}
-                color={PRIMARY_GREEN}
-              />
-            </View>
-
-            <Text
-              style={[
-                styles.calendarModalTitle,
-                {
-                  color: themeColors.text,
-                },
-              ]}
-            >
-              Filtrer par période
-            </Text>
-          </View>
-
-          <View style={styles.rangeFieldsRow}>
-            <View
-              style={[
-                styles.rangeField,
-                {
-                  borderColor: !endKey
-                    ? PRIMARY_GREEN
-                    : themeColors.border,
-                  backgroundColor: !endKey
-                    ? `${PRIMARY_GREEN}10`
-                    : 'transparent',
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.rangeFieldLabel,
-                  {
-                    color: themeColors.textSecondary,
-                  },
-                ]}
-              >
-                Du
-              </Text>
-
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.rangeFieldValue,
-                  {
-                    color: themeColors.text,
-                  },
-                ]}
-              >
-                {range?.start
-                  ? formatShortDate(toDateKey(range.start))
-                  : 'Choisir'}
-              </Text>
-            </View>
-
             <Ionicons
-              name="arrow-forward"
+              name="calendar-outline"
               size={16}
-              color={themeColors.textSecondary}
+              color={PRIMARY_GREEN}
             />
-
-            <View
-              style={[
-                styles.rangeField,
-                {
-                  borderColor:
-                    !!range?.start && !endKey
-                      ? PRIMARY_GREEN
-                      : themeColors.border,
-                  backgroundColor:
-                    !!range?.start && !endKey
-                      ? `${PRIMARY_GREEN}10`
-                      : 'transparent',
-                },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.rangeFieldLabel,
-                  {
-                    color: themeColors.textSecondary,
-                  },
-                ]}
-              >
-                Au
-              </Text>
-
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.rangeFieldValue,
-                  {
-                    color: themeColors.text,
-                  },
-                ]}
-              >
-                {range?.end
-                  ? formatShortDate(toDateKey(range.end))
-                  : 'Choisir'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.calendarHeaderRow}>
-            <TouchableOpacity
-              style={styles.monthArrowButton}
-              onPress={goPrevMonth}
-              hitSlop={{
-                top: 8,
-                bottom: 8,
-                left: 8,
-                right: 8,
-              }}
-            >
-              <Ionicons
-                name="chevron-back"
-                size={19}
-                color={themeColors.text}
-              />
-            </TouchableOpacity>
-
-            <Text
-              style={[
-                styles.calendarHeaderTitle,
-                {
-                  color: themeColors.text,
-                },
-              ]}
-            >
-              {MONTH_LABELS[viewDate.getMonth()]}{' '}
-              {viewDate.getFullYear()}
-            </Text>
-
-            <TouchableOpacity
-              style={styles.monthArrowButton}
-              onPress={goNextMonth}
-              hitSlop={{
-                top: 8,
-                bottom: 8,
-                left: 8,
-                right: 8,
-              }}
-            >
-              <Ionicons
-                name="chevron-forward"
-                size={19}
-                color={themeColors.text}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.calendarWeekRow}>
-            {WEEKDAY_LABELS.map((label, index) => (
-              <Text
-                key={`${label}-${index}`}
-                style={[
-                  styles.calendarWeekLabel,
-                  {
-                    color: themeColors.textSecondary,
-                  },
-                ]}
-              >
-                {label}
-              </Text>
-            ))}
-          </View>
-
-          <View style={styles.calendarGrid}>
-            {cells.map((cellDate, index) => {
-              if (!cellDate) {
-                return (
-                  <View
-                    key={`empty-${index}`}
-                    style={styles.calendarCell}
-                  />
-                );
-              }
-
-              const key = toDateKey(cellDate);
-              const isStart = key === startKey;
-              const isEnd = key === endKey;
-              const isEdge = isStart || isEnd;
-
-              const isInRange =
-                !!startKey &&
-                !!endKey &&
-                key > startKey &&
-                key < endKey;
-
-              const isToday = key === todayKey;
-              const hasBooking = bookingDateSet?.has(key);
-
-              return (
-                <TouchableOpacity
-                  key={key}
-                  activeOpacity={0.75}
-                  onPress={() => onSelectDate(cellDate)}
-                  style={[
-                    styles.calendarCell,
-                    isInRange && {
-                      backgroundColor: `${PRIMARY_GREEN}18`,
-                    },
-                    isStart &&
-                      !!endKey && {
-                        backgroundColor: `${PRIMARY_GREEN}18`,
-                        borderTopLeftRadius: 18,
-                        borderBottomLeftRadius: 18,
-                      },
-                    isEnd &&
-                      !!startKey && {
-                        backgroundColor: `${PRIMARY_GREEN}18`,
-                        borderTopRightRadius: 18,
-                        borderBottomRightRadius: 18,
-                      },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.calendarDayCircle,
-                      isEdge && {
-                        backgroundColor: PRIMARY_GREEN,
-                      },
-                      !isEdge &&
-                        isToday && {
-                          borderWidth: 1.5,
-                          borderColor: PRIMARY_GREEN,
-                        },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.calendarDayText,
-                        {
-                          color: isEdge
-                            ? '#FFFFFF'
-                            : themeColors.text,
-                        },
-                      ]}
-                    >
-                      {cellDate.getDate()}
-                    </Text>
-                  </View>
-
-                  {hasBooking && (
-                    <View
-                      style={[
-                        styles.calendarDayDot,
-                        {
-                          backgroundColor: isEdge
-                            ? '#FFFFFF'
-                            : PRIMARY_GREEN,
-                          width: isEdge ? 5 : 6,
-                          height: isEdge ? 5 : 6,
-                          borderRadius: isEdge ? 2.5 : 3,
-                        },
-                      ]}
-                    />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <View style={styles.calendarLegendInfo}>
-            <View
-              style={[
-                styles.calendarLegendDot,
-                {
-                  backgroundColor: PRIMARY_GREEN,
-                },
-              ]}
-            />
-
-            <Text
-              style={[
-                styles.calendarHint,
-                {
-                  color: themeColors.textSecondary,
-                },
-              ]}
-            >
-              Les points indiquent les dates avec réservation.
-            </Text>
           </View>
 
           <Text
             style={[
-              styles.calendarSelectionHint,
+              styles.calendarPanelTitle,
+              {
+                color: themeColors.text,
+              },
+            ]}
+          >
+            Calendrier
+          </Text>
+        </View>
+
+        {hasRange && (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={onResetRange}
+            hitSlop={{
+              top: 8,
+              bottom: 8,
+              left: 8,
+              right: 8,
+            }}
+          >
+            <Text
+              style={[
+                styles.calendarClearLink,
+                {
+                  color: PRIMARY_GREEN,
+                },
+              ]}
+            >
+              Effacer
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* NAVIGATION MOIS */}
+
+      <View style={styles.calendarHeaderRow}>
+        <TouchableOpacity
+          style={styles.monthArrowButton}
+          onPress={onPrevMonth}
+          hitSlop={{
+            top: 8,
+            bottom: 8,
+            left: 8,
+            right: 8,
+          }}
+        >
+          <Ionicons
+            name="chevron-back"
+            size={18}
+            color={themeColors.text}
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={onToday}
+        >
+          <Text
+            style={[
+              styles.calendarHeaderTitle,
+              {
+                color: themeColors.text,
+              },
+            ]}
+          >
+            {MONTH_LABELS[viewDate.getMonth()]}{' '}
+            {viewDate.getFullYear()}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.monthArrowButton}
+          onPress={onNextMonth}
+          hitSlop={{
+            top: 8,
+            bottom: 8,
+            left: 8,
+            right: 8,
+          }}
+        >
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={themeColors.text}
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* JOURS DE LA SEMAINE */}
+
+      <View style={styles.calendarWeekRow}>
+        {WEEKDAY_LABELS.map((label, index) => (
+          <Text
+            key={`${label}-${index}`}
+            style={[
+              styles.calendarWeekLabel,
               {
                 color: themeColors.textSecondary,
               },
             ]}
           >
-            {!range?.start
-              ? 'Touchez un jour pour définir le début de la période.'
-              : !range?.end
-              ? 'Touchez un second jour pour définir la fin de la période.'
-              : 'Période sélectionnée. Appuyez sur Appliquer.'}
+            {label}
           </Text>
+        ))}
+      </View>
 
-          <View style={styles.calendarActions}>
+      {/* GRILLE DES JOURS */}
+
+      <View style={styles.calendarGrid}>
+        {cells.map((cellDate, index) => {
+          if (!cellDate) {
+            return (
+              <View
+                key={`empty-${index}`}
+                style={styles.calendarCell}
+              />
+            );
+          }
+
+          const key = toDateKey(cellDate);
+          const isStart = key === startKey;
+          const isEnd = key === endKey;
+          const isEdge = isStart || isEnd;
+
+          const isInRange =
+            !!startKey &&
+            !!endKey &&
+            key > startKey &&
+            key < endKey;
+
+          const isToday = key === todayKey;
+
+          const dayBookings =
+            bookingsByDate.get(key) || [];
+
+          const count = dayBookings.length;
+
+          const uniqueStatuses = [];
+
+          dayBookings.forEach((booking) => {
+            const status = normalizeStatus(
+              booking?.status,
+            );
+
+            if (!uniqueStatuses.includes(status)) {
+              uniqueStatuses.push(status);
+            }
+          });
+
+          return (
             <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={onReset}
+              key={key}
+              activeOpacity={0.75}
+              onPress={() => onSelectDate(cellDate)}
               style={[
-                styles.confirmButton,
-                styles.confirmButtonGhost,
-                {
-                  borderColor: themeColors.border,
+                styles.calendarCell,
+                isInRange && {
+                  backgroundColor: `${PRIMARY_GREEN}18`,
                 },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.confirmButtonGhostText,
-                  {
-                    color: themeColors.text,
+                isStart &&
+                  !!endKey && {
+                    backgroundColor: `${PRIMARY_GREEN}18`,
+                    borderTopLeftRadius: 14,
+                    borderBottomLeftRadius: 14,
                   },
-                ]}
-              >
-                Réinitialiser
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              activeOpacity={0.85}
-              disabled={!range?.start}
-              onPress={onApply}
-              style={[
-                styles.confirmButton,
-                {
-                  backgroundColor: range?.start
-                    ? PRIMARY_GREEN
-                    : themeColors.border,
-                },
+                isEnd &&
+                  !!startKey && {
+                    backgroundColor: `${PRIMARY_GREEN}18`,
+                    borderTopRightRadius: 14,
+                    borderBottomRightRadius: 14,
+                  },
               ]}
             >
-              <Text style={styles.confirmButtonText}>
-                Appliquer
-              </Text>
+              <View style={styles.calendarDayCircleWrap}>
+                <View
+                  style={[
+                    styles.calendarDayCircle,
+                    isEdge && {
+                      backgroundColor: PRIMARY_GREEN,
+                    },
+                    !isEdge &&
+                      isToday && {
+                        borderWidth: 1.5,
+                        borderColor: PRIMARY_GREEN,
+                      },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.calendarDayText,
+                      {
+                        color: isEdge
+                          ? '#FFFFFF'
+                          : themeColors.text,
+                      },
+                    ]}
+                  >
+                    {cellDate.getDate()}
+                  </Text>
+                </View>
+
+                {count > 0 && (
+                  <View
+                    style={[
+                      styles.calendarCountBadge,
+                      {
+                        borderColor:
+                          themeColors.surface ||
+                          themeColors.card,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.calendarCountBadgeText}>
+                      {count > 9 ? '9+' : count}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {count > 0 ? (
+                <View style={styles.calendarDotsRow}>
+                  {uniqueStatuses.slice(0, 4).map((status) => (
+                    <View
+                      key={status}
+                      style={[
+                        styles.calendarStatusDot,
+                        {
+                          backgroundColor:
+                            getStatusConfig(status).color,
+                        },
+                      ]}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.calendarDotsRowPlaceholder} />
+              )}
             </TouchableOpacity>
-          </View>
-          </ScrollView>
-        </Pressable>
-      </Pressable>
-    </Modal>
+          );
+        })}
+      </View>
+
+      {/* LEGENDE DYNAMIQUE (statuts réellement présents) */}
+
+      {presentStatuses.length > 0 && (
+        <View style={styles.calendarLegendWrapRow}>
+          {presentStatuses.map((status) => {
+            const config = getStatusConfig(status);
+
+            return (
+              <View
+                key={status}
+                style={styles.calendarLegendItem}
+              >
+                <View
+                  style={[
+                    styles.calendarLegendDotSmall,
+                    {
+                      backgroundColor: config.color,
+                    },
+                  ]}
+                />
+
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.calendarLegendLabel,
+                    {
+                      color: themeColors.textSecondary,
+                    },
+                  ]}
+                >
+                  {config.label}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      {/* INDICATION DE SELECTION */}
+
+      <Text
+        style={[
+          styles.calendarSelectionHint,
+          {
+            color: themeColors.textSecondary,
+          },
+        ]}
+      >
+        {!range?.start
+          ? 'Touchez un jour pour filtrer, ou deux jours pour une période.'
+          : !range?.end
+          ? 'Touchez un second jour pour définir la fin de la période.'
+          : `Période : ${formatShortDate(startKey)} → ${formatShortDate(
+              endKey,
+            )}`}
+      </Text>
+    </View>
   );
 };
 
@@ -1262,7 +1170,7 @@ const BookingMenuSheet = ({
 };
 
 // ============================================================
-// LEGEND
+// LEGEND (résumé)
 // ============================================================
 
 const Legend = ({
@@ -1372,15 +1280,15 @@ const CalendarScreen = ({ navigation }) => {
 
   const [searchQuery, setSearchQuery] = useState('');
 
-  const [calendarVisible, setCalendarVisible] =
-    useState(false);
+  // ----------------------------------------------------------
+  // CALENDRIER PERMANENT : mois affiché + période sélectionnée
+  // ----------------------------------------------------------
 
-  const [draftRange, setDraftRange] = useState({
-    start: null,
-    end: null,
-  });
+  const [viewDate, setViewDate] = useState(
+    () => new Date(),
+  );
 
-  const [appliedRange, setAppliedRange] = useState({
+  const [dateRange, setDateRange] = useState({
     start: null,
     end: null,
   });
@@ -1499,21 +1407,39 @@ const CalendarScreen = ({ navigation }) => {
   );
 
   // ==========================================================
-  // BOOKING DATES
+  // RÉSERVATIONS GROUPÉES PAR JOUR (pour le calendrier)
   // ==========================================================
 
-  const bookingDateSet = useMemo(() => {
-    const dateSet = new Set();
+  const bookingsByDate = useMemo(() => {
+    const map = new Map();
 
     bookings.forEach((booking) => {
       const date = getBookingDate(booking);
 
-      if (date) {
-        dateSet.add(date);
+      if (!date) {
+        return;
       }
+
+      if (!map.has(date)) {
+        map.set(date, []);
+      }
+
+      map.get(date).push(booking);
     });
 
-    return dateSet;
+    return map;
+  }, [bookings]);
+
+  // Statuts réellement présents (pour la légende dynamique)
+
+  const presentStatuses = useMemo(() => {
+    const set = new Set();
+
+    bookings.forEach((booking) => {
+      set.add(normalizeStatus(booking?.status));
+    });
+
+    return Array.from(set);
   }, [bookings]);
 
   // ==========================================================
@@ -1557,11 +1483,11 @@ const CalendarScreen = ({ navigation }) => {
       });
     }
 
-    if (appliedRange.start) {
-      const startKey = toDateKey(appliedRange.start);
+    if (dateRange.start) {
+      const startKey = toDateKey(dateRange.start);
 
-      const endKey = appliedRange.end
-        ? toDateKey(appliedRange.end)
+      const endKey = dateRange.end
+        ? toDateKey(dateRange.end)
         : startKey;
 
       const [lowKey, highKey] =
@@ -1581,15 +1507,39 @@ const CalendarScreen = ({ navigation }) => {
     }
 
     return result;
-  }, [bookings, searchQuery, appliedRange]);
+  }, [bookings, searchQuery, dateRange]);
 
   // ==========================================================
-  // DATE RANGE ACTIONS
+  // CALENDRIER : NAVIGATION + SÉLECTION DE PÉRIODE
   // ==========================================================
+
+  const handlePrevMonth = useCallback(() => {
+    setViewDate((previous) =>
+      new Date(
+        previous.getFullYear(),
+        previous.getMonth() - 1,
+        1,
+      ),
+    );
+  }, []);
+
+  const handleNextMonth = useCallback(() => {
+    setViewDate((previous) =>
+      new Date(
+        previous.getFullYear(),
+        previous.getMonth() + 1,
+        1,
+      ),
+    );
+  }, []);
+
+  const handleGoToday = useCallback(() => {
+    setViewDate(new Date());
+  }, []);
 
   const handleSelectCalendarDate = useCallback(
     (date) => {
-      setDraftRange((previous) => {
+      setDateRange((previous) => {
         if (!previous.start || previous.end) {
           return {
             start: date,
@@ -1598,8 +1548,7 @@ const CalendarScreen = ({ navigation }) => {
         }
 
         if (
-          toDateKey(date) <
-          toDateKey(previous.start)
+          toDateKey(date) < toDateKey(previous.start)
         ) {
           return {
             start: date,
@@ -1616,41 +1565,8 @@ const CalendarScreen = ({ navigation }) => {
     [],
   );
 
-  const handleResetCalendarDate = useCallback(() => {
-    setDraftRange({
-      start: null,
-      end: null,
-    });
-
-    setAppliedRange({
-      start: null,
-      end: null,
-    });
-
-    setCalendarVisible(false);
-  }, []);
-
-  const handleApplyCalendarDate = useCallback(() => {
-    setAppliedRange(draftRange);
-    setCalendarVisible(false);
-  }, [draftRange]);
-
-  const openCalendarModal = useCallback(() => {
-    setDraftRange(appliedRange);
-    setCalendarVisible(true);
-  }, [appliedRange]);
-
-  const closeCalendarModal = useCallback(() => {
-    setCalendarVisible(false);
-  }, []);
-
-  const clearAppliedRange = useCallback(() => {
-    setAppliedRange({
-      start: null,
-      end: null,
-    });
-
-    setDraftRange({
+  const handleResetDateRange = useCallback(() => {
+    setDateRange({
       start: null,
       end: null,
     });
@@ -2204,7 +2120,7 @@ const CalendarScreen = ({ navigation }) => {
   }
 
   const hasActiveFilters =
-    !!searchQuery.trim() || !!appliedRange.start;
+    !!searchQuery.trim() || !!dateRange.start;
 
   return (
     <View
@@ -2329,83 +2245,7 @@ const CalendarScreen = ({ navigation }) => {
             </TouchableOpacity>
           )}
         </View>
-
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={openCalendarModal}
-          style={[
-            styles.calendarIconButton,
-            !!appliedRange.start &&
-              styles.calendarIconButtonActive,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Filtrer par période"
-        >
-          <Ionicons
-            name="calendar-outline"
-            size={20}
-            color="#FFFFFF"
-          />
-        </TouchableOpacity>
       </View>
-
-      {!!appliedRange.start && (
-        <View style={styles.dateFilterChipRow}>
-          <View
-            style={[
-              styles.dateFilterChip,
-              {
-                backgroundColor: `${PRIMARY_GREEN}12`,
-                borderColor: `${PRIMARY_GREEN}55`,
-              },
-            ]}
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={14}
-              color={PRIMARY_GREEN}
-            />
-
-            <Text
-              style={[
-                styles.dateFilterChipText,
-                {
-                  color: PRIMARY_GREEN,
-                },
-              ]}
-            >
-              {appliedRange.end &&
-              toDateKey(appliedRange.end) !==
-                toDateKey(appliedRange.start)
-                ? `${formatShortDate(
-                    toDateKey(appliedRange.start),
-                  )} → ${formatShortDate(
-                    toDateKey(appliedRange.end),
-                  )}`
-                : formatShortDate(
-                    toDateKey(appliedRange.start),
-                  )}
-            </Text>
-
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={clearAppliedRange}
-              hitSlop={{
-                top: 6,
-                bottom: 6,
-                left: 6,
-                right: 6,
-              }}
-            >
-              <Ionicons
-                name="close"
-                size={15}
-                color={PRIMARY_GREEN}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
 
       <Animated.ScrollView
         style={[
@@ -2501,100 +2341,25 @@ const CalendarScreen = ({ navigation }) => {
         )}
 
         {/* ==================================================
-            SUMMARY CARD
+            CALENDRIER PERMANENT
         ================================================== */}
 
         <Animatable.View
           animation="fadeInDown"
           duration={500}
         >
-          <View
-            style={[
-              styles.summaryCard,
-              {
-                backgroundColor:
-                  themeColors.surface ||
-                  themeColors.card,
-                borderColor: themeColors.border,
-              },
-            ]}
-          >
-            <View style={styles.summaryHeader}>
-              <View style={styles.summaryTitleBox}>
-                <View
-                  style={[
-                    styles.summaryIcon,
-                    {
-                      backgroundColor: `${PRIMARY_GREEN}15`,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="calendar-outline"
-                    size={20}
-                    color={PRIMARY_GREEN}
-                  />
-                </View>
-
-                <View>
-                  <Text
-                    style={[
-                      styles.summaryTitle,
-                      {
-                        color: themeColors.text,
-                      },
-                    ]}
-                  >
-                    Planning des réservations
-                  </Text>
-
-                  <Text
-                    style={[
-                      styles.summarySubtitle,
-                      {
-                        color: themeColors.textSecondary,
-                      },
-                    ]}
-                  >
-                    Données réelles du serveur
-                  </Text>
-                </View>
-              </View>
-
-              <View
-                style={[
-                  styles.totalBadge,
-                  {
-                    backgroundColor: PRIMARY_GREEN,
-                  },
-                ]}
-              >
-                <Text style={styles.totalBadgeText}>
-                  {filteredBookings.length}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.legendRow}>
-              <Legend
-                color="#16A34A"
-                label="Confirmée"
-                themeColors={themeColors}
-              />
-
-              <Legend
-                color="#EA8A00"
-                label="En cours"
-                themeColors={themeColors}
-              />
-
-              <Legend
-                color="#15803D"
-                label="Terminée"
-                themeColors={themeColors}
-              />
-            </View>
-          </View>
+          <CalendarPanel
+            themeColors={themeColors}
+            viewDate={viewDate}
+            onPrevMonth={handlePrevMonth}
+            onNextMonth={handleNextMonth}
+            onToday={handleGoToday}
+            range={dateRange}
+            onSelectDate={handleSelectCalendarDate}
+            onResetRange={handleResetDateRange}
+            bookingsByDate={bookingsByDate}
+            presentStatuses={presentStatuses}
+          />
         </Animatable.View>
 
         {/* ==================================================
@@ -2645,6 +2410,39 @@ const CalendarScreen = ({ navigation }) => {
                   ? 'Aucune réservation ne correspond à votre recherche ou à la période choisie.'
                   : "Il n'y a aucune réservation pour le moment."}
               </Text>
+
+              {hasActiveFilters && (
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setSearchQuery('');
+                    handleResetDateRange();
+                  }}
+                  style={[
+                    styles.emptyResetButton,
+                    {
+                      borderColor: PRIMARY_GREEN,
+                    },
+                  ]}
+                >
+                  <Ionicons
+                    name="refresh-outline"
+                    size={15}
+                    color={PRIMARY_GREEN}
+                  />
+
+                  <Text
+                    style={[
+                      styles.emptyResetButtonText,
+                      {
+                        color: PRIMARY_GREEN,
+                      },
+                    ]}
+                  >
+                    Réinitialiser les filtres
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -2705,17 +2503,6 @@ const CalendarScreen = ({ navigation }) => {
             </View>
           )}
       </Animated.ScrollView>
-
-      <DateRangeModal
-        visible={calendarVisible}
-        range={draftRange}
-        bookingDateSet={bookingDateSet}
-        themeColors={themeColors}
-        onClose={closeCalendarModal}
-        onSelectDate={handleSelectCalendarDate}
-        onReset={handleResetCalendarDate}
-        onApply={handleApplyCalendarDate}
-      />
 
       <BookingMenuSheet
         visible={!!menuTarget}
@@ -2894,52 +2681,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
   },
 
-  calendarIconButton: {
-    width: 46,
-    height: 46,
-    marginLeft: 10,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: PRIMARY_GREEN,
-    shadowColor: PRIMARY_GREEN,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 7,
-    elevation: 3,
-  },
-
-  calendarIconButtonActive: {
-    backgroundColor: '#126B42',
-  },
-
-  dateFilterChipRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    marginTop: 5,
-    marginBottom: 2,
-  },
-
-  dateFilterChip: {
-    maxWidth: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 11,
-    paddingVertical: 7,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-
-  dateFilterChipText: {
-    flexShrink: 1,
-    marginHorizontal: 7,
-    fontSize: 11.5,
-    fontFamily: typography.fontFamily.medium,
-  },
-
   // ========================================================
   // ERROR
   // ========================================================
@@ -2993,6 +2734,228 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontSize: 12,
     fontFamily: typography.fontFamily.medium,
+  },
+
+  // ========================================================
+  // CALENDAR PANEL (PERMANENT)
+  // ========================================================
+
+  calendarPanelCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 15,
+    marginTop: spacing.md,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.055,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+
+  calendarPanelHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+
+  calendarPanelTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  calendarPanelIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+
+  calendarPanelTitle: {
+    fontSize: 14.5,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  calendarClearLink: {
+    fontSize: 12.5,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  rangeFieldsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+
+  rangeField: {
+    flex: 1,
+    minWidth: 0,
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 9,
+    marginHorizontal: 6,
+  },
+
+  rangeFieldLabel: {
+    fontSize: 9,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  rangeFieldValue: {
+    marginTop: 3,
+    fontSize: 11,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+
+  calendarHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+
+  monthArrowButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F6F4',
+  },
+
+  calendarHeaderTitle: {
+    fontSize: 15,
+    fontFamily: typography.fontFamily.bold,
+    textTransform: 'capitalize',
+  },
+
+  calendarWeekRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+
+  calendarWeekLabel: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 9.5,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+
+  calendarCell: {
+    width: `${100 / 7}%`,
+    minWidth: 0,
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 3,
+    paddingBottom: 2,
+  },
+
+  calendarDayCircleWrap: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  calendarDayCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  calendarDayText: {
+    fontSize: 11.5,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  calendarCountBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -7,
+    minWidth: 15,
+    height: 15,
+    borderRadius: 7.5,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: PRIMARY_GREEN,
+    borderWidth: 1.5,
+  },
+
+  calendarCountBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 8,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  calendarDotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+    minHeight: 6,
+  },
+
+  calendarDotsRowPlaceholder: {
+    marginTop: 4,
+    minHeight: 6,
+  },
+
+  calendarStatusDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    marginHorizontal: 1.5,
+  },
+
+  calendarLegendWrapRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF2EF',
+  },
+
+  calendarLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 14,
+    marginBottom: 6,
+  },
+
+  calendarLegendDotSmall: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    marginRight: 5,
+  },
+
+  calendarLegendLabel: {
+    fontSize: 10.5,
+    fontFamily: typography.fontFamily.regular,
+  },
+
+  calendarSelectionHint: {
+    marginTop: 8,
+    fontSize: 10.5,
+    lineHeight: 15,
+    textAlign: 'center',
+    fontFamily: typography.fontFamily.regular,
   },
 
   // ========================================================
@@ -3321,6 +3284,22 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
   },
 
+  emptyResetButton: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+
+  emptyResetButtonText: {
+    marginLeft: 6,
+    fontSize: 13,
+    fontFamily: typography.fontFamily.bold,
+  },
+
   globalEmptyCard: {
     alignItems: 'center',
     borderWidth: 1,
@@ -3394,19 +3373,9 @@ const styles = StyleSheet.create({
   },
 
   // ========================================================
-  // MODALS
+  // MODALS (menu 3 points + confirmation)
   // ========================================================
 
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(15,23,20,0.48)',
-    justifyContent: Platform.OS === 'web' ? 'center' : 'flex-end',
-    alignItems: Platform.OS === 'web' ? 'center' : 'stretch',
-    paddingHorizontal: Platform.OS === 'web' ? 20 : 0,
-    paddingVertical: Platform.OS === 'web' ? 20 : 0,
-  },
-
-  // Menu trois points : toujours ancré en bas de l’écran.
   menuModalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(15,23,20,0.48)',
@@ -3424,201 +3393,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: 'rgba(148,163,184,0.55)',
     marginBottom: 17,
-  },
-
-  modalTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-
-  modalTitleIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 9,
-  },
-
-  calendarModalTitle: {
-    fontSize: 14,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  calendarSheet: {
-    width: '100%',
-    maxWidth: Platform.OS === 'web' ? 560 : undefined,
-    maxHeight: Platform.OS === 'web' ? '94%' : '92%',
-    minHeight: Platform.OS === 'web' ? 420 : undefined,
-    borderRadius: 25,
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    paddingHorizontal: Platform.OS === 'web' ? 20 : 14,
-    paddingTop: 8,
-    overflow: 'hidden',
-    alignSelf: Platform.OS === 'web' ? 'center' : 'stretch',
-  },
-
-  calendarModalScroll: {
-    width: '100%',
-    flexGrow: 1,
-    flexShrink: 1,
-    minHeight: 0,
-  },
-
-  calendarModalScrollContent: {
-    flexGrow: 1,
-    paddingBottom: 4,
-  },
-
-  rangeFieldsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-
-  rangeField: {
-    flex: 1,
-    minWidth: 0,
-    borderWidth: 1.5,
-    borderRadius: 10,
-    paddingVertical: 7,
-    paddingHorizontal: 9,
-  },
-
-  rangeFieldLabel: {
-    fontSize: 9,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  rangeFieldValue: {
-    marginTop: 3,
-    fontSize: 11,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  calendarHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 9,
-    paddingHorizontal: 2,
-  },
-
-  monthArrowButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F3F6F4',
-  },
-
-  calendarHeaderTitle: {
-    fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  calendarWeekRow: {
-    flexDirection: 'row',
-    marginBottom: 3,
-  },
-
-  calendarWeekLabel: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 9.5,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  calendarGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-
-  calendarCell: {
-    width: `${100 / 7}%`,
-    minWidth: 0,
-    aspectRatio: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  calendarDayCircle: {
-    width: 27,
-    height: 27,
-    borderRadius: 13.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  calendarDayText: {
-    fontSize: 11,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  calendarDayDot: {
-    position: 'absolute',
-    bottom: 2,
-  },
-
-  calendarLegendInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-
-  calendarLegendDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 6,
-  },
-
-  calendarHint: {
-    fontSize: 11,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  calendarSelectionHint: {
-    marginTop: 6,
-    fontSize: 9.5,
-    lineHeight: 14,
-    textAlign: 'center',
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  calendarActions: {
-    flexDirection: 'row',
-    marginTop: 12,
-  },
-
-  confirmButton: {
-    flex: 1,
-    minHeight: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  confirmButtonGhost: {
-    borderWidth: 1,
-    backgroundColor: 'transparent',
-    marginRight: 10,
-  },
-
-  confirmButtonGhostText: {
-    fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  confirmButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
   },
 
   confirmationBackdrop: {

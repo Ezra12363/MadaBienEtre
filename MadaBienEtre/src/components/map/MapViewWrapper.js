@@ -1053,7 +1053,14 @@ const MapViewWrapper = forwardRef(({
                 tracksViewChanges={false}
                 onPress={() => onRouteSelect && onRouteSelect(option.id)}
               >
+                {/* ✅ collapsable={false} : tsy maintsy apetraka io amin'ny
+                    View ivelany indrindra, satria raha tsy izany dia
+                    "flatten" (esorin'ny Android) ilay View ary tsy voarakitra
+                    ao anaty sary (bitmap) an'ilay marker ny Text ao anatiny —
+                    izay mahatonga ny soratra tsy hita mihitsy amin'ny
+                    Android, na dia mety hita tsara aza amin'ny iOS/Web. */}
                 <View
+                  collapsable={false}
                   style={[
                     styles.routeLabel,
                     isSelected && {
@@ -1062,12 +1069,43 @@ const MapViewWrapper = forwardRef(({
                     },
                   ]}
                 >
-                  <Text style={[styles.routeLabelText, isSelected && styles.routeLabelTextSelected]}>
-                    {`🚗 ${option.drivingDurationText || option.durationText}  ·  🚶 ${option.walkingDurationText}`}
-                  </Text>
-                  <Text style={[styles.routeLabelSub, isSelected && styles.routeLabelTextSelected]}>
-                    {option.distanceText}
-                  </Text>
+                  <View collapsable={false} style={styles.routeLabelRow}>
+                    <Ionicons
+                      name="car-sport"
+                      size={10}
+                      color={isSelected ? '#FFFFFF' : '#333333'}
+                    />
+                    <Text style={[styles.routeLabelText, isSelected && styles.routeLabelTextSelected]}>
+                      {option.drivingDurationText || option.durationText}
+                    </Text>
+
+                    <View
+                      style={[
+                        styles.routeLabelDivider,
+                        isSelected && styles.routeLabelDividerSelected,
+                      ]}
+                    />
+
+                    <Ionicons
+                      name="walk"
+                      size={10}
+                      color={isSelected ? '#FFFFFF' : '#333333'}
+                    />
+                    <Text style={[styles.routeLabelText, isSelected && styles.routeLabelTextSelected]}>
+                      {option.walkingDurationText}
+                    </Text>
+
+                    <View
+                      style={[
+                        styles.routeLabelDivider,
+                        isSelected && styles.routeLabelDividerSelected,
+                      ]}
+                    />
+
+                    <Text style={[styles.routeLabelText, isSelected && styles.routeLabelTextSelected]}>
+                      {option.distanceText}
+                    </Text>
+                  </View>
                 </View>
               </RNMarker>
             );
@@ -1171,6 +1209,7 @@ const styles = StyleSheet.create({
   routeArrowWrap: { alignItems: 'center', justifyContent: 'center' },
   routeLabel: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
@@ -1178,9 +1217,23 @@ const styles = StyleSheet.create({
     borderColor: '#B8BDC4',
     backgroundColor: '#FFFFFF',
   },
-  routeLabelText: { fontSize: 11, fontWeight: '700', color: '#333333' },
-  routeLabelSub: { fontSize: 10, fontWeight: '500', color: '#555555' },
+  routeLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  routeLabelText: { fontSize: 9, fontWeight: '700', color: '#333333' },
+  routeLabelSub: { fontSize: 9, fontWeight: '500', color: '#555555' },
   routeLabelTextSelected: { color: '#FFFFFF' },
+  routeLabelDivider: {
+    width: 1,
+    height: 9,
+    marginHorizontal: 2,
+    backgroundColor: '#B8BDC4',
+  },
+  routeLabelDividerSelected: {
+    backgroundColor: 'rgba(255,255,255,0.6)',
+  },
   loadingOverlay: { 
     position: 'absolute', 
     top: 0, 
