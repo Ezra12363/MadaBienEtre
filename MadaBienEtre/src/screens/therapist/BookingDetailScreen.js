@@ -52,6 +52,13 @@ import Header from '../../components/common/Header';
 import bookingService from '../../services/bookingService';
 import offerService from '../../services/offerService';
 
+import {
+  parseServerDate,
+  formatMadagascarDateLong,
+  formatMadagascarTime,
+  formatMadagascarDateTimeLong,
+} from '../../utils/timeAgo';
+
 // ============================================================
 // CONSTANTES
 // ============================================================
@@ -225,48 +232,16 @@ const formatPrice = (value) => {
 // PARSING DES DATES
 // ============================================================
 
-const parseDateValue = (value) => {
-  if (!value) {
-    return null;
-  }
-
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime())
-      ? null
-      : value;
-  }
-
-  const stringValue = String(value).trim();
-
-  if (!stringValue) {
-    return null;
-  }
-
-  const parsed = new Date(stringValue);
-
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-
-  return parsed;
-};
+// Le backend renvoie des datetimes UTC SANS "Z" : parseServerDate force
+// l'UTC, puis tout est affiché en heure de Madagascar (UTC+3).
+const parseDateValue = (value) => parseServerDate(value);
 
 const formatDate = (value) => {
   if (!value) {
     return '—';
   }
 
-  const date = parseDateValue(value);
-
-  if (!date) {
-    return String(value);
-  }
-
-  return date.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
+  return formatMadagascarDateLong(value) || String(value);
 };
 
 const formatTime = (value) => {
@@ -280,6 +255,7 @@ const formatTime = (value) => {
 
   const stringValue = String(value).trim();
 
+  // Heure simple déjà fournie ("14:30" / "14:30:00")
   const simpleTimeMatch = stringValue.match(
     /^(\d{1,2}):(\d{2})(?::\d{2})?$/
   );
@@ -291,16 +267,12 @@ const formatTime = (value) => {
     return `${hour}:${minute}`;
   }
 
-  const date = parseDateValue(stringValue);
-
-  if (!date) {
-    return stringValue;
+  // Date seule : pas d'heure à afficher
+  if (/^\d{4}-\d{2}-\d{2}$/.test(stringValue)) {
+    return '—';
   }
 
-  return date.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatMadagascarTime(stringValue) || stringValue;
 };
 
 const formatDateTime = (value) => {
@@ -312,24 +284,7 @@ const formatDateTime = (value) => {
     return null;
   }
 
-  const date = parseDateValue(value);
-
-  if (!date) {
-    return null;
-  }
-
-  const datePart = date.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-
-  const timePart = date.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-  return `${datePart} à ${timePart}`;
+  return formatMadagascarDateTimeLong(value) || null;
 };
 
 // ============================================================

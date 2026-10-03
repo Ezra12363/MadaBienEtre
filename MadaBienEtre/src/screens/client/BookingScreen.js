@@ -54,6 +54,11 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 // vrai contexte de réservation (POST /bookings côté API).
 import { useBooking } from '../../context/BookingContext';
 
+import {
+  getMadagascarTodayDate,
+  madagascarLocalToUtcIso,
+} from '../../utils/timeAgo';
+
 const { width } = Dimensions.get('window');
 
 const IS_WEB = Platform.OS === 'web';
@@ -75,7 +80,13 @@ const DURATION_OPTIONS = [30, 45, 60, 75, 90, 120];
 // DATE HELPERS
 // ============================================================
 
-const startOfLocalDay = (date = new Date()) => {
+// ⏰ HEURE DE MADAGASCAR (UTC+3)
+// Les sélecteurs date/heure servent de simples conteneurs de
+// "jour" et "heure" saisis par le client : on les interprète
+// TOUJOURS comme une heure de Madagascar, quel que soit le fuseau
+// de l'appareil (voir madagascarLocalToUtcIso à l'envoi).
+// "Aujourd'hui" = le jour actuel à Madagascar.
+const startOfLocalDay = (date = getMadagascarTodayDate()) => {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
   return d;
@@ -94,12 +105,12 @@ const formatLocalDate = (date) => {
 };
 
 const parseLocalDate = (value) => {
-  if (!value) return new Date();
+  if (!value) return getMadagascarTodayDate();
 
   const parts = value.split('-').map(Number);
 
   if (parts.length !== 3) {
-    return new Date();
+    return getMadagascarTodayDate();
   }
 
   const [year, month, day] = parts;
@@ -355,7 +366,7 @@ const BookingScreen = ({
     useState(60);
 
   const [selectedDate, setSelectedDate] =
-    useState(new Date());
+    useState(() => getMadagascarTodayDate());
 
   const [selectedTime, setSelectedTime] =
     useState(() => {
@@ -1144,7 +1155,7 @@ const BookingScreen = ({
   const resetForm = () => {
     setSelectedType(null);
     setSelectedDuration(60);
-    setSelectedDate(new Date());
+    setSelectedDate(getMadagascarTodayDate());
     setSelectedTime(() => {
       const d = new Date();
       d.setHours(9, 0, 0, 0);
@@ -1224,17 +1235,19 @@ const BookingScreen = ({
     // ✅ Combine la date et l'heure choisies en un seul datetime, et
     // vérifie qu'il est bien dans le futur (exigé par le backend :
     // "Scheduled date must be in the future").
-    const scheduledDateTime = new Date(
-      selectedDate.getFullYear(),
-      selectedDate.getMonth(),
-      selectedDate.getDate(),
-      selectedTime.getHours(),
-      selectedTime.getMinutes(),
-      0,
-      0
+    // ⏰ Le jour + l'heure choisis sont en HEURE DE MADAGASCAR (UTC+3) :
+    // on les convertit en instant UTC exact (ISO avec "Z") pour le
+    // backend, indépendamment du fuseau de l'appareil.
+    // Ex: 05/10/2026 14:30 (Madagascar) -> 2026-10-05T11:30:00.000Z
+    const scheduledIso = madagascarLocalToUtcIso(
+      formatLocalDate(selectedDate),
+      formatDateToTime(selectedTime)
     );
 
-    if (scheduledDateTime.getTime() <= Date.now()) {
+    if (
+      !scheduledIso ||
+      new Date(scheduledIso).getTime() <= Date.now()
+    ) {
       showToast(
         'warning',
         'Date invalide',
@@ -1272,7 +1285,7 @@ const BookingScreen = ({
         address: address.trim(),
         latitude,
         longitude,
-        scheduled_date: scheduledDateTime.toISOString(),
+        scheduled_date: scheduledIso,
         client_price_proposed: priceValue,
         special_instructions:
           specialInstructions.trim() || null,

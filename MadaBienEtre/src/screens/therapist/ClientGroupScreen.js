@@ -63,11 +63,16 @@ import {
   getLatitude,
   getLongitude,
   getRelativeTimeLabel,
+  useNow,
   formatPrice,
-  formatDateLong,
   getOfferId,
   isActiveClientOffer,
 } from './OffersScreen';
+
+import {
+  getMadagascarDateKey,
+  getMadagascarTodayDate,
+} from '../../utils/timeAgo';
 
 // ============================================================
 // LABELS STATUT (pour les pastilles de filtre)
@@ -143,6 +148,20 @@ const isSameDay = (dateA, dateB) => {
 
 const dateKey = date =>
   `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+
+// Clé du jour (au même format que dateKey) d'un instant du backend,
+// calculée en HEURE DE MADAGASCAR (et non celle de l'appareil).
+const bookingDateKey = value => {
+  const key = getMadagascarDateKey(value);
+
+  if (!key) {
+    return '';
+  }
+
+  const [year, month, day] = key.split('-').map(Number);
+
+  return `${year}-${month - 1}-${day}`;
+};
 
 const getMonthMatrix = (year, month) => {
   const firstDay = new Date(year, month, 1);
@@ -228,6 +247,9 @@ export default function ClientGroupScreen({
   navigation,
   route,
 }) {
+  // ✅ Heure actuelle réelle (rafraîchie toutes les 30 s)
+  const now = useNow(30000);
+
   const { colors, isDark } = useTheme();
 
   const baseStyles = useMemo(
@@ -292,7 +314,7 @@ export default function ClientGroupScreen({
     useState(false);
 
   const [calendarCursor, setCalendarCursor] =
-    useState(() => new Date());
+    useState(() => getMadagascarTodayDate());
 
   const toastTimerRef = useRef(null);
   const closeTimerRef = useRef(null);
@@ -1255,13 +1277,13 @@ export default function ClientGroupScreen({
         return;
       }
 
-      const parsed = new Date(requestedAt);
+      const key = bookingDateKey(requestedAt);
 
-      if (Number.isNaN(parsed.getTime())) {
+      if (!key) {
         return;
       }
 
-      set.add(dateKey(parsed));
+      set.add(key);
     });
 
     return set;
@@ -1288,11 +1310,9 @@ export default function ClientGroupScreen({
           return false;
         }
 
-        const parsed = new Date(requestedAt);
-
         if (
-          Number.isNaN(parsed.getTime()) ||
-          !isSameDay(parsed, selectedDate)
+          bookingDateKey(requestedAt) !==
+          dateKey(selectedDate)
         ) {
           return false;
         }
@@ -1316,7 +1336,9 @@ export default function ClientGroupScreen({
 
   const openCalendarModal = useCallback(() => {
     setCalendarCursor(
-      selectedDate ? new Date(selectedDate) : new Date()
+      selectedDate
+        ? new Date(selectedDate)
+        : getMadagascarTodayDate()
     );
     setShowCalendarModal(true);
   }, [selectedDate]);
@@ -1355,7 +1377,7 @@ export default function ClientGroupScreen({
   }, []);
 
   const handleTodayShortcut = useCallback(() => {
-    const today = new Date();
+    const today = getMadagascarTodayDate();
     setCalendarCursor(today);
     setSelectedDate(today);
     setShowCalendarModal(false);
@@ -1418,7 +1440,8 @@ export default function ClientGroupScreen({
 
         const relativeLabel =
           getRelativeTimeLabel(
-            requestedAt
+            requestedAt,
+            now
           );
 
         const publishedLabel =
@@ -1756,9 +1779,16 @@ export default function ClientGroupScreen({
                         ? 'Expirée le '
                         : 'Expire le '}
 
-                      {formatDateLong(
+                      {formatScheduledDateLong(
                         expiresAt
                       )}
+                      {formatScheduledTime(
+                        expiresAt
+                      )
+                        ? ` · ${formatScheduledTime(
+                            expiresAt
+                          )}`
+                        : ''}
                     </Text>
                   </View>
                 ) : null}
@@ -2004,6 +2034,7 @@ export default function ClientGroupScreen({
         handleNegotiation,
         handleCallClient,
         handleOpenDirections,
+        now,
       ]
     );
 
@@ -2392,7 +2423,7 @@ export default function ClientGroupScreen({
   // ==========================================================
 
   const renderCalendarModal = () => {
-    const today = new Date();
+    const today = getMadagascarTodayDate();
 
     return (
       <Modal

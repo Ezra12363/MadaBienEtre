@@ -19,6 +19,7 @@ import {
   get,
   post,
 } from './api';
+import { toTimestamp } from '../utils/timeAgo';
 
 // ============================================================
 // HELPERS
@@ -645,12 +646,8 @@ class OfferService {
 
       clientOffers.sort(
         (a, b) =>
-          new Date(
-            b?.created_at || 0
-          ).getTime() -
-          new Date(
-            a?.created_at || 0
-          ).getTime()
+          toTimestamp(b?.created_at) -
+          toTimestamp(a?.created_at)
       );
 
       const active =

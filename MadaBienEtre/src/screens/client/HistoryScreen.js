@@ -36,6 +36,13 @@ import massageTypeService from '../../services/massageTypeService';
 import therapistService from '../../services/therapistService';
 
 import { typography } from '../../theme';
+import {
+  formatMadagascarDateFull,
+  formatMadagascarDateTime,
+  formatMadagascarTime,
+  getMadagascarDateKey,
+  getMadagascarTodayDate,
+} from '../../utils/timeAgo';
 
 // ============================================================
 // PALETTE
@@ -361,6 +368,10 @@ const normalizeBooking = (item, index) => {
     booking.appointmentTime,
     booking.scheduled_at,
     booking.scheduledAt,
+    // Le backend renvoie date + heure dans scheduled_date (UTC) :
+    // en dernier recours on en extrait l'heure (heure de Madagascar).
+    booking.scheduled_date,
+    booking.scheduledDate,
   );
 
   const status = firstValidValue(
@@ -445,18 +456,25 @@ const normalizeBooking = (item, index) => {
 // FORMATS
 // ============================================================
 
+// Les dates du backend sont en UTC (sans "Z") : elles sont toujours
+// converties en heure de Madagascar (UTC+3), quel que soit le fuseau
+// de l'appareil. Les objets Date (choisis dans le calendrier) restent
+// affichés en local.
 const formatDate = (dateValue) => {
   if (!dateValue) return 'Date non définie';
 
   try {
-    const date = new Date(dateValue);
-    if (Number.isNaN(date.getTime())) return String(dateValue);
+    if (dateValue instanceof Date) {
+      if (Number.isNaN(dateValue.getTime())) return String(dateValue);
 
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+      return dateValue.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+    }
+
+    return formatMadagascarDateFull(dateValue) || String(dateValue);
   } catch {
     return String(dateValue);
   }
@@ -467,37 +485,20 @@ const formatTime = (timeValue) => {
 
   const value = String(timeValue).trim();
 
+  // Datetime complet (UTC) -> heure de Madagascar
   if (value.includes('T') || value.includes(' ')) {
-    const date = new Date(value);
-    if (!Number.isNaN(date.getTime())) {
-      return date.toLocaleTimeString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    }
+    const time = formatMadagascarTime(value);
+    if (time) return time;
   }
 
+  // Heure seule ("14:30:00") -> "14:30"
   return value.slice(0, 5);
 };
 
 const formatDateTime = (value) => {
   if (!value) return '';
 
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-
-  const datePart = date.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-
-  const timePart = date.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-  return `${datePart} à ${timePart}`;
+  return formatMadagascarDateTime(value) || String(value);
 };
 
 const formatPrice = (value) => {
@@ -869,11 +870,13 @@ const CalendarFilterModal = ({
 }) => {
   const insets = useSafeAreaInsets();
 
-  const [viewDate, setViewDate] = useState(() => range?.start || new Date());
+  const [viewDate, setViewDate] = useState(
+    () => range?.start || getMadagascarTodayDate()
+  );
 
   useEffect(() => {
     if (visible) {
-      setViewDate(range?.start || new Date());
+      setViewDate(range?.start || getMadagascarTodayDate());
     }
   }, [visible, range?.start]);
 
@@ -887,7 +890,8 @@ const CalendarFilterModal = ({
     setViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   }, []);
 
-  const todayKey = toDateKey(new Date());
+  // "Aujourd'hui" = le jour actuel à Madagascar (et non celui de l'appareil)
+  const todayKey = toDateKey(getMadagascarTodayDate());
   const startKey = range?.start ? toDateKey(range.start) : null;
   const endKey = range?.end ? toDateKey(range.end) : null;
 
@@ -1150,10 +1154,19 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress }) => {
   const therapistInitial = (therapist?.name || 'T').trim().charAt(0).toUpperCase();
   const assignedAtLabel = formatDateTime(therapist?.assignedAt);
 
+  // Date + heure PRÉVUES du massage (heure de Madagascar)
+  const scheduledLabel = booking.scheduledDate
+    ? `Prévu le ${formatDate(booking.scheduledDate)}${
+        booking.scheduledTime ? ` à ${formatTime(booking.scheduledTime)}` : ''
+      }`
+    : booking.scheduledTime
+      ? `Prévu à ${formatTime(booking.scheduledTime)}`
+      : null;
+
   const tags = [
-    booking.scheduledDate ? formatDate(booking.scheduledDate) : null,
-    booking.scheduledTime ? formatTime(booking.scheduledTime) : null,
+    scheduledLabel,
     formattedDuration,
+    // Date + heure d'assignation du thérapeute (heure de Madagascar)
     assignedAtLabel ? `Assigné le ${assignedAtLabel}` : null,
   ].filter(Boolean);
 
@@ -1518,9 +1531,10 @@ const HistoryScreen = ({ navigation }) => {
 
     bookings.forEach((booking) => {
       if (!booking.scheduledDate) return;
-      const parsed = new Date(booking.scheduledDate);
-      if (!Number.isNaN(parsed.getTime())) {
-        set.add(toDateKey(parsed));
+      // Jour selon l'heure de Madagascar
+      const key = getMadagascarDateKey(booking.scheduledDate);
+      if (key) {
+        set.add(key);
       }
     });
 
@@ -1558,10 +1572,10 @@ const HistoryScreen = ({ navigation }) => {
       result = result.filter((booking) => {
         if (!booking.scheduledDate) return false;
 
-        const parsed = new Date(booking.scheduledDate);
-        if (Number.isNaN(parsed.getTime())) return false;
+        // Jour selon l'heure de Madagascar
+        const key = getMadagascarDateKey(booking.scheduledDate);
+        if (!key) return false;
 
-        const key = toDateKey(parsed);
         return key >= lowKey && key <= highKey;
       });
     }

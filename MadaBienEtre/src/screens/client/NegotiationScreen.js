@@ -47,6 +47,7 @@ import Header from '../../components/common/Header';
 import offerService from '../../services/offerService';
 import bookingService from '../../services/bookingService';
 import therapistService from '../../services/therapistService';
+import { formatMadagascarDateTime } from '../../utils/timeAgo';
 
 // ============================================================
 // CONSTANTS
@@ -274,28 +275,14 @@ const formatPrice = (price) => {
 
 // ============================================================
 
+// Date + heure en heure de Madagascar (UTC+3). Le backend renvoie
+// des datetimes UTC sans "Z" : ils sont convertis, jamais lus en local.
 const formatDate = (date) => {
   if (!date) {
     return '';
   }
 
-  try {
-    const d = new Date(date);
-
-    if (Number.isNaN(d.getTime())) {
-      return String(date);
-    }
-
-    return d.toLocaleString('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return String(date);
-  }
+  return formatMadagascarDateTime(date) || String(date);
 };
 
 // ============================================================

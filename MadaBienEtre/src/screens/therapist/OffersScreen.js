@@ -54,6 +54,15 @@ import {
   calculateAlternativeRoutes,
 } from '../../services/routing';
 import * as Location from 'expo-location';
+import {
+  parseServerDate,
+  toTimestamp,
+  formatMadagascarDateLong,
+  formatMadagascarTime,
+  formatMadagascarDayMonth,
+  formatMadagascarDateTimeNumeric,
+  getMadagascarDateKey,
+} from '../../utils/timeAgo';
 
 // ============================================================
 // ANDROID STATUS BAR
@@ -597,8 +606,10 @@ const getExpiresAt = booking =>
 const isOfferExpired = booking => {
   const value = getExpiresAt(booking);
   if (!value) return false;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return false;
+  // expires_at est en UTC sans "Z" : on force l'UTC pour comparer
+  // avec l'heure actuelle réelle.
+  const date = parseServerDate(value);
+  if (!date || Number.isNaN(date.getTime())) return false;
   return date.getTime() < Date.now();
 };
 
@@ -713,64 +724,61 @@ const getScheduledDate = booking =>
 // à Madagascar (UTC+3). parseServerDate() force l'UTC.
 // ============================================================
 
-const parseServerDate = value => {
-  if (!value) return null;
-  if (value instanceof Date) return value;
+// parseServerDate() est importé de utils/timeAgo : il force l'UTC sur
+// les datetimes sans "Z". L'affichage se fait TOUJOURS en heure de
+// Madagascar (UTC+3), quel que soit le fuseau de l'appareil.
 
-  if (typeof value === 'string') {
-    const text = value.trim();
+const formatScheduledDateLong = value =>
+  formatMadagascarDateLong(value, false);
 
-    // "2026-09-30T11:30:00" / "2026-09-30 11:30:00.123" (sans Z ni offset)
-    if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(text)) {
-      return new Date(`${text.replace(' ', 'T')}Z`);
-    }
-
-    return new Date(text);
-  }
-
-  return new Date(value);
-};
-
-const formatScheduledDateLong = value => {
-  const date = parseServerDate(value);
-  if (!date || Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-};
-
-const formatScheduledTime = value => {
-  const date = parseServerDate(value);
-  if (!date || Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
+const formatScheduledTime = value => formatMadagascarTime(value);
 
 // ============================================================
 // RELATIVE TIME
 // ============================================================
 
-const getRelativeTimeLabel = value => {
+// Durée écoulée RÉELLE depuis la création, calculée à partir de
+// l'heure actuelle. created_at est en UTC sans "Z" -> parseServerDate.
+// `now` (ms) permet de rafraîchir le libellé via useNow().
+const getRelativeTimeLabel = (value, now = Date.now()) => {
   if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  const diffMs = Date.now() - date.getTime();
+  const date = parseServerDate(value);
+  if (!date || Number.isNaN(date.getTime())) return '';
+
+  // max(0, …) : évite un libellé négatif si l'horloge du serveur
+  // avance de quelques secondes sur celle du téléphone.
+  const diffMs = Math.max(0, now - date.getTime());
   const diffMin = Math.floor(diffMs / 60000);
 
   if (diffMin < 1) return "à l'instant";
   if (diffMin < 60) return `il y a ${diffMin} min`;
+
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `il y a ${diffH} h`;
+  if (diffH < 24) {
+    const restMin = diffMin % 60;
+    return restMin > 0
+      ? `il y a ${diffH} h ${String(restMin).padStart(2, '0')} min`
+      : `il y a ${diffH} h`;
+  }
+
   const diffD = Math.floor(diffH / 24);
   if (diffD < 7) return `il y a ${diffD} j`;
-  return date.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-  });
+
+  return formatMadagascarDayMonth(value);
+};
+
+// Renvoie l'heure actuelle (ms) et se met à jour toutes les
+// `intervalMs` -> les "Publié il y a …" avancent en temps réel.
+const useNow = (intervalMs = 30000) => {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), intervalMs);
+    return () => clearInterval(timer);
+  }, [intervalMs]);
+
+  return now;
 };
 
 // ============================================================
@@ -879,64 +887,26 @@ const formatPrice = value => {
 
 const formatDate = value => {
   if (!value) return '';
-  try {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value);
-    return date.toLocaleString('fr-FR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return String(value);
-  }
+  return formatMadagascarDateTimeNumeric(value) || String(value);
 };
 
 const formatDateLong = value => {
   if (!value) return '';
-  try {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value);
-    return date.toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-  } catch {
-    return String(value);
-  }
+  return formatMadagascarDateLong(value, false) || String(value);
 };
 
 const formatDateShort = value => {
   if (!value) return '';
-  try {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value);
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-    });
-  } catch {
-    return String(value);
-  }
+  return formatMadagascarDayMonth(value) || String(value);
 };
 
 const formatTimeShort = value => {
   if (!value) return '';
-  try {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return '';
-  }
+  return formatMadagascarTime(value);
 };
 
+// formatDateOnly : jour CALENDAIRE choisi dans un sélecteur de date
+// (objet Date local). Ne sert PAS à convertir un instant du backend.
 const formatDateOnly = value => {
   if (!value) return '';
   const date = value instanceof Date ? value : new Date(value);
@@ -947,12 +917,18 @@ const formatDateOnly = value => {
   return `${year}-${month}-${day}`;
 };
 
+// Clé "YYYY-MM-DD" :
+// - Date choisie dans le sélecteur -> jour calendaire local choisi
+// - date seule "2026-09-30"       -> telle quelle
+// - datetime du backend (UTC)     -> jour À MADAGASCAR
+//   (ex: 22:00 UTC le 30/09 = 01:00 le 01/10 à Madagascar)
 const getDateOnlyKey = value => {
   if (!value) return '';
-  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
-    return value.slice(0, 10);
+  if (value instanceof Date) return formatDateOnly(value);
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    return value.trim();
   }
-  return formatDateOnly(value);
+  return getMadagascarDateKey(value) || '';
 };
 
 const formatDateLabel = value => {
@@ -1026,8 +1002,8 @@ const isActiveTherapistOffer = offer =>
 
 const getOfferSortValue = offer => {
   const created = offer?.created_at ?? offer?.createdAt;
-  const time = created ? new Date(created).getTime() : NaN;
-  if (Number.isFinite(time)) return time;
+  const time = toTimestamp(created);
+  if (time > 0) return time;
   const id = Number(getOfferId(offer));
   return Number.isFinite(id) ? id : 0;
 };
@@ -1150,6 +1126,8 @@ function ClientAvatar({ photoUrl, name, size = 52, isOnline = false }) {
 // ============================================================
 
 export default function OffersScreen({ navigation, route }) {
+  // ✅ Heure actuelle réelle (rafraîchie toutes les 30 s)
+  const now = useNow(30000);
   const { width, height } = useWindowDimensions();
   const isWeb = Platform.OS === 'web';
   const isMobile = !isWeb || width < 850;
@@ -1253,12 +1231,12 @@ export default function OffersScreen({ navigation, route }) {
       const merged = Array.from(mergedMap.values())
         .filter(isDisplayedBooking)
         .sort((a, b) => {
-          const da = new Date(
-            getScheduledDate(a) || a?.created_at || 0
-          ).getTime();
-          const db = new Date(
-            getScheduledDate(b) || b?.created_at || 0
-          ).getTime();
+          const da = toTimestamp(
+            getScheduledDate(a) || a?.created_at
+          );
+          const db = toTimestamp(
+            getScheduledDate(b) || b?.created_at
+          );
           return db - da;
         });
 
@@ -1490,12 +1468,8 @@ export default function OffersScreen({ navigation, route }) {
 
     return Array.from(groups.values()).map(group => {
       const sortedBookings = [...group.bookings].sort((a, b) => {
-        const dateA = getRequestedAt(a)
-          ? new Date(getRequestedAt(a)).getTime()
-          : 0;
-        const dateB = getRequestedAt(b)
-          ? new Date(getRequestedAt(b)).getTime()
-          : 0;
+        const dateA = toTimestamp(getRequestedAt(a));
+        const dateB = toTimestamp(getRequestedAt(b));
         return dateB - dateA;
       });
 
@@ -1996,7 +1970,7 @@ export default function OffersScreen({ navigation, route }) {
       const actionState = getActionState(booking);
 
       const requestedAt = getRequestedAt(booking);
-      const relativeLabel = getRelativeTimeLabel(requestedAt);
+      const relativeLabel = getRelativeTimeLabel(requestedAt, now);
       const publishedLabel = relativeLabel
         ? `Publié ${relativeLabel}`
         : '';
@@ -2160,7 +2134,10 @@ export default function OffersScreen({ navigation, route }) {
                     numberOfLines={1}
                   >
                     {expired ? 'Expirée le ' : 'Expire le '}
-                    {formatDateLong(expiresAt)}
+                    {formatScheduledDateLong(expiresAt)}
+                    {formatScheduledTime(expiresAt)
+                      ? ` · ${formatScheduledTime(expiresAt)}`
+                      : ''}
                   </Text>
                 </View>
               ) : null}
@@ -2312,6 +2289,7 @@ export default function OffersScreen({ navigation, route }) {
       handleNegotiation,
       handleCallClient,
       handleOpenDirections,
+      now,
     ]
   );
 
@@ -4602,6 +4580,7 @@ export {
   getLongitude,
   hasValidCoordinates,
   getRelativeTimeLabel,
+  useNow,
   formatPrice,
   formatDateLong,
   formatTimeShort,

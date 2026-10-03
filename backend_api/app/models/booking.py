@@ -1,8 +1,20 @@
 # app/models/booking.py (ajout de therapist_assigned_at + foreign_keys explicites)
-from sqlalchemy import Column, Integer, String, DECIMAL, TIMESTAMP, Text, Enum, ForeignKey, Index, CheckConstraint
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, DECIMAL, TIMESTAMP, Text, Enum, ForeignKey, Index, CheckConstraint, text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from ..core.database import Base
+
+
+def _utcnow():
+    """Heure UTC sans fuseau (colonnes TIMESTAMP sans timezone).
+
+    Le frontend ajoute 'Z' puis affiche en heure de Madagascar (UTC+3) :
+    toutes les dates stockées doivent donc être en UTC, et non dans le
+    fuseau du serveur PostgreSQL (ce que ferait func.now()).
+    """
+    return datetime.utcnow()
+
 
 class Booking(Base):
     __tablename__ = "bookings"
@@ -62,8 +74,18 @@ class Booking(Base):
     special_instructions = Column(Text, nullable=True)
     cancellation_reason = Column(Text, nullable=True)
     
-    created_at = Column(TIMESTAMP, server_default=func.now(), index=True)
-    updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    created_at = Column(
+        TIMESTAMP,
+        default=_utcnow,
+        server_default=text("timezone('utc', now())"),
+        index=True,
+    )
+    updated_at = Column(
+        TIMESTAMP,
+        default=_utcnow,
+        server_default=text("timezone('utc', now())"),
+        onupdate=_utcnow,
+    )
     expires_at = Column(TIMESTAMP, nullable=True, index=True)
     
     # ✅ Relations avec foreign_keys explicites

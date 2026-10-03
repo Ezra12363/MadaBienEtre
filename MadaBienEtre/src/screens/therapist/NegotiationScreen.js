@@ -56,6 +56,8 @@ const ANDROID_STATUS_BAR_HEIGHT =
 import offerService from '../../services/offerService';
 import bookingService from '../../services/bookingService';
 
+import { formatMadagascarDateTime } from '../../utils/timeAgo';
+
 // ============================================================
 // CONFIRMATION MODAL
 // ============================================================
@@ -187,28 +189,15 @@ const formatPrice = (value) => {
   return `${number.toLocaleString('fr-FR')} Ar`;
 };
 
+// Le backend renvoie des datetimes UTC SANS "Z" : utils/timeAgo force
+// l'UTC puis affiche en heure de Madagascar (UTC+3), quel que soit le
+// fuseau de l'appareil. Ex: "30 sept. 2026 à 14:30".
 const formatDate = (date) => {
   if (!date) {
     return '';
   }
 
-  try {
-    const d = new Date(date);
-
-    if (Number.isNaN(d.getTime())) {
-      return String(date);
-    }
-
-    return d.toLocaleString('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return String(date);
-  }
+  return formatMadagascarDateTime(date) || String(date);
 };
 
 // ============================================================

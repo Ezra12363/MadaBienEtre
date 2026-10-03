@@ -497,6 +497,10 @@ async def create_offer(
         price_offered=data.price_offered,
         message=data.message,
         status="sent",
+        # Date de création posée EN UTC par le backend (et non par
+        # func.now() de PostgreSQL, qui suit le fuseau du serveur) :
+        # le frontend ajoute "Z" puis affiche en heure de Madagascar.
+        created_at=datetime.utcnow(),
         expires_at=(
             datetime.utcnow()
             + NEGOTIATION_OFFER_TTL
@@ -1417,6 +1421,8 @@ async def counter_offer(
             )
         ),
         status="sent",
+        # Date de création posée EN UTC par le backend (voir plus haut)
+        created_at=datetime.utcnow(),
         expires_at=(
             datetime.utcnow()
             + NEGOTIATION_OFFER_TTL

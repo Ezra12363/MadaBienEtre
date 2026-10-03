@@ -64,6 +64,14 @@ import SOSButton from '../../components/sos/SOSButton';
 import bookingService from '../../services/bookingService';
 import therapistService from '../../services/therapistService';
 
+// Toutes les dates du backend sont en UTC (sans "Z") : on les affiche
+// en heure de Madagascar (UTC+3), quel que soit le fuseau de l'appareil.
+import {
+  formatMadagascarDateLong,
+  formatMadagascarDateTimeLong,
+  formatMadagascarTime,
+} from '../../utils/timeAgo';
+
 // ============================================================
 // NORMALIZE STATUS
 // ============================================================
@@ -224,32 +232,6 @@ const formatPrice = (value) => {
 // Gestion des dates ISO et des dates simples.
 // ============================================================
 
-const parseDateValue = (value) => {
-  if (!value) {
-    return null;
-  }
-
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime())
-      ? null
-      : value;
-  }
-
-  const stringValue = String(value).trim();
-
-  if (!stringValue) {
-    return null;
-  }
-
-  const parsed = new Date(stringValue);
-
-  if (!Number.isNaN(parsed.getTime())) {
-    return parsed;
-  }
-
-  return null;
-};
-
 // ============================================================
 // FORMAT DATE
 // ============================================================
@@ -259,17 +241,7 @@ const formatDate = (value) => {
     return '—';
   }
 
-  const date = parseDateValue(value);
-
-  if (!date) {
-    return String(value);
-  }
-
-  return date.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
+  return formatMadagascarDateLong(value) || String(value);
 };
 
 // ============================================================
@@ -313,16 +285,8 @@ const formatTime = (value) => {
     return `${hour}:${minute}`;
   }
 
-  const date = parseDateValue(stringValue);
-
-  if (!date) {
-    return stringValue;
-  }
-
-  return date.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  // Datetime complet (UTC) -> heure de Madagascar
+  return formatMadagascarTime(stringValue) || stringValue;
 };
 
 // ============================================================
@@ -339,24 +303,8 @@ const formatDateTime = (value) => {
     return null;
   }
 
-  const date = parseDateValue(value);
-
-  if (!date) {
-    return null;
-  }
-
-  const datePart = date.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
-
-  const timePart = date.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-
-  return `${datePart} à ${timePart}`;
+  // "30 septembre 2026 à 14:30" (heure de Madagascar)
+  return formatMadagascarDateTimeLong(value) || null;
 };
 
 // ============================================================

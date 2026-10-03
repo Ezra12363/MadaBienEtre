@@ -29,6 +29,10 @@ import Header from '../../components/common/Header';
 
 import { colors, typography, spacing } from '../../theme';
 
+// ✅ Durée écoulée RÉELLE (heure de Madagascar / UTC+3) :
+// À l'instant → 12 sec → 2 min → 1 h 25 → 3 j → 2 sem → 2 mois → 1 an
+import { formatTimeAgo, useNow } from '../../utils/timeAgo';
+
 /* ============================================================
    COULEURS
 ============================================================ */
@@ -74,51 +78,12 @@ const getNotificationVisual = (type) => {
   }
 };
 
-// Formatage relatif simple ("il y a 5 min", "Hier", ...) sans
-// dépendance externe (date-fns / moment).
-const formatRelativeTime = (value) => {
-  if (!value) {
-    return '';
-  }
+// Le backend renvoie `created_at` (snake_case, UTC sans "Z").
+const getNotificationDate = (item) =>
+  item?.created_at ?? item?.createdAt ?? item?.date ?? null;
 
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-
-  const diffMs = Date.now() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-
-  if (diffMin < 1) {
-    return "À l'instant";
-  }
-
-  if (diffMin < 60) {
-    return `Il y a ${diffMin} min`;
-  }
-
-  const diffHours = Math.floor(diffMin / 60);
-
-  if (diffHours < 24) {
-    return `Il y a ${diffHours} h`;
-  }
-
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffDays === 1) {
-    return 'Hier';
-  }
-
-  if (diffDays < 7) {
-    return `Il y a ${diffDays} j`;
-  }
-
-  return date.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-  });
-};
+const isNotificationRead = (item) =>
+  Boolean(item?.is_read ?? item?.read ?? item?.isRead);
 
 /* ============================================================
    SCREEN
@@ -126,6 +91,10 @@ const formatRelativeTime = (value) => {
 
 const NotificationScreen = ({ navigation }) => {
   const { colors: themeColors, isDark } = useTheme();
+
+  // Heure actuelle réelle, rafraîchie chaque seconde : les
+  // durées (12 sec, 2 min…) avancent en direct.
+  const now = useNow(1000);
 
   // On protège chaque champ/fonction du contexte au cas où sa
   // forme exacte diffère selon les rôles (le contexte est partagé
@@ -179,7 +148,7 @@ const NotificationScreen = ({ navigation }) => {
   };
 
   const handlePressItem = (item) => {
-    if (!item?.read && typeof markAsRead === 'function') {
+    if (!isNotificationRead(item) && typeof markAsRead === 'function') {
       markAsRead(item.id);
     }
 
@@ -196,7 +165,7 @@ const NotificationScreen = ({ navigation }) => {
 
   const renderItem = ({ item }) => {
     const visual = getNotificationVisual(item.type);
-    const isUnread = !item.read;
+    const isUnread = !isNotificationRead(item);
 
     return (
       <TouchableOpacity
@@ -241,7 +210,7 @@ const NotificationScreen = ({ navigation }) => {
             {isUnread && <View style={styles.unreadDot} />}
           </View>
 
-          {item.message ? (
+          {item.message || item.body ? (
             <Text
               numberOfLines={2}
               style={[
@@ -249,7 +218,7 @@ const NotificationScreen = ({ navigation }) => {
                 { color: themeColors.textSecondary || '#718078' },
               ]}
             >
-              {item.message}
+              {item.message || item.body}
             </Text>
           ) : null}
 
@@ -259,7 +228,7 @@ const NotificationScreen = ({ navigation }) => {
               { color: themeColors.textSecondary || '#9AA5A0' },
             ]}
           >
-            {formatRelativeTime(item.createdAt || item.date)}
+            {formatTimeAgo(getNotificationDate(item), now)}
           </Text>
         </View>
       </TouchableOpacity>
@@ -342,6 +311,8 @@ const NotificationScreen = ({ navigation }) => {
 
       <FlatList
         data={notifications}
+        // `now` force le rafraîchissement des durées
+        extraData={now}
         keyExtractor={(item, index) =>
           String(item?.id ?? index)
         }

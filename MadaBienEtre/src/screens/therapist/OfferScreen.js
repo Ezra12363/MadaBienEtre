@@ -47,6 +47,12 @@ import offerService from '../../services/offerService';
 
 import Header from '../../components/common/Header';
 import { useTheme } from '../../context/ThemeContext';
+import {
+  parseServerDate,
+  formatMadagascarDateTime,
+  formatMadagascarDateLong,
+  formatMadagascarTime,
+} from '../../utils/timeAgo';
 
 // ============================================================
 // COLORS
@@ -90,45 +96,55 @@ const money = (value) => {
   return `${number.toLocaleString('fr-FR')} Ar`;
 };
 
+// Le backend renvoie des datetimes UTC SANS "Z" : parseServerDate (importé
+// de utils/timeAgo) force l'UTC ; l'affichage est toujours en heure de
+// Madagascar (UTC+3), quel que soit le fuseau de l'appareil.
 const dateText = (value) => {
   if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatMadagascarDateTime(value) || String(value);
 };
 
 const dateShort = (value) => {
   if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  });
+  return formatMadagascarDateLong(value) || String(value);
 };
 
 const timeShort = (value) => {
   if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatMadagascarTime(value) || String(value);
 };
 
 const getRemaining = (expiresAt) => {
   if (!expiresAt) return 0;
-  const expiration = new Date(expiresAt).getTime();
-  if (!Number.isFinite(expiration)) return 0;
-  return Math.max(0, Math.floor((expiration - Date.now()) / 1000));
+  const parsed = parseServerDate(expiresAt);
+  if (!parsed) return 0;
+  return Math.max(0, Math.floor((parsed.getTime() - Date.now()) / 1000));
+};
+
+// Durée écoulée RÉELLE depuis la publication (avec secondes,
+// rafraîchie chaque seconde par le timer de l'écran).
+const getElapsedLabel = (value, now = Date.now()) => {
+  const date = parseServerDate(value);
+  if (!date) return '—';
+
+  const diffSec = Math.max(0, Math.floor((now - date.getTime()) / 1000));
+
+  if (diffSec < 10) return "à l'instant";
+  if (diffSec < 60) return `il y a ${diffSec} s`;
+
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `il y a ${diffMin} min`;
+
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) {
+    const restMin = diffMin % 60;
+    return restMin > 0
+      ? `il y a ${diffH} h ${String(restMin).padStart(2, '0')} min`
+      : `il y a ${diffH} h`;
+  }
+
+  const diffD = Math.floor(diffH / 24);
+  return `il y a ${diffD} j`;
 };
 
 const formatRemaining = (seconds) => {
@@ -252,6 +268,7 @@ export default function OfferScreen({ route, navigation }) {
     getRemaining(initialBooking?.expires_at)
   );
   const [toast, setToast] = useState(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const { colors, isDark } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
@@ -360,8 +377,10 @@ export default function OfferScreen({ route, navigation }) {
   }, [loadData]);
 
   useEffect(() => {
-    const update = () =>
+    const update = () => {
       setRemainingTime(getRemaining(booking?.expires_at));
+      setNowMs(Date.now());
+    };
     update();
     const interval = setInterval(update, 1000);
     return () => clearInterval(interval);
@@ -1269,6 +1288,11 @@ export default function OfferScreen({ route, navigation }) {
                   icon="add-circle-outline"
                   label="Créée le"
                   value={dateText(createdAt)}
+                />
+                <InfoRow
+                  icon="time-outline"
+                  label="Publiée"
+                  value={getElapsedLabel(createdAt, nowMs)}
                 />
                 <InfoRow
                   icon="hourglass-outline"

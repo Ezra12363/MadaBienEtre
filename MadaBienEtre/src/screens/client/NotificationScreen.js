@@ -7,7 +7,7 @@
  *
  * 1. Chargement réel depuis notificationService
  * 2. Tri : plus récente -> plus ancienne
- * 3. Durée réelle :
+ * 3. Durée réelle (heure de Madagascar, UTC+3) :
  *      À l'instant
  *      12 sec
  *      2 min
@@ -80,6 +80,11 @@ import { colors, spacing, typography } from '../../theme';
 
 import Header from '../../components/common/Header';
 
+import {
+  parseServerDate,
+  formatTimeAgo as formatTimeAgoFromTimestamp,
+} from '../../utils/timeAgo';
+
 import notificationService from '../../services/notificationService';
 
 
@@ -103,11 +108,13 @@ const getNotificationTimestamp = (notification) => {
     return 0;
   }
 
-  const timestamp = new Date(rawDate).getTime();
+  // created_at est en UTC sans "Z" : parseServerDate force l'UTC
+  // pour obtenir l'instant réel (et non un décalage de 3h).
+  const parsed = parseServerDate(rawDate);
 
-  return Number.isNaN(timestamp)
-    ? 0
-    : timestamp;
+  return parsed
+    ? parsed.getTime()
+    : 0;
 };
 
 
@@ -288,70 +295,13 @@ const formatTimeAgo = (date) => {
     return '';
   }
 
-  const created = new Date(date).getTime();
-
-  if (Number.isNaN(created)) {
-    return '';
-  }
-
-  const now = Date.now();
-
-  let diff = now - created;
-
-  if (diff < 0) {
-    diff = 0;
-  }
-
-  const seconds = Math.floor(diff / 1000);
-
-  if (seconds < 10) {
-    return "À l'instant";
-  }
-
-  if (seconds < 60) {
-    return `${seconds} sec`;
-  }
-
-  const minutes = Math.floor(seconds / 60);
-
-  if (minutes < 60) {
-    return `${minutes} min`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-
-  const remainingMinutes =
-    minutes % 60;
-
-  if (hours < 24) {
-    if (remainingMinutes > 0) {
-      return `${hours} h ${remainingMinutes}`;
-    }
-
-    return `${hours} h`;
-  }
-
-  const days = Math.floor(hours / 24);
-
-  if (days < 7) {
-    return `${days} j`;
-  }
-
-  const weeks = Math.floor(days / 7);
-
-  if (weeks < 5) {
-    return `${weeks} sem`;
-  }
-
-  const months = Math.floor(days / 30);
-
-  if (months < 12) {
-    return `${months} mois`;
-  }
-
-  const years = Math.floor(days / 365);
-
-  return `${years} an${years > 1 ? 's' : ''}`;
+  // À l'instant → 12 sec → 2 min → 1 h 25 → 3 j → 2 sem → 2 mois → 1 an
+  // calculé à partir de l'heure ACTUELLE réelle (le composant se
+  // re-rend chaque seconde grâce au timer setCurrentTime).
+  return formatTimeAgoFromTimestamp(
+    date,
+    Date.now()
+  );
 };
 
 

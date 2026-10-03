@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import notificationService from '../services/notificationService';
+import { toTimestamp } from '../utils/timeAgo';
 
 const NotificationContext = createContext();
 
@@ -136,8 +137,9 @@ export const NotificationProvider = ({ children }) => {
 
       // Tri : plus récentes en premier.
       const sorted = [...list].sort((a, b) => {
-        const da = new Date(a?.created_at || a?.createdAt || 0).getTime();
-        const db = new Date(b?.created_at || b?.createdAt || 0).getTime();
+        // created_at est en UTC sans "Z" : toTimestamp force l'UTC
+        const da = toTimestamp(a?.created_at || a?.createdAt);
+        const db = toTimestamp(b?.created_at || b?.createdAt);
         return db - da;
       });
 

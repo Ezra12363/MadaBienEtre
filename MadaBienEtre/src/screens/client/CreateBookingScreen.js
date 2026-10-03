@@ -35,6 +35,7 @@ import {
   reverseGeocode,
 } from '../../services/geocoding';
 import { GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
+import { getMadagascarTodayDate } from '../../utils/timeAgo';
 
 /* ============================================================
    ✅ DATE & HEURE — helpers
@@ -121,13 +122,22 @@ const parseTimeInput = (value) => {
   return { hours, minutes, seconds };
 };
 
-// Combine date + heure saisies (heure LOCALE de l'appareil) en objet Date
+// Madagascar = UTC+3, sans heure d'été
+const MADAGASCAR_UTC_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+// Combine date + heure saisies en HEURE DE MADAGASCAR (UTC+3) et
+// renvoie l'instant exact (Date). Indépendant du fuseau de l'appareil :
+// .toISOString() donne directement l'UTC à envoyer au backend.
+// Ex: 05/10/2026 14:30:00 (Madagascar) -> 2026-10-05T11:30:00.000Z
 const buildScheduledDate = (dateText, timeText) => {
   const d = parseDateInput(dateText);
   const t = parseTimeInput(timeText);
   if (!d || !t) return null;
 
-  return new Date(d.year, d.month - 1, d.day, t.hours, t.minutes, t.seconds, 0);
+  return new Date(
+    Date.UTC(d.year, d.month - 1, d.day, t.hours, t.minutes, t.seconds, 0) -
+      MADAGASCAR_UTC_OFFSET_MS
+  );
 };
 
 // Extrait un message lisible d'une erreur FastAPI / axios
@@ -485,7 +495,8 @@ const CreateBookingScreen = ({ navigation }) => {
   };
 
   const handleQuickDate = (daysFromToday) => {
-    const target = new Date();
+    // "Aujourd'hui" = le jour actuel à Madagascar
+    const target = getMadagascarTodayDate();
     target.setDate(target.getDate() + daysFromToday);
     setDateText(formatDateForInput(target));
   };
@@ -1343,7 +1354,7 @@ const CreateBookingScreen = ({ navigation }) => {
               />
               <Text style={[styles.expiryInfoText, { color: themeColors.text }]}>
                 Votre demande reste ouverte aux thérapeutes jusqu'au{' '}
-                {formatDateForInput(scheduledPreview)} à{' '}
+                {dateText} à{' '}
                 {normalizeTimeInput(timeText)}, puis elle expire automatiquement.
               </Text>
             </View>

@@ -42,6 +42,12 @@ import Header from '../../components/common/Header';
 import offerService from '../../services/offerService';
 import bookingService from '../../services/bookingService';
 import therapistService from '../../services/therapistService';
+import {
+  formatMadagascarDate,
+  formatMadagascarTime,
+  parseServerDate,
+  toTimestamp,
+} from '../../utils/timeAgo';
 
 // ============================================================
 // HELPERS
@@ -60,16 +66,14 @@ const money = (value) => {
   return `${number.toLocaleString('fr-FR')} Ar`;
 };
 
+// Date + heure en heure de Madagascar (UTC+3), ex: "30 sept. à 14:30"
+// (l'année s'ajoute si ce n'est pas l'année en cours).
 const formatDate = (date) => {
   if (!date) return '';
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const day = formatMadagascarDate(date);
+  const time = formatMadagascarTime(date);
+  if (!day) return '';
+  return time ? `${day} à ${time}` : day;
 };
 
 const getDisplayName = (offer, fallback = 'Thérapeute') => {
@@ -103,7 +107,10 @@ const statusColor = (status) => {
 // Secondes restantes avant expiration (offre valable 15 min côté backend)
 const getRemainingSeconds = (expiresAt) => {
   if (!expiresAt) return null;
-  const ms = new Date(expiresAt).getTime() - Date.now();
+  // expires_at est en UTC sans "Z" : parseServerDate force l'UTC
+  const expiration = parseServerDate(expiresAt);
+  if (!expiration) return null;
+  const ms = expiration.getTime() - Date.now();
   if (!Number.isFinite(ms)) return null;
   return Math.max(0, Math.floor(ms / 1000));
 };
@@ -161,7 +168,7 @@ const OffersScreen = ({ navigation, route }) => {
         setError(null);
         // Plus récent en premier
         const sorted = [...offersResult.data].sort(
-          (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+          (a, b) => toTimestamp(b.created_at) - toTimestamp(a.created_at)
         );
         setOffers(sorted);
       }

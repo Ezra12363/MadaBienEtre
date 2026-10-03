@@ -1,8 +1,15 @@
 # app/models/offer.py
-from sqlalchemy import Column, Integer, String, DECIMAL, Text, TIMESTAMP, ForeignKey, Enum, Index
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, DECIMAL, Text, TIMESTAMP, ForeignKey, Enum, Index, text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from ..core.database import Base
+
+
+def _utcnow():
+    """Heure UTC sans fuseau (voir app/models/booking.py)."""
+    return datetime.utcnow()
+
 
 
 class Offer(Base):
@@ -26,7 +33,11 @@ class Offer(Base):
     )
     
     # Timestamps
-    created_at = Column(TIMESTAMP, server_default=func.now())
+    created_at = Column(
+        TIMESTAMP,
+        default=_utcnow,
+        server_default=text("timezone('utc', now())"),
+    )
     expires_at = Column(TIMESTAMP, nullable=True)
     responded_at = Column(TIMESTAMP, nullable=True)
     
