@@ -1982,7 +1982,11 @@ async def get_bookings(
 
 @router.get(
     "/{booking_id}",
-    response_model=BookingDetailResponse,
+    # ⚠️ PAS de response_model ici : BookingDetailResponse filtre les
+    # champs absents du schema (client_email, client_phone, client_photo,
+    # client.email…) et l'écran thérapeute affichait "Non renseigné".
+    # booking_response_dict() renvoie déjà un dict complet et sérialisable
+    # (même principe que GET /bookings/ et /bookings/available).
 )
 async def get_booking(
 

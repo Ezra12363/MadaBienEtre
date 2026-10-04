@@ -15,6 +15,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -44,6 +45,16 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import bookingService from '../../services/bookingService';
 import offerService from '../../services/offerService';
+
+// Position actuelle du thérapeute + distance / ETA vers le client
+import * as Location from 'expo-location';
+import {
+  haversineDistance,
+  estimateDuration,
+  formatDuration,
+  formatDistance,
+  calculateAlternativeRoutes,
+} from '../../services/routing';
 
 import Header from '../../components/common/Header';
 import { useTheme } from '../../context/ThemeContext';
@@ -292,15 +303,27 @@ export default function OfferScreen({ route, navigation }) {
   // MERGE BOOKING
   // ==========================================================
 
+  // Fusionne sans jamais écraser une valeur déjà connue (email, téléphone…)
+  // par un null / vide renvoyé par un endpoint qui ne les expose pas.
+  const mergeDefined = (oldObj, newObj) => {
+    const result = { ...(oldObj || {}) };
+
+    Object.entries(newObj || {}).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && value !== '') {
+        result[key] = value;
+      } else if (!(key in result)) {
+        result[key] = value;
+      }
+    });
+
+    return result;
+  };
+
   const mergeBooking = (oldBooking, newBooking) => {
     if (!newBooking) return oldBooking;
     return {
-      ...(oldBooking || {}),
-      ...(newBooking || {}),
-      client: {
-        ...(oldBooking?.client || {}),
-        ...(newBooking?.client || {}),
-      },
+      ...mergeDefined(oldBooking, newBooking),
+      client: mergeDefined(oldBooking?.client, newBooking?.client),
       massage_type: {
         ...(oldBooking?.massage_type || {}),
         ...(newBooking?.massage_type || {}),
@@ -404,7 +427,13 @@ export default function OfferScreen({ route, navigation }) {
     client?.phone || booking?.client_phone || booking?.phone || null;
 
   const clientEmail =
-    client?.email || booking?.client_email || booking?.email || null;
+    client?.email ||
+    booking?.client_email ||
+    booking?.client?.email ||
+    booking?.customer_email ||
+    booking?.user?.email ||
+    booking?.email ||
+    null;
 
   const clientPhoto =
     client?.avatar_url ||
@@ -440,9 +469,6 @@ export default function OfferScreen({ route, navigation }) {
     booking?.duration_minutes ??
     booking?.duration ??
     60;
-
-  const distance = booking?.distance_km ?? booking?.distanceKm ?? null;
-  const eta = booking?.eta_minutes ?? booking?.etaMinutes ?? null;
 
   const scheduledDate =
     booking?.scheduled_date ?? booking?.scheduledDate ?? null;
@@ -501,6 +527,174 @@ export default function OfferScreen({ route, navigation }) {
 
   // ✅ Nouveau : flag "en négociation" pour afficher le bouton en haut
   const isNegotiating = bookingStatus === 'negotiating';
+
+  // ==========================================================
+  // DISTANCE + ETA depuis la POSITION ACTUELLE du thérapeute
+  // ==========================================================
+
+  const [therapistPosition, setTherapistPosition] = useState(null);
+  const [locationDenied, setLocationDenied] = useState(false);
+  const [travelEstimate, setTravelEstimate] = useState(null);
+  const routeCacheRef = useRef(null);
+
+  const clientCoords = useMemo(() => {
+    if (latitude === null || longitude === null) return null;
+
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+    return { latitude: lat, longitude: lng };
+  }, [latitude, longitude]);
+
+  // 1) Suivi GPS du thérapeute
+  useEffect(() => {
+    let subscription;
+    let cancelled = false;
+
+    const startWatching = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+
+        if (status !== 'granted') {
+          if (!cancelled) setLocationDenied(true);
+          return;
+        }
+
+        if (!cancelled) setLocationDenied(false);
+
+        const initial = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+
+        if (!cancelled) {
+          setTherapistPosition({
+            latitude: initial.coords.latitude,
+            longitude: initial.coords.longitude,
+          });
+        }
+
+        subscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            distanceInterval: 20,
+            timeInterval: 8000,
+          },
+          (loc) => {
+            if (cancelled) return;
+
+            setTherapistPosition({
+              latitude: loc.coords.latitude,
+              longitude: loc.coords.longitude,
+            });
+          }
+        );
+      } catch (locationError) {
+        console.warn('⚠️ [OfferScreen] Localisation :', locationError);
+      }
+    };
+
+    startWatching();
+
+    return () => {
+      cancelled = true;
+      subscription?.remove?.();
+    };
+  }, []);
+
+  // 2) Distance + ETA : estimation immédiate (ligne droite), puis
+  //    distance réelle par la route. Le calcul par la route n'est
+  //    relancé que si le thérapeute s'est déplacé de plus de 100 m.
+  useEffect(() => {
+    if (!therapistPosition || !clientCoords) {
+      setTravelEstimate(null);
+      return undefined;
+    }
+
+    const destKey = `${clientCoords.latitude},${clientCoords.longitude}`;
+    const cache = routeCacheRef.current;
+
+    if (cache && cache.destKey === destKey) {
+      const movedKm = haversineDistance(
+        cache.origin.latitude,
+        cache.origin.longitude,
+        therapistPosition.latitude,
+        therapistPosition.longitude
+      );
+
+      if (Number.isFinite(movedKm) && movedKm < 0.1) {
+        return undefined;
+      }
+    }
+
+    routeCacheRef.current = { origin: therapistPosition, destKey };
+
+    const straightKm = haversineDistance(
+      therapistPosition.latitude,
+      therapistPosition.longitude,
+      clientCoords.latitude,
+      clientCoords.longitude
+    );
+
+    if (Number.isFinite(straightKm)) {
+      setTravelEstimate({
+        distanceKm: straightKm,
+        durationMin: estimateDuration(straightKm, 'driving'),
+        isFallback: true,
+      });
+    }
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const options = await calculateAlternativeRoutes(
+          therapistPosition.latitude,
+          therapistPosition.longitude,
+          clientCoords.latitude,
+          clientCoords.longitude
+        );
+
+        const best = Array.isArray(options) && options.length ? options[0] : null;
+        const routeKm = Number(best?.distanceKm ?? best?.distance_km);
+
+        if (cancelled || !best || best.isFallback || !Number.isFinite(routeKm)) {
+          return;
+        }
+
+        setTravelEstimate({
+          distanceKm: routeKm,
+          durationMin: estimateDuration(routeKm, 'driving'),
+          isFallback: false,
+        });
+      } catch (routeError) {
+        console.warn('⚠️ [OfferScreen] Itinéraire :', routeError);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [therapistPosition, clientCoords]);
+
+  const distanceDisplay = (() => {
+    if (!clientCoords) return 'Position du client indisponible';
+    if (locationDenied) return 'Activez la localisation';
+    if (!travelEstimate) return 'Calcul en cours…';
+
+    return `${formatDistance(travelEstimate.distanceKm)}${
+      travelEstimate.isFallback ? " (à vol d'oiseau)" : ' (par la route)'
+    }`;
+  })();
+
+  const etaDisplay = (() => {
+    if (!clientCoords) return 'Position du client indisponible';
+    if (locationDenied) return 'Activez la localisation';
+    if (!travelEstimate) return 'Calcul en cours…';
+
+    return `≈ ${formatDuration(travelEstimate.durationMin)} en moto`;
+  })();
 
   const statusInfo = useMemo(
     () => ({
@@ -1037,6 +1231,8 @@ export default function OfferScreen({ route, navigation }) {
                 icon="mail-outline"
                 label="Email"
                 value={clientEmail || 'Non renseigné'}
+                ellipsizeMode="middle"
+                selectable
               />
 
               {canContact ? (
@@ -1168,7 +1364,7 @@ export default function OfferScreen({ route, navigation }) {
                 value={dateShort(scheduledDate)}
               />
               <InfoRow
-                icon="clock-outline"
+                icon="time-outline"
                 label="Heure prévue"
                 value={timeShort(scheduledDate)}
               />
@@ -1179,21 +1375,13 @@ export default function OfferScreen({ route, navigation }) {
               />
               <InfoRow
                 icon="navigate-outline"
-                label="Distance"
-                value={
-                  distance !== null && distance !== undefined
-                    ? `${Number(distance).toFixed(1)} km`
-                    : 'Non disponible'
-                }
+                label="Distance depuis ma position"
+                value={distanceDisplay}
               />
               <InfoRow
                 icon="car-outline"
                 label="ETA approximatif"
-                value={
-                  eta !== null && eta !== undefined
-                    ? `${eta} minutes`
-                    : 'Non disponible'
-                }
+                value={etaDisplay}
               />
               <InfoRow
                 icon="male-female"
@@ -1236,6 +1424,11 @@ export default function OfferScreen({ route, navigation }) {
                   }}
                 />
 
+                <InfoRow
+                  icon="hourglass-outline"
+                  label="Expire le"
+                  value={dateText(expiresAt)}
+                />
                 <InfoRow
                   icon="chatbubbles-outline"
                   label="Nombre d'offres"
@@ -1391,88 +1584,6 @@ export default function OfferScreen({ route, navigation }) {
           ) : null}
 
           {/* ==================================================
-              FAIRE UNE OFFRE
-          ================================================== */}
-
-          {canNegotiate ? (
-            <Section title="Faire une offre">
-              <Text style={styles.helper}>
-                Proposez votre tarif ou acceptez directement le prix du
-                client.
-              </Text>
-
-              <TextInput
-                value={price}
-                onChangeText={setPrice}
-                placeholder="Ex : 50000"
-                placeholderTextColor={colors.textSecondary}
-                keyboardType="numeric"
-                style={styles.input}
-              />
-
-              <TextInput
-                value={message}
-                onChangeText={setMessage}
-                placeholder="Message au client (optionnel)"
-                placeholderTextColor={colors.textSecondary}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-                style={[styles.input, styles.messageInput]}
-              />
-
-              <View style={styles.offerButtonsRow}>
-                <TouchableOpacity
-                  disabled={submitting}
-                  onPress={sendOffer}
-                  style={[
-                    styles.primaryButton,
-                    submitting && styles.disabled,
-                  ]}
-                  activeOpacity={0.85}
-                >
-                  {submitting ? (
-                    <ActivityIndicator color={COLORS.white} />
-                  ) : (
-                    <>
-                      <Ionicons
-                        name="send"
-                        size={16}
-                        color={COLORS.white}
-                      />
-                      <Text style={styles.primaryButtonText}>
-                        Envoyer
-                      </Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  disabled={submitting || clientPrice <= 0}
-                  onPress={acceptClientPrice}
-                  style={[
-                    styles.acceptButton,
-                    (submitting || clientPrice <= 0) && styles.disabled,
-                  ]}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons
-                    name="checkmark-circle"
-                    size={16}
-                    color={COLORS.white}
-                  />
-                  <Text
-                    style={styles.primaryButtonText}
-                    numberOfLines={1}
-                  >
-                    Accepter {money(clientPrice)}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </Section>
-          ) : null}
-
-          {/* ==================================================
               HISTORIQUE
           ================================================== */}
 
@@ -1553,7 +1664,15 @@ function Section({ title, children, style }) {
 // INFO ROW
 // ============================================================
 
-function InfoRow({ icon, label, value, valueStyle }) {
+function InfoRow({
+  icon,
+  label,
+  value,
+  valueStyle,
+  numberOfLines = 2,
+  ellipsizeMode = 'tail',
+  selectable = false,
+}) {
   const { colors, isDark } = useTheme();
   const styles = useMemo(
     () => createStyles(colors, isDark),
@@ -1567,7 +1686,12 @@ function InfoRow({ icon, label, value, valueStyle }) {
       </View>
       <View style={styles.infoContent}>
         <Text style={styles.infoLabel}>{label}</Text>
-        <Text style={[styles.infoValue, valueStyle]} numberOfLines={2}>
+        <Text
+          style={[styles.infoValue, valueStyle]}
+          numberOfLines={numberOfLines}
+          ellipsizeMode={ellipsizeMode}
+          selectable={selectable}
+        >
           {value === null || value === undefined || value === ''
             ? 'Non renseigné'
             : String(value)}
