@@ -52,7 +52,6 @@ import ProfileScreen from '../screens/therapist/ProfileScreen';
 import OfferScreen from '../screens/therapist/OfferScreen';
 import NegotiationScreen from '../screens/therapist/NegotiationScreen';
 import NavigationScreen from '../screens/therapist/NavigationScreen';
-import TrackingScreen from '../screens/therapist/TrackingScreen';
 
 // ------------------------------------------------------------
 // IMPORTANT :
@@ -202,9 +201,9 @@ const DashboardStack = () => {
       />
 
       {/* ======================================================
-          NAVIGATION VERS LE CLIENT + SUIVI EN DIRECT + NÉGOCIATION
+          NAVIGATION VERS LE CLIENT (suivi en direct + SOS inclus) + NÉGOCIATION
           ======================================================
-          Ces 3 écrans vivent DANS le Tab.Navigator (dans chaque
+          Ces 2 écrans vivent DANS le Tab.Navigator (dans chaque
           stack qui peut les ouvrir). Ainsi :
             - la tab bar du bas reste affichée, exactement
               comme sur les autres pages,
@@ -214,14 +213,24 @@ const DashboardStack = () => {
               stack.
       ====================================================== */}
 
+      {/* ======================================================
+          DÉTAIL OFFRE (ouvert depuis les notifications)
+          ======================================================
+          Enregistré aussi dans ce stack pour que, depuis la page
+          Notifications, l'ouverture de OfferScreen reste dans
+          l'onglet "Tableau de bord" : l'onglet "Demandes" n'est
+          PAS sélectionné, et le bouton retour revient aux
+          notifications.
+      ====================================================== */}
+
       <Stack.Screen
-        name="Navigation"
-        component={NavigationScreen}
+        name="Offer"
+        component={OfferScreen}
       />
 
       <Stack.Screen
-        name="Tracking"
-        component={TrackingScreen}
+        name="Navigation"
+        component={NavigationScreen}
       />
 
       <Stack.Screen
@@ -279,9 +288,9 @@ const RequestsStack = () => {
       />
 
       {/* ======================================================
-          NAVIGATION VERS LE CLIENT + SUIVI EN DIRECT + NÉGOCIATION
+          NAVIGATION VERS LE CLIENT (suivi en direct + SOS inclus) + NÉGOCIATION
           ======================================================
-          Ces 3 écrans vivent DANS le Tab.Navigator (dans chaque
+          Ces 2 écrans vivent DANS le Tab.Navigator (dans chaque
           stack qui peut les ouvrir). Ainsi :
             - la tab bar du bas reste affichée, exactement
               comme sur les autres pages,
@@ -294,11 +303,6 @@ const RequestsStack = () => {
       <Stack.Screen
         name="Navigation"
         component={NavigationScreen}
-      />
-
-      <Stack.Screen
-        name="Tracking"
-        component={TrackingScreen}
       />
 
       <Stack.Screen
@@ -343,9 +347,9 @@ const CalendarStack = () => {
       />
 
       {/* ======================================================
-          NAVIGATION VERS LE CLIENT + SUIVI EN DIRECT + NÉGOCIATION
+          NAVIGATION VERS LE CLIENT (suivi en direct + SOS inclus) + NÉGOCIATION
           ======================================================
-          Ces 3 écrans vivent DANS le Tab.Navigator (dans chaque
+          Ces 2 écrans vivent DANS le Tab.Navigator (dans chaque
           stack qui peut les ouvrir). Ainsi :
             - la tab bar du bas reste affichée, exactement
               comme sur les autres pages,
@@ -358,11 +362,6 @@ const CalendarStack = () => {
       <Stack.Screen
         name="Navigation"
         component={NavigationScreen}
-      />
-
-      <Stack.Screen
-        name="Tracking"
-        component={TrackingScreen}
       />
 
       <Stack.Screen
@@ -896,7 +895,7 @@ const styles =
 // ============================================================
 // ROOT STACK — Tabs + écrans "cross-tab"
 //
-// Navigation, Tracking et Negotiation ne sont PLUS ici : ils sont
+// Navigation et Negotiation ne sont PLUS ici : ils sont
 // enregistrés dans les stacks des onglets (Tableau de bord,
 // Demandes, Calendrier) pour que la tab bar du bas reste
 // affichée sur ces pages.

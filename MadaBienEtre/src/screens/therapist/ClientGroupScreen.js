@@ -59,6 +59,7 @@ import {
   getPrice,
   getDuration,
   getDistance,
+  getDistanceFromPosition,
   getAddress,
   getLatitude,
   getLongitude,
@@ -68,6 +69,8 @@ import {
   getOfferId,
   isActiveClientOffer,
 } from './OffersScreen';
+
+import useLocationTracking from '../../hooks/useLocationTracking';
 
 import {
   getMadagascarDateKey,
@@ -273,6 +276,22 @@ export default function ClientGroupScreen({
   // ==========================================================
   // STATE
   // ==========================================================
+
+  const { location: therapistLocation } = useLocationTracking({
+    distanceIntervalMeters: 20,
+    timeIntervalMs: 8000,
+  });
+
+  const therapistPosition = useMemo(
+    () =>
+      therapistLocation
+        ? {
+            latitude: therapistLocation.latitude,
+            longitude: therapistLocation.longitude,
+          }
+        : null,
+    [therapistLocation?.latitude, therapistLocation?.longitude]
+  );
 
   const [clientName] = useState(
     initialGroup?.name || 'Client'
@@ -1415,7 +1434,10 @@ export default function ClientGroupScreen({
           getPrice(booking);
 
         const distance =
-          getDistance(booking);
+          getDistanceFromPosition(
+            booking,
+            therapistPosition
+          );
 
         const expiresAt =
           getExpiresAt(booking);
@@ -1727,10 +1749,9 @@ export default function ClientGroupScreen({
                         }
                         numberOfLines={1}
                       >
-                        {distance.toFixed(
-                          1
-                        )}{' '}
-                        km
+                        ~{distance < 1
+                          ? `${Math.round(distance * 1000)} m`
+                          : `${distance.toFixed(1)} km`}
                       </Text>
                     </View>
                   ) : null}
@@ -2035,6 +2056,7 @@ export default function ClientGroupScreen({
         handleCallClient,
         handleOpenDirections,
         now,
+        therapistPosition,
       ]
     );
 

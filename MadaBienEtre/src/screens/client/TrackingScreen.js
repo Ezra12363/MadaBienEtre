@@ -26,6 +26,13 @@
 //    - Distance + durée ARRIVÉE ESTIMÉE marina, avy amin'ny valiny
 //      Google Directions (distance.text / duration.text).
 //
+// 5. ✅ SUIVI EN DIRECT PAR WEBSOCKET (/ws/tracking/{bookingId})
+//    Rehefa tsindriana ny bouton "Envoyer ma position" ao amin'ny
+//    thérapeute, ny position-ny dia miseho avy hatrany eto amin'ny
+//    carte ary mihetsika isaky ny mihetsika izy (tsy mila miandry ny
+//    polling 12 s). Ny polling dia mijanona ho secours raha tapaka ny
+//    WebSocket.
+//
 // 4. ✅ PROFIL THÉRAPEUTE miseho tsara ambany carte (avatar carré à
 //    bords arrondis, note, expérience, statut en ligne, téléphone,
 //    boutons Contacter / Appeler).
@@ -48,7 +55,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Animatable from 'react-native-animatable';
 import * as Location from 'expo-location';
-import axios from 'axios';
 
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -56,14 +62,15 @@ import { spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import SOSButton from '../../components/sos/SOSButton';
 
-import { GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
-
 import bookingService from '../../services/bookingService';
 import therapistService from '../../services/therapistService';
 import { geocodeAddress } from '../../services/geocoding';
+import { createTrackingSocket } from '../../services/trackingSocket';
+// ✅ calculateRoute : Google JS SDK (web) / Directions (mobile) -> OSRM -> ligne droite
+import { calculateRoute } from '../../services/routing';
 
 // ✅ Importer depuis le wrapper (carte identique web / mobile)
-import MapView, { PROVIDER_GOOGLE } from '../../components/map/MapViewWrapper';
+import LiveRouteMap from '../../components/map/LiveRouteMap';
 
 // ============================================================
 // CONSTANTES
@@ -73,6 +80,9 @@ const ROUTE_COLOR = '#E53935'; // rouge, comme demandé
 const PRIMARY = '#2E7D32'; // vert, cohérent avec le thème de la page Welcome
 const REFRESH_INTERVAL_MS = 12000; // rafraîchissement position + itinéraire
 const ARRIVED_THRESHOLD_KM = 0.12; // ~120 m => considéré "arrivé"
+const LIVE_FRESH_MS = 20000; // position WebSocket considérée "fraîche"
+const ROUTE_MIN_MOVE_KM = 0.08; // recalcul itinéraire si > 80 m ...
+const ROUTE_MIN_INTERVAL_MS = 20000; // ... ou toutes les 20 s
 
 // ============================================================
 // HELPERS — DISTANCE (secours si Directions API indisponible)
@@ -98,103 +108,43 @@ const haversineKm = (a, b) => {
 };
 
 // ============================================================
-// HELPERS — DÉCODAGE POLYLINE GOOGLE
+// HELPER — ITINÉRAIRE RÉEL (suit les vraies routes)
 //
-// L'API Directions renvoie un "encoded polyline" (chaîne compacte).
-// Cette fonction le transforme en liste de points {latitude,longitude}
-// utilisables directement par le <MapView>.
-// ============================================================
-
-const decodePolyline = (encoded) => {
-  if (!encoded) return [];
-
-  let index = 0;
-  let lat = 0;
-  let lng = 0;
-  const points = [];
-
-  while (index < encoded.length) {
-    let result = 0;
-    let shift = 0;
-    let byte;
-
-    do {
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-
-    const deltaLat = result & 1 ? ~(result >> 1) : result >> 1;
-    lat += deltaLat;
-
-    result = 0;
-    shift = 0;
-
-    do {
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-
-    const deltaLng = result & 1 ? ~(result >> 1) : result >> 1;
-    lng += deltaLng;
-
-    points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
-  }
-
-  return points;
-};
-
-// ============================================================
-// HELPER — ITINÉRAIRE RÉEL (Google Directions API)
-//
-// Renvoie: { coordinates: [...], distanceText, durationText,
-// distanceKm, durationMinutes } ou null si indisponible.
+// ✅ FIXÉ : avant, on appelait l'API REST Google Directions avec axios.
+// Sur le web c'est bloqué par CORS (et souvent refusé par la clé sur
+// mobile) -> on retombait sur une LIGNE DROITE [origine, destination].
+// Maintenant on utilise routing.calculateRoute qui essaie dans l'ordre :
+//   web    : Google DirectionsService (JS SDK) -> OSRM -> ligne droite
+//   mobile : Google Directions REST             -> OSRM -> ligne droite
+// Renvoie { coordinates, distanceText, durationText, distanceKm,
+// durationMinutes, isFallback } ou null.
 // ============================================================
 
 const fetchRoute = async (origin, destination) => {
-  if (!origin || !destination || !GOOGLE_MAPS_API_KEY) {
-    return null;
-  }
+  if (!origin || !destination) return null;
 
   try {
-    const response = await axios.get(
-      'https://maps.googleapis.com/maps/api/directions/json',
-      {
-        params: {
-          origin: `${origin.latitude},${origin.longitude}`,
-          destination: `${destination.latitude},${destination.longitude}`,
-          mode: 'driving',
-          language: 'fr',
-          key: GOOGLE_MAPS_API_KEY,
-        },
-        timeout: 10000,
-      }
+    const r = await calculateRoute(
+      origin.latitude,
+      origin.longitude,
+      destination.latitude,
+      destination.longitude,
+      'driving'
     );
 
-    if (
-      response.data?.status === 'OK' &&
-      Array.isArray(response.data.routes) &&
-      response.data.routes.length > 0
-    ) {
-      const routeData = response.data.routes[0];
-      const leg = routeData.legs?.[0];
-
+    if (r?.coordinates?.length > 1) {
       return {
-        coordinates: decodePolyline(routeData.overview_polyline?.points),
-        distanceText: leg?.distance?.text || null,
-        durationText: leg?.duration?.text || null,
-        distanceKm: leg?.distance?.value ? leg.distance.value / 1000 : null,
-        durationMinutes: leg?.duration?.value
-          ? Math.round(leg.duration.value / 60)
-          : null,
+        coordinates: r.coordinates,
+        distanceText: r.distanceText || null,
+        durationText: r.durationText || null,
+        distanceKm: r.distance ?? null,
+        durationMinutes: r.duration != null ? Math.round(r.duration) : null,
+        isFallback: !!r.isFallback,
       };
     }
-
-    console.log('ℹ️ [Directions] Statut:', response.data?.status);
     return null;
   } catch (error) {
-    console.warn('⚠️ [Directions] Erreur:', error.message);
+    console.warn('⚠️ [Route] Erreur:', error?.message);
     return null;
   }
 };
@@ -307,7 +257,7 @@ const photoStyles = StyleSheet.create({
 const TrackingScreen = ({ navigation, route: navRoute }) => {
   const { bookingId } = navRoute.params;
   const { colors: themeColors } = useTheme();
-  const { token: _token } = useAuth();
+  const { token } = useAuth();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const _isSmallScreen = screenWidth < 600;
   const _isTabletWidth = screenWidth >= 768;
@@ -330,9 +280,26 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
   const [loadError, setLoadError] = useState('');
   const [refreshingLocation, setRefreshingLocation] = useState(false);
 
+  // ✅ Suivi en direct (WebSocket)
+  const [liveActive, setLiveActive] = useState(false); // le thérapeute partage
+  const [socketStatus, setSocketStatus] = useState('connecting');
+  const [lastLiveAt, setLastLiveAt] = useState(null);
+  // cap / vitesse / précision du GPS du thérapeute (flèche + cercle sur la carte)
+  const [therapistMeta, setTherapistMeta] = useState({ heading: null, speed: null, accuracy: null });
+
   const mapRef = useRef(null);
   const pollTimerRef = useRef(null);
-  const hasFitBoundsRef = useRef(false);
+  const therapistLocationRef = useRef(null);
+  const destinationRef = useRef(null);
+  const lastSocketUpdateRef = useRef(0);
+  const lastRouteRef = useRef(null); // { pos, at }
+
+  // Met à jour la position du thérapeute (état + ref, lisible sans
+  // recréer les callbacks / intervalles)
+  const updateTherapistLocation = useCallback((pos) => {
+    therapistLocationRef.current = pos;
+    setTherapistLocation(pos);
+  }, []);
 
   // ==========================================================
   // 1. CHARGER LA RÉSERVATION RÉELLE
@@ -419,8 +386,17 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
         const lat = Number(result.data?.latitude);
         const lng = Number(result.data?.longitude);
 
-        if (Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0)) {
-          setTherapistLocation({ latitude: lat, longitude: lng });
+        // ✅ Si la position WebSocket est fraîche, on NE l'écrase PAS avec
+        // la dernière position (plus ancienne) enregistrée en base.
+        const isLive = Date.now() - lastSocketUpdateRef.current < LIVE_FRESH_MS;
+
+        if (
+          !isLive &&
+          Number.isFinite(lat) &&
+          Number.isFinite(lng) &&
+          (lat !== 0 || lng !== 0)
+        ) {
+          updateTherapistLocation({ latitude: lat, longitude: lng });
         }
 
         return result.data;
@@ -430,7 +406,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
     }
 
     return null;
-  }, []);
+  }, [updateTherapistLocation]);
 
   // ==========================================================
   // 4. POSITION DE L'UTILISATEUR (utile pour "showsUserLocation")
@@ -474,6 +450,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
       // "lalana" marina fa mba tsy ho banga ny carte.
       setRouteInfo({
         coordinates: [origin, dest],
+        isFallback: true,
         distanceText: null,
         durationText: null,
         distanceKm: haversineKm(origin, dest),
@@ -481,6 +458,32 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
       });
     }
   }, []);
+
+  // ✅ Recalcul d'itinéraire LIMITÉ : au plus 1 appel Directions toutes
+  // les 20 s, ou dès que le thérapeute a bougé de > 80 m.
+  const updateRoute = useCallback(
+    async (origin, dest) => {
+      if (!origin || !dest) {
+        await refreshRoute(origin, dest);
+        return;
+      }
+
+      const last = lastRouteRef.current;
+      const moved = last ? haversineKm(last.pos, origin) : Infinity;
+
+      if (
+        last &&
+        moved < ROUTE_MIN_MOVE_KM &&
+        Date.now() - last.at < ROUTE_MIN_INTERVAL_MS
+      ) {
+        return;
+      }
+
+      lastRouteRef.current = { pos: origin, at: Date.now() };
+      await refreshRoute(origin, dest);
+    },
+    [refreshRoute]
+  );
 
   // ==========================================================
   // CYCLE PRINCIPAL: charge + rafraîchit périodiquement
@@ -495,27 +498,24 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
 
       if (bookingData) {
         const dest = await resolveDestination(bookingData);
+        destinationRef.current = dest;
         setDestination(dest);
 
         const therapistId =
           bookingData?.therapist_id ?? bookingData?.therapist?.id ?? null;
 
-        const therapist = await loadTherapist(therapistId);
+        await loadTherapist(therapistId);
 
-        const originForRoute =
-          (Number.isFinite(Number(therapist?.latitude)) &&
-          Number.isFinite(Number(therapist?.longitude)) &&
-          (Number(therapist?.latitude) !== 0 || Number(therapist?.longitude) !== 0)
-            ? { latitude: Number(therapist.latitude), longitude: Number(therapist.longitude) }
-            : therapistLocation) || null;
+        // Position la plus récente (WebSocket si fraîche, sinon profil)
+        const originForRoute = therapistLocationRef.current;
 
-        await refreshRoute(originForRoute, dest);
+        await updateRoute(originForRoute, dest);
       }
 
       setIsLoading(false);
       setRefreshingLocation(false);
     },
-    [loadBooking, resolveDestination, loadTherapist, refreshRoute, therapistLocation]
+    [loadBooking, resolveDestination, loadTherapist, updateRoute]
   );
 
   useEffect(() => {
@@ -535,6 +535,77 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runFullRefresh]);
+
+  // ==========================================================
+  // ✅ SUIVI EN DIRECT — WebSocket
+  // Reçoit la position du thérapeute à chaque déplacement et met à
+  // jour le marqueur + l'itinéraire immédiatement.
+  // ==========================================================
+
+  const applyLivePosition = useCallback(
+    (msg) => {
+      // ⚠️ Number(null) === 0 : on rejette explicitement null/undefined
+      if (msg?.latitude == null || msg?.longitude == null) return;
+      const lat = Number(msg.latitude);
+      const lng = Number(msg.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+      const pos = { latitude: lat, longitude: lng };
+
+      lastSocketUpdateRef.current = Date.now();
+      setLiveActive(true);
+      setLastLiveAt(Date.now());
+      updateTherapistLocation(pos);
+      setTherapistMeta({
+        heading: msg.heading ?? null,
+        speed: msg.speed ?? null,
+        accuracy: msg.accuracy ?? null,
+      });
+
+      updateRoute(pos, destinationRef.current);
+    },
+    [updateRoute, updateTherapistLocation]
+  );
+
+  const handleSocketMessage = useCallback(
+    (msg) => {
+      switch (msg?.type) {
+        case 'tracking_state':
+          setLiveActive(!!msg.active);
+          if (msg.active) applyLivePosition(msg);
+          break;
+        case 'tracking_started':
+          setLiveActive(true);
+          break;
+        case 'location_update':
+          applyLivePosition(msg);
+          break;
+        case 'tracking_stopped':
+          setLiveActive(false);
+          lastSocketUpdateRef.current = 0; // le polling reprend la main
+          break;
+        case 'status_update':
+          setBooking((prev) => (prev ? { ...prev, status: msg.status } : prev));
+          break;
+        default:
+          break;
+      }
+    },
+    [applyLivePosition]
+  );
+
+  useEffect(() => {
+    if (!bookingId) return undefined;
+
+    const socket = createTrackingSocket({
+      bookingId,
+      token,
+      onStatusChange: setSocketStatus,
+      onMessage: handleSocketMessage,
+    });
+
+    return () => socket.close();
+  }, [bookingId, token, handleSocketMessage]);
 
   // ==========================================================
   // STATUT AFFICHÉ — dérivé du statut réel de la réservation +
@@ -578,20 +649,50 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
     booking?.address ?? booking?.client_location ?? booking?.location ?? 'Adresse non disponible';
 
   // ==========================================================
-  // AJUSTER LA VUE DE LA CARTE (fitToCoordinates) une fois que
-  // les deux points (thérapeute + destination) sont connus.
+  // ✅ CAMÉRA : suit automatiquement thérapeute + adresse du client.
+  // Le bouton "Auto" (en haut à gauche de la carte) la libère pour
+  // pouvoir déplacer / zoomer la carte librement.
   // ==========================================================
 
+  const [autoFollow, setAutoFollow] = useState(true);
+  const lastFitRef = useRef(0);
+
   useEffect(() => {
-    if (!mapRef.current || hasFitBoundsRef.current) return;
+    if (!autoFollow || !mapRef.current) return undefined;
 
-    const points = [therapistLocation, destination, userLocation].filter(Boolean);
+    const points = [therapistLocation, destination].filter(Boolean);
+    if (!points.length) return undefined;
 
-    if (points.length >= 2) {
-      mapRef.current.fitToCoordinates(points);
-      hasFitBoundsRef.current = true;
-    }
-  }, [therapistLocation, destination, userLocation]);
+    // Au plus un recadrage toutes les 3 s (trailing)
+    const delay = Math.max(0, 3000 - (Date.now() - lastFitRef.current));
+
+    const timer = setTimeout(() => {
+      lastFitRef.current = Date.now();
+
+      const close =
+        points.length === 1 ||
+        (haversineKm(points[0], points[1]) ?? 0) < 0.3;
+
+      if (close) {
+        // Très proche : fitBounds zoomerait au maximum -> zoom fixe
+        const center =
+          points.length === 1
+            ? points[0]
+            : {
+                latitude: (points[0].latitude + points[1].latitude) / 2,
+                longitude: (points[0].longitude + points[1].longitude) / 2,
+              };
+        mapRef.current?.animateToRegion(
+          { ...center, latitudeDelta: 0.006, longitudeDelta: 0.006 },
+          600
+        );
+      } else {
+        mapRef.current?.fitToCoordinates(points);
+      }
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [autoFollow, therapistLocation, destination]);
 
   // ==========================================================
   // ACTIONS
@@ -624,36 +725,6 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
     }
   };
 
-  // ==========================================================
-  // MARQUEURS DE LA CARTE (thérapeute + client) — identiques
-  // web / mobile via MapViewWrapper.
-  // ==========================================================
-
-  const mapMarkers = useMemo(() => {
-    const list = [];
-
-    if (destination) {
-      list.push({
-        id: 'client-destination',
-        coordinate: destination,
-        title: 'Adresse de la demande',
-        description: address,
-        pinColor: PRIMARY,
-      });
-    }
-
-    if (therapistLocation) {
-      list.push({
-        id: 'therapist-position',
-        coordinate: therapistLocation,
-        title: therapistName || 'Thérapeute',
-        description: 'Position actuelle',
-        pinColor: ROUTE_COLOR,
-      });
-    }
-
-    return list;
-  }, [destination, therapistLocation, therapistName, address]);
 
   // ==========================================================
   // LOADING
@@ -721,10 +792,13 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
       ================================================== */}
 
       <View style={[styles.mapContainer, { height: mapHeight }]}>
-        <MapView
+        {/* ✅ Même carte que côté thérapeute (LiveRouteMap) : ligne rouge pleine
+            sur la vraie route + flèches, marqueur du thérapeute qui GLISSE
+            chaque seconde, ligne qui se "consomme", pointillés jusqu'à
+            l'adresse exacte, marqueur vert = adresse du client. */}
+        <LiveRouteMap
           ref={mapRef}
           style={styles.map}
-          provider={PROVIDER_GOOGLE}
           initialRegion={{
             latitude:
               therapistLocation?.latitude ??
@@ -739,20 +813,77 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
             latitudeDelta: 0.03,
             longitudeDelta: 0.03,
           }}
-          markers={mapMarkers}
           userLocation={userLocation}
           showUserLocation
-          showsMyLocationButton={false}
-          // ✅ Lalana MENA manaraka ny lalam-be marina
-          route={routeInfo?.coordinates || []}
+          mover={therapistLocation}
+          // En direct : point rouge + précision + direction. Sinon : point GRIS
+          // "dernière position connue" (position enregistrée en base, peut
+          // être ancienne) pour ne jamais la faire passer pour la position réelle.
+          moverHeading={liveActive ? therapistMeta.heading : null}
+          moverSpeed={liveActive ? therapistMeta.speed : null}
+          moverAccuracy={liveActive ? therapistMeta.accuracy : null}
+          moverTitle={therapistName || 'Thérapeute'}
+          moverDescription={
+            liveActive ? 'Position actuelle (en direct)' : 'Dernière position connue'
+          }
+          moverColor={liveActive ? ROUTE_COLOR : '#9E9E9E'}
+          destination={destination}
+          destinationTitle="Adresse de la demande"
+          destinationDescription={address}
+          destinationColor={PRIMARY}
+          routeCoordinates={routeInfo?.coordinates}
+          routeIsFallback={!!routeInfo?.isFallback}
           routeColor={ROUTE_COLOR}
-          routeWidth={5}
+          routeWidth={6}
+        />
+
+        {/* ✅ Caméra auto (thérapeute + adresse) / libre */}
+        <TouchableOpacity
+          style={[
+            styles.autoFollowButton,
+            { backgroundColor: autoFollow ? PRIMARY : '#FFFFFF' },
+          ]}
+          onPress={() => setAutoFollow((v) => !v)}
+          activeOpacity={0.85}
         >
-          {/* Sur mobile, react-native-maps accepte aussi les enfants
-              Marker/Polyline directement — ici tout passe déjà par
-              les props "markers" / "route" ci-dessus, valables sur
-              web ET mobile. */}
-        </MapView>
+          <Ionicons
+            name="locate"
+            size={16}
+            color={autoFollow ? '#FFFFFF' : PRIMARY}
+          />
+          <Text
+            style={[
+              styles.autoFollowText,
+              { color: autoFollow ? '#FFFFFF' : PRIMARY },
+            ]}
+          >
+            Auto
+          </Text>
+        </TouchableOpacity>
+
+        {/* ✅ Badge "EN DIRECT" — rouge quand le thérapeute partage */}
+        <View style={styles.liveBadgeWrap} pointerEvents="none">
+          <View
+            style={[
+              styles.liveBadge,
+              { backgroundColor: liveActive ? '#E53935' : 'rgba(0,0,0,0.55)' },
+            ]}
+          >
+            <View
+              style={[
+                styles.liveDot,
+                { backgroundColor: liveActive ? '#fff' : '#BDBDBD' },
+              ]}
+            />
+            <Text style={styles.liveBadgeText}>
+              {liveActive
+                ? 'EN DIRECT'
+                : socketStatus === 'connected'
+                  ? 'Position non partagée'
+                  : 'Connexion…'}
+            </Text>
+          </View>
+        </View>
 
         {refreshingLocation && (
           <View style={styles.refreshBadge}>
@@ -785,6 +916,12 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
               {address}
             </Text>
           </View>
+
+          {liveActive && lastLiveAt ? (
+            <Text style={[styles.liveUpdateText, { color: themeColors.textSecondary }]}>
+              Position mise à jour à {new Date(lastLiveAt).toLocaleTimeString('fr-FR')}
+            </Text>
+          ) : null}
 
           {(routeInfo?.distanceText || distanceKm !== null) && (
             <View style={styles.statusMetaRow}>
@@ -971,6 +1108,40 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   refreshBadgeText: { color: '#fff', fontSize: 10.5, fontWeight: '700' },
+
+  autoFollowButton: {
+    position: 'absolute',
+    top: 56,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
+    elevation: 3,
+    zIndex: 5,
+  },
+  autoFollowText: { fontSize: 12, fontWeight: '700' },
+
+  liveBadgeWrap: {
+    position: 'absolute',
+    top: 12,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+  },
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  liveDot: { width: 8, height: 8, borderRadius: 4 },
+  liveBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  liveUpdateText: { fontSize: 11, marginTop: 6 },
 
   sosButtonContainer: { position: 'absolute', bottom: 20, left: 20 },
 

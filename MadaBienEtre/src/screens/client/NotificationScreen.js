@@ -223,6 +223,11 @@ const resolveNotificationAction = (notification) => {
 
   const category = resolveCategory(type);
 
+  // ✅ "Votre thérapeute est en route" -> écran de suivi en direct
+  if (type.includes('en_route') || type.includes('tracking')) {
+    return 'tracking';
+  }
+
   if (
     category === 'offer' ||
     type.includes('counter_offer') ||
@@ -905,6 +910,25 @@ const NotificationScreen = ({
           return;
         }
 
+
+        /* ------------------------------------------------------
+           SUIVI EN DIRECT (thérapeute en route)
+        ------------------------------------------------------ */
+
+        if (action === 'tracking') {
+          if (!bookingId) {
+            showToast({
+              type: 'warning',
+              title: 'Notification',
+              message: 'Identifiant de réservation introuvable.',
+            });
+            return;
+          }
+
+          // ⚠️ Adaptez 'Tracking' au nom de la route dans ClientNavigator
+          navigation.navigate('Tracking', { bookingId });
+          return;
+        }
 
         /* ------------------------------------------------------
            RÉSERVATION

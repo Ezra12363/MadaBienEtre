@@ -918,12 +918,6 @@ export default function OfferScreen({ route, navigation }) {
     });
   };
 
-  const goToTracking = () => {
-    navigation.navigate('Tracking', {
-      bookingId: booking?.id ?? bookingId,
-    });
-  };
-
   const goToChat = () => {
     navigation.navigate('TherapistChat', {
       bookingId: booking?.id ?? bookingId,
@@ -1436,21 +1430,6 @@ export default function OfferScreen({ route, navigation }) {
                 />
 
                 <View style={styles.inlineActionsRow}>
-                  <TouchableOpacity
-                    style={styles.inlineAction}
-                    onPress={goToTracking}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons
-                      name="locate-outline"
-                      size={15}
-                      color={COLORS.primary}
-                    />
-                    <Text style={styles.inlineActionText}>
-                      Suivi en direct
-                    </Text>
-                  </TouchableOpacity>
-
                   <TouchableOpacity
                     style={[styles.inlineAction, styles.inlineActionDanger]}
                     onPress={goToSOS}

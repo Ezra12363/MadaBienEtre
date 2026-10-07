@@ -1382,17 +1382,15 @@ const NotificationScreen = ({
           'offer'
         ) {
 
+          /* 'Offer' est enregistré dans le stack du Tableau de bord
+             (voir TherapistNavigator.js) : on reste donc dans cet
+             onglet, l'onglet "Demandes" n'est pas sélectionné. */
           navigation.navigate(
-            'Demandes',
+            'Offer',
             {
-              screen:
-                'Offer',
-
-              params: {
-                bookingId,
-                offerId,
-                notification,
-              },
+              bookingId,
+              offerId,
+              notification,
             }
           );
 

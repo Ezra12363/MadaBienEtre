@@ -3,6 +3,25 @@
 //
 // VERSION THÉRAPEUTE - NAVIGATION VERS LE CLIENT
 //
+// ✅ NOUVEAU — POSITION EN DIRECT + PARTAGE AU CLIENT
+// - La position du thérapeute vient maintenant de useLocationTracking
+//   (watch continu) : le marqueur "Départ — vous" BOUGE en direct.
+// - Le bouton "Envoyer ma position au client" ouvre un WebSocket
+//   (/ws/tracking/{bookingId}) et envoie la position à chaque
+//   déplacement. "Arrêter le partage" coupe l'envoi.
+// - L'itinéraire est recalculé automatiquement quand le thérapeute
+//   s'est éloigné de > 200 m du point de départ du dernier calcul.
+// - La caméra n'est plus recadrée à chaque mise à jour (sinon
+//   impossible de zoomer/déplacer la carte) : cadrage initial une
+//   seule fois + bouton "suivre ma position" optionnel.
+//
+// ✅ ÉCRAN UNIQUE (remplace l'ancien therapist/TrackingScreen.js, supprimé) :
+// carte + itinéraire + position en direct + partage au client + bouton SOS.
+// ✅ AFFICHAGE RAPIDE : l'écran s'ouvre tout de suite (plus d'écran de
+// chargement bloquant). Dès l'ouverture : dernière position connue ->
+// ligne pointillée immédiate -> vrai itinéraire (Google + OSRM en parallèle,
+// avec cache) dès qu'il arrive.
+//
 // ✅ Adapté à l'API RÉELLE de MapViewWrapper (composants/map) :
 // - Les marqueurs (thérapeute + client) sont passés via la prop
 //   `markers` (tableau), PAS via des <Marker> en enfants JSX.
@@ -45,13 +64,18 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Location from 'expo-location';
+
+import { useAuth } from '../../context/AuthContext';
+import useLocationTracking from '../../hooks/useLocationTracking';
+import { createTrackingSocket } from '../../services/trackingSocket';
 
 import { useTheme } from '../../context/ThemeContext';
 import { spacing, typography } from '../../theme';
 
 import Header from '../../components/common/Header';
-import MapView from '../../components/map/MapViewWrapper';
+import SOSButton from '../../components/sos/SOSButton';
+import { reverseGeocode } from '../../services/geocoding';
+import LiveRouteMap from '../../components/map/LiveRouteMap';
 
 import {
   calculateAlternativeRoutes,
@@ -71,6 +95,13 @@ const PRIMARY = '#2E7D32'; // vert, cohérent avec le thème de la page Welcome
 // bleu = position du thérapeute, rouge = destination du client.
 const START_COLOR = '#1976D2';
 const END_COLOR = '#D32F2F';
+// ✅ Même rendu que l'écran client : ligne ROUGE sur la vraie route,
+// destination en VERT, thérapeute en BLEU ("vous").
+const ROUTE_COLOR = '#E53935';
+const DEST_COLOR = '#2E7D32';
+
+const SHARE_MIN_INTERVAL_MS = 900; // 1 envoi par seconde
+const REROUTE_DISTANCE_KM = 0.2; // recalcul itinéraire après 200 m
 
 // ============================================================
 // HELPERS
@@ -99,13 +130,102 @@ export default function NavigationScreen({ route: navRoute }) {
   const { colors: themeColors } = useTheme();
   const mapRef = useRef(null);
 
-  const [therapistPosition, setTherapistPosition] = useState(null);
+  const { token } = useAuth();
+
+  // ✅ Position GPS en DIRECT (watch continu + "first fix" rapide)
+  const {
+    location: gpsLocation,
+    errorMsg: gpsErrorMsg,
+    startTracking,
+    stopTracking,
+  } = useLocationTracking({
+    enabled: true,
+    // ✅ Position mise à jour CHAQUE SECONDE (0 m = pas de seuil de distance,
+    // sinon Android attend d'avoir bougé de X mètres avant d'émettre)
+    distanceIntervalMeters: 0,
+    timeIntervalMs: 1000,
+  });
+
+  // Position active = position GPS RÉELLE du thérapeute (aucune position
+  // manuelle : le marqueur est toujours là où le GPS dit qu'il est).
+  const activeLocation = gpsLocation;
+
+  const therapistPosition = useMemo(
+    () =>
+      gpsLocation
+        ? { latitude: gpsLocation.latitude, longitude: gpsLocation.longitude }
+        : null,
+    [gpsLocation]
+  );
+
+  // true = vrai relevé GPS ; false = ancienne position en cache
+  const hasRealPosition = !!gpsLocation && !gpsLocation.cached;
+
+  // ✅ ADRESSE ACTUELLE du thérapeute (géocodage inverse de sa position GPS),
+  // affichée dans la carte d'infos et sur le marqueur : permet de vérifier
+  // d'un coup d'œil qu'il est bien placé là où il se trouve.
+  const [currentAddress, setCurrentAddress] = useState('');
+  const lastGeocodeRef = useRef(null); // { pos, at }
+  const mountedRef = useRef(true);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!hasRealPosition || !therapistPosition) return;
+
+    const last = lastGeocodeRef.current;
+    const age = last ? Date.now() - last.at : Infinity;
+    const moved = last
+      ? haversineDistance(
+          last.pos.latitude,
+          last.pos.longitude,
+          therapistPosition.latitude,
+          therapistPosition.longitude
+        ) ?? Infinity
+      : Infinity;
+
+    // 1re fois, ou (>= 15 s ET déplacé de >= 100 m), ou rafraîchi toutes les 90 s
+    const shouldLookup = !last || (age >= 15000 && moved >= 0.1) || age >= 90000;
+    if (!shouldLookup) return;
+
+    lastGeocodeRef.current = { pos: therapistPosition, at: Date.now() };
+
+    reverseGeocode(therapistPosition.latitude, therapistPosition.longitude)
+      .then((result) => {
+        if (mountedRef.current && result?.display_name) {
+          setCurrentAddress(result.display_name);
+        }
+      })
+      .catch(() => {});
+  }, [hasRealPosition, therapistPosition]);
   // ✅ Proposition d'itinéraires : le plus rapide + alternatives.
   const [routeOptions, setRouteOptions] = useState([]);
   const [selectedRouteId, setSelectedRouteId] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [routeLoading, setRouteLoading] = useState(false);
-  const [gpsError, setGpsError] = useState('');
+  const gpsError = gpsErrorMsg || '';
+
+  // ✅ Partage de la position au client (WebSocket)
+  const [isSharing, setIsSharing] = useState(false);
+  const [socketStatus, setSocketStatus] = useState('idle');
+  const [lastSentAt, setLastSentAt] = useState(null);
+  const [shareError, setShareError] = useState('');
+  const [followMe, setFollowMe] = useState(true);
+  const [mapReady, setMapReady] = useState(false);
+
+  const socketRef = useRef(null);
+  const lastSendRef = useRef(0);
+  const gpsLocationRef = useRef(null);
+  const lastRouteOriginRef = useRef(null);
+  const routeLoadingRef = useRef(false);
+  const followZoomSetRef = useRef(false);
+  const routeOptionsRef = useRef([]);
+  const selectedIdRef = useRef(null);
+  const routeInfoRef = useRef(null);
+  const routeFromRealRef = useRef(false); // l'itinéraire part-il d'un vrai relevé GPS ?
 
   // ✅ CORRECTIF ANDROID : taille exacte (en pixels) de la zone
   // carte, mesurée via `onLayout`. Sur Android, react-native-maps
@@ -123,6 +243,15 @@ export default function NavigationScreen({ route: navRoute }) {
   // soit l'appareil — au lieu d'une valeur fixe ("bottom: 230") qui
   // pouvait laisser un vide ou se chevaucher.
   const [bottomSheetHeight, setBottomSheetHeight] = useState(210);
+
+  // ✅ Hauteur mesurée du bloc adresse/stats : le bouton SOS se place juste
+  // au-dessus, sans jamais le chevaucher.
+  const [overlayHeight, setOverlayHeight] = useState(120);
+  const routeRequestIdRef = useRef(0);
+
+  gpsLocationRef.current = activeLocation;
+  routeOptionsRef.current = routeOptions;
+  selectedIdRef.current = selectedRouteId;
 
   // ==========================================================
   // POSITIONS
@@ -149,64 +278,6 @@ export default function NavigationScreen({ route: navRoute }) {
     [therapistPosition, clientPosition]
   );
 
-  // ✅ Marqueurs (thérapeute + client) — tableau consommé par
-  // MapViewWrapper aussi bien en natif qu'en web (`markers` prop).
-  const mapMarkers = useMemo(() => {
-    const list = [
-      {
-        id: 'client',
-        coordinate: clientPosition,
-        title: 'Arrivée — client',
-        description: clientAddress,
-        pinColor: END_COLOR,
-      },
-    ];
-
-    if (therapistPosition) {
-      list.unshift({
-        id: 'therapist',
-        coordinate: therapistPosition,
-        title: 'Départ — vous',
-        description: 'Position actuelle',
-        pinColor: START_COLOR,
-      });
-    }
-
-    return list;
-  }, [therapistPosition, clientPosition, clientAddress]);
-
-  // ==========================================================
-  // GPS
-  // ==========================================================
-
-  const loadCurrentPosition = useCallback(async () => {
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-
-      if (permission.status !== 'granted') {
-        setGpsError('Permission GPS refusée');
-        return null;
-      }
-
-      const current = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-      const position = {
-        latitude: current.coords.latitude,
-        longitude: current.coords.longitude,
-      };
-
-      setTherapistPosition(position);
-      setGpsError('');
-
-      return position;
-    } catch (error) {
-      console.warn('[Navigation] GPS:', error?.message);
-      setGpsError('Position actuelle indisponible');
-      return null;
-    }
-  }, []);
 
   // ==========================================================
   // ROUTE
@@ -222,6 +293,8 @@ export default function NavigationScreen({ route: navRoute }) {
     [routeOptions, selectedRouteId]
   );
 
+  routeInfoRef.current = routeInfo;
+
   const routeCoordinates = useMemo(() => {
     if (routeInfo?.coordinates?.length > 1) return routeInfo.coordinates;
     if (therapistPosition && clientPosition) {
@@ -234,7 +307,11 @@ export default function NavigationScreen({ route: navRoute }) {
     async (origin) => {
       if (!origin) return;
 
+      lastRouteOriginRef.current = origin;
+      routeLoadingRef.current = true;
       setRouteLoading(true);
+      routeRequestIdRef.current += 1;
+      const requestId = routeRequestIdRef.current;
 
       try {
         const options = await calculateAlternativeRoutes(
@@ -244,32 +321,59 @@ export default function NavigationScreen({ route: navRoute }) {
           clientPosition.longitude
         );
 
+        if (requestId !== routeRequestIdRef.current) return; // réponse périmée
+
+        // ✅ Garde le choix d'itinéraire du thérapeute (par rang) lors
+        // d'un recalcul automatique, au lieu de le remettre au 1er.
+        const prevIdx = Math.max(
+          0,
+          routeOptionsRef.current.findIndex(
+            (o) => o.id === selectedIdRef.current
+          )
+        );
         setRouteOptions(options || []);
-        setSelectedRouteId(options?.[0]?.id ?? null);
+        setSelectedRouteId(
+          options?.[Math.min(prevIdx, (options?.length || 1) - 1)]?.id ?? null
+        );
       } catch (error) {
         console.warn('[Navigation] Route:', error?.message);
         setRouteOptions([]);
         setSelectedRouteId(null);
       } finally {
-        setRouteLoading(false);
+        if (requestId === routeRequestIdRef.current) {
+          routeLoadingRef.current = false;
+          setRouteLoading(false);
+        }
       }
     },
     [clientPosition]
   );
 
+  // ✅ ITINÉRAIRE : il PART de la position actuelle du thérapeute.
+  //  - 1er calcul immédiat (même avec une position en cache, pour afficher
+  //    vite la ligne), PUIS recalcul dès le 1er VRAI relevé GPS si l'ancienne
+  //    origine en diffère de plus de 50 m -> la route démarre bien là où il est ;
+  //  - ensuite recalcul automatique quand il s'éloigne de > 200 m du dernier
+  //    point de calcul (la ligne, elle, démarre toujours sous le marqueur).
   useEffect(() => {
-    let active = true;
+    if (!therapistPosition || routeLoadingRef.current) return;
 
-    (async () => {
-      const position = await loadCurrentPosition();
-      if (active && position) await loadRoute(position);
-      if (active) setLoading(false);
-    })();
+    const last = lastRouteOriginRef.current;
+    const moved = last
+      ? haversineDistance(
+          last.latitude,
+          last.longitude,
+          therapistPosition.latitude,
+          therapistPosition.longitude
+        ) ?? Infinity
+      : Infinity;
 
-    return () => {
-      active = false;
-    };
-  }, [loadCurrentPosition, loadRoute]);
+    const needsRealOrigin = hasRealPosition && !routeFromRealRef.current;
+    const threshold = needsRealOrigin ? 0.05 : REROUTE_DISTANCE_KM;
+
+    if (moved > threshold) loadRoute(therapistPosition);
+    if (needsRealOrigin) routeFromRealRef.current = true;
+  }, [therapistPosition, hasRealPosition, loadRoute]);
 
   // ==========================================================
   // CENTRER LA CARTE
@@ -295,22 +399,171 @@ export default function NavigationScreen({ route: navRoute }) {
     }
   }, [routeCoordinates, therapistPosition, clientPosition]);
 
+  // ✅ SUIVI DE LA POSITION (activé par défaut) : la carte se recentre sur le
+  // thérapeute à chaque seconde SANS toucher au zoom (panTo). Le zoom est
+  // réglé une seule fois à l'activation. Le bouton "navigate" le coupe pour
+  // pouvoir déplacer / zoomer librement ; "locate" cadre tout l'itinéraire.
   useEffect(() => {
-    if (!loading) {
-      const timer = setTimeout(centerMap, 700);
-      return () => clearTimeout(timer);
+    if (!followMe) {
+      followZoomSetRef.current = false;
+      return;
     }
-    return undefined;
-  }, [loading, centerMap]);
+    if (!mapReady || !therapistPosition || !mapRef.current) return;
+
+    if (!followZoomSetRef.current) {
+      mapRef.current.animateToRegion(
+        { ...therapistPosition, latitudeDelta: 0.008, longitudeDelta: 0.008 },
+        600
+      );
+      followZoomSetRef.current = true;
+    } else {
+      mapRef.current.panTo(therapistPosition, 900);
+    }
+  }, [followMe, mapReady, therapistPosition]);
 
   // ==========================================================
   // ACTIONS
   // ==========================================================
 
-  const refreshGps = async () => {
-    const position = await loadCurrentPosition();
-    if (position) await loadRoute(position);
+  const refreshGps = () => {
+    stopTracking();
+    setTimeout(() => startTracking(), 150);
   };
+
+  // ==========================================================
+  // PARTAGE DE LA POSITION AU CLIENT (WebSocket)
+  // ==========================================================
+
+  // Envoie la position ACTIVE au client. Ne renvoie JAMAIS une position en
+  // cache (ancienne) : le client verrait le thérapeute au mauvais endroit.
+  const sendCurrentLocation = useCallback(() => {
+    const loc = gpsLocationRef.current;
+    if (!loc || loc.cached) return false;
+
+    const sent = socketRef.current?.send({
+      type: 'location_update',
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      heading: loc.heading,
+      speed: loc.speed,
+      accuracy: loc.accuracy,
+    });
+
+    if (sent) {
+      lastSendRef.current = Date.now();
+      setLastSentAt(Date.now());
+    }
+    return !!sent;
+  }, []);
+
+  const startSharing = useCallback(() => {
+    if (!bookingId) {
+      Alert.alert('Erreur', 'Réservation introuvable.');
+      return;
+    }
+    // (le token manquant est géré par trackingSocket : relecture AsyncStorage)
+    socketRef.current?.close();
+    setShareError('');
+    lastSendRef.current = 0;
+
+    socketRef.current = createTrackingSocket({
+      bookingId,
+      token,
+      onStatusChange: (status) => {
+        setSocketStatus(status);
+        // (Re)connecté : annonce le début du partage + position immédiate
+        if (status === 'connected') {
+          // ETA + distance : insérés dans la notification du client
+          socketRef.current?.send({
+            type: 'tracking_started',
+            eta: routeInfoRef.current?.drivingDurationText || null,
+            distance: routeInfoRef.current?.distanceText || null,
+          });
+          // Position réelle immédiate (si on a déjà un vrai relevé)
+          sendCurrentLocation();
+        }
+      },
+      onMessage: (msg) => {
+        if (!msg?.error) return;
+
+        const reasons = {
+          missing_token: 'token manquant',
+          invalid_token: 'token invalide ou expiré',
+        };
+        const text = reasons[msg.reason]
+          ? `${msg.error} (${reasons[msg.reason]})`
+          : msg.error;
+        setShareError(text);
+
+        // ✅ Erreur FATALE (auth / droits / réservation) : on ne laisse pas
+        // le bouton rouge "en cours" alors que rien n'est envoyé.
+        if (
+          ['Authentication failed', 'Not authorized', 'Booking not found'].includes(
+            msg.error
+          )
+        ) {
+          socketRef.current?.close();
+          socketRef.current = null;
+          setIsSharing(false);
+          setSocketStatus('idle');
+          Alert.alert(
+            'Partage impossible',
+            `${text}\n\nReconnectez-vous puis réessayez.`
+          );
+        }
+      },
+    });
+
+    setIsSharing(true);
+  }, [bookingId, token, sendCurrentLocation]);
+
+  const stopSharing = useCallback(() => {
+    socketRef.current?.send({ type: 'tracking_stopped' });
+    socketRef.current?.close();
+    socketRef.current = null;
+    setIsSharing(false);
+    setSocketStatus('idle');
+  }, []);
+
+  // Envoi à CHAQUE nouvelle position (limité à 1 par seconde)
+  useEffect(() => {
+    if (!isSharing || !activeLocation || activeLocation.cached) return;
+    if (Date.now() - lastSendRef.current < SHARE_MIN_INTERVAL_MS) return;
+    sendCurrentLocation();
+  }, [activeLocation, isSharing, sendCurrentLocation]);
+
+  // Battement de cœur : si la position ne change pas (arrêt, position
+  // manuelle), on renvoie quand même toutes les ~4 s pour que le client voie
+  // que le partage est toujours actif.
+  useEffect(() => {
+    if (!isSharing) return undefined;
+    const timer = setInterval(() => {
+      if (Date.now() - lastSendRef.current >= 3500) sendCurrentLocation();
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [isSharing, sendCurrentLocation]);
+
+  // Ferme la socket en quittant l'écran
+  useEffect(
+    () => () => {
+      socketRef.current?.close();
+      socketRef.current = null;
+    },
+    []
+  );
+
+  const shareStatusText = (() => {
+    if (shareError) return `⚠️ ${shareError}`;
+    if (socketStatus === 'connecting') return 'Connexion au serveur…';
+    if (socketStatus === 'reconnecting') return 'Connexion perdue — reconnexion…';
+    if (socketStatus === 'connected') {
+      const time = lastSentAt
+        ? new Date(lastSentAt).toLocaleTimeString('fr-FR')
+        : '…';
+      return `🔴 En direct · dernier envoi ${time} · gardez l'application ouverte`;
+    }
+    return '';
+  })();
 
   const openDirections = async () => {
     const origin = therapistPosition
@@ -329,30 +582,6 @@ export default function NavigationScreen({ route: navRoute }) {
       Alert.alert('Erreur', "Impossible d'ouvrir Google Maps.");
     }
   };
-
-  // ==========================================================
-  // LOADING
-  // ==========================================================
-
-  if (loading) {
-    return (
-      <View
-        style={[styles.container, { backgroundColor: themeColors.background }]}
-      >
-        <Header title="Navigation vers le client" showBack />
-
-        <View style={styles.centerState}>
-          <ActivityIndicator size="large" color={PRIMARY} />
-
-          <Text
-            style={[styles.loadingText, { color: themeColors.textSecondary }]}
-          >
-            Calcul de la position et du trajet...
-          </Text>
-        </View>
-      </View>
-    );
-  }
 
   // ==========================================================
   // RENDER
@@ -388,28 +617,35 @@ export default function NavigationScreen({ route: navRoute }) {
             },
           ]}
         >
-          <MapView
+          {/* ✅ Carte identique à celle du client : ligne rouge pleine qui
+              suit la vraie route + flèches, marqueur qui glisse chaque
+              seconde, ligne qui se consomme, pointillés vers l'adresse. */}
+          <LiveRouteMap
             ref={mapRef}
             style={styles.map}
             initialRegion={{
               latitude: therapistPosition?.latitude ?? clientPosition.latitude,
               longitude: therapistPosition?.longitude ?? clientPosition.longitude,
-              latitudeDelta: 0.025,
-              longitudeDelta: 0.025,
+              latitudeDelta: 0.012,
+              longitudeDelta: 0.012,
             }}
-            markers={mapMarkers}
-            route={routeCoordinates.length > 1 ? routeCoordinates : null}
-            routeColor={END_COLOR}
-            routeWidth={5}
-            // ✅ Tsipika tsipika (pointillés) rehefa tsy nahitana lalana
-            // mampitohy ny thérapeute sy ny client ; ary eo anelanelan'ny
-            // toerana marina sy ny lalana raha tsy tonga tanteraka.
+            onMapReady={() => setMapReady(true)}
+            // ✅ Position GPS RÉELLE (jamais l'ancienne position en cache)
+            mover={hasRealPosition ? therapistPosition : null}
+            moverHeading={activeLocation?.heading ?? null}
+            moverSpeed={activeLocation?.speed ?? null}
+            moverAccuracy={activeLocation?.accuracy ?? null}
+            moverTitle="Départ — votre position actuelle"
+            moverDescription={currentAddress || 'Position GPS en direct'}
+            moverColor={ROUTE_COLOR}
+            destination={clientPosition}
+            destinationTitle="Arrivée — client"
+            destinationDescription={clientAddress}
+            destinationColor={DEST_COLOR}
+            routeCoordinates={routeCoordinates}
             routeIsFallback={!routeInfo || !!routeInfo.isFallback}
-            routeOrigin={therapistPosition}
-            routeDestination={clientPosition}
-            routeOptions={routeOptions}
-            selectedRouteId={routeInfo?.id}
-            onRouteSelect={setSelectedRouteId}
+            routeColor={ROUTE_COLOR}
+            routeWidth={6}
             showUserLocation={false}
             trackUserLocation={false}
             showMapTypeControl
@@ -425,10 +661,33 @@ export default function NavigationScreen({ route: navRoute }) {
               borderColor: themeColors.border || '#E5E5E5',
             },
           ]}
-          onPress={centerMap}
+          onPress={() => {
+            setFollowMe(false);
+            centerMap();
+          }}
           activeOpacity={0.85}
         >
           <Ionicons name="locate" size={20} color={PRIMARY} />
+        </TouchableOpacity>
+
+        {/* Suivre ma position (la carte se recentre à chaque mouvement) */}
+        <TouchableOpacity
+          style={[
+            styles.locateButton,
+            styles.followButton,
+            {
+              backgroundColor: followMe ? PRIMARY : themeColors.surface,
+              borderColor: themeColors.border || '#E5E5E5',
+            },
+          ]}
+          onPress={() => setFollowMe((v) => !v)}
+          activeOpacity={0.85}
+        >
+          <Ionicons
+            name="navigate"
+            size={20}
+            color={followMe ? '#FFFFFF' : PRIMARY}
+          />
         </TouchableOpacity>
 
         {/* Bloc ancré en BAS DROITE de la carte uniquement :
@@ -442,9 +701,10 @@ export default function NavigationScreen({ route: navRoute }) {
             styles.mapBottomOverlay,
             { bottom: bottomSheetHeight + spacing.sm },
           ]}
+          onLayout={(e) => setOverlayHeight(e.nativeEvent.layout.height)}
           pointerEvents="box-none"
         >
-          {gpsError ? (
+          {gpsError && !therapistPosition ? (
             <View style={styles.gpsWarning}>
               <Ionicons name="warning-outline" size={14} color="#92400E" />
               <Text style={styles.gpsWarningText}>{gpsError}</Text>
@@ -464,6 +724,39 @@ export default function NavigationScreen({ route: navRoute }) {
               },
             ]}
           >
+            {/* Ligne 0 : MA position actuelle (adresse où je suis en ce moment) */}
+            <View style={styles.addressRow}>
+              <View
+                style={[
+                  styles.addressIcon,
+                  { backgroundColor: `${ROUTE_COLOR}15` },
+                ]}
+              >
+                <Ionicons name="radio-button-on" size={14} color={ROUTE_COLOR} />
+              </View>
+
+              <View style={styles.addressTextWrap}>
+                <Text
+                  style={[
+                    styles.addressLabel,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  Votre position actuelle
+                </Text>
+
+                <Text
+                  style={[styles.addressValue, { color: themeColors.text }]}
+                  numberOfLines={2}
+                >
+                  {currentAddress ||
+                    (hasRealPosition
+                      ? "Recherche de l'adresse…"
+                      : 'Recherche du GPS…')}
+                </Text>
+              </View>
+            </View>
+
             {/* Ligne 1 : Adresse */}
             <View style={styles.addressRow}>
               <View
@@ -590,6 +883,18 @@ export default function NavigationScreen({ route: navRoute }) {
           </View>
         </View>
 
+        {/* ✅ Bouton SOS (repris de l'ancien écran "Suivi en direct") :
+            ancré en bas à gauche, juste au-dessus du bloc adresse/stats. */}
+        <View
+          style={[
+            styles.sosButtonContainer,
+            { bottom: bottomSheetHeight + overlayHeight + spacing.md },
+          ]}
+          pointerEvents="box-none"
+        >
+          <SOSButton bookingId={bookingId} />
+        </View>
+
         {/* ==================================================
             BANDEAU BAS — flotte désormais au-dessus de la carte
             (au lieu d'un bloc séparé qui réduisait la carte).
@@ -609,7 +914,7 @@ export default function NavigationScreen({ route: navRoute }) {
         >
           <View style={styles.legendRow}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: START_COLOR }]} />
+              <View style={[styles.legendDot, { backgroundColor: ROUTE_COLOR }]} />
               <Text
                 style={[styles.legendText, { color: themeColors.textSecondary }]}
               >
@@ -618,7 +923,7 @@ export default function NavigationScreen({ route: navRoute }) {
             </View>
 
             <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: END_COLOR }]} />
+              <View style={[styles.legendDot, { backgroundColor: DEST_COLOR }]} />
               <Text
                 style={[styles.legendText, { color: themeColors.textSecondary }]}
               >
@@ -680,6 +985,43 @@ export default function NavigationScreen({ route: navRoute }) {
               })}
             </View>
           )}
+
+          {/* ✅ ENVOYER / ARRÊTER LE PARTAGE DE POSITION AU CLIENT */}
+          <TouchableOpacity
+            style={[
+              styles.shareButton,
+              isSharing
+                ? { backgroundColor: END_COLOR, borderColor: END_COLOR }
+                : { borderColor: START_COLOR },
+            ]}
+            onPress={isSharing ? stopSharing : startSharing}
+            disabled={!hasRealPosition && !isSharing}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name={isSharing ? 'stop-circle' : 'paper-plane'}
+              size={20}
+              color={isSharing ? '#FFFFFF' : START_COLOR}
+            />
+            <Text
+              style={[
+                styles.shareButtonText,
+                { color: isSharing ? '#FFFFFF' : START_COLOR },
+              ]}
+            >
+              {isSharing
+                ? 'Arrêter le partage de position'
+                : 'Envoyer ma position au client'}
+            </Text>
+          </TouchableOpacity>
+
+          {(isSharing || shareError) && shareStatusText ? (
+            <Text
+              style={[styles.shareStatus, { color: themeColors.textSecondary }]}
+            >
+              {shareStatusText}
+            </Text>
+          ) : null}
 
           <TouchableOpacity
             style={styles.startButton}
@@ -830,6 +1172,41 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
     zIndex: 2,
+  },
+
+  followButton: { top: spacing.sm + 52 },
+
+  // ✅ Conteneur du bouton SOS : ANCRÉ en absolu dans la carte (avant, ce
+  // style n'existait pas -> le conteneur n'était pas positionné et le
+  // bouton SOS s'affichait mal / hors de la carte, surtout sur le web).
+  // `bottom` est calculé dynamiquement (hauteurs mesurées des blocs bas).
+  sosButtonContainer: {
+    position: 'absolute',
+    left: spacing.sm,
+    zIndex: 10,
+    elevation: 10,
+  },
+
+  shareButton: {
+    minHeight: 46,
+    borderRadius: 13,
+    borderWidth: 2,
+    marginBottom: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+
+  shareButtonText: {
+    fontSize: typography.fontSize.sm,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  shareStatus: {
+    fontSize: 11,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
 
   gpsWarning: {

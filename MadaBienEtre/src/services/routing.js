@@ -127,6 +127,97 @@ export const calculateDistance = async (lat1, lng1, lat2, lng2, mode = 'driving'
 // (gratuit, sans clé), ce qui évite des erreurs répétées dans la console.
 let googleDirectionsDenied = false;
 
+
+// ============================================================
+// ✅ VITESSE D'AFFICHAGE DE L'ITINÉRAIRE
+//
+// Avant : Google (jusqu'à 15 s de timeout si le réseau est lent) PUIS
+// OSRM, l'un après l'autre -> la ligne rouge mettait longtemps à
+// apparaître. Maintenant :
+//   1) Google et OSRM sont lancés EN PARALLÈLE ;
+//   2) on prend la 1re réponse valide (si c'est OSRM, on laisse 1,2 s à
+//      Google pour répondre car son tracé est préféré) ;
+//   3) le résultat est mis en CACHE (2 min) : rouvrir l'écran affiche
+//      l'itinéraire instantanément.
+// ============================================================
+const ROUTE_CACHE_TTL_MS = 2 * 60 * 1000;
+const GOOGLE_GRACE_MS = 1200;
+const routeOptionsCache = new Map();
+
+const settleRoutes = (promise, tag) =>
+  Promise.resolve(promise)
+    .then((list) => ({ tag, list: Array.isArray(list) && list.length ? list : null }))
+    .catch(() => ({ tag, list: null }));
+
+const pickFastestRoutes = async (googlePromise, osrmPromise) => {
+  const g = settleRoutes(googlePromise, 'google');
+  const o = settleRoutes(osrmPromise, 'osrm');
+
+  const first = await Promise.race([g, o]);
+
+  if (first.list) {
+    if (first.tag === 'osrm') {
+      const google = await Promise.race([
+        g,
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ tag: 'google', list: null }), GOOGLE_GRACE_MS)
+        ),
+      ]);
+      return google.list || first.list;
+    }
+    return first.list;
+  }
+
+  const other = await (first.tag === 'google' ? o : g);
+  return other.list;
+};
+
+// ============================================================
+// ✅ TRACÉ DÉTAILLÉ (suit exactement la route, virage par virage)
+//
+// `overview_polyline` / `overview_path` de Google est une version
+// SIMPLIFIÉE du trajet : en zoomant (surtout sur mobile) la ligne coupe
+// les virages et ne colle plus à la route. Ici on reconstruit le tracé
+// à partir des polylines de CHAQUE ÉTAPE (steps), beaucoup plus précises.
+// Si les étapes manquent, on retombe sur l'overview.
+// ============================================================
+const sameCoord = (a, b) =>
+  a && b && a.latitude === b.latitude && a.longitude === b.longitude;
+
+const buildDetailedPathFromRestRoute = (route) => {
+  try {
+    const points = [];
+    (route?.legs || []).forEach((leg) => {
+      (leg?.steps || []).forEach((step) => {
+        decodePolyline(step?.polyline?.points || '').forEach((p) => {
+          if (!sameCoord(points[points.length - 1], p)) points.push(p);
+        });
+      });
+    });
+    if (points.length > 1) return points;
+  } catch (_e) { /* retombe sur l'overview */ }
+  return decodePolyline(route?.overview_polyline?.points || '');
+};
+
+const buildDetailedPathFromJsRoute = (route) => {
+  try {
+    const points = [];
+    (route?.legs || []).forEach((leg) => {
+      (leg?.steps || []).forEach((step) => {
+        (step?.path || []).forEach((pt) => {
+          const p = { latitude: pt.lat(), longitude: pt.lng() };
+          if (!sameCoord(points[points.length - 1], p)) points.push(p);
+        });
+      });
+    });
+    if (points.length > 1) return points;
+  } catch (_e) { /* retombe sur l'overview */ }
+  return (route?.overview_path || []).map((pt) => ({
+    latitude: pt.lat(),
+    longitude: pt.lng(),
+  }));
+};
+
 const waitForGoogleMapsJS = (timeoutMs = 8000) => {
   return new Promise((resolve) => {
     if (typeof window === 'undefined') {
@@ -212,10 +303,7 @@ const calculateRouteViaDirectionsService = (originLat, originLng, destinationLat
         // ✅ `overview_path` = TOUS les points de la vraie route
         // (suit les rues), déjà décodés par le SDK — pas besoin de
         // `decodePolyline` ici.
-        const coordinates = (route.overview_path || []).map((p) => ({
-          latitude: p.lat(),
-          longitude: p.lng(),
-        }));
+        const coordinates = buildDetailedPathFromJsRoute(route);
 
         resolve({
           coordinates: coordinates.length > 0
@@ -473,7 +561,7 @@ export const calculateRoute = async (
       }
 
       const polyline = route.overview_polyline?.points || '';
-      const coordinates = decodePolyline(polyline);
+      const coordinates = buildDetailedPathFromRestRoute(route);
 
       return {
         coordinates:
@@ -636,10 +724,7 @@ const fetchGoogleJsRoutes = (oLat, oLng, dLat, dLng) =>
         const list = result.routes
           .map((route) => {
             const leg = route.legs?.[0];
-            const coordinates = (route.overview_path || []).map((pt) => ({
-              latitude: pt.lat(),
-              longitude: pt.lng(),
-            }));
+            const coordinates = buildDetailedPathFromJsRoute(route);
 
             if (!leg?.distance || !leg?.duration || coordinates.length < 2) return null;
 
@@ -685,7 +770,7 @@ const fetchGoogleRestRoutes = async (oLat, oLng, dLat, dLng) => {
     const list = response.data.routes
       .map((route) => {
         const leg = route.legs?.[0];
-        const coordinates = decodePolyline(route.overview_polyline?.points || '');
+        const coordinates = buildDetailedPathFromRestRoute(route);
 
         if (!leg?.distance || !leg?.duration || coordinates.length < 2) return null;
 
@@ -767,21 +852,26 @@ export const calculateAlternativeRoutes = async (lat1, lng1, lat2, lng2) => {
   const dLat = Number(lat2);
   const dLng = Number(lng2);
 
-  let routes = null;
+  const cacheKey = `${oLat.toFixed(4)},${oLng.toFixed(4)}>${dLat.toFixed(4)},${dLng.toFixed(4)}`;
+  const cached = routeOptionsCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < ROUTE_CACHE_TTL_MS) {
+    return cached.routes;
+  }
 
-  if (!googleDirectionsDenied) {
+  // ✅ Google + OSRM en parallèle, 1re réponse valide gagnante
+  const googlePromise = (async () => {
+    if (googleDirectionsDenied) return null;
     if (Platform.OS === 'web') {
-      if (await waitForGoogleMapsJS()) {
-        routes = await fetchGoogleJsRoutes(oLat, oLng, dLat, dLng);
-      }
-    } else if (GOOGLE_MAPS_API_KEY) {
-      routes = await fetchGoogleRestRoutes(oLat, oLng, dLat, dLng);
+      return (await waitForGoogleMapsJS())
+        ? fetchGoogleJsRoutes(oLat, oLng, dLat, dLng)
+        : null;
     }
-  }
+    return GOOGLE_MAPS_API_KEY ? fetchGoogleRestRoutes(oLat, oLng, dLat, dLng) : null;
+  })();
 
-  if (!routes?.length) {
-    routes = await fetchOsrmRoutes(oLat, oLng, dLat, dLng);
-  }
+  const osrmPromise = fetchOsrmRoutes(oLat, oLng, dLat, dLng);
+
+  let routes = await pickFastestRoutes(googlePromise, osrmPromise);
 
   if (!routes?.length) {
     const distance = haversineDistance(oLat, oLng, dLat, dLng);
@@ -803,7 +893,17 @@ export const calculateAlternativeRoutes = async (lat1, lng1, lat2, lng2) => {
     ];
   }
 
-  return finalizeRouteOptions(routes);
+  const finalRoutes = finalizeRouteOptions(routes);
+
+  // Cache : uniquement les VRAIS itinéraires (pas la ligne droite de secours)
+  if (finalRoutes.length && !finalRoutes[0].isFallback) {
+    routeOptionsCache.set(cacheKey, { routes: finalRoutes, at: Date.now() });
+    if (routeOptionsCache.size > 30) {
+      routeOptionsCache.delete(routeOptionsCache.keys().next().value);
+    }
+  }
+
+  return finalRoutes;
 };
 
 /**

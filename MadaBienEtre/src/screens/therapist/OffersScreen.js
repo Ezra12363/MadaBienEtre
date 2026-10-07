@@ -53,7 +53,7 @@ import {
   formatDistance,
   calculateAlternativeRoutes,
 } from '../../services/routing';
-import * as Location from 'expo-location';
+import useLocationTracking from '../../hooks/useLocationTracking';
 import {
   parseServerDate,
   toTimestamp,
@@ -659,6 +659,23 @@ const getDistance = booking => {
   return Number.isFinite(number) ? number : null;
 };
 
+// Distance depuis la POSITION ACTUELLE du thérapeute jusqu'à l'adresse
+// du client (ligne droite). Ne se rabat PAS sur booking.distance_km
+// (valeur calculée par le backend depuis une autre origine).
+const getDistanceFromPosition = (booking, position) => {
+  if (!position) return null;
+  const lat = getLatitude(booking);
+  const lng = getLongitude(booking);
+  if (lat === null || lng === null) return null;
+  const km = haversineDistance(
+    position.latitude,
+    position.longitude,
+    lat,
+    lng
+  );
+  return Number.isFinite(km) ? km : null;
+};
+
 const getAddress = booking =>
   booking?.address ??
   booking?.client_location ??
@@ -1171,9 +1188,25 @@ export default function OffersScreen({ navigation, route }) {
   const [mapKey, setMapKey] = useState(0);
   const mapRef = useRef(null);
 
-  const [therapistPosition, setTherapistPosition] = useState(null);
-  const [locationPermissionDenied, setLocationPermissionDenied] =
-    useState(false);
+  // Position GPS actuelle du thérapeute (hook partagé de tracking temps réel)
+  const { location: therapistLocation, permissionGranted } =
+    useLocationTracking({
+      distanceIntervalMeters: 20,
+      timeIntervalMs: 8000,
+    });
+
+  const therapistPosition = useMemo(
+    () =>
+      therapistLocation
+        ? {
+            latitude: therapistLocation.latitude,
+            longitude: therapistLocation.longitude,
+          }
+        : null,
+    [therapistLocation?.latitude, therapistLocation?.longitude]
+  );
+
+  const locationPermissionDenied = permissionGranted === false;
 
   const [selectedRouteBooking, setSelectedRouteBooking] = useState(null);
   const [modeEtas, setModeEtas] = useState(null);
@@ -1309,60 +1342,6 @@ export default function OffersScreen({ navigation, route }) {
     const interval = setInterval(() => loadBookings(false), AUTO_REFRESH_MS);
     return () => clearInterval(interval);
   }, [loadBookings]);
-
-  // ==========================================================
-  // GPS
-  // ==========================================================
-
-  useEffect(() => {
-    let subscription;
-    let cancelled = false;
-
-    const startWatching = async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          if (!cancelled) setLocationPermissionDenied(true);
-          return;
-        }
-        if (!cancelled) setLocationPermissionDenied(false);
-
-        const initial = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        if (!cancelled) {
-          setTherapistPosition({
-            latitude: initial.coords.latitude,
-            longitude: initial.coords.longitude,
-          });
-        }
-
-        subscription = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.Balanced,
-            distanceInterval: 20,
-            timeInterval: 8000,
-          },
-          loc => {
-            if (cancelled) return;
-            setTherapistPosition({
-              latitude: loc.coords.latitude,
-              longitude: loc.coords.longitude,
-            });
-          }
-        );
-      } catch (locError) {
-        console.warn('⚠️ LOCATION ERROR:', locError);
-      }
-    };
-
-    startWatching();
-
-    return () => {
-      cancelled = true;
-      subscription?.remove?.();
-    };
-  }, []);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
@@ -1502,9 +1481,9 @@ export default function OffersScreen({ navigation, route }) {
         title: getClientName(booking),
         description: `${getMassageName(booking)} · ${getAddress(booking)}`,
         status: normalizeStatus(booking),
-        distance: getDistance(booking),
+        distance: getDistanceFromPosition(booking, therapistPosition),
       })),
-    [geolocatedBookings]
+    [geolocatedBookings, therapistPosition]
   );
 
   const mapRegion = useMemo(() => {
@@ -1960,7 +1939,7 @@ export default function OffersScreen({ navigation, route }) {
       const busy = busyId === booking.id;
 
       const price = getPrice(booking);
-      const distance = getDistance(booking);
+      const distance = getDistanceFromPosition(booking, therapistPosition);
       const expiresAt = getExpiresAt(booking);
       const expired = isOfferExpired(booking);
 
@@ -2107,7 +2086,7 @@ export default function OffersScreen({ navigation, route }) {
                       color={COLORS.red}
                     />
                     <Text style={styles.cardDistanceText} numberOfLines={1}>
-                      {distance.toFixed(1)} km
+                      ~{formatDistance(distance)}
                     </Text>
                   </View>
                 ) : null}
@@ -2290,6 +2269,7 @@ export default function OffersScreen({ navigation, route }) {
       handleCallClient,
       handleOpenDirections,
       now,
+      therapistPosition,
     ]
   );
 
@@ -4575,6 +4555,7 @@ export {
   getPrice,
   getDuration,
   getDistance,
+  getDistanceFromPosition,
   getAddress,
   getLatitude,
   getLongitude,

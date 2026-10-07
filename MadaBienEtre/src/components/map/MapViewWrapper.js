@@ -194,6 +194,67 @@ const getCustomMarkerIcon = (color, scale = 1.4) => {
   };
 };
 
+// ============================================================
+// ✅ MARQUEUR "POSITION ACTUELLE" (kind: 'position')
+//
+// Un pin (goutte) a sa pointe DÉCALÉE par rapport aux coordonnées : on ne
+// sait jamais exactement où est la personne. Pour la position réelle du
+// thérapeute on utilise donc un POINT BLEU centré exactement sur les
+// coordonnées GPS (comme Google Maps), avec :
+//   - un cercle de précision (rayon = accuracy du GPS, 5 à 150 m),
+//   - une flèche de direction (heading) quand il se déplace (> 1 m/s).
+// ============================================================
+const isMovingMarker = (m) =>
+  m?.heading != null && Number.isFinite(m.heading) && (m.speed ?? 0) > 1;
+
+const clampAccuracy = (a) => Math.max(5, Math.min(Number(a) || 0, 150));
+
+const NativeMeMarker = ({ marker }) => {
+  const color = resolveMarkerColor(marker);
+  const moving = isMovingMarker(marker);
+
+  // Les vues custom Android sont "photographiées" : on laisse la capture
+  // active brièvement au montage et à chaque changement point <-> flèche.
+  const [track, setTrack] = useState(true);
+  useEffect(() => {
+    setTrack(true);
+    const t = setTimeout(() => setTrack(false), 600);
+    return () => clearTimeout(t);
+  }, [moving, color]);
+
+  return (
+    <>
+      {marker.accuracy ? (
+        <RNCircle
+          center={marker.coordinate}
+          radius={clampAccuracy(marker.accuracy)}
+          fillColor={`${color}1F`}
+          strokeColor={`${color}59`}
+          strokeWidth={1}
+          zIndex={2}
+        />
+      ) : null}
+      <RNMarker
+        coordinate={marker.coordinate}
+        title={marker.title}
+        description={marker.description}
+        anchor={{ x: 0.5, y: 0.5 }}
+        flat
+        rotation={moving ? marker.heading : 0}
+        zIndex={999}
+        tracksViewChanges={track}
+      >
+        <View style={styles.meWrap}>
+          {moving ? (
+            <View style={[styles.meArrow, { borderBottomColor: color }]} />
+          ) : null}
+          <View style={[styles.meDot, { backgroundColor: color }]} />
+        </View>
+      </RNMarker>
+    </>
+  );
+};
+
 const MapTypeToggle = ({ mapType, onToggle, style }) => {
   const isSatellite = mapType === MAP_TYPES.satellite || mapType === MAP_TYPES.hybrid;
   return (
@@ -419,6 +480,18 @@ const MapViewWrapper = forwardRef(({
         });
       }
     },
+    // ✅ Déplace la caméra vers un point SANS changer le zoom (suivi fluide)
+    panTo: (coord, duration = 800) => {
+      if (!coord) return;
+      if (Platform.OS === 'web' && webMapRef.current) {
+        webMapRef.current.panTo({ lat: coord.latitude, lng: coord.longitude });
+      } else if (nativeMapRef.current?.animateCamera) {
+        nativeMapRef.current.animateCamera(
+          { center: { latitude: coord.latitude, longitude: coord.longitude } },
+          { duration }
+        );
+      }
+    },
     setMapType: (t) => setMapType(t),
   }), [setMapType]);
 
@@ -515,6 +588,77 @@ const MapViewWrapper = forwardRef(({
       const color = resolveMarkerColor(m);
       const position = { lat: m.coordinate.latitude, lng: m.coordinate.longitude };
 
+      // ✅ POSITION ACTUELLE : point bleu centré + cercle de précision
+      //    + flèche de direction quand ça bouge (voir NativeMeMarker)
+      if (m.kind === 'position') {
+        const moving = isMovingMarker(m);
+        const iconKey = moving ? `arrow-${Math.round(m.heading / 5)}` : 'dot';
+        const makeIcon = () =>
+          moving
+            ? {
+                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                scale: 6,
+                rotation: m.heading,
+                fillColor: color,
+                fillOpacity: 1,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2,
+              }
+            : {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 9,
+                fillColor: color,
+                fillOpacity: 1,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 3,
+              };
+
+        let posMarker = webMarkersRef.current[id];
+        if (!posMarker) {
+          posMarker = new google.maps.Marker({
+            map,
+            position,
+            title: m.title,
+            icon: makeIcon(),
+            zIndex: 1000,
+            optimized: false,
+          });
+          posMarker.__iconKey = iconKey;
+          webMarkersRef.current[id] = posMarker;
+        } else {
+          posMarker.setPosition(position);
+          if (posMarker.__iconKey !== iconKey) {
+            posMarker.setIcon(makeIcon());
+            posMarker.__iconKey = iconKey;
+          }
+        }
+
+        if (m.accuracy) {
+          const radius = clampAccuracy(m.accuracy);
+          if (!posMarker.__accuracy) {
+            posMarker.__accuracy = new google.maps.Circle({
+              map,
+              center: position,
+              radius,
+              fillColor: color,
+              fillOpacity: 0.12,
+              strokeColor: color,
+              strokeOpacity: 0.35,
+              strokeWeight: 1,
+              clickable: false,
+              zIndex: 1,
+            });
+          } else {
+            posMarker.__accuracy.setCenter(position);
+            posMarker.__accuracy.setRadius(radius);
+          }
+        } else if (posMarker.__accuracy) {
+          posMarker.__accuracy.setMap(null);
+          posMarker.__accuracy = null;
+        }
+        return;
+      }
+
       let marker = webMarkersRef.current[id];
       if (!marker) {
         // ✅ Icône "goutte" personnalisée — jamais de cercle autour
@@ -526,17 +670,24 @@ const MapViewWrapper = forwardRef(({
           icon,
           optimized: true,
         });
+        marker.__iconKey = m.icon ? 'custom' : color;
         marker.addListener('click', () => onMarkerPress && onMarkerPress(m));
         webMarkersRef.current[id] = marker;
       } else {
         marker.setPosition(position);
-        // ✅ Met à jour la couleur si le statut du marqueur a changé
-        marker.setIcon(m.icon || getCustomMarkerIcon(color));
+        // ✅ Ne change l'icône QUE si la couleur a changé (sinon scintillement
+        // quand le marqueur est déplacé plusieurs fois par seconde)
+        const iconKey = m.icon ? 'custom' : color;
+        if (marker.__iconKey !== iconKey) {
+          marker.setIcon(m.icon || getCustomMarkerIcon(color));
+          marker.__iconKey = iconKey;
+        }
       }
     });
 
     Object.keys(webMarkersRef.current).forEach((id) => {
       if (!seenIds.has(id)) {
+        webMarkersRef.current[id].__accuracy?.setMap(null);
         webMarkersRef.current[id].setMap(null);
         delete webMarkersRef.current[id];
       }
@@ -563,21 +714,29 @@ const MapViewWrapper = forwardRef(({
     const google = window.google;
     const map = webMapRef.current;
 
-    // Nettoie l'ancien tracé avant d'en dessiner un nouveau
-    if (webPolylineRef.current) {
-      webPolylineRef.current.outline?.setMap(null);
-      webPolylineRef.current.line?.setMap(null);
-      (webPolylineRef.current.dotted || []).forEach((d) => d.setMap(null));
+    const clearRoute = () => {
+      const cur = webPolylineRef.current;
+      if (!cur) return;
+      cur.outline?.setMap(null);
+      cur.line?.setMap(null);
+      (cur.dotted || []).forEach((d) => d.setMap(null));
       webPolylineRef.current = null;
-    }
+    };
 
-    if (!route || route.length < 2) return;
+    if (!route || route.length < 2) {
+      clearRoute();
+      return;
+    }
 
     const path = route.map((p) => ({ lat: p.latitude, lng: p.longitude }));
     const color = routeColor || DEFAULT_ROUTE_COLOR;
+    const styleKey = [color, routeWidth, showRouteArrows ? 1 : 0, routeIsFallback ? 1 : 0].join('|');
+    const fmt = (p) => `${p.latitude.toFixed(5)},${p.longitude.toFixed(5)}`;
+    const gapKey = routeIsFallback
+      ? `fb:${fmt(route[0])}>${fmt(route[route.length - 1])}`
+      : routeGapSegments.map((seg) => seg.map(fmt).join('>')).join('|');
 
     // ✅ Pointillés (tsipika tsipika) : ligne invisible + petits ronds
-    // répétés tous les 12 px le long du segment.
     const makeDotted = (points) =>
       new google.maps.Polyline({
         map,
@@ -601,12 +760,33 @@ const MapViewWrapper = forwardRef(({
         ],
       });
 
+    // ✅ MISE À JOUR EN PLACE (suivi en direct) : si le style n'a pas changé,
+    // on ne recrée PAS les polylignes (ça scintillait et coûtait cher quand
+    // le tracé change plusieurs fois par seconde) : on remplace juste le
+    // chemin avec setPath().
+    const cur = webPolylineRef.current;
+    if (cur && cur.map === map && cur.styleKey === styleKey) {
+      if (cur.mode === 'line') {
+        cur.outline.setPath(path);
+        cur.line.setPath(path);
+      }
+      if (cur.gapKey !== gapKey) {
+        (cur.dotted || []).forEach((d) => d.setMap(null));
+        cur.dotted = routeIsFallback ? [makeDotted(route)] : routeGapSegments.map(makeDotted);
+        cur.gapKey = gapKey;
+      }
+      return;
+    }
+
+    clearRoute();
+
     // Aucun vrai trajet trouvé : toute la liaison depart → arrivée
     // est affichée en pointillés (au lieu d'une ligne pleine trompeuse).
     if (routeIsFallback) {
-      const dottedMain = makeDotted(route);
-      webPolylineRef.current = { dotted: [dottedMain] };
-      return () => dottedMain.setMap(null);
+      webPolylineRef.current = {
+        map, styleKey, gapKey, mode: 'fallback', dotted: [makeDotted(route)],
+      };
+      return;
     }
 
     const dotted = routeGapSegments.map(makeDotted);
@@ -643,22 +823,27 @@ const MapViewWrapper = forwardRef(({
                 fillOpacity: 1,
               },
               offset: '0%',
-              // ✅ Une flèche tous les 90px le long de la ligne —
-              // bien visible sans surcharger le trajet.
               repeat: '90px',
             },
           ]
         : [],
     });
 
-    webPolylineRef.current = { outline, line, dotted };
-
-    return () => {
-      outline.setMap(null);
-      line.setMap(null);
-      dotted.forEach((d) => d.setMap(null));
-    };
+    webPolylineRef.current = { map, styleKey, gapKey, mode: 'line', outline, line, dotted };
   }, [route, routeColor, routeWidth, showRouteArrows, isLoading, routeIsFallback, routeGapSegments]);
+
+  // Nettoyage du tracé au démontage du composant
+  useEffect(
+    () => () => {
+      const cur = webPolylineRef.current;
+      if (!cur) return;
+      cur.outline?.setMap(null);
+      cur.line?.setMap(null);
+      (cur.dotted || []).forEach((d) => d.setMap(null));
+      webPolylineRef.current = null;
+    },
+    []
+  );
 
   // ============================================================
   // ✅ PROPOSITION D'ITINÉRAIRES (web) — routes alternatives en gris
@@ -1008,17 +1193,21 @@ const MapViewWrapper = forwardRef(({
             />
           )}
 
-          {markers.map((m) => (
-            <RNMarker
-              key={m.id}
-              coordinate={m.coordinate}
-              title={m.title}
-              description={m.description}
-              pinColor={resolveMarkerColor(m)}
-              anchor={{ x: 0.5, y: 1 }}
-              onPress={() => onMarkerPress && onMarkerPress(m)}
-            />
-          ))}
+          {markers.map((m) =>
+            m.kind === 'position' ? (
+              <NativeMeMarker key={m.id} marker={m} />
+            ) : (
+              <RNMarker
+                key={m.id}
+                coordinate={m.coordinate}
+                title={m.title}
+                description={m.description}
+                pinColor={resolveMarkerColor(m)}
+                anchor={{ x: 0.5, y: 1 }}
+                onPress={() => onMarkerPress && onMarkerPress(m)}
+              />
+            )
+          )}
 
           {/* ✅ PROPOSITION D'ITINÉRAIRES (natif) — alternatives en gris
               (tsindrio = safidy) + étiquette voiture / à pied / distance. */}
@@ -1116,14 +1305,36 @@ const MapViewWrapper = forwardRef(({
               espacées, mitodika mankany amin'ny client. */}
           {route && route.length > 1 && (
             <>
+              {/* ✅ Halo blanc sous la ligne (comme sur le web) : la ligne rouge
+                  reste bien lisible sur n'importe quel fond de carte. */}
+              {!routeIsFallback && (
+                <RNPolyline
+                  key="route-halo"
+                  coordinates={route}
+                  strokeColor="#FFFFFF"
+                  strokeWidth={routeWidth + 4}
+                  zIndex={4}
+                  geodesic
+                  lineCap="round"
+                  lineJoin="round"
+                />
+              )}
+              {/* ✅ ANDROID : react-native-maps ne REMET PAS à zéro un
+                  `lineDashPattern` déjà appliqué quand la prop repasse à
+                  `undefined` -> la ligne restait en POINTILLÉS même après le
+                  calcul de la vraie route. On force donc un composant
+                  DIFFÉRENT (key) pour le mode pointillé et le mode plein,
+                  et on ne passe `lineDashPattern` que lorsqu'il faut. */}
               <RNPolyline
+                key={routeIsFallback ? 'route-dotted' : 'route-solid'}
                 coordinates={route}
                 strokeColor={routeColor || DEFAULT_ROUTE_COLOR}
                 strokeWidth={routeWidth}
                 zIndex={5}
                 geodesic
                 lineCap="round"
-                lineDashPattern={routeIsFallback ? DOTTED_DASH_PATTERN : undefined}
+                lineJoin="round"
+                {...(routeIsFallback ? { lineDashPattern: DOTTED_DASH_PATTERN } : {})}
               />
               {/* ✅ Pointillés entre les points réels et les extrémités du tracé */}
               {routeGapSegments.map((segment, idx) => (
@@ -1197,6 +1408,32 @@ MapViewWrapper.displayName = 'MapViewWrapper';
 // ✅ STYLES
 // ============================================================
 const styles = StyleSheet.create({
+  // --- Marqueur "position actuelle" (natif) ---
+  meWrap: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  meDot: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  meArrow: {
+    position: 'absolute',
+    top: 0,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 6,
+    borderRightWidth: 6,
+    borderBottomWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+
   container: { 
     flex: 1, 
     backgroundColor: '#f5f5f5', 

@@ -1072,13 +1072,6 @@ const BookingDetailScreen = ({
     });
   };
 
-  const goToTracking = () => {
-    // ✅ FIX : idem, "Tracking" dia écran root ankehitriny.
-    navigation.navigate('Tracking', {
-      bookingId: currentBookingId,
-    });
-  };
-
   const goToChat = () => {
     // ✅ FIX : "TherapistChat" dia écran root ankehitriny.
     navigation.navigate('TherapistChat', {
@@ -2195,26 +2188,6 @@ const BookingDetailScreen = ({
             )}
 
             {canTrack && (
-              <>
-                <AnimatedActionButton
-                  onPress={goToTracking}
-                  style={styles.actionWrapper}
-                >
-                  <View style={styles.primaryButton}>
-                    <Ionicons
-                      name="locate-outline"
-                      size={20}
-                      color="#FFFFFF"
-                    />
-
-                    <Text
-                      style={styles.primaryButtonText}
-                    >
-                      Suivi en direct
-                    </Text>
-                  </View>
-                </AnimatedActionButton>
-
                 <AnimatedActionButton
                   onPress={goToSOS}
                   style={styles.actionWrapper}
@@ -2233,7 +2206,6 @@ const BookingDetailScreen = ({
                     </Text>
                   </View>
                 </AnimatedActionButton>
-              </>
             )}
 
             {(currentStatus === 'cancelled' ||
