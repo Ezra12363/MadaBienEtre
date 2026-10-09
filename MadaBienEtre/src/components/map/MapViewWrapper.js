@@ -205,6 +205,7 @@ const getCustomMarkerIcon = (color, scale = 1.4) => {
 //   - une flèche de direction (heading) quand il se déplace (> 1 m/s).
 // ============================================================
 const isMovingMarker = (m) =>
+  m?.nav === true ||
   m?.heading != null && Number.isFinite(m.heading) && (m.speed ?? 0) > 1;
 
 const clampAccuracy = (a) => Math.max(5, Math.min(Number(a) || 0, 150));
@@ -224,7 +225,7 @@ const NativeMeMarker = ({ marker }) => {
 
   return (
     <>
-      {marker.accuracy ? (
+      {marker.accuracy && !marker.nav ? (
         <RNCircle
           center={marker.coordinate}
           radius={clampAccuracy(marker.accuracy)}
@@ -240,16 +241,24 @@ const NativeMeMarker = ({ marker }) => {
         description={marker.description}
         anchor={{ x: 0.5, y: 0.5 }}
         flat
-        rotation={moving ? marker.heading : 0}
+        rotation={moving ? (marker.heading || 0) : 0}
         zIndex={999}
         tracksViewChanges={track}
       >
+        {marker.nav ? (
+          <View style={styles.navWrap}>
+            <View style={[styles.navHalo, { borderColor: `${color}66` }]} />
+            <View style={styles.navChevronBorder} />
+            <View style={[styles.navChevron, { borderBottomColor: color }]} />
+          </View>
+        ) : (
         <View style={styles.meWrap}>
           {moving ? (
             <View style={[styles.meArrow, { borderBottomColor: color }]} />
           ) : null}
           <View style={[styles.meDot, { backgroundColor: color }]} />
         </View>
+        )}
       </RNMarker>
     </>
   );
@@ -492,6 +501,36 @@ const MapViewWrapper = forwardRef(({
         );
       }
     },
+    // ✅ Caméra "navigation" : centre + cap (la carte tourne) + inclinaison + zoom
+    followCamera: ({ center, heading, pitch = 0, zoom, duration = 900 } = {}) => {
+      if (!center) return;
+      if (Platform.OS === 'web' && webMapRef.current) {
+        const map = webMapRef.current;
+        map.panTo({ lat: center.latitude, lng: center.longitude });
+        if (zoom != null && map.getZoom() !== zoom) map.setZoom(zoom);
+        // Rotation / inclinaison : seulement avec une carte vectorielle (mapId)
+        try {
+          if (heading != null && map.setHeading) map.setHeading(heading);
+          if (map.setTilt) map.setTilt(pitch);
+        } catch (e) { /* non supporté : on garde la carte à plat */ }
+      } else if (nativeMapRef.current?.animateCamera) {
+        const cam = {
+          center: { latitude: center.latitude, longitude: center.longitude },
+          pitch,
+        };
+        if (heading != null) cam.heading = heading;
+        if (zoom != null) cam.zoom = zoom;
+        nativeMapRef.current.animateCamera(cam, { duration });
+      }
+    },
+    // Remet la carte "nord en haut" et à plat
+    resetCamera: () => {
+      if (Platform.OS === 'web' && webMapRef.current) {
+        try { webMapRef.current.setHeading(0); webMapRef.current.setTilt(0); } catch (e) {}
+      } else if (nativeMapRef.current?.animateCamera) {
+        nativeMapRef.current.animateCamera({ heading: 0, pitch: 0 }, { duration: 500 });
+      }
+    },
     setMapType: (t) => setMapType(t),
   }), [setMapType]);
 
@@ -592,9 +631,24 @@ const MapViewWrapper = forwardRef(({
       //    + flèche de direction quand ça bouge (voir NativeMeMarker)
       if (m.kind === 'position') {
         const moving = isMovingMarker(m);
-        const iconKey = moving ? `arrow-${Math.round(m.heading / 5)}` : 'dot';
+        const iconKey = m.nav
+          ? `nav-${Math.round((m.heading || 0) / 4)}`
+          : moving
+          ? `arrow-${Math.round(m.heading / 5)}`
+          : 'dot';
         const makeIcon = () =>
-          moving
+          m.nav
+            ? {
+                // Chevron de navigation (comme Google Maps)
+                path: 'M 0,-1.2 L 0.85,1 L 0,0.45 L -0.85,1 Z',
+                scale: 13,
+                rotation: m.heading || 0,
+                fillColor: color,
+                fillOpacity: 1,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2.5,
+              }
+            : moving
             ? {
                 path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
                 scale: 6,
@@ -633,7 +687,34 @@ const MapViewWrapper = forwardRef(({
           }
         }
 
-        if (m.accuracy) {
+        // Halo blanc translucide autour du chevron (mode navigation)
+        if (m.nav) {
+          if (!posMarker.__halo) {
+            posMarker.__halo = new google.maps.Marker({
+              map,
+              position,
+              clickable: false,
+              zIndex: 999,
+              optimized: false,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 26,
+                fillColor: '#FFFFFF',
+                fillOpacity: 0.55,
+                strokeColor: color,
+                strokeOpacity: 0.4,
+                strokeWeight: 2,
+              },
+            });
+          } else {
+            posMarker.__halo.setPosition(position);
+          }
+        } else if (posMarker.__halo) {
+          posMarker.__halo.setMap(null);
+          posMarker.__halo = null;
+        }
+
+        if (m.accuracy && !m.nav) {
           const radius = clampAccuracy(m.accuracy);
           if (!posMarker.__accuracy) {
             posMarker.__accuracy = new google.maps.Circle({
@@ -688,6 +769,7 @@ const MapViewWrapper = forwardRef(({
     Object.keys(webMarkersRef.current).forEach((id) => {
       if (!seenIds.has(id)) {
         webMarkersRef.current[id].__accuracy?.setMap(null);
+        webMarkersRef.current[id].__halo?.setMap(null);
         webMarkersRef.current[id].setMap(null);
         delete webMarkersRef.current[id];
       }
@@ -1421,6 +1503,35 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 3,
     borderColor: '#FFFFFF',
+  },
+  navWrap: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
+  navHalo: {
+    position: 'absolute',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderWidth: 2,
+  },
+  navChevronBorder: {
+    position: 'absolute',
+    width: 0,
+    height: 0,
+    borderLeftWidth: 13,
+    borderRightWidth: 13,
+    borderBottomWidth: 26,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#FFFFFF',
+  },
+  navChevron: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderBottomWidth: 21,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
   },
   meArrow: {
     position: 'absolute',

@@ -23,7 +23,25 @@ import { forwardRef, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import MapView from './MapViewWrapper';
 import useSmoothPosition from '../../hooks/useSmoothPosition';
-import { trimRouteFromPosition } from '../../utils/routeTrim';
+import { projectOnRoute, trimRouteFromPosition } from '../../utils/routeTrim';
+
+const NAV_SNAP_METERS = 30; // en mode navigation : collé à la route si < 30 m
+const NAV_MIN_SPEED = 1.5; // m/s : en dessous, on considère qu'il est à l'arrêt
+
+const bearingBetween = (a, b) => {
+  const r = Math.PI / 180;
+  const y = Math.sin((b.longitude - a.longitude) * r) * Math.cos(b.latitude * r);
+  const x =
+    Math.cos(a.latitude * r) * Math.sin(b.latitude * r) -
+    Math.sin(a.latitude * r) * Math.cos(b.latitude * r) * Math.cos((b.longitude - a.longitude) * r);
+  return ((Math.atan2(y, x) / r) + 360) % 360;
+};
+
+// Interpolation par le plus court chemin (350° -> 10° = +20°, pas -340°)
+const lerpAngle = (from, to, k) => {
+  const d = ((to - from + 540) % 360) - 180;
+  return (from + d * k + 360) % 360;
+};
 
 const IS_WEB = Platform.OS === 'web';
 const NATIVE_LINE_THROTTLE_MS = 250;
@@ -71,6 +89,7 @@ const LiveRouteMap = forwardRef(
       routeColor = '#E53935',
       routeWidth = 6,
 
+      navMode = false, // style Google Maps Navigation (chevron + halo, collé à la route)
       smoothMs = 800,
       ...mapProps // initialRegion, userLocation, onMapReady, style, ...
     },
@@ -84,9 +103,35 @@ const LiveRouteMap = forwardRef(
       Array.isArray(routeCoordinates) &&
       routeCoordinates.length > 1;
 
+    // --- Mode navigation : accroche à la route + cap lissé -------------
+    const headingRef = useRef(null);
+    const nav = useMemo(() => {
+      if (!markerPosition) return { position: null, heading: null };
+      const moving = (moverSpeed ?? 0) > NAV_MIN_SPEED;
+      let position = markerPosition;
+      let target = Number.isFinite(moverHeading) ? moverHeading : null;
+
+      if (navMode && hasRealRoute) {
+        const proj = projectOnRoute(routeCoordinates, markerPosition);
+        if (proj && proj.distanceKm * 1000 <= NAV_SNAP_METERS && moving) {
+          position = proj.point;
+          const a = routeCoordinates[proj.index];
+          const b = routeCoordinates[proj.index + 1];
+          if (a && b) target = bearingBetween(a, b);
+        }
+      }
+      if (target != null && (moving || headingRef.current == null)) {
+        headingRef.current =
+          headingRef.current == null ? target : lerpAngle(headingRef.current, target, 0.35);
+      }
+      return { position, heading: headingRef.current };
+    }, [markerPosition, navMode, hasRealRoute, routeCoordinates, moverHeading, moverSpeed]);
+
+    const shownPosition = nav.position;
+
     // --- Ligne : démarre EXACTEMENT sous le marqueur ------------------
     const lineStart = useThrottledValue(
-      markerPosition,
+      shownPosition,
       IS_WEB ? 0 : NATIVE_LINE_THROTTLE_MS
     );
 
@@ -121,15 +166,16 @@ const LiveRouteMap = forwardRef(
         });
       }
 
-      if (markerPosition) {
+      if (shownPosition) {
         list.push({
           id: 'live-mover',
           kind: 'position', // point bleu centré + précision + direction
-          coordinate: markerPosition,
+          nav: navMode, // chevron dans un halo (style Google Maps)
+          coordinate: shownPosition,
           title: moverTitle,
           description: moverDescription,
           pinColor: moverColor,
-          heading: moverHeading,
+          heading: navMode ? nav.heading : moverHeading,
           speed: moverSpeed,
           accuracy: moverAccuracy,
         });
@@ -141,7 +187,9 @@ const LiveRouteMap = forwardRef(
       destinationTitle,
       destinationDescription,
       destinationColor,
-      markerPosition,
+      shownPosition,
+      navMode,
+      nav.heading,
       moverTitle,
       moverDescription,
       moverColor,

@@ -1,4 +1,50 @@
 // src/services/websocketService.js
+// ============================================================
+// Service WebSocket partagé (chat, statut de réservation, suivi GPS...).
+//
+// ✅ CORRIGÉ par rapport à l'ancienne version :
+//  1) `isConnected` : la propriété booléenne masquait la méthode du même nom
+//     (`isConnected()` plantait). La propriété reste (compatibilité avec le
+//     code existant qui lit `websocketService.isConnected`) ; la méthode est
+//     remplacée par `isOpen()`.
+//  2) `disconnect()` ne relance PLUS une reconnexion automatique (avant,
+//     `onclose` appelait `reconnect()` même après une fermeture voulue).
+//  3) Les événements d'une ancienne socket ne polluent plus la nouvelle
+//     (chaque handler vérifie qu'il appartient à la socket courante).
+//  4) Le timer de reconnexion est annulable (aucune reconnexion "fantôme").
+//  5) Heartbeat (ping toutes les 25 s) pour garder la connexion ouverte.
+//  6) Erreurs fatales du serveur (auth / droits / réservation) : plus de
+//     reconnexion inutile.
+//  7) Token encodé (encodeURIComponent) et URL qui contient déjà un "?".
+//  8) `connectTracking(bookingId, token, { viewer })` : connexion au suivi
+//     GPS /ws/tracking/{id}. `viewer: true` = lecture seule (écran web du
+//     thérapeute qui reçoit la position GPS de son téléphone).
+// ============================================================
+import { API_URL } from '../config/env';
+
+const PING_INTERVAL_MS = 25000;
+const MAX_BACKOFF_MS = 15000;
+const FATAL_ERRORS = ['Authentication failed', 'Not authorized', 'Booking not found'];
+
+// http://host:8000 -> ws://host:8000 ; https:// -> wss://
+const toWsBase = (base) =>
+  String(base).replace(/\/+$/, '').replace(/^http/i, 'ws');
+
+const withQuery = (url, params) => {
+  const query = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join('&');
+  if (!query) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}${query}`;
+};
+
+const cleanToken = (token) => {
+  if (!token) return '';
+  let t = typeof token === 'object' ? token.access_token || token.token || '' : token;
+  t = String(t).replace(/^Bearer\s+/i, '').replace(/^"|"$/g, '').trim();
+  return t;
+};
 
 class WebSocketService {
   constructor() {
@@ -7,102 +53,191 @@ class WebSocketService {
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 3000;
     this.listeners = {};
+
+    // ⚠️ Propriétés booléennes (lues directement par le code existant)
     this.isConnected = false;
     this.isConnecting = false;
+
+    this.closedByUser = false;
+    this.fatal = false;
+    this.reconnectTimer = null;
+    this.pingTimer = null;
+    this.lastUrl = null;
+    this.lastOptions = {};
   }
+
+  // ----------------------------------------------------------
+  // Connexion
+  // ----------------------------------------------------------
 
   /**
    * Se connecter au WebSocket
+   * @param {string} url      ex : ws://host:8000/ws/chat/12
+   * @param {Object} options  { token, onOpen, onClose, onError }
    */
   connect(url, options = {}) {
     if (this.isConnected || this.isConnecting) {
       return;
     }
 
+    this.closedByUser = false;
+    this.fatal = false;
+    this.lastUrl = url;
+    this.lastOptions = options;
     this.isConnecting = true;
+
     const { token, onOpen, onClose, onError } = options;
+    const finalToken = cleanToken(token);
+    const wsUrl = finalToken ? withQuery(url, { token: finalToken }) : url;
 
+    let socket;
     try {
-      // Ajouter le token à l'URL
-      const wsUrl = token ? `${url}?token=${token}` : url;
-      this.ws = new WebSocket(wsUrl);
-
-      this.ws.onopen = () => {
-        this.isConnected = true;
-        this.isConnecting = false;
-        this.reconnectAttempts = 0;
-        if (onOpen) onOpen();
-        this.emit('connected');
-      };
-
-      this.ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          this.emit('message', data);
-          if (data.type) {
-            this.emit(data.type, data);
-          }
-        } catch (error) {
-          console.error('WebSocket message parse error:', error);
-        }
-      };
-
-      this.ws.onclose = (event) => {
-        this.isConnected = false;
-        this.isConnecting = false;
-        if (onClose) onClose(event);
-        this.emit('disconnected', event);
-        this.reconnect(url, options);
-      };
-
-      this.ws.onerror = (error) => {
-        if (onError) onError(error);
-        this.emit('error', error);
-      };
+      socket = new WebSocket(wsUrl);
     } catch (error) {
       this.isConnecting = false;
       console.error('WebSocket connection error:', error);
-      this.reconnect(url, options);
+      this.scheduleReconnect();
+      return;
     }
+
+    this.ws = socket;
+
+    socket.onopen = () => {
+      if (this.ws !== socket) return;
+      this.isConnected = true;
+      this.isConnecting = false;
+      this.reconnectAttempts = 0;
+      this.startPing(socket);
+      if (onOpen) onOpen();
+      this.emit('connected');
+    };
+
+    socket.onmessage = (event) => {
+      if (this.ws !== socket) return;
+      try {
+        const data = JSON.parse(event.data);
+        if (data?.error && FATAL_ERRORS.includes(data.error)) {
+          this.fatal = true;
+        }
+        this.emit('message', data);
+        if (data?.type) {
+          this.emit(data.type, data);
+        }
+      } catch (error) {
+        console.error('WebSocket message parse error:', error);
+      }
+    };
+
+    socket.onclose = (event) => {
+      this.stopPing();
+      if (this.ws !== socket) return; // ancienne socket : on ignore
+
+      this.ws = null;
+      this.isConnected = false;
+      this.isConnecting = false;
+      if (onClose) onClose(event);
+      this.emit('disconnected', event);
+
+      // Fermeture voulue ou erreur fatale : pas de reconnexion
+      if (this.closedByUser || this.fatal) return;
+      this.scheduleReconnect();
+    };
+
+    socket.onerror = (error) => {
+      if (this.ws !== socket) return;
+      // `onclose` suit toujours : la reconnexion est gérée là
+      if (onError) onError(error);
+      this.emit('error', error);
+    };
   }
 
   /**
-   * Tentative de reconnexion
+   * Connexion au suivi GPS d'une réservation : /ws/tracking/{bookingId}
+   * @param {number|string} bookingId
+   * @param {string} token
+   * @param {Object} opts { viewer?: boolean (lecture seule), onOpen, onClose, onError }
    */
-  reconnect(url, options) {
+  connectTracking(bookingId, token, { viewer = false, ...handlers } = {}) {
+    const url = `${toWsBase(API_URL)}/ws/tracking/${bookingId}`;
+    this.connect(withQuery(url, { viewer: viewer ? 1 : undefined }), {
+      token,
+      ...handlers,
+    });
+  }
+
+  // ----------------------------------------------------------
+  // Reconnexion / heartbeat
+  // ----------------------------------------------------------
+
+  scheduleReconnect() {
+    if (this.closedByUser || this.fatal || !this.lastUrl) return;
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       this.emit('reconnect_failed');
       return;
     }
 
-    this.reconnectAttempts++;
-    const delay = this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts - 1);
-    
-    setTimeout(() => {
-      if (!this.isConnected) {
-        this.connect(url, options);
+    this.reconnectAttempts += 1;
+    const delay = Math.min(
+      this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts - 1),
+      MAX_BACKOFF_MS
+    );
+
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (!this.isConnected && !this.isConnecting && !this.closedByUser) {
+        this.connect(this.lastUrl, this.lastOptions);
       }
     }, delay);
   }
 
-  /**
-   * Déconnecter le WebSocket
-   */
-  disconnect() {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-      this.isConnected = false;
-      this.isConnecting = false;
-      this.emit('disconnected');
-    }
+  startPing(socket) {
+    this.stopPing();
+    this.pingTimer = setInterval(() => {
+      if (this.ws === socket && socket.readyState === 1) {
+        try {
+          socket.send(JSON.stringify({ type: 'ping' }));
+        } catch (_e) { /* no-op */ }
+      }
+    }, PING_INTERVAL_MS);
+  }
+
+  stopPing() {
+    if (this.pingTimer) clearInterval(this.pingTimer);
+    this.pingTimer = null;
   }
 
   /**
-   * Envoyer un message
+   * Déconnecter le WebSocket (sans reconnexion automatique)
+   */
+  disconnect() {
+    this.closedByUser = true;
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+    this.stopPing();
+    this.reconnectAttempts = 0;
+
+    const socket = this.ws;
+    this.ws = null;
+    this.isConnected = false;
+    this.isConnecting = false;
+
+    if (socket) {
+      try { socket.close(); } catch (_e) { /* no-op */ }
+    }
+    this.emit('disconnected');
+  }
+
+  // ----------------------------------------------------------
+  // Envoi
+  // ----------------------------------------------------------
+
+  /**
+   * Envoyer un message (true si envoyé)
    */
   send(data) {
-    if (this.isConnected && this.ws) {
+    if (this.ws && this.ws.readyState === 1) {
       try {
         const message = typeof data === 'string' ? data : JSON.stringify(data);
         this.ws.send(message);
@@ -118,12 +253,13 @@ class WebSocketService {
   /**
    * Envoyer une mise à jour de position
    */
-  sendLocationUpdate(latitude, longitude, bookingId = null) {
+  sendLocationUpdate(latitude, longitude, bookingId = null, extra = {}) {
     return this.send({
       type: 'location_update',
       latitude,
       longitude,
       booking_id: bookingId,
+      ...extra, // heading, speed, accuracy...
     });
   }
 
@@ -164,8 +300,12 @@ class WebSocketService {
     });
   }
 
+  // ----------------------------------------------------------
+  // Événements
+  // ----------------------------------------------------------
+
   /**
-   * Écouter un événement
+   * Écouter un événement (renvoie une fonction de désinscription)
    */
   on(event, callback) {
     if (!this.listeners[event]) {
@@ -180,7 +320,7 @@ class WebSocketService {
    */
   off(event, callback) {
     if (this.listeners[event]) {
-      this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
+      this.listeners[event] = this.listeners[event].filter((cb) => cb !== callback);
     }
   }
 
@@ -189,7 +329,7 @@ class WebSocketService {
    */
   emit(event, data) {
     if (this.listeners[event]) {
-      this.listeners[event].forEach(callback => {
+      this.listeners[event].forEach((callback) => {
         try {
           callback(data);
         } catch (error) {
@@ -199,11 +339,16 @@ class WebSocketService {
     }
   }
 
+  // ----------------------------------------------------------
+  // État
+  // ----------------------------------------------------------
+
   /**
-   * Vérifier si le WebSocket est connecté
+   * Socket réellement ouverte ? (remplace l'ancienne méthode isConnected(),
+   * masquée par la propriété du même nom)
    */
-  isConnected() {
-    return this.isConnected;
+  isOpen() {
+    return !!this.ws && this.ws.readyState === 1;
   }
 
   /**

@@ -43,6 +43,7 @@
 // en dégradé PRIMARY.
 // ============================================================
 
+import { projectOnRoute } from '../../utils/routeTrim';
 import {
   useCallback,
   useEffect,
@@ -68,6 +69,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
 import useLocationTracking from '../../hooks/useLocationTracking';
 import { createTrackingSocket } from '../../services/trackingSocket';
+import { API_URL } from '../../config/env';
 
 import { useTheme } from '../../context/ThemeContext';
 import { spacing, typography } from '../../theme';
@@ -130,7 +132,8 @@ export default function NavigationScreen({ route: navRoute }) {
   const { colors: themeColors } = useTheme();
   const mapRef = useRef(null);
 
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+  const myUserId = user?.id ?? null;
 
   // ✅ Position GPS en DIRECT (watch continu + "first fix" rapide)
   const {
@@ -146,20 +149,135 @@ export default function NavigationScreen({ route: navRoute }) {
     timeIntervalMs: 1000,
   });
 
-  // Position active = position GPS RÉELLE du thérapeute (aucune position
-  // manuelle : le marqueur est toujours là où le GPS dit qu'il est).
-  const activeLocation = gpsLocation;
+  // ==========================================================
+  // ✅ SYNCHRO TÉLÉPHONE <-> WEB
+  // Un ordinateur n'a pas de GPS : Chrome estime la position par Wi-Fi / IP
+  // (souvent à plusieurs centaines de mètres). Le téléphone du thérapeute,
+  // lui, a le vrai GPS. Donc :
+  //  - MOBILE : envoie sa position GPS au serveur toutes les ~4 s
+  //    (POST /geolocation/update) ;
+  //  - WEB : si sa propre position est imprécise (> 60 m) ou absente, il lit
+  //    la position GPS du téléphone (GET /geolocation/current/{moi}, toutes
+  //    les 2 s) tant qu'elle date de moins de 45 s.
+  // Résultat : le marqueur du web est au même endroit que sur Android.
+  // ==========================================================
+  const [phoneLocation, setPhoneLocation] = useState(null);
+  const lastPhonePostRef = useRef(0);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || !token || !gpsLocation || gpsLocation.cached) return;
+    if (gpsLocation.accuracy != null && gpsLocation.accuracy > 100) return;
+    if (Date.now() - lastPhonePostRef.current < 4000) return;
+    lastPhonePostRef.current = Date.now();
+
+    fetch(`${API_URL}/geolocation/update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        latitude: gpsLocation.latitude,
+        longitude: gpsLocation.longitude,
+      }),
+    }).catch(() => {});
+  }, [gpsLocation, token]);
+
+  const webNeedsPhone =
+    Platform.OS === 'web' &&
+    (!gpsLocation ||
+      gpsLocation.cached ||
+      gpsLocation.accuracy == null ||
+      gpsLocation.accuracy > 60);
+
+  useEffect(() => {
+    if (!webNeedsPhone || !token || !myUserId) {
+      setPhoneLocation(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const fetchPhone = async () => {
+      try {
+        const res = await fetch(`${API_URL}/geolocation/current/${myUserId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok || cancelled) return;
+        const d = await res.json();
+        if (d?.latitude == null || d?.longitude == null) return;
+        const lat = Number(d.latitude);
+        const lng = Number(d.longitude);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) return;
+
+        // updated_at est en UTC sans "Z" : on force l'UTC
+        let at = 0;
+        if (d.last_updated) {
+          const raw = String(d.last_updated);
+          at = Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(raw) ? raw : `${raw}Z`);
+        }
+        if (!at || Date.now() - at > 45000) {
+          if (!cancelled) setPhoneLocation(null);
+          return;
+        }
+
+        setPhoneLocation((prev) =>
+          prev && prev.latitude === lat && prev.longitude === lng
+            ? prev
+            : {
+                latitude: lat,
+                longitude: lng,
+                heading: null,
+                speed: null,
+                accuracy: 15,
+                phone: true,
+                timestamp: at,
+              }
+        );
+      } catch (_e) {
+        /* réseau : on réessaie au prochain tour */
+      }
+    };
+
+    fetchPhone();
+    const timer = setInterval(fetchPhone, 2000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [webNeedsPhone, token, myUserId]);
+
+  // Position active : GPS du téléphone (sur le web, si le navigateur est
+  // imprécis), sinon le GPS de cet appareil.
+  // ✅ POSITION MANUELLE (web uniquement) : si ni le navigateur ni le téléphone
+  // ne donnent une position fiable, le thérapeute touche la carte à l'endroit
+  // où il se trouve réellement (bouton épingle violet).
+  const [manualPosition, setManualPosition] = useState(null);
+  const [pickingPosition, setPickingPosition] = useState(false);
+
+  const activeLocation = manualPosition
+    ? {
+        latitude: manualPosition.latitude,
+        longitude: manualPosition.longitude,
+        heading: null,
+        speed: null,
+        accuracy: 5,
+        manual: true,
+        timestamp: manualPosition.at,
+      }
+    : webNeedsPhone && phoneLocation
+      ? phoneLocation
+      : gpsLocation;
 
   const therapistPosition = useMemo(
     () =>
-      gpsLocation
-        ? { latitude: gpsLocation.latitude, longitude: gpsLocation.longitude }
+      activeLocation
+        ? { latitude: activeLocation.latitude, longitude: activeLocation.longitude }
         : null,
-    [gpsLocation]
+    [activeLocation]
   );
 
   // true = vrai relevé GPS ; false = ancienne position en cache
-  const hasRealPosition = !!gpsLocation && !gpsLocation.cached;
+  const hasRealPosition = !!activeLocation && !activeLocation.cached;
 
   // ✅ ADRESSE ACTUELLE du thérapeute (géocodage inverse de sa position GPS),
   // affichée dans la carte d'infos et sur le marqueur : permet de vérifier
@@ -214,6 +332,7 @@ export default function NavigationScreen({ route: navRoute }) {
   const [lastSentAt, setLastSentAt] = useState(null);
   const [shareError, setShareError] = useState('');
   const [followMe, setFollowMe] = useState(true);
+  const navWasOnRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
 
   const socketRef = useRef(null);
@@ -399,6 +518,55 @@ export default function NavigationScreen({ route: navRoute }) {
     }
   }, [routeCoordinates, therapistPosition, clientPosition]);
 
+  // ✅ MODE NAVIGATION (style Google Maps) : s'active tout seul dès que le
+  // thérapeute roule (> 1,5 m/s) et s'arrête s'il reste à l'arrêt ~8 s.
+  const [navMode, setNavMode] = useState(false);
+  const slowSinceRef = useRef(null);
+  useEffect(() => {
+    const speed = activeLocation?.speed ?? 0;
+    if (!hasRealPosition || !followMe) {
+      slowSinceRef.current = null;
+      setNavMode(false);
+      return;
+    }
+    if (speed > 1.5) {
+      slowSinceRef.current = null;
+      setNavMode(true);
+    } else if (navMode) {
+      if (slowSinceRef.current == null) slowSinceRef.current = Date.now();
+      else if (Date.now() - slowSinceRef.current > 8000) setNavMode(false);
+    }
+  }, [activeLocation, hasRealPosition, followMe, navMode]);
+
+  // Distance / durée RESTANTES, recalculées sur la partie de route non parcourue
+  const navRemaining = useMemo(() => {
+    if (!navMode || !therapistPosition || !routeCoordinates?.length) return null;
+    const proj = projectOnRoute(routeCoordinates, therapistPosition);
+    if (!proj) return null;
+    const hav = (a, b) => {
+      const r = Math.PI / 180;
+      const dLat = (b.latitude - a.latitude) * r;
+      const dLng = (b.longitude - a.longitude) * r;
+      const h =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(a.latitude * r) * Math.cos(b.latitude * r) * Math.sin(dLng / 2) ** 2;
+      return 12742 * Math.asin(Math.sqrt(h));
+    };
+    let km = hav(proj.point, routeCoordinates[proj.index + 1]);
+    for (let i = proj.index + 1; i < routeCoordinates.length - 1; i += 1) {
+      km += hav(routeCoordinates[i], routeCoordinates[i + 1]);
+    }
+    const speedKmh = Math.max(15, (activeLocation?.speed ?? 0) * 3.6);
+    const baseMin =
+      routeInfo?.distance > 0 && routeInfo?.drivingDuration
+        ? (km / routeInfo.distance) * routeInfo.drivingDuration
+        : (km / speedKmh) * 60;
+    return {
+      distText: km < 1 ? `${Math.round((km * 1000) / 10) * 10} m` : `${km.toFixed(1)} km`,
+      minText: `${Math.max(1, Math.round(baseMin))} min`,
+    };
+  }, [navMode, therapistPosition, routeCoordinates, routeInfo, activeLocation]);
+
   // ✅ SUIVI DE LA POSITION (activé par défaut) : la carte se recentre sur le
   // thérapeute à chaque seconde SANS toucher au zoom (panTo). Le zoom est
   // réglé une seule fois à l'activation. Le bouton "navigate" le coupe pour
@@ -410,6 +578,33 @@ export default function NavigationScreen({ route: navRoute }) {
     }
     if (!mapReady || !therapistPosition || !mapRef.current) return;
 
+    // Mode navigation : caméra inclinée, tournée dans le sens de la marche,
+    // marqueur dans le tiers inférieur de l'écran (centre décalé vers l'avant)
+    if (navMode) {
+      const h = activeLocation?.heading;
+      const heading = Number.isFinite(h) ? h : null;
+      let center = therapistPosition;
+      if (heading != null) {
+        const r = Math.PI / 180;
+        const aheadM = 70;
+        center = {
+          latitude: therapistPosition.latitude + (aheadM / 111320) * Math.cos(heading * r),
+          longitude:
+            therapistPosition.longitude +
+            (aheadM / (111320 * Math.cos(therapistPosition.latitude * r))) * Math.sin(heading * r),
+        };
+      }
+      mapRef.current.followCamera?.({ center, heading, pitch: 55, zoom: 18, duration: 900 });
+      followZoomSetRef.current = true;
+      navWasOnRef.current = true;
+      return;
+    }
+    if (navWasOnRef.current) {
+      navWasOnRef.current = false;
+      mapRef.current.resetCamera?.();
+      followZoomSetRef.current = false;
+    }
+
     if (!followZoomSetRef.current) {
       mapRef.current.animateToRegion(
         { ...therapistPosition, latitudeDelta: 0.008, longitudeDelta: 0.008 },
@@ -419,7 +614,7 @@ export default function NavigationScreen({ route: navRoute }) {
     } else {
       mapRef.current.panTo(therapistPosition, 900);
     }
-  }, [followMe, mapReady, therapistPosition]);
+  }, [followMe, mapReady, therapistPosition, navMode, activeLocation]);
 
   // ==========================================================
   // ACTIONS
@@ -565,6 +760,49 @@ export default function NavigationScreen({ route: navRoute }) {
     return '';
   })();
 
+  const handleMapPress = useCallback(
+    (coord) => {
+      if (!pickingPosition || !coord) return;
+      setManualPosition({
+        latitude: coord.latitude,
+        longitude: coord.longitude,
+        at: Date.now(),
+      });
+      setPickingPosition(false);
+      setFollowMe(true);
+    },
+    [pickingPosition]
+  );
+
+  // Indicateur de fiabilité de la position affichée
+  const positionChip = (() => {
+    if (pickingPosition) {
+      return { text: 'Touchez la carte à votre position réelle (annuler)', color: '#6A1B9A', action: 'cancel' };
+    }
+    if (!activeLocation || activeLocation.cached) {
+      return { text: 'Recherche de votre position…', color: '#607D8B', action: null };
+    }
+    if (activeLocation.manual) {
+      return { text: 'Position manuelle · Revenir au GPS', color: '#6A1B9A', action: 'gps' };
+    }
+    if (activeLocation.phone) {
+      return { text: 'GPS du téléphone', color: '#2E7D32', action: null };
+    }
+    const acc = activeLocation.accuracy;
+    if (acc == null) return null;
+    const m = Math.round(acc);
+    if (acc <= 50) return { text: `GPS précis · ±${m} m`, color: '#2E7D32', action: null };
+    if (acc <= 150) return { text: `GPS · ±${m} m`, color: '#F59E0B', action: null };
+    return { text: `Position approximative ±${m} m · Corriger`, color: '#D32F2F', action: 'pick' };
+  })();
+
+  const onChipPress = () => {
+    if (!positionChip?.action) return;
+    if (positionChip.action === 'gps') setManualPosition(null);
+    else if (positionChip.action === 'pick') setPickingPosition(true);
+    else if (positionChip.action === 'cancel') setPickingPosition(false);
+  };
+
   const openDirections = async () => {
     const origin = therapistPosition
       ? `&origin=${therapistPosition.latitude},${therapistPosition.longitude}`
@@ -630,6 +868,7 @@ export default function NavigationScreen({ route: navRoute }) {
               longitudeDelta: 0.012,
             }}
             onMapReady={() => setMapReady(true)}
+            onMapPress={handleMapPress}
             // ✅ Position GPS RÉELLE (jamais l'ancienne position en cache)
             mover={hasRealPosition ? therapistPosition : null}
             moverHeading={activeLocation?.heading ?? null}
@@ -646,6 +885,7 @@ export default function NavigationScreen({ route: navRoute }) {
             routeIsFallback={!routeInfo || !!routeInfo.isFallback}
             routeColor={ROUTE_COLOR}
             routeWidth={6}
+            navMode={navMode}
             showUserLocation={false}
             trackUserLocation={false}
             showMapTypeControl
@@ -689,6 +929,42 @@ export default function NavigationScreen({ route: navRoute }) {
             color={followMe ? '#FFFFFF' : PRIMARY}
           />
         </TouchableOpacity>
+
+        {navMode && navRemaining ? (
+          <View style={styles.navChip} pointerEvents="none">
+            <Text style={styles.navChipMain}>{navRemaining.minText}</Text>
+            <Text style={styles.navChipSub}>{navRemaining.distText}</Text>
+          </View>
+        ) : null}
+
+        {/* Poser MA position réelle sur la carte (web) */}
+        <TouchableOpacity
+          style={[
+            styles.locateButton,
+            styles.pickButton,
+            {
+              backgroundColor: pickingPosition ? '#6A1B9A' : themeColors.surface,
+              borderColor: themeColors.border || '#E5E5E5',
+            },
+          ]}
+          onPress={() => setPickingPosition((v) => !v)}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="pin" size={20} color={pickingPosition ? '#FFFFFF' : '#6A1B9A'} />
+        </TouchableOpacity>
+
+        {positionChip ? (
+          <TouchableOpacity
+            style={[styles.positionChip, { backgroundColor: positionChip.color }]}
+            onPress={onChipPress}
+            disabled={!positionChip.action}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.positionChipText} numberOfLines={2}>
+              {positionChip.text}
+            </Text>
+          </TouchableOpacity>
+        ) : null}
 
         {/* Bloc ancré en BAS DROITE de la carte uniquement :
             le côté gauche reste totalement libre (contrôle
@@ -1175,6 +1451,35 @@ const styles = StyleSheet.create({
   },
 
   followButton: { top: spacing.sm + 52 },
+
+  pickButton: { top: spacing.sm + 104 },
+
+  navChip: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.sm,
+    backgroundColor: '#1B5E20',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    elevation: 4,
+  },
+  navChipMain: { color: '#FFFFFF', fontSize: 20, fontWeight: '800' },
+  navChipSub: { color: '#C8E6C9', fontSize: 12, fontWeight: '600' },
+
+  positionChip: {
+    position: 'absolute',
+    top: spacing.sm + 52,
+    left: spacing.sm,
+    maxWidth: '62%',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    zIndex: 2,
+    elevation: 4,
+  },
+
+  positionChipText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
 
   // ✅ Conteneur du bouton SOS : ANCRÉ en absolu dans la carte (avant, ce
   // style n'existait pas -> le conteneur n'était pas positionné et le

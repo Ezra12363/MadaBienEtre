@@ -221,7 +221,8 @@ def _notify_once(db: Session, booking, user, state: dict, eta=None, distance=Non
 async def websocket_tracking(
     websocket: WebSocket,
     booking_id: int,
-    token: Optional[str] = Query(None)
+    token: Optional[str] = Query(None),
+    viewer: int = Query(0),
 ):
     """WebSocket pour le suivi en temps réel : le thérapeute ENVOIE sa
     position, le client la REÇOIT."""
@@ -256,7 +257,9 @@ async def websocket_tracking(
             await websocket.close()
             return
 
-        is_therapist = user.id == booking.therapist_id
+        # viewer=1 : connexion en lecture seule (écran web du thérapeute qui reçoit
+        # la position de son téléphone) -> n'envoie rien, et sa fermeture n'arrête pas le suivi.
+        is_therapist = user.id == booking.therapist_id and not viewer
         await manager.join_room(websocket, room_id)
 
         # ✅ Envoie l'état courant au nouvel arrivant : le client sait tout de

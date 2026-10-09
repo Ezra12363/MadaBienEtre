@@ -38,6 +38,14 @@ const WEB_NO_FIX_ERROR_DELAY_MS = 20000;
 const WEB_WATCHDOG_STALL_MS = 20000;
 const MOTION_MIN_DISTANCE_M = 3;
 
+const IS_WEB = Platform.OS === 'web';
+
+// ✅ WEB : au-delà de ce seuil, le relevé est "grossier" (Wi-Fi / IP, ordinateur
+// sans GPS) : il ne bouge jamais et ne doit PAS être pris pour la position réelle.
+const COARSE_ACCURACY_M = 300;
+// Un relevé nettement moins précis est ignoré pendant cette durée
+const KEEP_BEST_FIX_MS = 30000;
+
 // ✅ Dernière position connue, partagée entre les écrans : en rouvrant un
 // écran de navigation, l'itinéraire démarre IMMÉDIATEMENT avec cette
 // position (corrigée ensuite par le vrai GPS). Ignorée au-delà de 5 min.
@@ -111,20 +119,25 @@ export default function useLocationTracking({
     // sinon le marqueur sauterait à un mauvais endroit.
     const acc = coords.accuracy ?? null;
     const good = lastGoodRef.current;
-    if (good && acc != null && acc > 100 && Date.now() - good.at < 10000) {
+    if (good && acc != null && acc > 100 && Date.now() - good.at < KEEP_BEST_FIX_MS) {
       return;
     }
     if (acc != null && acc <= 50) {
       lastGoodRef.current = { accuracy: acc, at: Date.now() };
     }
 
+    // ✅ Relevé "grossier" (web seulement : Wi-Fi / IP, ne bouge pas)
+    const coarse = IS_WEB && acc != null && acc > COARSE_ACCURACY_M;
+
     // ✅ Cap + vitesse : ceux du capteur s'ils existent, sinon calculés
-    // à partir des deux dernières positions (ordinateur / navigateur).
+    // à partir des deux dernières positions. Jamais calculés à partir d'un
+    // relevé imprécis (sinon fausse flèche due au "bruit" du Wi-Fi/IP).
     let heading = Number.isFinite(coords.heading) ? coords.heading : null;
     let speed = Number.isFinite(coords.speed) ? coords.speed : null;
     const now = Date.now();
     const prev = prevMotionRef.current;
-    if (prev) {
+    const preciseEnough = acc == null || acc <= 100;
+    if (prev && preciseEnough) {
       const d = distanceMeters(prev, coords);
       const dt = (now - prev.t) / 1000;
       if (d >= MOTION_MIN_DISTANCE_M && dt > 0 && dt < 10) {
@@ -136,7 +149,7 @@ export default function useLocationTracking({
           t: now,
         };
       }
-    } else {
+    } else if (!prev) {
       prevMotionRef.current = {
         latitude: coords.latitude,
         longitude: coords.longitude,
@@ -154,6 +167,7 @@ export default function useLocationTracking({
       heading,
       speed,
       accuracy: acc,
+      coarse,
       timestamp: now,
     };
     lastGlobalLocation = next;
@@ -249,7 +263,7 @@ export default function useLocationTracking({
 
         if (last && last.accuracy != null && acc != null) {
           const clearlyWorse = acc > last.accuracy * 1.5 + 20;
-          if (clearlyWorse && now - last.at < 10000) return;
+          if (clearlyWorse && now - last.at < KEEP_BEST_FIX_MS) return;
         }
 
         lastAcceptedRef.current = { accuracy: acc, at: now };

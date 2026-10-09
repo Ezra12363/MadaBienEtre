@@ -798,6 +798,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
             l'adresse exacte, marqueur vert = adresse du client. */}
         <LiveRouteMap
           ref={mapRef}
+          navMode={(therapistMeta?.speed ?? 0) > 1.5}
           style={styles.map}
           initialRegion={{
             latitude:
