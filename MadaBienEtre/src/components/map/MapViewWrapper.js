@@ -51,11 +51,21 @@ if (Platform.OS !== 'web') {
   }
 }
 
+// ✅ FIXÉ : chargement avec `callback=` (et SANS `loading=async`).
+// Avec `loading=async`, `google.maps.Map` n'existe pas encore juste après
+// l'événement `load` du <script> -> le code concluait à tort « clé refusée »
+// et basculait sur l'iframe de secours (aucun marqueur dessiné).
+// Avec `callback=`, la fonction est appelée quand TOUTE l'API est prête.
+const GOOGLE_MAPS_SCRIPT_ID = 'google-maps-js-api';
+const GOOGLE_MAPS_CALLBACK = '__onGoogleMapsLoaded';
+
 let googleMapsScriptPromise = null;
+
 const resetGoogleMapsLoader = () => {
   googleMapsScriptPromise = null;
-  const existing = document.getElementById('google-maps-js-api');
+  const existing = document.getElementById(GOOGLE_MAPS_SCRIPT_ID);
   if (existing) existing.remove();
+  try { delete window[GOOGLE_MAPS_CALLBACK]; } catch (_e) { window[GOOGLE_MAPS_CALLBACK] = undefined; }
   if (window.google) {
     try { delete window.google; } catch (_e) { window.google = undefined; }
   }
@@ -63,47 +73,44 @@ const resetGoogleMapsLoader = () => {
 
 const loadGoogleMapsScript = (apiKey) => {
   if (typeof window === 'undefined') return Promise.reject(new Error('no-window'));
+  if (!apiKey) return Promise.reject(new Error('missing-key'));
   if (window.google?.maps?.Map) return Promise.resolve(window.google);
   if (googleMapsScriptPromise) return googleMapsScriptPromise;
 
   googleMapsScriptPromise = new Promise((resolve, reject) => {
     let settled = false;
+    let timeoutId = null;
+
     const fail = (reason) => {
       if (settled) return;
       settled = true;
+      clearTimeout(timeoutId);
       googleMapsScriptPromise = null;
       reject(new Error(reason));
     };
     const succeed = () => {
       if (settled) return;
       settled = true;
+      clearTimeout(timeoutId);
       resolve(window.google);
     };
 
+    // Clé réellement refusée : appelé par Google lui-même
     window.gm_authFailure = () => fail('auth-failure');
-    const timeoutId = setTimeout(() => fail('timeout'), 10000);
+    timeoutId = setTimeout(() => fail('timeout'), 15000);
+    window[GOOGLE_MAPS_CALLBACK] = () => succeed();
 
-    const existing = document.getElementById('google-maps-js-api');
-    if (existing) {
-      existing.addEventListener('load', () => { clearTimeout(timeoutId); succeed(); });
-      existing.addEventListener('error', () => { clearTimeout(timeoutId); fail('network'); });
-      return;
+    if (!document.getElementById(GOOGLE_MAPS_SCRIPT_ID)) {
+      const script = document.createElement('script');
+      script.id = GOOGLE_MAPS_SCRIPT_ID;
+      script.src =
+        `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}` +
+        `&libraries=places,geometry&v=weekly&callback=${GOOGLE_MAPS_CALLBACK}`;
+      script.async = true;
+      script.defer = true;
+      script.onerror = () => fail('network');
+      document.head.appendChild(script);
     }
-
-    const script = document.createElement('script');
-    script.id = 'google-maps-js-api';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry&loading=async`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      clearTimeout(timeoutId);
-      setTimeout(() => {
-        if (!settled && !window.google?.maps?.Map) fail('auth-failure');
-        else succeed();
-      }, 150);
-    };
-    script.onerror = () => { clearTimeout(timeoutId); fail('network'); };
-    document.head.appendChild(script);
   });
 
   return googleMapsScriptPromise;
@@ -407,10 +414,12 @@ const MapViewWrapper = forwardRef(({
   mapType: controlledMapType,
   onMapTypeChange,
   showMapTypeControl = true,
+  gestureHandling = 'greedy', // web : 'cooperative' si la carte est dans une page qui défile
   onMarkerPress,
   onMapReady,
   onMapPress,
   selectionMarker = null,
+  selectionColor,
   onSelectionDragEnd,
   children,
 }, ref) => {
@@ -460,6 +469,11 @@ const MapViewWrapper = forwardRef(({
   const webAccuracyCircleRef = useRef(null);
   const webPolylineRef = useRef(null);
   const webSelectionMarkerRef = useRef(null);
+  const webSelectionCircleRef = useRef(null);
+  const lastPannedSelectionRef = useRef(null);
+  const bounceTimerRef = useRef(null);
+  const onSelectionDragEndRef = useRef(onSelectionDragEnd);
+  onSelectionDragEndRef.current = onSelectionDragEnd;
   const webClickListenerRef = useRef(null);
   const nativeMapRef = useRef(null);
 
@@ -556,7 +570,7 @@ const MapViewWrapper = forwardRef(({
             zoomControl: true,
             tilt: 0,
             // ✅ Rendu plus net des bâtiments/toits en mode satellite
-            gestureHandling: 'greedy',
+            gestureHandling,
           });
           webMapRef.current = map;
         }
@@ -581,10 +595,20 @@ const MapViewWrapper = forwardRef(({
     setRetryCount((n) => n + 1);
   }, []);
 
+  // ⚠️ Ce message n'est calculé QUE sur le web : sur Android `window`
+  // existe mais `window.location` est undefined -> "Cannot read property
+  // 'origin' of undefined". D'où le garde-fou ci-dessous.
   const webErrorMessage = (() => {
+    if (Platform.OS !== 'web') return '';
+    const origin =
+      typeof window !== 'undefined' && window.location && window.location.origin
+        ? window.location.origin
+        : '';
     switch (mapErrorReason) {
+      case 'missing-key':
+        return "Clé API Google Maps absente (configurez GOOGLE_MAPS_API_KEY dans config/env).";
       case 'auth-failure':
-        return "Clé API Google Maps refusée (vérifiez : Maps JavaScript API activée, facturation active, et restrictions HTTP referrer de la clé web).";
+        return "Clé API Google Maps refusée (vérifiez : Maps JavaScript API activée, facturation active, et restrictions HTTP referrer de la clé web" + (origin ? ` — autorisez ${origin}/*` : '') + ").";
       case 'timeout':
         return "Le chargement a expiré — connexion lente ou maps.googleapis.com bloqué par le réseau/proxy.";
       case 'network':
@@ -1103,41 +1127,47 @@ const MapViewWrapper = forwardRef(({
   }, [onMapPress, isLoading]);
 
   // ✅ EFFECT DU MARQUEUR DE SÉLECTION SUR LE WEB — CORRIGÉ
-  // ✅ FIXÉ : goutte orange bien visible (scale plus grand + petite
-  // animation "DROP" à la création, comme un vrai marqueur Google
-  // Maps qui "tombe" sur la carte), sans jamais de cercle autour.
+  // ✅ FIXÉ (1) : dépendances = valeurs PRIMITIVES (lat/lng/couleur). Avant,
+  // `selectionMarker` et `onSelectionDragEnd` changeaient d'identité à
+  // chaque rendu du parent -> l'effet se relançait sans arrêt et
+  // `map.panTo()` ramenait la carte sur le marqueur en permanence.
+  // ✅ FIXÉ (2) : `panTo` seulement quand les coordonnées CHANGENT.
+  // ✅ FIXÉ (3) : le callback de drag passe par une ref (jamais périmé).
+  // ✅ NOUVEAU : cercle de précision (rayon = accuracy du GPS/Wi-Fi).
+  const selLat = selectionMarker?.latitude;
+  const selLng = selectionMarker?.longitude;
+  const selAccuracy = selectionMarker?.accuracy;
+
   useEffect(() => {
     if (Platform.OS !== 'web') return;
-    if (!webMapRef.current || !window.google) {
-      console.log('⏳ Web map not ready yet, waiting...');
-      return;
-    }
-    if (mapError) {
-      console.log('❌ Map error, skipping selection marker');
-      return;
-    }
+    if (!webMapRef.current || !window.google) return;
+    if (mapError) return;
 
     const google = window.google;
     const map = webMapRef.current;
 
-    if (!selectionMarker || !selectionMarker.latitude || !selectionMarker.longitude) {
+    const hasSel = Number.isFinite(selLat) && Number.isFinite(selLng);
+
+    if (!hasSel) {
       if (webSelectionMarkerRef.current) {
         webSelectionMarkerRef.current.setMap(null);
         webSelectionMarkerRef.current = null;
-        console.log('🗑️ Selection marker removed');
       }
+      if (webSelectionCircleRef.current) {
+        webSelectionCircleRef.current.setMap(null);
+        webSelectionCircleRef.current = null;
+      }
+      lastPannedSelectionRef.current = null;
       return;
     }
 
-    const position = { lat: selectionMarker.latitude, lng: selectionMarker.longitude };
-    const markerColor = MARKER_COLORS?.selected || DEFAULT_MARKER_COLORS.selected;
-
-    console.log(`📍 Creating/updating selection marker at: ${position.lat}, ${position.lng}`);
-
+    const position = { lat: selLat, lng: selLng };
+    const markerColor =
+      selectionColor || MARKER_COLORS?.selected || DEFAULT_MARKER_COLORS.selected;
     const selectedIcon = getCustomMarkerIcon(markerColor, 1.7);
 
     if (!webSelectionMarkerRef.current) {
-      webSelectionMarkerRef.current = new google.maps.Marker({
+      const marker = new google.maps.Marker({
         map,
         position,
         draggable: true,
@@ -1146,21 +1176,69 @@ const MapViewWrapper = forwardRef(({
         title: 'Position sélectionnée',
         animation: google.maps.Animation.DROP,
       });
-      webSelectionMarkerRef.current.addListener('dragend', (e) => {
+      marker.addListener('dragend', (e) => {
         const coord = { latitude: e.latLng.lat(), longitude: e.latLng.lng() };
-        if (onSelectionDragEnd) onSelectionDragEnd(coord);
+        onSelectionDragEndRef.current?.(coord);
       });
-      console.log('✅ New selection marker created');
+      webSelectionMarkerRef.current = marker;
     } else {
-      webSelectionMarkerRef.current.setPosition(position);
-      console.log('✅ Selection marker position updated');
+      const existing = webSelectionMarkerRef.current;
+      const moved =
+        lastPannedSelectionRef.current !==
+        `${selLat.toFixed(6)},${selLng.toFixed(6)}`;
+
+      existing.setPosition(position);
+      existing.setIcon(selectedIcon);
+
+      // ✅ Petit « saut » (un seul rebond) à chaque nouvelle position,
+      // pour que le marqueur se pose clairement à l'endroit choisi.
+      if (moved) {
+        clearTimeout(bounceTimerRef.current);
+        existing.setAnimation(google.maps.Animation.BOUNCE);
+        bounceTimerRef.current = setTimeout(() => {
+          existing.setAnimation(null);
+        }, 750);
+      }
     }
 
-    map.panTo(position);
-    if ((map.getZoom() || 0) < 15) map.setZoom(15);
-    console.log('✅ Map panned to selection');
+    // Cercle de précision (uniquement quand on connaît l'accuracy)
+    if (selAccuracy && selAccuracy > 0) {
+      const radius = Math.max(5, Math.min(Number(selAccuracy), 5000));
+      if (!webSelectionCircleRef.current) {
+        webSelectionCircleRef.current = new google.maps.Circle({
+          map,
+          center: position,
+          radius,
+          fillColor: markerColor,
+          fillOpacity: 0.12,
+          strokeColor: markerColor,
+          strokeOpacity: 0.4,
+          strokeWeight: 1,
+          clickable: false,
+          zIndex: 1,
+        });
+      } else {
+        webSelectionCircleRef.current.setCenter(position);
+        webSelectionCircleRef.current.setRadius(radius);
+      }
+    } else if (webSelectionCircleRef.current) {
+      webSelectionCircleRef.current.setMap(null);
+      webSelectionCircleRef.current = null;
+    }
 
-  }, [selectionMarker, onSelectionDragEnd, isLoading, mapError]);
+    // On recentre la carte UNIQUEMENT si la position a réellement changé
+    const key = `${selLat.toFixed(6)},${selLng.toFixed(6)}`;
+    if (lastPannedSelectionRef.current !== key) {
+      lastPannedSelectionRef.current = key;
+      // ✅ On ne bouge la carte que si le point est hors de la zone
+      // visible : un clic sur la carte ne fait plus « sauter » la vue.
+      const bounds = map.getBounds && map.getBounds();
+      if (!bounds || !bounds.contains(position)) {
+        map.panTo(position);
+      }
+      if ((map.getZoom() || 0) < 15) map.setZoom(15);
+    }
+  }, [selLat, selLng, selAccuracy, selectionColor, isLoading, mapError]);
 
   const nativeInitialRegion = {
     latitude,
@@ -1261,18 +1339,33 @@ const MapViewWrapper = forwardRef(({
         >
           {/* ✅ MARQUEUR SÉLECTIONNÉ SUR MOBILE — pin natif (goutte), pas de cercle */}
           {selectionMarker && selectionMarker.latitude && selectionMarker.longitude && (
-            <RNMarker
-              coordinate={{
-                latitude: selectionMarker.latitude,
-                longitude: selectionMarker.longitude,
-              }}
-              draggable
-              pinColor={MARKER_COLORS?.selected || DEFAULT_MARKER_COLORS.selected}
-              anchor={{ x: 0.5, y: 1 }}
-              onDragEnd={(e) => {
-                if (onSelectionDragEnd) onSelectionDragEnd(e.nativeEvent.coordinate);
-              }}
-            />
+            <>
+              {selectionMarker.accuracy > 0 && RNCircle ? (
+                <RNCircle
+                  center={{
+                    latitude: selectionMarker.latitude,
+                    longitude: selectionMarker.longitude,
+                  }}
+                  radius={Math.max(5, Math.min(Number(selectionMarker.accuracy), 5000))}
+                  fillColor={`${selectionColor || MARKER_COLORS?.selected || DEFAULT_MARKER_COLORS.selected}1F`}
+                  strokeColor={`${selectionColor || MARKER_COLORS?.selected || DEFAULT_MARKER_COLORS.selected}66`}
+                  strokeWidth={1}
+                  zIndex={1}
+                />
+              ) : null}
+              <RNMarker
+                coordinate={{
+                  latitude: selectionMarker.latitude,
+                  longitude: selectionMarker.longitude,
+                }}
+                draggable
+                pinColor={selectionColor || MARKER_COLORS?.selected || DEFAULT_MARKER_COLORS.selected}
+                anchor={{ x: 0.5, y: 1 }}
+                onDragEnd={(e) => {
+                  if (onSelectionDragEnd) onSelectionDragEnd(e.nativeEvent.coordinate);
+                }}
+              />
+            </>
           )}
 
           {markers.map((m) =>

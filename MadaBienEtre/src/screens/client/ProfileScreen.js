@@ -54,6 +54,82 @@ import ClientOnlineStatusCard from '../../components/client/ClientOnlineStatusCa
 // CONSTANTS
 // ============================================================
 
+// ==========================================================
+// ✅ POSITION ACTUELLE (WEB) — RAPIDE puis AFFINÉE en arrière-plan
+// Avant : on attendait jusqu'à 8 s une lecture « assez précise »
+// (sur ordinateur elle n'arrive presque jamais) -> longue attente.
+// Maintenant :
+//   1) lecture RAPIDE (réseau / cache ≤ 2 min) -> le marqueur apparaît
+//      tout de suite ;
+//   2) une écoute GPS/Wi-Fi précise tourne ensuite en arrière-plan et
+//      déplace doucement le marqueur SEULEMENT si la précision s'améliore
+//      nettement (et si l'utilisateur n'a pas déjà choisi autre chose).
+// ==========================================================
+const getQuickWebPosition = () =>
+  new Promise((resolve, reject) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      reject(new Error('geolocation-unavailable'));
+      return;
+    }
+
+    const options = [
+      { enableHighAccuracy: false, maximumAge: 120000, timeout: 3500 },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 8000 },
+    ];
+
+    const attempt = (index) => {
+      navigator.geolocation.getCurrentPosition(
+        resolve,
+        (error) => {
+          // 1 = permission refusée : inutile de réessayer
+          if (error?.code === 1 || index >= options.length - 1) reject(error);
+          else attempt(index + 1);
+        },
+        options[index]
+      );
+    };
+
+    attempt(0);
+  });
+
+const watchBetterWebPosition = (
+  onBetter,
+  { durationMs = 10000, startAccuracy = Infinity, goodEnoughMeters = 30 } = {}
+) => {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    return () => {};
+  }
+
+  let bestAccuracy = startAccuracy;
+  let watchId = null;
+  let timer = null;
+  let stopped = false;
+
+  const stop = () => {
+    if (stopped) return;
+    stopped = true;
+    clearTimeout(timer);
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  };
+
+  watchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const accuracy = pos.coords.accuracy;
+      // On n'accepte qu'une amélioration NETTE (30 % de mieux)
+      if (accuracy < bestAccuracy * 0.7) {
+        bestAccuracy = accuracy;
+        onBetter(pos);
+      }
+      if (bestAccuracy <= goodEnoughMeters) stop();
+    },
+    () => stop(),
+    { enableHighAccuracy: true, maximumAge: 0, timeout: durationMs }
+  );
+
+  timer = setTimeout(stop, durationMs);
+  return stop;
+};
+
 const GREEN = '#22C55E';
 const GREEN_DARK = '#16A34A';
 const BLUE = colors.primary || '#0D2B7E';
@@ -613,6 +689,7 @@ const ProfileScreen = ({ navigation }) => {
         fullAddress,
       };
 
+      cancelLocationRefine();
       setSelectedLocation(location);
 
       setSearchResult({
@@ -662,121 +739,280 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
-  const getCurrentLocation = async () => {
-    setIsLoadingLocation(true);
+  // ==========================================================
+  // ✅ POSITION : réponse IMMÉDIATE (marqueur d'abord, adresse ensuite)
+  // - locationRequestRef : « jeton » de la dernière action de position.
+  //   Toute nouvelle action (clic carte, recherche, glisser-déposer)
+  //   invalide l'affinage GPS et les adresses encore en attente.
+  // ==========================================================
+  const locationRequestRef = useRef(0);
+  const stopRefineRef = useRef(null);
 
+  const cancelLocationRefine = () => {
+    locationRequestRef.current += 1;
+    if (stopRefineRef.current) {
+      stopRefineRef.current();
+      stopRefineRef.current = null;
+    }
+  };
+
+  useEffect(
+    () => () => {
+      if (stopRefineRef.current) stopRefineRef.current();
+    },
+    []
+  );
+
+  // Adresse (reverse geocoding) en ARRIÈRE-PLAN : ne bloque jamais le marqueur
+  const resolveAddressInBackground = async (
+    latitude,
+    longitude,
+    token
+  ) => {
     try {
-      const { status } =
-        await Location.requestForegroundPermissionsAsync();
+      const address =
+        (await getAddressFromCoords(
+          latitude,
+          longitude
+        )) || '';
 
-      if (status !== 'granted') {
-        showToast(
-          'warning',
-          'Permission nécessaire',
-          'Autorisez la localisation dans les paramètres.'
-        );
+      if (
+        !address ||
+        token !== locationRequestRef.current
+      ) {
         return;
-      }
-
-      const location =
-        await Location.getCurrentPositionAsync(
-          {
-            accuracy:
-              Location.Accuracy.High,
-          }
-        );
-
-      const {
-        latitude,
-        longitude,
-      } = location.coords;
-
-      let address = '';
-
-      try {
-        address =
-          (await getAddressFromCoords(
-            latitude,
-            longitude
-          )) || '';
-      } catch (error) {
-        console.log(
-          'Reverse geocoding error:',
-          error
-        );
       }
 
       const fullAddress =
         extractAddressComponents(address);
 
-      const newLocation = {
-        latitude,
-        longitude,
-        address:
-          address ||
-          'Ma position actuelle',
-        fullAddress: {
-          ...fullAddress,
-          display_name:
-            address ||
-            'Ma position actuelle',
-        },
-      };
+      setSelectedLocation((previous) => {
+        if (
+          !previous ||
+          Number(previous.latitude) !== latitude ||
+          Number(previous.longitude) !== longitude
+        ) {
+          return previous;
+        }
 
-      setSelectedLocation(
-        newLocation
-      );
-
-      setSearchResult({
-        latitude,
-        longitude,
-        address:
-          address ||
-          'Ma position actuelle',
-        isApproximate: false,
-        fullAddress,
+        return {
+          ...previous,
+          address,
+          fullAddress: {
+            ...fullAddress,
+            display_name: address,
+          },
+        };
       });
 
-      const region = {
+      setSearchResult((previous) =>
+        previous &&
+        previous.latitude === latitude &&
+        previous.longitude === longitude
+          ? { ...previous, address, fullAddress }
+          : previous
+      );
+    } catch (error) {
+      console.log(
+        'Reverse geocoding error:',
+        error
+      );
+    }
+  };
+
+  // Pose le marqueur TOUT DE SUITE avec un libellé provisoire
+  const placeLocation = (
+    { latitude, longitude, accuracy = null },
+    label,
+    { recenter = false, token } = {}
+  ) => {
+    let activeToken = token;
+
+    if (activeToken === undefined) {
+      cancelLocationRefine();
+      activeToken = locationRequestRef.current;
+    }
+
+    const provisional =
+      label ||
+      `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+
+    const fullAddress =
+      extractAddressComponents('');
+
+    setSelectedLocation({
+      latitude,
+      longitude,
+      accuracy,
+      address: provisional,
+      fullAddress: {
+        ...fullAddress,
+        display_name: provisional,
+      },
+    });
+
+    setSearchResult({
+      latitude,
+      longitude,
+      address: provisional,
+      isApproximate: false,
+      fullAddress,
+    });
+
+    const region = {
+      latitude,
+      longitude,
+      latitudeDelta: 0.012,
+      longitudeDelta: 0.012,
+    };
+
+    setMapRegion(region);
+
+    if (recenter) {
+      mapRef.current?.animateToRegion(
+        region,
+        500
+      );
+    }
+
+    resolveAddressInBackground(
+      latitude,
+      longitude,
+      activeToken
+    );
+
+    return activeToken;
+  };
+
+  const getCurrentLocation = async () => {
+    if (isLoadingLocation) return;
+
+    setIsLoadingLocation(true);
+
+    try {
+      let first;
+
+      if (Platform.OS === 'web') {
+        // Pas de requestForegroundPermissionsAsync sur le web : le
+        // navigateur demande l'autorisation lui-même, sans double attente.
+        first = await getQuickWebPosition();
+      } else {
+        const { status } =
+          await Location.requestForegroundPermissionsAsync();
+
+        if (status !== 'granted') {
+          showToast(
+            'warning',
+            'Permission nécessaire',
+            'Autorisez la localisation dans les paramètres.'
+          );
+          return;
+        }
+
+        first =
+          (await Location.getLastKnownPositionAsync({
+            maxAge: 120000,
+            requiredAccuracy: 500,
+          })) ||
+          (await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          }));
+      }
+
+      const {
         latitude,
         longitude,
-        latitudeDelta: 0.012,
-        longitudeDelta: 0.012,
+        accuracy,
+      } = first.coords;
+
+      // ✅ Marqueur immédiat
+      const token = placeLocation(
+        { latitude, longitude, accuracy },
+        'Ma position actuelle',
+        { recenter: true }
+      );
+
+      setIsLoadingLocation(false);
+
+      if (accuracy && accuracy > 150) {
+        showToast(
+          'warning',
+          'Position approximative',
+          `Précision ≈ ${Math.round(
+            accuracy
+          )} m. Déplacez le marqueur ou touchez la carte pour corriger.`
+        );
+      } else {
+        showToast(
+          'success',
+          'Position trouvée',
+          'Votre position actuelle a été détectée.'
+        );
+      }
+
+      // ✅ Affinage en arrière-plan (silencieux)
+      const onBetter = (pos) => {
+        if (token !== locationRequestRef.current) {
+          return;
+        }
+
+        placeLocation(
+          {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy: pos.coords.accuracy,
+          },
+          'Ma position actuelle',
+          { recenter: true, token }
+        );
       };
 
-      setMapRegion(region);
-
-      setTimeout(() => {
-        mapRef.current?.animateToRegion(
-          region,
-          500
-        );
-      }, 150);
-
-      showToast(
-        'success',
-        'Position trouvée',
-        'Votre position actuelle a été détectée.'
-      );
+      if (Platform.OS === 'web') {
+        stopRefineRef.current =
+          watchBetterWebPosition(onBetter, {
+            startAccuracy: accuracy || Infinity,
+          });
+      } else {
+        Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        })
+          .then((pos) => {
+            if (
+              pos.coords.accuracy <
+              (accuracy || Infinity) * 0.7
+            ) {
+              onBetter(pos);
+            }
+          })
+          .catch(() => {});
+      }
     } catch (error) {
       console.error(
         'Current location error:',
         error
       );
 
-      showToast(
-        'error',
-        'Position indisponible',
-        'Impossible d’obtenir votre position actuelle.'
-      );
+      if (error?.code === 1) {
+        showToast(
+          'warning',
+          'Permission nécessaire',
+          'Autorisez la localisation dans le navigateur.'
+        );
+      } else {
+        showToast(
+          'error',
+          'Position indisponible',
+          'Impossible d’obtenir votre position actuelle.'
+        );
+      }
     } finally {
       setIsLoadingLocation(false);
     }
   };
 
-  const handleMapPress = async (
-    coordinate
-  ) => {
+  // ✅ Clic sur la carte / fin de glisser-déposer : le marqueur se pose
+  // INSTANTANÉMENT, l'adresse arrive ensuite (plus d'overlay bloquant).
+  const handleMapPress = (coordinate) => {
     if (
       !coordinate ||
       coordinate.latitude === undefined ||
@@ -793,87 +1029,23 @@ const ProfileScreen = ({ navigation }) => {
       coordinate.longitude
     );
 
-    setIsLoadingLocation(true);
-
-    try {
-      let address = '';
-
-      try {
-        address =
-          (await getAddressFromCoords(
-            latitude,
-            longitude
-          )) || '';
-      } catch (error) {
-        console.log(
-          'Reverse geocoding error:',
-          error
-        );
-      }
-
-      const fullAddress =
-        extractAddressComponents(address);
-
-      const newLocation = {
-        latitude,
-        longitude,
-        address:
-          address ||
-          `${latitude.toFixed(
-            6
-          )}, ${longitude.toFixed(6)}`,
-        fullAddress: {
-          ...fullAddress,
-          display_name:
-            address ||
-            `${latitude.toFixed(
-              6
-            )}, ${longitude.toFixed(6)}`,
-        },
-      };
-
-      setSelectedLocation(
-        newLocation
-      );
-
-      setSearchResult({
-        latitude,
-        longitude,
-        address:
-          address ||
-          `${latitude.toFixed(
-            6
-          )}, ${longitude.toFixed(6)}`,
-        isApproximate: false,
-        fullAddress,
-      });
-
-      setMapRegion({
-        latitude,
-        longitude,
-        latitudeDelta: 0.012,
-        longitudeDelta: 0.012,
-      });
-
-      showToast(
-        'success',
-        'Position sélectionnée',
-        'Cette position sera utilisée comme adresse.'
-      );
-    } catch (error) {
-      console.error(
-        'Map press error:',
-        error
-      );
-
-      showToast(
-        'error',
-        'Erreur',
-        'Impossible de récupérer cette adresse.'
-      );
-    } finally {
-      setIsLoadingLocation(false);
+    if (
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude)
+    ) {
+      return;
     }
+
+    placeLocation(
+      { latitude, longitude },
+      null
+    );
+
+    showToast(
+      'success',
+      'Position sélectionnée',
+      'Cette position sera utilisée comme adresse.'
+    );
   };
 
   const validateLocation = () => {
@@ -1268,39 +1440,35 @@ const ProfileScreen = ({ navigation }) => {
   // MAP MARKERS
   // ==========================================================
 
-  const markers = [];
+  // ✅ FIXÉ (double marqueur) : la position choisie est dessinée UNE
+  // SEULE FOIS, par `selectionMarker` (ancré sur les coordonnées,
+  // déplaçable). `markers` reste vide et l'ancien overlay fixe au
+  // centre de l'écran a été supprimé.
+  const markers = useMemo(() => [], []);
 
-  if (hasSelectedLocation) {
-    markers.push({
-      id: 'selected-location',
-      coordinate: {
-        latitude: Number(
-          selectedLocation.latitude
-        ),
-        longitude: Number(
-          selectedLocation.longitude
-        ),
-      },
-      title: 'Ma position',
-      description:
-        selectedLocation.address ||
-        'Position sélectionnée',
-      pinColor: GREEN,
-      available: true,
-    });
-  }
-
-  const selectionMarker =
-    hasSelectedLocation
-      ? {
-          latitude: Number(
-            selectedLocation.latitude
-          ),
-          longitude: Number(
-            selectedLocation.longitude
-          ),
-        }
-      : null;
+  const selectionMarker = useMemo(
+    () =>
+      hasSelectedLocation
+        ? {
+            latitude: Number(
+              selectedLocation.latitude
+            ),
+            longitude: Number(
+              selectedLocation.longitude
+            ),
+            accuracy:
+              selectedLocation.accuracy ||
+              null,
+          }
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      hasSelectedLocation,
+      selectedLocation.latitude,
+      selectedLocation.longitude,
+      selectedLocation.accuracy,
+    ]
+  );
 
   // ==========================================================
   // TOAST COMPONENT
@@ -1706,6 +1874,7 @@ const ProfileScreen = ({ navigation }) => {
                 selectionMarker={
                   selectionMarker
                 }
+                selectionColor={GREEN}
                 onMapPress={
                   handleMapPress
                 }
@@ -1726,37 +1895,6 @@ const ProfileScreen = ({ navigation }) => {
                   )
                 }
               />
-
-              {hasSelectedLocation && (
-                <View
-                  pointerEvents="none"
-                  style={
-                    styles.centerMarkerOverlay
-                  }
-                >
-                  <View
-                    style={
-                      styles.markerShadow
-                    }
-                  />
-
-                  <View
-                    style={[
-                      styles.greenMarker,
-                      {
-                        backgroundColor:
-                          GREEN,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name="location"
-                      size={25}
-                      color="#FFFFFF"
-                    />
-                  </View>
-                </View>
-              )}
 
               {isLoadingLocation && (
                 <View

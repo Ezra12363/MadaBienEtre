@@ -41,7 +41,7 @@ import { searchLocation, getAddressSuggestions, getPlaceDetails } from "../../se
 import {
   computeAutoDistances,
   calculateAlternativeRoutes,
-  formatDistance,
+  haversineDistance,
 } from "../../services/routing";
 import {
   MARKER_COLORS,
@@ -308,6 +308,36 @@ const formatSlotDate = (slot) => {
 };
 
 const formatRating = (n) => Number(n || 0).toFixed(1).replace(".", ",");
+
+/* ============================================================
+   DISTANCE — affichage lisible (la valeur reçue est en KILOMÈTRES)
+   < 100 m   -> arrondi à 5 m   : "85 m"
+   < 1 km    -> arrondi à 10 m  : "350 m"
+   1 – 10 km -> 1 décimale      : "1,2 km" (ou "2 km")
+   >= 10 km  -> entier          : "12 km"
+   inconnue  -> "—"
+============================================================ */
+const formatDistanceLabel = (km) => {
+  const value = Number(km);
+  if (!Number.isFinite(value) || value < 0 || value >= 999) return "—";
+
+  const meters = value * 1000;
+
+  if (meters < 1000) {
+    const rounded = meters < 100
+      ? Math.max(5, Math.round(meters / 5) * 5)
+      : Math.round(meters / 10) * 10;
+    if (rounded < 1000) return `${rounded} m`;
+    return "1 km";
+  }
+
+  if (value < 10) {
+    const text = value.toFixed(1).replace(".", ",");
+    return `${text.endsWith(",0") ? text.slice(0, -2) : text} km`;
+  }
+
+  return `${Math.round(value)} km`;
+};
 
 const openDirections = (item) => {
   const c = item?.coordinate;
@@ -673,11 +703,14 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, on
 
             {/* Distance (rouge) + prix (vert) */}
             <View style={cardStyles.bottomRow}>
-              <View style={cardStyles.inline}>
-                <Ionicons name="navigate-outline" size={12} color={CLOSED_COLOR} />
+              <View style={cardStyles.distancePill}>
+                <Ionicons name="navigate" size={11} color={CLOSED_COLOR} />
                 <Text style={cardStyles.distance}>
-                  {item.distance < 999 ? formatDistance(item.distance) : "—"}
+                  {formatDistanceLabel(item.distance)}
                 </Text>
+                {Number(item.distance) < 999 ? (
+                  <Text style={cardStyles.distanceHint}>de vous</Text>
+                ) : null}
               </View>
               <Text style={[cardStyles.price, { color: green }]}>{formatPrice(item.price || 0)}</Text>
             </View>
@@ -754,7 +787,16 @@ const cardStyles = StyleSheet.create({
   dateLine: { flexShrink: 1, fontSize: 9.5, marginLeft: 4, fontFamily: typography.fontFamily.regular },
 
   bottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 },
-  distance: { color: CLOSED_COLOR, fontSize: 9.5, marginLeft: 4, fontFamily: typography.fontFamily.bold },
+  distancePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    backgroundColor: `${CLOSED_COLOR}14`,
+  },
+  distance: { color: CLOSED_COLOR, fontSize: 10.5, marginLeft: 4, fontFamily: typography.fontFamily.bold },
+  distanceHint: { color: CLOSED_COLOR, opacity: 0.75, fontSize: 9, marginLeft: 3, fontFamily: typography.fontFamily.regular },
   price: { fontSize: 13.5, fontFamily: typography.fontFamily.bold },
 
   typesScroll: { marginTop: 4, flexGrow: 0 },
@@ -1268,6 +1310,10 @@ const SearchMassageScreen = ({ navigation, route }) => {
         const name=first(raw?.name,raw?.fullname,raw?.full_name,raw?.fullName,raw?.display_name,raw?.displayName,user?.name,user?.fullname,user?.full_name,[firstName,lastName].filter(Boolean).join(" "),"Thérapeute");
         const specialtyList = specialties(raw);
         const categoryList = categoriesOf(raw, specialtyList);
+        // Distance fournie par l'API : simple valeur de SECOURS, utilisée
+        // seulement si la position du client ou les coordonnées de
+        // l'adresse du thérapeute sont indisponibles.
+        const distanceApi = num(first(raw?.distance,raw?.distance_km,raw?.distanceKm,raw?.distance_meters!=null?raw.distance_meters/1000:undefined),999);
         return {
           id:first(raw?.id,raw?.therapist_id,raw?.user_id,user?.id,`therapist-${index}`),
           name:String(name),
@@ -1280,7 +1326,8 @@ const SearchMassageScreen = ({ navigation, route }) => {
           // n'est qu'un point de départ : elle est recalculée en direct
           // via le GPS (Haversine, voir computeAutoDistances) dès que la
           // position de l'utilisateur est disponible.
-          distance:num(first(raw?.distance,raw?.distance_km,raw?.distanceKm,raw?.distance_meters!=null?raw.distance_meters/1000:undefined),999),
+          distance:distanceApi,
+          distanceApi,
           price:Math.max(0,num(first(raw?.price,raw?.starting_price,raw?.base_price,raw?.hourly_rate,raw?.session_price,raw?.recommended_price,raw?.min_price,raw?.tarif),0)),
           image:first(raw?.image,raw?.image_url,raw?.photo,raw?.photo_url,raw?.avatar,raw?.avatar_url,raw?.profile_image,raw?.profile_image_url,user?.image,user?.image_url,user?.photo,user?.photo_url,user?.avatar,user?.avatar_url,null),
           // ✅ "category" reste dispo pour compat (1ère catégorie), mais
@@ -1325,22 +1372,52 @@ const SearchMassageScreen = ({ navigation, route }) => {
      UPDATE DISTANCES
   ========================================================== */
 
+  // ✅ DISTANCE = POSITION ACTUELLE DU CLIENT -> ADRESSE AFFICHÉE DU THÉRAPEUTE
+  // (ligne droite, Haversine, en km). Recalculée :
+  //   - quand la position GPS du client change ;
+  //   - ET quand la liste des thérapeutes est (re)chargée — avant, si la
+  //     position était déjà connue au chargement, la distance brute de
+  //     l'API restait affichée (autre point de référence, ou 999 = "—").
+  // Le calcul part toujours de `distanceApi` (jamais de l'ancienne
+  // `distance`) et ne met l'état à jour que si une valeur change
+  // vraiment (écart > 1 m) : aucune boucle infinie.
   useEffect(() => {
-    if (!userLocation || therapists.length === 0) {
+    if (therapists.length === 0) {
       return;
     }
 
-    const updated = computeAutoDistances(
-      {
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-      },
-      therapists,
-    );
+    let changed = false;
 
-    setTherapists(updated);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- dépendances volontairement granulaires (lat/lng) : `therapists` en dépendance créerait une boucle infinie (cet effet appelle setTherapists)
-  }, [userLocation?.latitude, userLocation?.longitude]);
+    const updated = therapists.map((therapist) => {
+      let next = Number.isFinite(therapist.distanceApi) ? therapist.distanceApi : 999;
+
+      if (userLocation && therapist.coordinate) {
+        const km = haversineDistance(
+          Number(userLocation.latitude),
+          Number(userLocation.longitude),
+          Number(therapist.coordinate.latitude),
+          Number(therapist.coordinate.longitude),
+        );
+
+        if (km != null && Number.isFinite(Number(km))) {
+          next = Number(km);
+        }
+      }
+
+      const current = Number.isFinite(therapist.distance) ? therapist.distance : 999;
+      if (Math.abs(current - next) < 0.001) {
+        return therapist;
+      }
+
+      changed = true;
+      return { ...therapist, distance: next };
+    });
+
+    if (changed) {
+      setTherapists(updated);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `userLocation` est lu via lat/lng ; `therapists` est sûr en dépendance car l'état n'est modifié que si une distance change
+  }, [therapists, userLocation?.latitude, userLocation?.longitude]);
 
   /* ==========================================================
      APPLY FILTERS
@@ -1400,7 +1477,8 @@ const SearchMassageScreen = ({ navigation, route }) => {
 
     /* SORT */
     if (sortMode === "distance") {
-      result.sort((a, b) => (a.distance || 999) - (b.distance || 999));
+      const distanceOf = (item) => (Number.isFinite(item.distance) ? item.distance : 999);
+      result.sort((a, b) => distanceOf(a) - distanceOf(b));
     }
     if (sortMode === "rating") {
       result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
@@ -2596,7 +2674,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                           Distance
                         </Text>
                         <Text style={[styles.panelStatValue, { color: themeColors.text }]}>
-                          {isRouting ? "Calcul..." : selectedRoute ? selectedRoute.distanceText : formatDistance(selectedMarker.distance)}
+                          {isRouting ? "Calcul..." : selectedRoute ? selectedRoute.distanceText : formatDistanceLabel(selectedMarker.distance)}
                         </Text>
                       </View>
                     </View>

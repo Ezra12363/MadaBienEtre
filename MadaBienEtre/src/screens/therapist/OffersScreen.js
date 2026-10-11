@@ -53,7 +53,7 @@ import {
   formatDistance,
   calculateAlternativeRoutes,
 } from '../../services/routing';
-import useLocationTracking from '../../hooks/useLocationTracking';
+import useTherapistPosition from '../../hooks/useTherapistPosition';
 import {
   parseServerDate,
   toTimestamp,
@@ -1188,23 +1188,42 @@ export default function OffersScreen({ navigation, route }) {
   const [mapKey, setMapKey] = useState(0);
   const mapRef = useRef(null);
 
-  // Position GPS actuelle du thérapeute (hook partagé de tracking temps réel)
-  const { location: therapistLocation, permissionGranted } =
-    useLocationTracking({
-      distanceIntervalMeters: 20,
-      timeIntervalMs: 8000,
-    });
+  // ✅ POSITION RÉELLE du thérapeute (hook partagé avec NavigationScreen) :
+  // GPS de l'appareil, GPS du téléphone sur le web, position manuelle.
+  // `therapistPosition` n'est JAMAIS une ancienne position en cache.
+  const {
+    activeLocation,
+    therapistPosition,
+    hasRealPosition,
+    permissionGranted,
+    positionChip,
+    onChipPress,
+    pickingPosition,
+    setPickingPosition,
+    handleMapPress,
+  } = useTherapistPosition({
+    enabled: true,
+    distanceIntervalMeters: 5,
+    timeIntervalMs: 2000,
+  });
 
-  const therapistPosition = useMemo(
-    () =>
-      therapistLocation
-        ? {
-            latitude: therapistLocation.latitude,
-            longitude: therapistLocation.longitude,
-          }
-        : null,
-    [therapistLocation?.latitude, therapistLocation?.longitude]
-  );
+  // Origine de l'itinéraire : mise à jour seulement si le thérapeute s'est
+  // déplacé de plus de 50 m (évite de recalculer la route à chaque relevé).
+  const [routeOrigin, setRouteOrigin] = useState(null);
+  useEffect(() => {
+    if (!therapistPosition) return;
+    setRouteOrigin(prev =>
+      !prev ||
+      haversineDistance(
+        prev.latitude,
+        prev.longitude,
+        therapistPosition.latitude,
+        therapistPosition.longitude
+      ) > 0.05
+        ? therapistPosition
+        : prev
+    );
+  }, [therapistPosition]);
 
   const locationPermissionDenied = permissionGranted === false;
 
@@ -1486,6 +1505,52 @@ export default function OffersScreen({ navigation, route }) {
     [geolocatedBookings, therapistPosition]
   );
 
+  // ✅ Marqueur "MOI" = point bleu centré sur la position GPS réelle
+  // (précision + flèche de direction), comme sur l'écran Navigation.
+  const meMarker = useMemo(
+    () =>
+      hasRealPosition && therapistPosition
+        ? {
+            id: 'therapist-me',
+            kind: 'position',
+            coordinate: therapistPosition,
+            title: 'Ma position actuelle',
+            description: 'Position GPS réelle',
+            pinColor: '#1976D2',
+            heading: activeLocation?.heading ?? null,
+            speed: activeLocation?.speed ?? null,
+            accuracy: activeLocation?.accuracy ?? null,
+          }
+        : null,
+    [
+      hasRealPosition,
+      therapistPosition,
+      activeLocation?.heading,
+      activeLocation?.speed,
+      activeLocation?.accuracy,
+    ]
+  );
+
+  // ✅ Tracé affiché : en mode "ligne directe" il part TOUJOURS de la position
+  // en direct (le point bleu) et arrive pile sur le marqueur du client.
+  const displayRoute = useMemo(() => {
+    const coords = routeInfo?.coordinates;
+    if (!coords || coords.length < 2) return coords;
+    if (routeInfo?.isFallback && therapistPosition && selectedRouteBooking) {
+      const lat = getLatitude(selectedRouteBooking);
+      const lng = getLongitude(selectedRouteBooking);
+      if (lat !== null && lng !== null) {
+        return [therapistPosition, { latitude: lat, longitude: lng }];
+      }
+    }
+    return coords;
+  }, [routeInfo, therapistPosition, selectedRouteBooking]);
+
+  const allMapMarkers = useMemo(
+    () => (meMarker ? [...mapMarkers, meMarker] : mapMarkers),
+    [mapMarkers, meMarker]
+  );
+
   const mapRegion = useMemo(() => {
     if (!geolocatedBookings.length) return DEFAULT_REGION;
     const first = geolocatedBookings[0];
@@ -1503,6 +1568,7 @@ export default function OffersScreen({ navigation, route }) {
         setSelectedRouteBooking(null);
         return;
       }
+      if (marker.id === 'therapist-me') return;
 
       const booking = geolocatedBookings.find(
         item => String(item.id) === String(marker.id)
@@ -1579,7 +1645,7 @@ export default function OffersScreen({ navigation, route }) {
   }, []);
 
   useEffect(() => {
-    if (!selectedRouteBooking || !therapistPosition) {
+    if (!selectedRouteBooking || !routeOrigin) {
       setModeEtas(null);
       return undefined;
     }
@@ -1596,12 +1662,36 @@ export default function OffersScreen({ navigation, route }) {
 
     const destination = { latitude: destLat, longitude: destLng };
 
-    fetchRealRoute(therapistPosition, destination).then(realRoute => {
+    fetchRealRoute(routeOrigin, destination).then(realRoute => {
       if (cancelled) return;
 
+      // ✅ Si le client est TRÈS proche (< 300 m) mais que la route routière
+      // fait un grand détour (ex. sentier / cour sans route), on trace
+      // directement le trajet en pointillés rouges jusqu'au marqueur du client
+      // au lieu d'une route qui part dans la direction opposée.
+      const straightKm = haversineDistance(
+        routeOrigin.latitude,
+        routeOrigin.longitude,
+        destination.latitude,
+        destination.longitude
+      );
+      const roadKm = realRoute?.distanceKm;
+      const roadIsDetour =
+        realRoute &&
+        !realRoute.isFallback &&
+        Number.isFinite(straightKm) &&
+        Number.isFinite(roadKm) &&
+        straightKm < 0.3 &&
+        roadKm > Math.max(straightKm * 2.5, straightKm + 0.15);
+
       const base =
-        realRoute ||
-        buildFallbackRoute(therapistPosition, destination, 'driving');
+        realRoute && !roadIsDetour
+          ? realRoute
+          : buildFallbackRoute(
+              routeOrigin,
+              destination,
+              roadIsDetour ? 'walking' : 'driving'
+            );
       const next = {};
       TRAVEL_MODES.forEach(item => {
         const durationMin =
@@ -1621,7 +1711,7 @@ export default function OffersScreen({ navigation, route }) {
     return () => {
       cancelled = true;
     };
-  }, [selectedRouteBooking, therapistPosition]);
+  }, [selectedRouteBooking, routeOrigin]);
 
   useEffect(() => {
     if (
@@ -2923,17 +3013,17 @@ export default function OffersScreen({ navigation, route }) {
             ref={mapRef}
             key={mapKey}
             style={styles.map}
-            markers={mapMarkers}
+            markers={allMapMarkers}
             initialRegion={mapRegion}
+            onMapPress={handleMapPress}
             onMarkerPress={handleMapMarkerPress}
             showMapTypeControl
             mapType={mapTypeState}
             onMapTypeChange={setMapTypeState}
-            showUserLocation
+            showUserLocation={false}
             trackUserLocation={false}
-            userLocation={Platform.OS === 'web' ? therapistPosition : null}
-            route={routeInfo?.coordinates}
-            routeOrigin={therapistPosition}
+            route={displayRoute}
+            routeOrigin={therapistPosition || routeOrigin}
             routeDestination={
               selectedRouteBooking
                 ? {
@@ -2968,6 +3058,40 @@ export default function OffersScreen({ navigation, route }) {
               {geolocatedBookings.length > 1 ? 's' : ''}
             </Text>
           </View>
+
+          {positionChip ? (
+            <Pressable
+              style={[styles.positionChip, { borderColor: positionChip.color }]}
+              onPress={onChipPress}
+              disabled={!positionChip.action}
+            >
+              <View
+                style={[styles.positionChipDot, { backgroundColor: positionChip.color }]}
+              />
+              <Text
+                style={[styles.positionChipText, { color: positionChip.color }]}
+                numberOfLines={1}
+              >
+                {positionChip.text}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          {/* Poser MA position réelle sur la carte (utile sur le web) */}
+          <Pressable
+            style={[
+              styles.pickPositionButton,
+              pickingPosition && { backgroundColor: '#6A1B9A' },
+            ]}
+            onPress={() => setPickingPosition(v => !v)}
+            hitSlop={6}
+          >
+            <Ionicons
+              name="pin"
+              size={18}
+              color={pickingPosition ? '#FFFFFF' : '#6A1B9A'}
+            />
+          </Pressable>
 
           {locationPermissionDenied ? (
             <View style={styles.locationWarningBadge}>
@@ -4275,9 +4399,48 @@ const createStyles = (colors, isDark) => {
       color: COLORS.text,
     },
 
-    locationWarningBadge: {
+    positionChip: {
       position: 'absolute',
       top: 86,
+      left: 12,
+      maxWidth: '78%',
+      minHeight: 26,
+      paddingHorizontal: 9,
+      borderRadius: 999,
+      borderWidth: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: 'rgba(255,255,255,0.96)',
+      ...Platform.select({
+        web: { boxShadow: '0 1px 6px rgba(0,0,0,0.12)' },
+        default: { elevation: 2 },
+      }),
+    },
+
+    positionChipDot: { width: 8, height: 8, borderRadius: 4 },
+
+    positionChipText: { fontSize: 11, fontWeight: '800', flexShrink: 1 },
+
+    pickPositionButton: {
+      position: 'absolute',
+      top: 50,
+      right: 12,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(255,255,255,0.96)',
+      ...Platform.select({
+        web: { boxShadow: '0 1px 6px rgba(0,0,0,0.18)' },
+        default: { elevation: 3 },
+      }),
+    },
+
+    locationWarningBadge: {
+      position: 'absolute',
+      top: 122,
       left: 12,
       right: 12,
       paddingHorizontal: 10,

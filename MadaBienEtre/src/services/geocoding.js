@@ -17,6 +17,7 @@
 //   endpoint googleapis.com).
 // ============================================
 import axios from 'axios';
+import { Platform } from 'react-native';
 import { GOOGLE_MAPS_API_KEY } from '../config/googleMaps';
 
 const GOOGLE_GEOCODE_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
@@ -146,7 +147,11 @@ const geocodeWithGoogle = async (address) => {
 const nominatimRequest = async (endpoint, params) => {
   const response = await axios.get(`${NOMINATIM_URL}${endpoint}`, {
     params,
-    headers: { 'User-Agent': 'MadaBienEtre/1.0 (contact@madabienetre.com)' },
+    // ✅ WEB : `User-Agent` est un en-tête interdit dans un navigateur
+    // (« Refused to set unsafe header ») -> on ne l'envoie que sur mobile.
+    headers: Platform.OS === 'web'
+      ? undefined
+      : { 'User-Agent': 'MadaBienEtre/1.0 (contact@madabienetre.com)' },
     timeout: 15000,
   });
   return response.data;
@@ -315,46 +320,69 @@ export const searchLocation = async (query) => {
 
 const mapGoogleReverseResult = (result) => mapGoogleResult(result, '');
 
-export const reverseGeocode = async (latitude, longitude) => {
-  // ✅ 1) Google d'abord (sauf si désactivé par le coupe-circuit)
-  if (GOOGLE_MAPS_API_KEY && !googleDisabled) {
-    try {
-      console.log(`🔍 [Google] Reverse Geocoding: ${latitude}, ${longitude}`);
-      const response = await axios.get(GOOGLE_GEOCODE_URL, {
-        params: {
-          latlng: `${latitude},${longitude}`,
-          key: GOOGLE_MAPS_API_KEY,
-          language: 'fr',
-        },
-        timeout: 12000,
-      });
+// ✅ Madagascar : Google renvoie très souvent en premier un "plus code"
+// (ex : "PGV8+X2 Antananarivo") au lieu d'une vraie adresse. On l'ignore
+// et on prend le premier résultat lisible (rue, bâtiment, quartier...).
+const PLUS_CODE_RE = /^[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,}/i;
+const isPlusCodeResult = (r) =>
+  !!r &&
+  ((r.types || []).includes('plus_code') ||
+    PLUS_CODE_RE.test((r.formatted_address || '').trim()));
 
-      if (response.data.status === 'OK' && response.data.results.length > 0) {
-        const mapped = mapGoogleReverseResult(response.data.results[0]);
-        return {
-          address: mapped.display_name,
-          display_name: mapped.display_name,
-          place_id: mapped.place_id,
-          latitude,
-          longitude,
-          lot: mapped.lot,
-          rue: mapped.rue,
-          ville: mapped.ville,
-          pays: mapped.pays,
-          codePostal: mapped.codePostal,
-          source: 'google',
-        };
-      }
+const ADDRESS_TYPES = ['street_address', 'premise', 'subpremise', 'route'];
+const pickBestReverseResult = (results = []) =>
+  results.find((r) => !isPlusCodeResult(r) && (r.types || []).some((t) => ADDRESS_TYPES.includes(t))) ||
+  results.find((r) => !isPlusCodeResult(r)) ||
+  results[0] ||
+  null;
 
-      if (response.data.status === 'REQUEST_DENIED') {
-        disableGoogle('REQUEST_DENIED');
-      }
-    } catch (error) {
-      console.warn('⚠️ [Google Reverse] Erreur:', error.message);
+// Petit cache (≈ 11 m de précision, 60 s) : évite les requêtes en double
+const REVERSE_CACHE_TTL_MS = 60000;
+const reverseCache = new Map();
+const reverseKey = (lat, lng) => `${Number(lat).toFixed(4)},${Number(lng).toFixed(4)}`;
+
+const reverseWithGoogle = async (latitude, longitude) => {
+  if (!GOOGLE_MAPS_API_KEY || googleDisabled) return null;
+  try {
+    console.log(`🔍 [Google] Reverse Geocoding: ${latitude}, ${longitude}`);
+    const response = await axios.get(GOOGLE_GEOCODE_URL, {
+      params: {
+        latlng: `${latitude},${longitude}`,
+        key: GOOGLE_MAPS_API_KEY,
+        language: 'fr',
+      },
+      timeout: 10000,
+    });
+
+    if (response.data.status === 'OK' && response.data.results.length > 0) {
+      const best = pickBestReverseResult(response.data.results);
+      if (!best) return null;
+      const mapped = mapGoogleReverseResult(best);
+      return {
+        address: mapped.display_name,
+        display_name: mapped.display_name,
+        place_id: mapped.place_id,
+        latitude,
+        longitude,
+        lot: mapped.lot,
+        rue: mapped.rue,
+        ville: mapped.ville,
+        pays: mapped.pays,
+        codePostal: mapped.codePostal,
+        source: 'google',
+      };
     }
-  }
 
-  // ✅ 2) OpenStreetMap en secours
+    if (response.data.status === 'REQUEST_DENIED') {
+      disableGoogle('REQUEST_DENIED');
+    }
+  } catch (error) {
+    console.warn('⚠️ [Google Reverse] Erreur:', error.message);
+  }
+  return null;
+};
+
+const reverseWithNominatim = async (latitude, longitude) => {
   try {
     console.log(`🔍 [OSM] Reverse Geocoding: ${latitude}, ${longitude}`);
     const data = await nominatimRequest('/reverse', {
@@ -362,29 +390,87 @@ export const reverseGeocode = async (latitude, longitude) => {
       lon: longitude,
       format: 'json',
       addressdetails: 1,
+      zoom: 18,
       'accept-language': 'fr',
     });
 
     if (data && data.display_name) {
-      const addressData = data.address || {};
+      const a = data.address || {};
       return {
         address: data.display_name,
         display_name: data.display_name,
-        latitude: parseFloat(data.lat),
-        longitude: parseFloat(data.lon),
-        lot: addressData.house_number || '',
-        rue: addressData.road || '',
-        ville: addressData.city || addressData.town || addressData.village || addressData.suburb || '',
-        pays: addressData.country || 'Madagascar',
-        codePostal: addressData.postcode || '',
+        latitude,
+        longitude,
+        lot: a.house_number || '',
+        rue: a.road || a.pedestrian || a.street || '',
+        ville: a.city || a.town || a.village || a.suburb || '',
+        pays: a.country || 'Madagascar',
+        codePostal: a.postcode || '',
         source: 'osm',
       };
     }
   } catch (error) {
     console.warn('⚠️ [OSM Reverse] Erreur:', error.message);
   }
-
   return null;
+};
+
+// ✅ 3e secours, SANS clé API et compatible navigateur (CORS ouvert) :
+// donne au moins quartier / ville / région si Google et OSM échouent.
+const reverseWithBigDataCloud = async (latitude, longitude) => {
+  try {
+    console.log(`🔍 [BDC] Reverse Geocoding: ${latitude}, ${longitude}`);
+    const { data } = await axios.get(
+      'https://api.bigdatacloud.net/data/reverse-geocode-client',
+      {
+        params: { latitude, longitude, localityLanguage: 'fr' },
+        timeout: 8000,
+      }
+    );
+
+    const parts = [data?.locality, data?.city, data?.principalSubdivision, data?.countryName]
+      .filter(Boolean)
+      .filter((p, i, arr) => arr.indexOf(p) === i);
+    if (parts.length === 0) return null;
+
+    const display = parts.join(', ');
+    return {
+      address: display,
+      display_name: display,
+      latitude,
+      longitude,
+      lot: '',
+      rue: data?.locality || '',
+      ville: data?.city || data?.locality || '',
+      pays: data?.countryName || 'Madagascar',
+      codePostal: data?.postcode || '',
+      source: 'bigdatacloud',
+    };
+  } catch (error) {
+    console.warn('⚠️ [BDC Reverse] Erreur:', error.message);
+    return null;
+  }
+};
+
+/**
+ * ✅ Coordonnées -> adresse. Ne lève JAMAIS d'exception : renvoie `null`
+ * si tous les services échouent. Ordre : Google -> OSM -> BigDataCloud.
+ */
+export const reverseGeocode = async (latitude, longitude) => {
+  if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) return null;
+
+  const key = reverseKey(latitude, longitude);
+  const cached = reverseCache.get(key);
+  if (cached && Date.now() - cached.at < REVERSE_CACHE_TTL_MS) return cached.value;
+
+  const value =
+    (await reverseWithGoogle(latitude, longitude)) ||
+    (await reverseWithNominatim(latitude, longitude)) ||
+    (await reverseWithBigDataCloud(latitude, longitude)) ||
+    null;
+
+  if (value) reverseCache.set(key, { at: Date.now(), value });
+  return value;
 };
 
 // ============================================

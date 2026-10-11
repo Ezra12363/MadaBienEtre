@@ -61,6 +61,8 @@ import {
   Alert,
   Linking,
   Platform,
+  ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -357,15 +359,14 @@ export default function NavigationScreen({ route: navRoute }) {
   // disponible, sur Android comme sur le web.
   const [screenSize, setScreenSize] = useState(null);
 
-  // ✅ Hauteur réelle du bandeau bas flottant, mesurée dynamiquement,
-  // pour placer le badge adresse juste au-dessus de lui — quel que
-  // soit l'appareil — au lieu d'une valeur fixe ("bottom: 230") qui
-  // pouvait laisser un vide ou se chevaucher.
-  const [bottomSheetHeight, setBottomSheetHeight] = useState(210);
-
-  // ✅ Hauteur mesurée du bloc adresse/stats : le bouton SOS se place juste
-  // au-dessus, sans jamais le chevaucher.
-  const [overlayHeight, setOverlayHeight] = useState(120);
+  // Hauteur max du panneau du bas : il défile s'il dépasse (petits écrans),
+  // la carte garde toujours sa place au-dessus.
+  // Écran large (web / tablette) : carte à gauche + panneau à droite.
+  // Écran étroit (téléphone) : toute la page défile — grande carte puis infos.
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isWide = windowWidth >= 900;
+  const sidePanelWidth = Math.min(460, Math.round(windowWidth * 0.38));
+  const mapHeight = Math.max(340, Math.round(windowHeight * 0.62));
   const routeRequestIdRef = useRef(0);
 
   gpsLocationRef.current = activeLocation;
@@ -825,24 +826,11 @@ export default function NavigationScreen({ route: navRoute }) {
   // RENDER
   // ==========================================================
 
-  return (
-    <View
-      style={[styles.container, { backgroundColor: themeColors.background }]}
-    >
-      <Header title="Navigation vers le client" showBack />
-
-      {/* ==================================================
-          CARTE — occupe tout l'écran restant. Le bandeau bas
-          flotte désormais au-dessus, pour une carte agrandie.
-          `showMapTypeControl` (par défaut) affiche le bouton
-          satellite/plan maison en HAUT-GAUCHE : nos propres
-          éléments (recentrer, adresse) restent donc à DROITE.
-      ================================================== */}
-
-      <View
-        style={styles.screenArea}
-        onLayout={(e) => setScreenSize(e.nativeEvent.layout)}
-      >
+  const mapBlock = (
+        <View
+          style={[styles.mapWrap, !isWide && { flex: 0, height: mapHeight }]}
+          onLayout={(e) => setScreenSize(e.nativeEvent.layout)}
+        >
         <View
           style={[
             styles.mapArea,
@@ -886,6 +874,7 @@ export default function NavigationScreen({ route: navRoute }) {
             routeColor={ROUTE_COLOR}
             routeWidth={6}
             navMode={navMode}
+            gestureHandling={isWide ? 'greedy' : 'cooperative'}
             showUserLocation={false}
             trackUserLocation={false}
             showMapTypeControl
@@ -973,11 +962,7 @@ export default function NavigationScreen({ route: navRoute }) {
             besoin) puis, juste au-dessus du bandeau du trajet,
             le badge adresse. */}
         <View
-          style={[
-            styles.mapBottomOverlay,
-            { bottom: bottomSheetHeight + spacing.sm },
-          ]}
-          onLayout={(e) => setOverlayHeight(e.nativeEvent.layout.height)}
+          style={styles.mapBottomOverlay}
           pointerEvents="box-none"
         >
           {gpsError && !therapistPosition ? (
@@ -990,6 +975,26 @@ export default function NavigationScreen({ route: navRoute }) {
             </View>
           ) : null}
 
+        </View>
+
+        {/* ✅ Bouton SOS (repris de l'ancien écran "Suivi en direct") :
+            ancré en bas à gauche, juste au-dessus du bloc adresse/stats. */}
+        <View
+          style={[
+            styles.sosButtonContainer,
+            { bottom: spacing.md },
+          ]}
+          pointerEvents="box-none"
+        >
+          <SOSButton bookingId={bookingId} />
+        </View>
+
+        </View>
+
+  );
+
+  const panelInner = (
+    <>
           {/* ✅ CARD UNIQUE : Adresse + Distance/Temps fusionnés */}
           <View
             style={[
@@ -1157,37 +1162,8 @@ export default function NavigationScreen({ route: navRoute }) {
               </View>
             </View>
           </View>
-        </View>
 
-        {/* ✅ Bouton SOS (repris de l'ancien écran "Suivi en direct") :
-            ancré en bas à gauche, juste au-dessus du bloc adresse/stats. */}
-        <View
-          style={[
-            styles.sosButtonContainer,
-            { bottom: bottomSheetHeight + overlayHeight + spacing.md },
-          ]}
-          pointerEvents="box-none"
-        >
-          <SOSButton bookingId={bookingId} />
-        </View>
 
-        {/* ==================================================
-            BANDEAU BAS — flotte désormais au-dessus de la carte
-            (au lieu d'un bloc séparé qui réduisait la carte).
-            Regroupe légende, distance/durée et l'action
-            principale.
-        ================================================== */}
-
-        <View
-          onLayout={(e) => setBottomSheetHeight(e.nativeEvent.layout.height)}
-          style={[
-            styles.bottomSheetFloating,
-            {
-              backgroundColor: themeColors.surface,
-              borderColor: themeColors.border || '#E5E5E5',
-            },
-          ]}
-        >
           <View style={styles.legendRow}>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: ROUTE_COLOR }]} />
@@ -1314,8 +1290,59 @@ export default function NavigationScreen({ route: navRoute }) {
               <Text style={styles.startButtonText}>Démarrer l'itinéraire</Text>
             </LinearGradient>
           </TouchableOpacity>
+    </>
+  );
+
+  return (
+    <View
+      style={[styles.container, { backgroundColor: themeColors.background }]}
+    >
+      <Header title="Navigation vers le client" showBack />
+
+      {/* ==================================================
+          CARTE — occupe tout l'écran restant. Le bandeau bas
+          flotte désormais au-dessus, pour une carte agrandie.
+          `showMapTypeControl` (par défaut) affiche le bouton
+          satellite/plan maison en HAUT-GAUCHE : nos propres
+          éléments (recentrer, adresse) restent donc à DROITE.
+      ================================================== */}
+
+      {isWide ? (
+        <View style={styles.wideRow}>
+          {mapBlock}
+          <ScrollView
+            style={[styles.sidePanel, { width: sidePanelWidth, backgroundColor: themeColors.surface, borderLeftColor: themeColors.border || '#E5E5E5' }]}
+            contentContainerStyle={styles.sidePanelContent}
+            showsVerticalScrollIndicator
+            keyboardShouldPersistTaps="handled"
+          >
+            {panelInner}
+          </ScrollView>
         </View>
-      </View>
+      ) : (
+        <ScrollView
+          style={styles.screenArea}
+          contentContainerStyle={styles.narrowContent}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator
+          keyboardShouldPersistTaps="handled"
+        >
+          {mapBlock}
+          <View
+            style={[
+              styles.bottomPanel,
+              {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.border || '#E5E5E5',
+              },
+            ]}
+          >
+            <View style={styles.bottomPanelContent}>
+            {panelInner}
+            </View>
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -1346,7 +1373,17 @@ const styles = StyleSheet.create({
   // flotte par-dessus au lieu de réduire son espace).
   // ==========================================================
 
-  screenArea: { flex: 1, position: 'relative' },
+  screenArea: { flex: 1 },
+
+  wideRow: { flex: 1, flexDirection: 'row' },
+
+  sidePanel: { flexGrow: 0, flexShrink: 0, borderLeftWidth: 1 },
+
+  sidePanelContent: { padding: spacing.md, paddingBottom: spacing.xl },
+
+  narrowContent: { flexGrow: 1 },
+
+  mapWrap: { flex: 1, minHeight: 240, position: 'relative' },
 
   mapArea: { ...StyleSheet.absoluteFillObject },
 
@@ -1356,7 +1393,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: spacing.sm,
     right: spacing.sm,
-    bottom: 230,
+    bottom: spacing.sm,
     gap: spacing.sm,
   },
 
@@ -1365,15 +1402,11 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   infoCard: {
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     padding: spacing.sm,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 5,
-    gap: spacing.xs,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
 
   // --- Ligne Adresse ---
@@ -1541,20 +1574,25 @@ const styles = StyleSheet.create({
   // BANDEAU BAS — flotte au-dessus de la carte agrandie
   // ==========================================================
 
-  bottomSheetFloating: {
-    position: 'absolute',
-    left: spacing.sm,
-    right: spacing.sm,
-    bottom: spacing.sm,
-    borderRadius: 22,
-    borderWidth: 1,
-    padding: spacing.md,
-    paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.md,
+  bottomPanel: {
+    flexGrow: 1,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderTopWidth: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  // Sur grand écran (web) le contenu reste centré et lisible
+  bottomPanelContent: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
   },
 
   legendRow: {
