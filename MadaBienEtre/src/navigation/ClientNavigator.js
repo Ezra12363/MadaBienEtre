@@ -42,6 +42,7 @@ import BookingDetailScreen from '../screens/client/BookingDetailScreen';
 import ProfileScreen from '../screens/client/ProfileScreen';
 import NotificationScreen from '../screens/client/NotificationScreen';
 import ChatScreen from '../screens/client/ChatScreen';
+import ConversationsScreen from '../screens/shared/ConversationsScreen';
 import PaymentScreen from '../screens/client/PaymentScreen';
 import RatingScreen from '../screens/client/RatingScreen';
 import TrackingScreen from '../screens/client/TrackingScreen';
@@ -49,6 +50,7 @@ import SOSScreen from '../screens/client/SOSScreen';
 import HistoryScreen from '../screens/client/HistoryScreen';
 import NegotiationScreen from '../screens/client/NegotiationScreen';
 import OffersScreen from '../screens/client/OffersScreen';
+import AIRecommendationScreen from '../screens/client/AIRecommendationScreen';
 
 // ✅ NOUVEAU : écran plein "Publications des thérapeutes"
 import TherapistPublicationsScreen from '../screens/client/TherapistPublicationsScreen';
@@ -112,6 +114,12 @@ const HomeStack = () => {
       <Stack.Screen
         name="HomeScreen"
         component={HomeScreen}
+      />
+
+      {/* ✨ Assistant IA & Chatbot (recommandations, estimation, chatbot) */}
+      <Stack.Screen
+        name="AIRecommendation"
+        component={AIRecommendationScreen}
       />
 
       <Stack.Screen
@@ -281,7 +289,7 @@ const ChatStack = () => {
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
         name="ChatList"
-        component={ChatScreen}
+        component={ConversationsScreen}
       />
 
       <Stack.Screen

@@ -153,15 +153,28 @@ api.interceptors.response.use(
 // ✅ FONCTIONS EXPORTÉES
 // ============================================================
 
+// FastAPI renvoie `detail` sous forme de texte OU de liste (erreurs 422).
+// Toujours renvoyer une chaîne pour éviter de faire planter un <Text>.
+const extractErrorMessage = (data) => {
+  const detail = data?.detail;
+  if (Array.isArray(detail)) {
+    const joined = detail
+      .map((d) => d?.msg || d?.message)
+      .filter(Boolean)
+      .join(' · ');
+    if (joined) return joined;
+  }
+  if (typeof detail === 'string' && detail) return detail;
+  if (typeof data?.message === 'string' && data.message) return data.message;
+  return 'Une erreur est survenue';
+};
+
 export const handleApiError = (error) => {
   if (error.response) {
     return {
       status: error.response.status,
       data: error.response.data,
-      message:
-        error.response.data?.detail ||
-        error.response.data?.message ||
-        'Une erreur est survenue',
+      message: extractErrorMessage(error.response.data),
     };
   } else if (error.request) {
     return {

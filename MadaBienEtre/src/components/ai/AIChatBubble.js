@@ -5,122 +5,131 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
 
-const AIChatBubble = ({ 
-  message, 
-  isUser, 
-  timestamp, 
+const COLLAPSED_LINES = 8;
+
+const AIChatBubble = ({
+  message,
+  isUser,
+  timestamp,
   onSuggestionPress,
   suggestions = [],
 }) => {
   const { colors: themeColors } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
 
+  const text = typeof message === 'string' ? message : '';
+  const isLong = !isUser && text.length > 280;
+
   const formatTime = (date) => {
     const d = new Date(date);
+    if (Number.isNaN(d.getTime())) return '';
     return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const renderContent = () => {
-    if (isUser) {
-      return (
-        <Text style={[styles.userMessage, { color: '#fff' }]}>
-          {message}
-        </Text>
-      );
-    }
-
-    return (
-      <>
-        <View style={styles.aiHeader}>
-          <View style={styles.aiAvatar}>
-            <Ionicons name="chatbubble" size={16} color="#fff" />
-          </View>
-          <Text style={[styles.aiName, { color: colors.primary }]}>
-            Assistant IA
-          </Text>
-        </View>
-
-        <Text style={[styles.aiMessage, { color: themeColors.text }]}>
-          {message}
-        </Text>
-
-        {suggestions.length > 0 && (
-          <View style={styles.suggestionsContainer}>
-            {suggestions.map((suggestion, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.suggestionChip, { backgroundColor: themeColors.background }]}
-                onPress={() => onSuggestionPress && onSuggestionPress(suggestion)}
-              >
-                <Text style={[styles.suggestionText, { color: colors.primary }]}>
-                  {suggestion}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {message.length > 200 && (
-          <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)}>
-            <Text style={[styles.readMore, { color: colors.primary }]}>
-              {isExpanded ? 'Voir moins' : 'Voir plus'}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </>
-    );
-  };
+  const safeSuggestions = Array.isArray(suggestions)
+    ? suggestions.filter((s) => typeof s === 'string' && s.trim())
+    : [];
 
   return (
-    <View style={[
-      styles.container,
-      isUser ? styles.userContainer : styles.aiContainer,
-    ]}>
-      <View style={[
-        styles.bubble,
-        isUser ? styles.userBubble : styles.aiBubble,
-        { backgroundColor: isUser ? colors.primary : themeColors.surface },
-      ]}>
-        {renderContent()}
-        <Text style={[
-          styles.timeText,
-          { color: isUser ? 'rgba(255,255,255,0.7)' : themeColors.textSecondary }
-        ]}>
-          {formatTime(timestamp || Date.now())}
-        </Text>
+    <View
+      style={[
+        styles.container,
+        isUser ? styles.userContainer : styles.aiContainer,
+      ]}
+    >
+      <View
+        style={[
+          styles.bubble,
+          isUser ? styles.userBubble : styles.aiBubble,
+          {
+            backgroundColor: isUser ? colors.primary : themeColors.surface,
+            borderColor: isUser ? colors.primary : themeColors.border,
+          },
+        ]}
+      >
+        {isUser ? (
+          <Text style={styles.userMessage}>{text}</Text>
+        ) : (
+          <>
+            <View style={styles.aiHeader}>
+              <View style={styles.aiAvatar}>
+                <Ionicons name="sparkles" size={13} color="#fff" />
+              </View>
+              <Text style={[styles.aiName, { color: colors.primary }]}>
+                Assistant IA
+              </Text>
+            </View>
+
+            <Text
+              selectable
+              style={[styles.aiMessage, { color: themeColors.text }]}
+              numberOfLines={isLong && !isExpanded ? COLLAPSED_LINES : undefined}
+            >
+              {text}
+            </Text>
+
+            {isLong && (
+              <TouchableOpacity onPress={() => setIsExpanded((v) => !v)}>
+                <Text style={[styles.readMore, { color: colors.primary }]}>
+                  {isExpanded ? 'Voir moins' : 'Voir plus'}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {safeSuggestions.length > 0 && (
+              <View style={styles.suggestionsContainer}>
+                {safeSuggestions.slice(0, 4).map((suggestion, index) => (
+                  <TouchableOpacity
+                    key={`${suggestion}-${index}`}
+                    style={[
+                      styles.suggestionChip,
+                      { backgroundColor: colors.primary + '12' },
+                    ]}
+                    onPress={() => onSuggestionPress && onSuggestionPress(suggestion)}
+                  >
+                    <Text style={[styles.suggestionText, { color: colors.primary }]}>
+                      {suggestion}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </>
+        )}
+
+        {timestamp ? (
+          <Text
+            style={[
+              styles.timeText,
+              {
+                color: isUser
+                  ? 'rgba(255,255,255,0.75)'
+                  : themeColors.textSecondary,
+              },
+            ]}
+          >
+            {formatTime(timestamp)}
+          </Text>
+        ) : null}
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    marginVertical: 4,
-    paddingHorizontal: spacing.sm,
-  },
-  userContainer: {
-    alignItems: 'flex-end',
-  },
-  aiContainer: {
-    alignItems: 'flex-start',
-  },
+  container: { marginVertical: 4, paddingHorizontal: spacing.xs },
+  userContainer: { alignItems: 'flex-end' },
+  aiContainer: { alignItems: 'flex-start' },
   bubble: {
-    maxWidth: '85%',
+    maxWidth: '88%',
     padding: spacing.md,
     borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    borderWidth: 1,
   },
-  userBubble: {
-    borderBottomRightRadius: 4,
-  },
-  aiBubble: {
-    borderBottomLeftRadius: 4,
-  },
+  userBubble: { borderBottomRightRadius: 4 },
+  aiBubble: { borderBottomLeftRadius: 4 },
   userMessage: {
+    color: '#fff',
     fontSize: typography.fontSize.md,
     fontFamily: typography.fontFamily.regular,
     lineHeight: 20,
@@ -132,9 +141,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   aiAvatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -156,10 +165,10 @@ const styles = StyleSheet.create({
   },
   suggestionChip: {
     paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.primary + '30',
+    borderColor: colors.primary + '40',
   },
   suggestionText: {
     fontSize: typography.fontSize.sm,

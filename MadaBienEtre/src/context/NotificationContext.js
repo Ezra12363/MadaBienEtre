@@ -1,10 +1,55 @@
 // src/context/NotificationContext.js
-import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+// ============================================================================
+// Notifications de l'app (réservations, offres, MESSAGES DE CHAT...).
+//
+// Flux d'un nouveau message :
+//   1. Le backend enregistre une notification (table notifications) et envoie
+//      un signal instantané sur /ws/notifications  => pollNotifications()
+//      est déclenché tout de suite (plus d'attente de 10 s).
+//   2. pollNotifications() lit GET /notifications ; pour chaque notification
+//      NOUVELLE et non lue, il affiche une notification native (mobile) /
+//      navigateur (web) via notificationService.presentBackendNotification().
+//   3. Si vous avez déjà CETTE conversation ouverte, rien n'est affiché
+//      (setActiveChatBookingId, appelé par ChatScreen / useChatRoom).
+//   4. Le polling (toutes les 10 s) reste en filet de sécurité.
+// ============================================================================
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
+import { AppState, Platform } from 'react-native';
 import notificationService from '../services/notificationService';
 import { toTimestamp } from '../utils/timeAgo';
+import { buildWsUrl } from '../utils/wsUrl';
 
 const NotificationContext = createContext();
+
+const TOKEN_STORAGE_KEY = '@mada_token';
+const POLL_INTERVAL_MS = 10000;
+const NOTIF_PING_MS = 25000;
+
+// created_at / data peuvent arriver sous forme de chaîne JSON
+const parseNotifData = (n) => {
+  let data = n?.data ?? n?.metadata ?? n?.payload ?? {};
+  if (typeof data === 'string') {
+    try {
+      data = JSON.parse(data);
+    } catch (_e) {
+      data = {};
+    }
+  }
+  return data && typeof data === 'object' ? data : {};
+};
+
+const isChatNotification = (n) => {
+  const data = parseNotifData(n);
+  const type = String(n?.type || '').toLowerCase();
+  return data.kind === 'chat_message' || type.includes('chat') || type.includes('message');
+};
 
 export const NotificationProvider = ({ children }) => {
   const [expoPushToken, setExpoPushToken] = useState('');
@@ -17,60 +62,86 @@ export const NotificationProvider = ({ children }) => {
   const knownNotificationIds = useRef(new Set());
   const firstNotificationPoll = useRef(true);
   const pollInProgress = useRef(false);
+  const pollAgain = useRef(false);
 
+  // Conversation actuellement ouverte à l'écran (null = aucune)
+  const activeChatBookingId = useRef(null);
+
+  // Clic sur une notification native -> navigation (fournie par l'app)
+  const responseHandlerRef = useRef(null);
+  const pendingResponseRef = useRef(null);
+
+  // WebSocket "signal instantané"
+  const notifSocketRef = useRef(null);
+  const notifSocketFailsRef = useRef(0);
+  const notifSocketNextTryRef = useRef(0);
+
+  /* ------------------------------------------------------------------ */
+  /* Cycle de vie                                                         */
+  /* ------------------------------------------------------------------ */
   useEffect(() => {
     setupNotifications();
     pollNotifications();
 
-    // IMPORTANT : unread-count seul ne fait qu'actualiser le badge.
-    // Pour faire apparaître réellement la notification, on doit aussi
-    // récupérer GET /notifications.
     const pollingInterval = setInterval(() => {
       pollNotifications();
-    }, 5000);
+    }, POLL_INTERVAL_MS);
 
-    return () => clearInterval(pollingInterval);
+    // Retour au premier plan : on relit tout de suite
+    const appSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') pollNotifications();
+    });
+
+    return () => {
+      clearInterval(pollingInterval);
+      appSub?.remove?.();
+      closeNotifSocket();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
+    if (Platform.OS === 'web') return undefined;
 
-    // ✅ FIXÉ : "listener" mandeha AMIN'NY MOBILE ihany (efa marina
-    // teo aloha), fa nampio "try/catch" mba tsy hisy crash raha misy
-    // olana amin'ny notificationService.addNotificationListener (ex:
-    // permission na module tsy tafiditra tsara).
-    if (Platform.OS !== 'web') {
-      let subscription;
-      let responseSubscription;
-      try {
-        subscription = notificationService.addNotificationListener((notif) => {
-          setNotification(notif);
-        });
+    let subscription;
+    let responseSubscription;
+    try {
+      subscription = notificationService.addNotificationListener((notif) => {
+        setNotification(notif);
+      });
 
-        responseSubscription = notificationService.addNotificationResponseListener((response) => {
-          const data = response.notification.request.content.data;
-          if (data?.screen) {
-            // navigation.navigate(data.screen, data);
-          }
-        });
-      } catch (error) {
-        console.warn('⚠️ [Notifications] Impossible d\'initialiser les listeners:', error?.message);
-      }
-
-      return () => {
-        try {
-          if (subscription) notificationService.removeListener(subscription);
-          if (responseSubscription) notificationService.removeListener(responseSubscription);
-        } catch (error) {
-          console.warn('⚠️ [Notifications] Erreur lors du nettoyage des listeners:', error?.message);
+      responseSubscription = notificationService.addNotificationResponseListener((response) => {
+        const data = response?.notification?.request?.content?.data || {};
+        if (responseHandlerRef.current) {
+          responseHandlerRef.current(data);
+        } else {
+          pendingResponseRef.current = data; // l'app n'est pas encore prête
         }
-      };
+      });
+    } catch (error) {
+      console.warn('⚠️ [Notifications] Impossible d\'initialiser les listeners:', error?.message);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    return () => {
+      try {
+        if (subscription) notificationService.removeListener(subscription);
+        if (responseSubscription) notificationService.removeListener(responseSubscription);
+      } catch (error) {
+        console.warn('⚠️ [Notifications] Erreur lors du nettoyage des listeners:', error?.message);
+      }
+    };
   }, []);
 
+  /* ------------------------------------------------------------------ */
+  /* Permissions / token / canaux                                         */
+  /* ------------------------------------------------------------------ */
   const setupNotifications = async () => {
     try {
+      // Affiche les notifications même quand l'app est au premier plan
+      // + crée les canaux Android (sans canal, rien ne s'affiche sur Android 8+)
+      notificationService.configureForeground();
+      await notificationService.ensureChannels();
+
       const hasPermission = await notificationService.checkPermission();
       setPermissionStatus(hasPermission);
 
@@ -84,15 +155,74 @@ export const NotificationProvider = ({ children }) => {
         setExpoPushToken(token || '');
       }
     } catch (error) {
-      // ✅ FIXÉ : atao "warn" fa tsy "error" — ny fandavana permission
-      // na ny push token tsy azo (ex: web, simulator) dia tsy
-      // "hadisoana" fa toe-javatra mahazatra
       console.warn('⚠️ [Notifications] setupNotifications:', error?.message);
     } finally {
       setIsLoading(false);
     }
   };
 
+  /* ------------------------------------------------------------------ */
+  /* Signal instantané (WebSocket /ws/notifications)                      */
+  /* ------------------------------------------------------------------ */
+  const closeNotifSocket = () => {
+    const ws = notifSocketRef.current;
+    notifSocketRef.current = null;
+    if (ws) {
+      try {
+        ws.close();
+      } catch (_e) { /* no-op */ }
+    }
+  };
+
+  const ensureNotifSocket = (token) => {
+    if (notifSocketRef.current) return;
+    if (Date.now() < notifSocketNextTryRef.current) return;
+
+    try {
+      const ws = new WebSocket(buildWsUrl('/notifications', token));
+      notifSocketRef.current = ws;
+      let pingTimer = null;
+
+      ws.onopen = () => {
+        notifSocketFailsRef.current = 0;
+        pingTimer = setInterval(() => {
+          if (ws.readyState === 1) {
+            try {
+              ws.send(JSON.stringify({ type: 'ping' }));
+            } catch (_e) { /* no-op */ }
+          }
+        }, NOTIF_PING_MS);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data?.type === 'notification') {
+            pollNotifications();
+          }
+        } catch (_e) { /* message ignoré */ }
+      };
+
+      ws.onerror = () => { /* onclose suit */ };
+
+      ws.onclose = () => {
+        if (pingTimer) clearInterval(pingTimer);
+        if (notifSocketRef.current === ws) notifSocketRef.current = null;
+        notifSocketFailsRef.current += 1;
+        const delay = Math.min(2000 * 2 ** notifSocketFailsRef.current, 30000);
+        notifSocketNextTryRef.current = Date.now() + delay;
+      };
+    } catch (error) {
+      notifSocketRef.current = null;
+      notifSocketFailsRef.current += 1;
+      notifSocketNextTryRef.current =
+        Date.now() + Math.min(2000 * 2 ** notifSocketFailsRef.current, 30000);
+    }
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* Polling                                                              */
+  /* ------------------------------------------------------------------ */
   const extractNotifications = (result) => {
     if (!result?.success) return [];
     if (Array.isArray(result.notifications)) return result.notifications;
@@ -100,13 +230,7 @@ export const NotificationProvider = ({ children }) => {
     const raw = result.data;
     if (Array.isArray(raw)) return raw;
 
-    const list =
-      raw?.notifications ||
-      raw?.items ||
-      raw?.results ||
-      raw?.data ||
-      [];
-
+    const list = raw?.notifications || raw?.items || raw?.results || raw?.data || [];
     return Array.isArray(list) ? list : [];
   };
 
@@ -117,49 +241,60 @@ export const NotificationProvider = ({ children }) => {
     `${n?.created_at || n?.createdAt || ''}-${n?.title || ''}-${n?.body || n?.message || ''}`;
 
   const pollNotifications = async () => {
-    if (pollInProgress.current) return;
+    // Un signal reçu pendant un polling => on relance juste après
+    if (pollInProgress.current) {
+      pollAgain.current = true;
+      return;
+    }
     pollInProgress.current = true;
 
     try {
-      const AsyncStorage =
-        require('@react-native-async-storage/async-storage').default;
-      const token = await AsyncStorage.getItem('@mada_token');
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
 
       if (!token) {
+        // Déconnecté : plus de socket, plus de badge, cache remis à zéro
+        closeNotifSocket();
+        knownNotificationIds.current = new Set();
+        firstNotificationPoll.current = true;
         setUnreadCount(0);
         return;
       }
 
+      ensureNotifSocket(token);
+
       const result = await notificationService.getNotifications();
+      if (!result?.success) return;
       const list = extractNotifications(result);
 
-      if (!result?.success) return;
-
-      // Tri : plus récentes en premier.
+      // Tri : plus récentes en premier (created_at = UTC sans "Z" -> toTimestamp)
       const sorted = [...list].sort((a, b) => {
-        // created_at est en UTC sans "Z" : toTimestamp force l'UTC
         const da = toTimestamp(a?.created_at || a?.createdAt);
         const db = toTimestamp(b?.created_at || b?.createdAt);
         return db - da;
       });
 
-      // Le premier polling initialise le cache sans afficher de faux
-      // "nouveau" message pour toutes les anciennes notifications.
       if (firstNotificationPoll.current) {
-        sorted.forEach(n => knownNotificationIds.current.add(getNotificationId(n)));
+        // Le premier polling initialise le cache sans afficher de faux "nouveau"
+        sorted.forEach((n) => knownNotificationIds.current.add(getNotificationId(n)));
         firstNotificationPoll.current = false;
       } else {
-        for (const n of sorted) {
+        // Les plus anciennes d'abord => ordre d'apparition naturel
+        for (const n of [...sorted].reverse()) {
           const id = getNotificationId(n);
-          if (!knownNotificationIds.current.has(id)) {
-            knownNotificationIds.current.add(id);
+          if (knownNotificationIds.current.has(id)) continue;
+          knownNotificationIds.current.add(id);
 
-            // Notification native / Web uniquement si elle est encore
-            // non lue. La liste reste disponible dans NotificationScreen.
-            if (!n?.is_read) {
-              await notificationService.presentBackendNotification(n);
-            }
+          if (n?.is_read) continue;
+
+          // Message de la conversation actuellement ouverte : inutile de notifier
+          if (isChatNotification(n) && activeChatBookingId.current != null) {
+            const data = parseNotifData(n);
+            const bookingId = n?.booking_id ?? data.booking_id ?? data.bookingId;
+            if (String(bookingId) === String(activeChatBookingId.current)) continue;
           }
+
+          await notificationService.presentBackendNotification(n);
         }
       }
 
@@ -169,85 +304,79 @@ export const NotificationProvider = ({ children }) => {
         knownNotificationIds.current = new Set(keep);
       }
 
-      const unread = sorted.filter(n => !n?.is_read).length;
-      setUnreadCount(unread);
+      setUnreadCount(sorted.filter((n) => !n?.is_read).length);
     } catch (error) {
       console.warn('⚠️ [Notifications] polling:', error?.message || error);
     } finally {
       pollInProgress.current = false;
+      if (pollAgain.current) {
+        pollAgain.current = false;
+        pollNotifications();
+      }
     }
   };
 
-  // ✅ FIXÉ (BUG LEHIBE) : ny "unread-count" polling dia mety
-  // MIANTSO ny backend ALOHAN'NY hisian'ny token (ex: rehefa
-  // vao misokatra ny app, mbola tsy nanao login ny mpampiasa) — io
-  // dia toe-javatra MAHAZATRA, tsy hadisoana. Ny code teo aloha dia
-  // namoaka "console.error" mahery be foana rehefa "Network Error"
-  // na 401 tamin'io fotoana io, na dia efa mandeha tsara aza ny app.
-  //
-  // Amin'izao:
-  //   1) Tsy miantso ny backend raha mbola tsy misy token (mba tsy
-  //      hamoaka fangatahana tsy ilaina, sy tsy hampiseho error).
-  //   2) Raha misy error (Network Error, 401, sns.) mandritra ny
-  //      fiantsoana, dia "warn" fotsiny (tsy manakorontana ny app),
-  //      ary avelao ho 0 ny unreadCount.
+  // Compteur seul (après markAsRead / markAllAsRead)
   const loadUnreadCount = async () => {
     try {
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      const token = await AsyncStorage.getItem('@mada_token');
+      const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
       if (!token) {
-        // ✅ Mbola tsy nanao login — tsy misy antony hiantso ny
-        // endpoint "unread-count" (izay mila authentification foana)
         setUnreadCount(0);
         return;
       }
 
       const result = await notificationService.getUnreadCount();
       if (result?.success) {
-        // Le backend renvoie normalement unread_count. On garde aussi
-        // un fallback count pour les anciennes versions.
-        // ✅ FIXÉ : le backend (notifications.py) renvoie
-        // {"unread_count": N}, jamais {"count": N}. Avec l'ancien
-        // code, le badge de notifications restait bloqué à 0 en
-        // permanence, quel que soit le nombre réel de notifications
-        // non lues (négociations comprises).
-        const count =
-          result.data?.unread_count ??
-          result.data?.count ??
-          0;
+        // Le backend renvoie {"unread_count": N} (fallback "count" conservé)
+        const count = result.data?.unread_count ?? result.data?.count ?? 0;
         setUnreadCount(count);
       } else {
         setUnreadCount(0);
       }
     } catch (error) {
-      // ✅ FIXÉ : "warn" fotsiny, tsy "error" — mba tsy hampiseho
-      // error mena tsy misy dikany rehefa tsy misy connexion na
-      // token mbola tsy vonona
       console.warn('⚠️ [Notifications] loadUnreadCount:', error?.message);
       setUnreadCount(0);
     }
   };
 
-  const sendNotification = (title, body, data = {}) => {
-    return notificationService.sendNotification(title, body, data);
-  };
+  /* ------------------------------------------------------------------ */
+  /* API exposée                                                          */
+  /* ------------------------------------------------------------------ */
 
-  const scheduleNotification = (title, body, seconds, data = {}) => {
-    return notificationService.scheduleNotification(title, body, seconds, data);
-  };
+  // Appelé par ChatScreen (via useChatRoom) : bookingId de la conversation
+  // ouverte, ou null quand on la quitte / que l'app passe en arrière-plan.
+  const setActiveChatBookingId = useCallback((bookingId) => {
+    activeChatBookingId.current = bookingId ?? null;
+  }, []);
 
-  const sendSOSNotification = (title, body, data = {}) => {
-    return notificationService.sendSOSNotification(title, body, data);
-  };
+  // Navigation au clic sur une notification native. À appeler UNE fois dans
+  // un composant qui a accès à `navigation` (voir README) :
+  //   setNotificationResponseHandler((data) => { ... navigation.navigate(...) })
+  const setNotificationResponseHandler = useCallback((handler) => {
+    responseHandlerRef.current = handler || null;
+    if (handler && pendingResponseRef.current) {
+      const pending = pendingResponseRef.current;
+      pendingResponseRef.current = null;
+      handler(pending);
+    }
+  }, []);
 
-  const sendBookingNotification = (title, body, bookingId, data = {}) => {
-    return notificationService.sendBookingNotification(title, body, bookingId, data);
-  };
+  const sendNotification = (title, body, data = {}) =>
+    notificationService.sendNotification(title, body, data);
 
-  // ✅ AJOUT : notification liée à une négociation (offre / contre-offre)
-  const sendOfferNotification = (title, body, bookingId, data = {}) => {
-    return notificationService.sendOfferNotification(title, body, bookingId, data);
-  };
+  const scheduleNotification = (title, body, seconds, data = {}) =>
+    notificationService.scheduleNotification(title, body, seconds, data);
+
+  const sendSOSNotification = (title, body, data = {}) =>
+    notificationService.sendSOSNotification(title, body, data);
+
+  const sendBookingNotification = (title, body, bookingId, data = {}) =>
+    notificationService.sendBookingNotification(title, body, bookingId, data);
+
+  // Notification liée à une négociation (offre / contre-offre)
+  const sendOfferNotification = (title, body, bookingId, data = {}) =>
+    notificationService.sendOfferNotification(title, body, bookingId, data);
 
   const markAsRead = async (notificationId) => {
     const result = await notificationService.markAsRead(notificationId);
@@ -279,9 +408,12 @@ export const NotificationProvider = ({ children }) => {
     markAsRead,
     markAllAsRead,
     loadUnreadCount,
-    // ✅ alias explicite pour rafraîchir manuellement le badge
-    // (ex: après avoir envoyé une contre-offre)
+    // alias explicite pour rafraîchir manuellement le badge
     refreshUnreadCount: loadUnreadCount,
+    // relecture complète immédiate (ex. après avoir envoyé un message / une offre)
+    refreshNotifications: pollNotifications,
+    setActiveChatBookingId,
+    setNotificationResponseHandler,
     presentBackendNotification: notificationService.presentBackendNotification.bind(notificationService),
   };
 

@@ -1,3 +1,4 @@
+
 // app.config.js
 import appJson from "./app.json";
 
@@ -30,6 +31,7 @@ export default ({ config }) => {
 
     plugins: [
       ...(appJson.expo.plugins || []),
+      "expo-notifications",
       [
         "react-native-maps",
         {

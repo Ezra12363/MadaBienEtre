@@ -1,15 +1,31 @@
 # app/services/notification_service.py
-from sqlalchemy.orm import Session
-from typing import Optional, Dict, Any, List
-from datetime import datetime
 import logging
+import threading
+from datetime import datetime
+from typing import Optional, Dict, Any, List
 
-from ..models.notification import Notification
+from sqlalchemy.orm import Session
+
+from ..models.notification import Notification, NotificationPreference
 from ..models.user import User
 from ..core.database import SessionLocal
 from ..core.config import settings
+from .push_notifications import push_service
 
 logger = logging.getLogger(__name__)
+
+# Types de notification -> colonne de préférence
+_PREF_BY_TYPE = {
+    "booking": "booking_notifications",
+    "new_offer": "offer_notifications",
+    "counter_offer": "offer_notifications",
+    "offer_accepted": "offer_notifications",
+    "payment": "payment_notifications",
+    "review": "review_notifications",
+    "sos": "sos_notifications",
+    "promotional": "promotion_notifications",
+    "chat_message": "chat_notifications",
+}
 
 
 class NotificationService:
@@ -26,14 +42,7 @@ class NotificationService:
         priority: str = "normal",
         booking_id: Optional[int] = None,
     ) -> Notification:
-        """
-        Crée ET commit immédiatement la notification.
-
-        Cette méthode vérifie d'abord que le destinataire existe.
-        Le commit immédiat est volontaire : les appels venant de
-        bookings.py / offers.py doivent laisser une notification
-        durable même si leur propre transaction est différente.
-        """
+        """Crée ET commit immédiatement la notification."""
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             raise ValueError(f"Utilisateur destinataire introuvable: user_id={user_id}")
@@ -50,7 +59,6 @@ class NotificationService:
             is_delivered=False,
             is_sent=False,
         )
-
         db.add(notification)
         db.flush()
         db.commit()
@@ -58,12 +66,27 @@ class NotificationService:
 
         logger.info(
             "NOTIFICATION DB CREATED id=%s user_id=%s type=%s booking_id=%s",
-            notification.id,
-            user_id,
-            notification.type,
-            booking_id,
+            notification.id, user_id, notification.type, booking_id,
         )
         return notification
+
+    @staticmethod
+    def push_allowed(db: Session, user_id: int, notification_type: str) -> bool:
+        """Respecte les préférences de l'utilisateur (push + catégorie)."""
+        try:
+            pref = db.query(NotificationPreference).filter(
+                NotificationPreference.user_id == user_id
+            ).first()
+            if pref is None:
+                return True
+            if pref.push_enabled is False:
+                return False
+            col = _PREF_BY_TYPE.get(notification_type)
+            if col and getattr(pref, col, True) is False:
+                return False
+        except Exception:  # noqa: BLE001
+            logger.debug("Préférences illisibles", exc_info=True)
+        return True
 
     @staticmethod
     def send_push_notification(
@@ -72,19 +95,9 @@ class NotificationService:
         body: str,
         data: Optional[Dict[str, Any]] = None,
     ) -> bool:
-        """
-        Point d'intégration push.
-
-        IMPORTANT : cette fonction ne prétend pas envoyer un push réel.
-        Le stockage DB est indépendant et constitue la source de vérité
-        pour le centre Notifications.
-        """
+        """Envoi push RÉEL via Expo (bloquant). True si au moins un appareil reçu."""
         try:
-            logger.info(
-                "PUSH PLACEHOLDER user_id=%s title=%s data=%s",
-                user_id, title, data or {},
-            )
-            return True
+            return push_service.send_sync(user_id, title, body, data) > 0
         except Exception:
             logger.exception("Push notification failed for user_id=%s", user_id)
             return False
@@ -101,7 +114,6 @@ class NotificationService:
         offset = max(0, offset)
 
         query = db.query(Notification).filter(Notification.user_id == user_id)
-
         if is_read is not None:
             query = query.filter(Notification.is_read == is_read)
 
@@ -113,50 +125,36 @@ class NotificationService:
         )
 
     @staticmethod
-    def mark_as_read(
-        db: Session, notification_id: int, user_id: int
-    ) -> Optional[Notification]:
+    def mark_as_read(db: Session, notification_id: int, user_id: int) -> Optional[Notification]:
         notification = db.query(Notification).filter(
             Notification.id == notification_id,
             Notification.user_id == user_id,
         ).first()
-
         if notification:
             notification.is_read = True
             notification.read_at = datetime.utcnow()
             db.commit()
             db.refresh(notification)
-
         return notification
 
     @staticmethod
     def mark_all_as_read(db: Session, user_id: int) -> int:
         result = (
             db.query(Notification)
-            .filter(
-                Notification.user_id == user_id,
-                Notification.is_read.is_(False),
-            )
-            .update(
-                {"is_read": True, "read_at": datetime.utcnow()},
-                synchronize_session=False,
-            )
+            .filter(Notification.user_id == user_id, Notification.is_read.is_(False))
+            .update({"is_read": True, "read_at": datetime.utcnow()}, synchronize_session=False)
         )
         db.commit()
         return result
 
     @staticmethod
-    def delete_notification(
-        db: Session, notification_id: int, user_id: int
-    ) -> bool:
+    def delete_notification(db: Session, notification_id: int, user_id: int) -> bool:
         notification = db.query(Notification).filter(
             Notification.id == notification_id,
             Notification.user_id == user_id,
         ).first()
-
         if not notification:
             return False
-
         db.delete(notification)
         db.commit()
         return True
@@ -165,12 +163,32 @@ class NotificationService:
     def get_unread_count(db: Session, user_id: int) -> int:
         return (
             db.query(Notification)
-            .filter(
-                Notification.user_id == user_id,
-                Notification.is_read.is_(False),
-            )
+            .filter(Notification.user_id == user_id, Notification.is_read.is_(False))
             .count()
         )
+
+
+def _push_and_mark(notification_id: int, user_id: int, title: str, body: str,
+                   data: Optional[Dict[str, Any]], notification_type: str) -> None:
+    """Thread d'arrière-plan : envoie le push puis marque is_sent."""
+    db = SessionLocal()
+    try:
+        if not NotificationService.push_allowed(db, user_id, notification_type):
+            return
+        payload = dict(data or {})
+        payload.setdefault("notification_id", notification_id)
+        payload.setdefault("type", notification_type)
+        sent = push_service.send_sync(user_id, title, body, payload)
+        if sent > 0:
+            db.query(Notification).filter(Notification.id == notification_id).update(
+                {"is_sent": True, "sent_at": datetime.utcnow()}, synchronize_session=False
+            )
+            db.commit()
+    except Exception:  # noqa: BLE001
+        db.rollback()
+        logger.exception("Push d'arrière-plan échoué (notif %s)", notification_id)
+    finally:
+        db.close()
 
 
 def send_notification(
@@ -185,12 +203,11 @@ def send_notification(
 ) -> Optional[Notification]:
     """
     Helper utilisé depuis bookings.py / offers.py.
-
-    La session est toujours fermée par finally.
-    Une erreur de notification ne fait pas échouer la réservation/offre.
+    - crée la notification en base
+    - lance le push Expo en arrière-plan (ne bloque pas la requête)
+    - une erreur ne fait jamais échouer la réservation/offre.
     """
     db = SessionLocal()
-
     try:
         notification = NotificationService.create_notification(
             db=db,
@@ -202,25 +219,16 @@ def send_notification(
             priority=priority,
             booking_id=booking_id,
         )
+        nid = notification.id
 
-        # Marque comme "sent" uniquement si le canal push est réellement
-        # considéré comme envoyé. Le centre DB reste disponible dans tous
-        # les cas.
         if send_push:
-            push_ok = NotificationService.send_push_notification(
-                user_id=user_id,
-                title=title,
-                body=body,
-                data=data,
-            )
-            if push_ok:
-                notification.is_sent = True
-                notification.sent_at = datetime.utcnow()
-                db.commit()
-                db.refresh(notification)
+            threading.Thread(
+                target=_push_and_mark,
+                args=(nid, user_id, title, body, data, notification_type),
+                daemon=True,
+            ).start()
 
         return notification
-
     except Exception:
         db.rollback()
         logger.exception(
@@ -228,40 +236,18 @@ def send_notification(
             user_id, notification_type, booking_id,
         )
         return None
-
     finally:
         db.close()
 
 
-def send_booking_notification(
-    user_id: int,
-    booking_id: int,
-    status: str,
-    message: str,
-) -> None:
+def send_booking_notification(user_id: int, booking_id: int, status: str, message: str) -> None:
     notifications = {
-        "pending": (
-            "Nouvelle réservation",
-            "Votre réservation est en attente de confirmation",
-        ),
-        "confirmed": (
-            "Réservation confirmée",
-            "Votre réservation a été confirmée",
-        ),
-        "in_progress": (
-            "Massage en cours",
-            "Le massage a commencé",
-        ),
-        "completed": (
-            "Massage terminé",
-            "Le massage est terminé",
-        ),
-        "cancelled": (
-            "Réservation annulée",
-            "La réservation a été annulée",
-        ),
+        "pending": ("Nouvelle réservation", "Votre réservation est en attente de confirmation"),
+        "confirmed": ("Réservation confirmée", "Votre réservation a été confirmée"),
+        "in_progress": ("Massage en cours", "Le massage a commencé"),
+        "completed": ("Massage terminé", "Le massage est terminé"),
+        "cancelled": ("Réservation annulée", "La réservation a été annulée"),
     }
-
     title, body = notifications.get(status, ("Mise à jour", message))
 
     send_notification(
@@ -274,22 +260,13 @@ def send_booking_notification(
     )
 
 
-def send_emergency_notification(
-    user_id: int,
-    sos_id: int,
-    location: str,
-    alert_type: str,
-) -> None:
+def send_emergency_notification(user_id: int, sos_id: int, location: str, alert_type: str) -> None:
     send_notification(
         user_id=user_id,
         title="🚨 ALERTE SOS",
         body=f"Alerte {alert_type} activée à {location}",
         notification_type="sos",
-        data={
-            "sos_id": sos_id,
-            "location": location,
-            "alert_type": alert_type,
-        },
+        data={"sos_id": sos_id, "location": location, "alert_type": alert_type},
         priority="urgent",
     )
 
@@ -303,11 +280,7 @@ def send_offer_notification(
     notification_type: str = "new_offer",
     extra_data: Optional[Dict[str, Any]] = None,
 ) -> Optional[Notification]:
-    """Helper recommandé pour tous les événements d'offre/négociation."""
-    payload = {
-        "booking_id": booking_id,
-        "offer_id": offer_id,
-    }
+    payload = {"booking_id": booking_id, "offer_id": offer_id}
     if extra_data:
         payload.update(extra_data)
 
@@ -345,7 +318,6 @@ def send_sms(phone: str, message: str) -> bool:
     try:
         if getattr(settings, "SMS_ENABLED", False):
             logger.info("SMS enabled; destination=%s", phone)
-            # Brancher Twilio ici si les credentials sont configurés.
         else:
             logger.info("SMS disabled; would send to %s: %s", phone, message[:50])
         return True

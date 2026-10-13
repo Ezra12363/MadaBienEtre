@@ -65,6 +65,7 @@ import NavigationScreen from '../screens/therapist/NavigationScreen';
 // ------------------------------------------------------------
 import ChatScreen from '../screens/therapist/ChatScreen';
 import SOSScreen from '../screens/therapist/SOSScreen';
+import ConversationsScreen from '../screens/shared/ConversationsScreen';
 
 import WithdrawScreen from '../screens/therapist/WithdrawScreen';
 import AvailabilityScreen from '../screens/therapist/AvailabilityScreen';
@@ -77,6 +78,7 @@ import UploadDocumentsScreen from '../screens/therapist/UploadDocumentsScreen';
 
 import BookingDetailScreen from '../screens/therapist/BookingDetailScreen';
 import ClientGroupScreen from '../screens/therapist/ClientGroupScreen';
+import AIAssistantScreen from '../screens/therapist/AIAssistantScreen';
 
 // ============================================================
 // NAVIGATORS
@@ -153,6 +155,12 @@ const DashboardStack = () => {
       <Stack.Screen
         name="TherapistNotifications"
         component={NotificationScreen}
+      />
+
+      {/* ✨ Assistant IA : tarification, marché, acceptation, chatbot */}
+      <Stack.Screen
+        name="AIAssistant"
+        component={AIAssistantScreen}
       />
 
       {/* ======================================================
@@ -490,6 +498,11 @@ const getTabIcon = (
       return focused
         ? 'wallet'
         : 'wallet-outline';
+
+    case 'Messages':
+      return focused
+        ? 'chatbubble-ellipses'
+        : 'chatbubble-ellipses-outline';
 
     case 'Profil':
       return focused
@@ -830,6 +843,14 @@ const TherapistTabsScreen = () => {
             options={{
               tabBarLabel:
                 'Demandes',
+            }}
+          />
+
+          <Tab.Screen
+            name="Messages"
+            component={ConversationsScreen}
+            options={{
+              tabBarLabel: 'Messages',
             }}
           />
 

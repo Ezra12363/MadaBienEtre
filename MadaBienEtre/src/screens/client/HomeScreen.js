@@ -52,6 +52,7 @@ import {
 } from './TherapistPost';
 import { getMassageTypeIconMCI } from '../../constants/massageTypeIcons';
 import ClientOnlineStatusCard from '../../components/client/ClientOnlineStatusCard';
+import AIClientHomeBlock from '../../components/ai/AIClientHomeBlock';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -1687,6 +1688,39 @@ const HomeScreen = ({ navigation }) => {
               />
             </TouchableOpacity>
           </LinearGradient>
+        </Reveal>
+
+        {/* ====================================================
+            ✨ ASSISTANT IA & CHATBOT
+            Recommandations, estimation du prix, services
+            populaires, thérapeutes recommandés, chatbot.
+        ==================================================== */}
+
+        <Reveal
+          animation="fadeInUp"
+          delay={40}
+          duration={480}
+          style={styles.sectionContainer}
+        >
+          <AIClientHomeBlock
+            onOpenAssistant={(tab) =>
+              navigate(
+                'AIRecommendation',
+                { initialTab: tab },
+                "Ouverture de l'assistant IA"
+              )
+            }
+            onBookTherapist={(therapist) =>
+              navigate(
+                'CreateBooking',
+                {
+                  therapist,
+                  therapistId: therapist?.therapist_id ?? therapist?.id,
+                },
+                'Ouverture de la réservation'
+              )
+            }
+          />
         </Reveal>
 
         {/* ====================================================

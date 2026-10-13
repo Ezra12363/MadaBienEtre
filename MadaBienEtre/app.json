@@ -42,7 +42,8 @@
       "expo-font",
       "expo-status-bar",
       "expo-location",
-      "expo-build-properties"
+      "expo-build-properties",
+      "expo-notifications"
     ]
   }
 }

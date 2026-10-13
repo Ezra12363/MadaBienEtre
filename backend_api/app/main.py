@@ -1,90 +1,188 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from fastapi.staticfiles import StaticFiles
+# app/main.py
+# ============================================================
+# MADA BIEN-ÊTRE — MAIN FASTAPI APPLICATION
+# API REST + IA + CHAT CLIENT/THÉRAPEUTE + WEBSOCKET
+# ============================================================
 
-from starlette.exceptions import HTTPException as StarletteHTTPException
+from contextlib import asynccontextmanager
+from pathlib import Path
 import logging
 import time
-from pathlib import Path
-from contextlib import asynccontextmanager
 
-from .api import client_status
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
 from .core.config import settings
 from .core.database import init_database
 from .core.middleware import setup_middlewares
 
 from .api import (
-    auth, users, therapists, bookings, offers, payments,
-    reviews, notifications, geolocation, chatbot, ai,
-    pricing, sos, websocket, analytics, admin, massage_public,
-    certificates, client_status,
+    auth,
+    users,
+    therapists,
+    bookings,
+    offers,
+    payments,
+    reviews,
+    notifications,
+    geolocation,
+    chatbot,
+    ai,
+    pricing,
+    sos,
+    websocket,
+    analytics,
+    admin,
+    massage_public,
+    certificates,
+    client_status,
+    chat,
 )
+
 from .api.availability import router as availability_router
 
-logging.basicConfig(
-    level=getattr(settings, "LOG_LEVEL", "INFO").upper(),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
 
 # ============================================================
-# CHEMIN UNIQUE ET ABSOLU POUR LES UPLOADS
-# app/main.py -> parents[1] = racine du backend
-# IMPORTANT : admin.py utilise exactement la même racine.
+# LOGGING
 # ============================================================
+
+logging.basicConfig(
+    level=getattr(
+        settings,
+        "LOG_LEVEL",
+        "INFO",
+    ).upper(),
+    format=(
+        "%(asctime)s - %(name)s - "
+        "%(levelname)s - %(message)s"
+    ),
+)
+
+logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# CHEMINS ABSOLUS
+# app/main.py -> racine du backend
+# ============================================================
+
 BACKEND_ROOT = Path(__file__).resolve().parent.parent
 UPLOAD_ROOT = BACKEND_ROOT / "uploads"
 
-for subdir in ("profiles", "documents", "certificates", "massage_types"):
-    (UPLOAD_ROOT / subdir).mkdir(parents=True, exist_ok=True)
+UPLOAD_SUBDIRECTORIES = (
+    "profiles",
+    "documents",
+    "certificates",
+    "massage_types",
+)
 
-logger.info("📁 Backend root: %s", BACKEND_ROOT)
-logger.info("📁 Upload root: %s", UPLOAD_ROOT)
-logger.info("📁 Massage images: %s", UPLOAD_ROOT / "massage_types")
+for subdir in UPLOAD_SUBDIRECTORIES:
+    (UPLOAD_ROOT / subdir).mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
+logger.info("Backend root: %s", BACKEND_ROOT)
+logger.info("Upload root: %s", UPLOAD_ROOT)
+
+
+# ============================================================
+# LIFESPAN
+# ============================================================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting %s v%s", settings.APP_NAME, settings.API_VERSION)
-    logger.info("Environment: %s", settings.ENVIRONMENT)
-    logger.info("Log Level: %s", settings.LOG_LEVEL)
+    logger.info(
+        "Starting %s v%s",
+        settings.APP_NAME,
+        settings.API_VERSION,
+    )
+
+    logger.info(
+        "Environment: %s",
+        settings.ENVIRONMENT,
+    )
+
+    logger.info(
+        "Log Level: %s",
+        settings.LOG_LEVEL,
+    )
+
     try:
         init_database()
         logger.info("Database initialized successfully")
-    except Exception as exc:
-        logger.error("Database initialization error: %s", exc, exc_info=True)
-    yield
-    logger.info("Shutting down %s", settings.APP_NAME)
 
+    except Exception:
+        # Conserver ce comportement si l'initialisation
+        # de la base est gérée ailleurs dans le projet.
+        logger.exception("Database initialization error")
+
+    yield
+
+    logger.info(
+        "Shutting down %s",
+        settings.APP_NAME,
+    )
+
+
+# ============================================================
+# APPLICATION FASTAPI
+# ============================================================
 
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.API_VERSION,
-    description="API pour Mada Bien-être - Massage à domicile avec IA",
+    description=(
+        "API Mada Bien-Être : réservation de massages, "
+        "gestion des thérapeutes, intelligence artificielle, "
+        "négociation et messagerie Client-Thérapeute."
+    ),
     lifespan=lifespan,
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
 )
 
+
 # ============================================================
-# STATIC FILES — UNE SEULE SOURCE DE VÉRITÉ
-# /uploads/massage_types/xxx.jpg
-#      ↓
-# BACKEND_ROOT/uploads/massage_types/xxx.jpg
+# STATIC FILES
+# URL : /uploads/profiles/photo.jpg
+# FICHIER : BACKEND_ROOT/uploads/profiles/photo.jpg
 # ============================================================
+
 app.mount(
     "/uploads",
-    StaticFiles(directory=str(UPLOAD_ROOT), check_dir=True),
+    StaticFiles(
+        directory=str(UPLOAD_ROOT),
+        check_dir=True,
+    ),
     name="uploads",
 )
-logger.info("📁 Static /uploads monté sur: %s", UPLOAD_ROOT)
+
+logger.info(
+    "Static files mounted at /uploads -> %s",
+    UPLOAD_ROOT,
+)
+
+
+# ============================================================
+# MIDDLEWARES
+# ============================================================
 
 setup_middlewares(app)
 
 
+# ============================================================
+# HTTP EXCEPTION HANDLER
+# ============================================================
+
 @app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+async def http_exception_handler(
+    request: Request,
+    exc: StarletteHTTPException,
+):
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -93,19 +191,30 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
             "status_code": exc.status_code,
             "timestamp": time.time(),
         },
+        headers=getattr(exc, "headers", None),
     )
 
 
+# ============================================================
+# VALIDATION EXCEPTION HANDLER
+# ============================================================
+
 @app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+):
     errors = [
         {
-            "field": ".".join(str(loc) for loc in err["loc"]),
-            "message": err["msg"],
-            "type": err["type"],
+            "field": ".".join(
+                str(part) for part in error["loc"]
+            ),
+            "message": error["msg"],
+            "type": error["type"],
         }
-        for err in exc.errors()
+        for error in exc.errors()
     ]
+
     return JSONResponse(
         status_code=422,
         content={
@@ -118,34 +227,103 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
+# ============================================================
+# GENERAL EXCEPTION HANDLER
+# ============================================================
+
 @app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception):
-    logger.error("Unhandled exception: %s", exc, exc_info=True)
+async def general_exception_handler(
+    request: Request,
+    exc: Exception,
+):
+    logger.error(
+        "Unhandled exception on %s %s",
+        request.method,
+        request.url.path,
+        exc_info=True,
+    )
+
     return JSONResponse(
         status_code=500,
         content={
             "status": "error",
             "message": "Internal server error",
-            "detail": str(exc) if settings.DEBUG else None,
+            "detail": (
+                str(exc)
+                if settings.DEBUG
+                else None
+            ),
             "status_code": 500,
             "timestamp": time.time(),
         },
     )
 
 
-@app.get("/")
+# ============================================================
+# REQUEST LOGGING MIDDLEWARE
+# ============================================================
+
+@app.middleware("http")
+async def log_requests(
+    request: Request,
+    call_next,
+):
+    start_time = time.perf_counter()
+
+    logger.info(
+        "REQUEST -> %s %s",
+        request.method,
+        request.url.path,
+    )
+
+    try:
+        response = await call_next(request)
+
+    except Exception:
+        logger.exception(
+            "Request failed: %s %s",
+            request.method,
+            request.url.path,
+        )
+        raise
+
+    process_time = time.perf_counter() - start_time
+
+    response.headers["X-Process-Time"] = (
+        f"{process_time:.6f}"
+    )
+
+    logger.info(
+        "RESPONSE <- %s %s %.3fs",
+        response.status_code,
+        request.url.path,
+        process_time,
+    )
+
+    return response
+
+
+# ============================================================
+# SYSTEM ENDPOINTS
+# ============================================================
+
+@app.get("/", tags=["System"])
 async def root():
     return {
         "name": settings.APP_NAME,
         "version": settings.API_VERSION,
         "environment": settings.ENVIRONMENT,
-        "docs": "/docs" if settings.DEBUG else None,
+        "docs": (
+            "/docs"
+            if settings.DEBUG
+            else None
+        ),
         "status": "running",
         "timestamp": time.time(),
     }
 
 
-@app.get("/health")
+@app.get("/health", tags=["System"])
 async def health_check():
     return {
         "status": "healthy",
@@ -154,7 +332,7 @@ async def health_check():
     }
 
 
-@app.get("/version")
+@app.get("/version", tags=["System"])
 async def version():
     return {
         "version": settings.API_VERSION,
@@ -164,45 +342,96 @@ async def version():
 
 
 # ============================================================
-# ROUTERS
+# API ROUTERS — AUTHENTIFICATION ET UTILISATEURS
 # ============================================================
 
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(availability_router)
 app.include_router(client_status.router)
+
 app.include_router(therapists.router)
+
+
+# ============================================================
+# API ROUTERS — RÉSERVATIONS ET OFFRES
+# ============================================================
+
 app.include_router(bookings.router)
 app.include_router(offers.router)
+
+
+# ============================================================
+# API ROUTERS — PAIEMENTS, AVIS ET NOTIFICATIONS
+# ============================================================
+
 app.include_router(payments.router)
 app.include_router(reviews.router)
 app.include_router(notifications.router)
+
+
+# ============================================================
+# API ROUTERS — GÉOLOCALISATION ET MASSAGES
+# ============================================================
+
 app.include_router(geolocation.router)
+app.include_router(massage_public.router)
+
+
+# ============================================================
+# API ROUTERS — CHATBOT IA ET INTELLIGENCE ARTIFICIELLE
+# ============================================================
+
 app.include_router(chatbot.router)
 app.include_router(ai.router)
 app.include_router(pricing.router)
+
+
+# ============================================================
+# API ROUTERS — MESSAGERIE CLIENT / THÉRAPEUTE
+#
+# chat.router :
+#     API REST pour les conversations, messages et images.
+#
+# Le WebSocket du chat (/ws/chat/{booking_id}) est défini dans
+# app/api/websocket.py et chargé plus bas avec websocket.router :
+# il n'y a donc PAS de chat.ws_router.
+# ============================================================
+
+app.include_router(chat.router)
+
+
+# ============================================================
+# API ROUTERS — SOS, ANALYTICS ET ADMINISTRATION
+# ============================================================
+
 app.include_router(sos.router)
 app.include_router(analytics.router)
 app.include_router(admin.router)
-app.include_router(massage_public.router)
+
+
+# ============================================================
+# API ROUTERS — CERTIFICATS
+# ============================================================
+
 app.include_router(certificates.router)
 app.include_router(certificates.public_router)
+
+
+# ============================================================
+# API ROUTERS — WEBSOCKET EXISTANT
+# ============================================================
+
 app.include_router(websocket.router)
 
 
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    start_time = time.time()
-    logger.info("→ %s %s", request.method, request.url.path)
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    logger.info("← %s %.3fs", response.status_code, process_time)
-    response.headers["X-Process-Time"] = str(process_time)
-    return response
-
+# ============================================================
+# POINT D'ENTRÉE
+# ============================================================
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",

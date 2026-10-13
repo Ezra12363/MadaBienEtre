@@ -28,6 +28,7 @@ import * as Animatable from 'react-native-animatable';
 
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import AITherapistHomeBlock from '../../components/ai/AITherapistHomeBlock';
 import { useNotifications } from '../../context/NotificationContext';
 
 import Header from '../../components/common/Header';
@@ -1207,6 +1208,25 @@ const DashboardScreen = ({ navigation }) => {
                 }
               />
             )}
+          </Animatable.View>
+
+          {/* ==================================================
+              ✨ IA — TARIFICATION INTELLIGENTE
+              Suggestion de tarif, analyse du marché, probabilité
+              d'acceptation, chatbot.
+          ================================================== */}
+
+          <Animatable.View
+            animation="fadeInUp"
+            delay={220}
+            duration={500}
+            style={{ marginBottom: 16 }}
+          >
+            <AITherapistHomeBlock
+              onOpenAssistant={(tab) =>
+                navigation.navigate('AIAssistant', { initialTab: tab })
+              }
+            />
           </Animatable.View>
 
           {/* ==================================================

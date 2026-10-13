@@ -1,168 +1,179 @@
 // src/components/ai/AIRecommendationCard.js
+// Carte thérapeute (recommandation IA OU classement "meilleurs thérapeutes").
+//
+// Champs lus (tous optionnels sauf fullname) :
+//   /ai/recommend-therapist : therapist_id, fullname, rating, total_reviews,
+//        score, distance_km, experience_years, price_suggested, base_price,
+//        availability, reason, profile_image
+//   /ai/best-therapists     : id, fullname, rating, total_reviews,
+//        experience_years, base_price, profile_image
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
+import { formatAr } from './aiHelpers';
 
-const AIRecommendationCard = ({ 
-  therapist, 
-  onPress, 
+const scoreColor = (score) => {
+  if (score >= 80) return colors.success;
+  if (score >= 60) return colors.warning;
+  return colors.error;
+};
+
+const AIRecommendationCard = ({
+  therapist,
+  onPress,
+  onBook,
   compact = false,
   showScore = true,
   showReason = true,
   showActions = true,
+  rank = null,
 }) => {
   const { colors: themeColors } = useTheme();
 
-  const renderStars = (rating) => {
-    const fullStars = Math.floor(rating);
-    const hasHalf = rating % 1 >= 0.5;
-    const emptyStars = 5 - fullStars - (hasHalf ? 1 : 0);
-    
-    let stars = '';
-    for (let i = 0; i < fullStars; i++) stars += '⭐';
-    if (hasHalf) stars += '⭐';
-    for (let i = 0; i < emptyStars; i++) stars += '☆';
-    
-    return stars;
-  };
+  if (!therapist) return null;
 
-  const getScoreColor = (score) => {
-    if (score >= 80) return '#4CAF50';
-    if (score >= 60) return '#FFA726';
-    return '#D32F2F';
-  };
+  const score = Number(therapist.score);
+  const hasScore = showScore && Number.isFinite(score) && score > 0;
+  const price = therapist.price_suggested ?? therapist.base_price;
+  const hasPrice = price !== undefined && price !== null && Number(price) > 0;
+  const rating = Number(therapist.rating || 0);
+  // Absent = considéré disponible ; seul `false` bloque la réservation.
+  const available = therapist.availability !== false;
+  const distance = Number(therapist.distance_km);
 
-  const scoreColor = getScoreColor(therapist.score || 0);
+  const handleBook = () => (onBook || onPress)?.(therapist);
 
   return (
     <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => onPress?.(therapist)}
       style={[
         styles.card,
-        { backgroundColor: themeColors.surface },
+        { backgroundColor: themeColors.surface, borderColor: themeColors.border },
         compact && styles.compactCard,
       ]}
-      onPress={() => onPress && onPress(therapist)}
-      activeOpacity={0.7}
     >
-      {showScore && (
-        <LinearGradient
-          colors={[scoreColor + '20', scoreColor + '10']}
-          style={[styles.scoreBadge, { borderColor: scoreColor }]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Text style={[styles.scoreText, { color: scoreColor }]}>
-            {therapist.score || 0}%
-          </Text>
-          <Text style={[styles.scoreLabel, { color: scoreColor }]}>
-            Match
-          </Text>
-        </LinearGradient>
-      )}
+      <View style={styles.header}>
+        {rank ? (
+          <View style={styles.rank}>
+            <Text style={styles.rankText}>{rank}</Text>
+          </View>
+        ) : null}
 
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <View style={styles.avatarContainer}>
-            {therapist.profile_image ? (
-              <Image source={{ uri: therapist.profile_image }} style={styles.avatar} />
-            ) : (
+        <View style={styles.avatarContainer}>
+          {therapist.profile_image ? (
+            <Image source={{ uri: therapist.profile_image }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarFallback}>
               <Text style={styles.avatarText}>
-                {therapist.fullname?.charAt(0) || 'T'}
-              </Text>
-            )}
-            {therapist.availability && (
-              <View style={styles.onlineDot} />
-            )}
-          </View>
-          <View style={styles.info}>
-            <Text style={[styles.name, { color: themeColors.text }]}>
-              {therapist.fullname}
-            </Text>
-            <View style={styles.ratingContainer}>
-              <Text style={styles.ratingStars}>
-                {renderStars(therapist.rating || 0)}
-              </Text>
-              <Text style={[styles.ratingText, { color: themeColors.textSecondary }]}>
-                {therapist.rating || 0} ({therapist.total_reviews || 0} avis)
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.details}>
-          <View style={styles.detailRow}>
-            <Ionicons name="location-outline" size={14} color={themeColors.textSecondary} />
-            <Text style={[styles.detailText, { color: themeColors.textSecondary }]}>
-              {therapist.distance_km || 0} km
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Ionicons name="briefcase-outline" size={14} color={themeColors.textSecondary} />
-            <Text style={[styles.detailText, { color: themeColors.textSecondary }]}>
-              {therapist.experience_years || 0} ans d'expérience
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Ionicons name="cash-outline" size={14} color={themeColors.textSecondary} />
-            <Text style={[styles.detailText, { color: colors.primary }]}>
-              {therapist.price_suggested?.toLocaleString() || 0} Ar
-            </Text>
-          </View>
-          {therapist.base_price && (
-            <View style={styles.detailRow}>
-              <Ionicons name="information-circle-outline" size={14} color={themeColors.textSecondary} />
-              <Text style={[styles.detailText, { color: themeColors.textSecondary }]}>
-                Prix de base: {therapist.base_price.toLocaleString()} Ar
+                {(therapist.fullname || 'T').charAt(0).toUpperCase()}
               </Text>
             </View>
           )}
         </View>
 
-        {showReason && therapist.reason && (
-          <View style={styles.reasonContainer}>
-            <Ionicons name="bulb-outline" size={16} color={colors.primary} />
-            <Text style={[styles.reason, { color: themeColors.textSecondary }]}>
-              {therapist.reason}
+        <View style={styles.info}>
+          <Text style={[styles.name, { color: themeColors.text }]} numberOfLines={1}>
+            {therapist.fullname || 'Thérapeute'}
+          </Text>
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={13} color="#FFB300" />
+            <Text style={[styles.ratingText, { color: themeColors.textSecondary }]}>
+              {rating.toFixed(1)} ({therapist.total_reviews || 0} avis)
             </Text>
           </View>
-        )}
+        </View>
 
-        {!compact && showActions && (
-          <View style={styles.footer}>
-            <View style={[styles.availabilityBadge, { 
-              backgroundColor: therapist.availability ? '#4CAF50' + '20' : '#D32F2F' + '20' 
-            }]}>
-              <View style={[styles.availabilityDot, { 
-                backgroundColor: therapist.availability ? '#4CAF50' : '#D32F2F' 
-              }]} />
-              <Text style={[styles.availabilityText, { 
-                color: therapist.availability ? '#4CAF50' : '#D32F2F' 
-              }]}>
-                {therapist.availability ? 'Disponible' : 'Indisponible'}
-              </Text>
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.bookButton}
-              onPress={() => onPress && onPress(therapist)}
-              disabled={!therapist.availability}
-            >
-              <LinearGradient
-                colors={therapist.availability ? [colors.primary, colors.primaryLight] : ['#ccc', '#ccc']}
-                style={styles.bookGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Text style={[styles.bookText, { color: therapist.availability ? '#fff' : '#999' }]}>
-                  {therapist.availability ? 'Réserver' : 'Indisponible'}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
+        {hasScore && (
+          <View
+            style={[
+              styles.scoreBadge,
+              { borderColor: scoreColor(score), backgroundColor: scoreColor(score) + '14' },
+            ]}
+          >
+            <Text style={[styles.scoreText, { color: scoreColor(score) }]}>
+              {Math.round(score)}%
+            </Text>
+            <Text style={[styles.scoreLabel, { color: scoreColor(score) }]}>Match</Text>
           </View>
         )}
       </View>
+
+      <View style={styles.details}>
+        {Number.isFinite(distance) && distance > 0 && (
+          <View style={styles.detailRow}>
+            <Ionicons name="location-outline" size={14} color={themeColors.textSecondary} />
+            <Text style={[styles.detailText, { color: themeColors.textSecondary }]}>
+              {distance.toFixed(1)} km
+            </Text>
+          </View>
+        )}
+        {therapist.experience_years ? (
+          <View style={styles.detailRow}>
+            <Ionicons name="briefcase-outline" size={14} color={themeColors.textSecondary} />
+            <Text style={[styles.detailText, { color: themeColors.textSecondary }]}>
+              {therapist.experience_years} ans d'exp.
+            </Text>
+          </View>
+        ) : null}
+        {hasPrice && (
+          <View style={styles.detailRow}>
+            <Ionicons name="cash-outline" size={14} color={colors.primary} />
+            <Text style={[styles.detailText, { color: colors.primary, fontFamily: typography.fontFamily.semiBold }]}>
+              {formatAr(price)}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {showReason && !!therapist.reason && (
+        <View style={[styles.reasonContainer, { backgroundColor: colors.primary + '12' }]}>
+          <Ionicons name="bulb-outline" size={15} color={colors.primary} />
+          <Text style={[styles.reason, { color: themeColors.textSecondary }]}>
+            {therapist.reason}
+          </Text>
+        </View>
+      )}
+
+      {!compact && showActions && (
+        <View style={[styles.footer, { borderTopColor: themeColors.border }]}>
+          <View
+            style={[
+              styles.availabilityBadge,
+              { backgroundColor: (available ? colors.success : colors.error) + '1A' },
+            ]}
+          >
+            <View
+              style={[
+                styles.availabilityDot,
+                { backgroundColor: available ? colors.success : colors.error },
+              ]}
+            />
+            <Text
+              style={[
+                styles.availabilityText,
+                { color: available ? colors.success : colors.error },
+              ]}
+            >
+              {available ? 'Disponible' : 'Indisponible'}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.bookButton,
+              { backgroundColor: available ? colors.primary : '#BDBDBD' },
+            ]}
+            onPress={handleBook}
+            disabled={!available}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="calendar-outline" size={15} color="#fff" />
+            <Text style={styles.bookText}>Réserver</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </TouchableOpacity>
   );
 };
@@ -170,125 +181,66 @@ const AIRecommendationCard = ({
 const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
-    marginBottom: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  compactCard: {
-    padding: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  scoreBadge: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 2,
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  scoreText: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
-  },
-  scoreLabel: {
-    fontSize: 8,
-    fontFamily: typography.fontFamily.medium,
-  },
-  content: {
+    borderWidth: 1,
     padding: spacing.md,
+    marginBottom: spacing.sm,
   },
-  header: {
-    flexDirection: 'row',
+  compactCard: { padding: spacing.sm },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  rank: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
     alignItems: 'center',
-    gap: spacing.md,
+    justifyContent: 'center',
   },
-  avatarContainer: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  rankText: { color: '#fff', fontSize: 12, fontFamily: typography.fontFamily.bold },
+  avatarContainer: {},
+  avatar: { width: 46, height: 46, borderRadius: 23 },
+  avatarFallback: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   avatarText: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary + '20',
-    textAlign: 'center',
-    textAlignVertical: 'center',
     fontSize: typography.fontSize.xl,
     fontFamily: typography.fontFamily.bold,
     color: colors.primary,
-    overflow: 'hidden',
   },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#4CAF50',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  info: {
-    flex: 1,
-  },
-  name: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
+  info: { flex: 1 },
+  name: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
+  ratingText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular },
+  scoreBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1.5,
     alignItems: 'center',
-    gap: 4,
-    flexWrap: 'wrap',
   },
-  ratingStars: {
-    fontSize: typography.fontSize.sm,
-  },
-  ratingText: {
-    fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.regular,
-  },
+  scoreText: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold },
+  scoreLabel: { fontSize: 9, fontFamily: typography.fontFamily.medium },
   details: {
-    marginTop: spacing.sm,
-    gap: 2,
-  },
-  detailRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginTop: spacing.sm,
   },
-  detailText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-  },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  detailText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular },
   reasonContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.sm,
     marginTop: spacing.sm,
     padding: spacing.sm,
-    backgroundColor: colors.primary + '10',
     borderRadius: 8,
   },
-  reason: {
-    flex: 1,
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-    lineHeight: 18,
-  },
+  reason: { flex: 1, fontSize: typography.fontSize.sm, lineHeight: 18 },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -296,7 +248,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
   },
   availabilityBadge: {
     flexDirection: 'row',
@@ -304,28 +255,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: 8,
-    gap: 4,
+    gap: 5,
   },
-  availabilityDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  availabilityText: {
-    fontSize: 10,
-    fontFamily: typography.fontFamily.medium,
-  },
+  availabilityDot: { width: 6, height: 6, borderRadius: 3 },
+  availabilityText: { fontSize: 11, fontFamily: typography.fontFamily.medium },
   bookButton: {
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  bookGradient: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xs,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
   },
   bookText: {
+    color: '#fff',
     fontSize: typography.fontSize.sm,
     fontFamily: typography.fontFamily.semiBold,
   },

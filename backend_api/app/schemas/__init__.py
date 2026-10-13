@@ -13,3 +13,4 @@ from .therapist import *
 from .availability import *
 from .massage import *
 from .user_online_status import *
+from .chat import*

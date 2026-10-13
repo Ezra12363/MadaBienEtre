@@ -1299,8 +1299,8 @@ const DashboardScreen = ({ navigation }) => {
 
             <QuickAction
               icon="bulb-outline"
-              label="IA Insights"
-              description="Découvrir les recommandations IA"
+              label="IA & Chatbot"
+              description="KPI, prévisions, fraude et chatbot IA"
               color="#8B5CF6"
               screen="AIInsights"
             />

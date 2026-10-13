@@ -74,6 +74,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
+import useChatUnread from '../../hooks/useChatUnread';
 import { colors, typography, spacing } from '../../theme';
 
 import BottomTabBar from './BottomTabBar';
@@ -290,8 +291,15 @@ const NOTIFICATIONS_TARGET_BY_ROLE = {
 // `TherapistChat` (écran racine, hors des onglets) et `Messages`
 // (onglet direct du Tab.Navigator) sont eux directement joignables
 // par un simple nom de route : pas besoin de la syntaxe imbriquée.
+// ✨ Assistant IA & Chatbot — un écran par rôle, dans la pile d'un onglet.
+const AI_TARGET_BY_ROLE = {
+  CLIENT: { tab: 'Accueil', screen: 'AIRecommendation' },
+  THERAPIST: { tab: 'Tableau de bord', screen: 'AIAssistant' },
+  ADMIN: { tab: 'Tableau de bord', screen: 'AIInsights' },
+};
+
 const MESSAGES_ROUTE_BY_ROLE = {
-  THERAPIST: 'TherapistChat',
+  THERAPIST: 'Messages',
   CLIENT: 'Messages',
 };
 
@@ -312,6 +320,9 @@ export const TopNavBar = ({
   const { colors: themeColors, isDark } = useTheme();
   const { user, logout } = useAuth();
   const { unreadCount: notificationsUnreadCount } = useNotifications();
+  // Badge « messages non lus » (GET /chat/unread + temps réel)
+  const { unreadCount: chatUnreadCount } = useChatUnread();
+  const messagesBadge = messagesUnreadCount || chatUnreadCount;
   const [profileOpen, setProfileOpen] = useState(false);
 
   if (!isMerged || !bridge || !bridge.tabData) {
@@ -327,6 +338,16 @@ export const TopNavBar = ({
   // ouvre SES notifications/messages, un client les SIENS, etc.
   const notificationsTarget = NOTIFICATIONS_TARGET_BY_ROLE[user?.role];
   const messagesRoute = MESSAGES_ROUTE_BY_ROLE[user?.role];
+
+  const aiTarget = AI_TARGET_BY_ROLE[user?.role];
+
+  const openAI = () => {
+    if (!aiTarget) {
+      return;
+    }
+
+    navigation.navigate(aiTarget.tab, { screen: aiTarget.screen });
+  };
 
   const openNotifications = () => {
     if (!notificationsTarget) {
@@ -466,6 +487,20 @@ export const TopNavBar = ({
         {/* ================================================== */}
         <View style={styles.rightNav}>
           <View style={styles.headerActions}>
+            {aiTarget && (
+              <Pressable
+                onPress={openAI}
+                accessibilityRole="button"
+                accessibilityLabel="Ouvrir l'assistant IA"
+                style={({ hovered }) => [
+                  styles.headerActionButton,
+                  hovered && styles.headerActionButtonHovered,
+                ]}
+              >
+                <Ionicons name="sparkles" size={21} color="#FFFFFF" />
+              </Pressable>
+            )}
+
             {messagesRoute && (
               <Pressable
                 onPress={openMessages}
@@ -478,7 +513,7 @@ export const TopNavBar = ({
               >
                 <Ionicons
                   name={
-                    messagesUnreadCount > 0
+                    messagesBadge > 0
                       ? 'chatbubble-ellipses'
                       : 'chatbubble-ellipses-outline'
                   }
@@ -486,10 +521,10 @@ export const TopNavBar = ({
                   color="#FFFFFF"
                 />
 
-                {messagesUnreadCount > 0 && (
+                {messagesBadge > 0 && (
                   <View style={styles.headerActionBadge}>
                     <Text style={styles.headerActionBadgeText}>
-                      {messagesUnreadCount > 99 ? '99+' : messagesUnreadCount}
+                      {messagesBadge > 99 ? '99+' : messagesBadge}
                     </Text>
                   </View>
                 )}

@@ -130,6 +130,13 @@ const watchBetterWebPosition = (
   return stop;
 };
 
+// ✅ Au-delà de ce seuil (mètres), la position est jugée « approximative » :
+// on ne remplit PAS l'adresse automatiquement, l'utilisateur doit ajuster
+// le marqueur ou confirmer.
+const APPROX_ACCURACY_METERS = 300;
+const APPROX_LABEL = 'Position approximative';
+const AMBER = '#F59E0B';
+
 const GREEN = '#22C55E';
 const GREEN_DARK = '#16A34A';
 const BLUE = colors.primary || '#0D2B7E';
@@ -824,7 +831,7 @@ const ProfileScreen = ({ navigation }) => {
   const placeLocation = (
     { latitude, longitude, accuracy = null },
     label,
-    { recenter = false, token } = {}
+    { recenter = false, token, approximate = false } = {}
   ) => {
     let activeToken = token;
 
@@ -833,9 +840,10 @@ const ProfileScreen = ({ navigation }) => {
       activeToken = locationRequestRef.current;
     }
 
-    const provisional =
-      label ||
-      `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+    const provisional = approximate
+      ? APPROX_LABEL
+      : label ||
+        `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 
     const fullAddress =
       extractAddressComponents('');
@@ -844,6 +852,7 @@ const ProfileScreen = ({ navigation }) => {
       latitude,
       longitude,
       accuracy,
+      approximate,
       address: provisional,
       fullAddress: {
         ...fullAddress,
@@ -875,11 +884,16 @@ const ProfileScreen = ({ navigation }) => {
       );
     }
 
-    resolveAddressInBackground(
-      latitude,
-      longitude,
-      activeToken
-    );
+    // Position approximative : PAS de reverse geocoding automatique
+    // (l'adresse trouvée serait celle d'un point faux). Elle est
+    // résolue après ajustement du marqueur ou confirmation.
+    if (!approximate) {
+      resolveAddressInBackground(
+        latitude,
+        longitude,
+        activeToken
+      );
+    }
 
     return activeToken;
   };
@@ -925,16 +939,28 @@ const ProfileScreen = ({ navigation }) => {
         accuracy,
       } = first.coords;
 
+      const approximate = Boolean(
+        accuracy && accuracy > APPROX_ACCURACY_METERS
+      );
+
       // ✅ Marqueur immédiat
       const token = placeLocation(
         { latitude, longitude, accuracy },
         'Ma position actuelle',
-        { recenter: true }
+        { recenter: true, approximate }
       );
 
       setIsLoadingLocation(false);
 
-      if (accuracy && accuracy > 150) {
+      if (approximate) {
+        showToast(
+          'warning',
+          APPROX_LABEL,
+          `Précision ≈ ${Math.round(
+            accuracy
+          )} m. Placez le marqueur sur votre adresse (touchez la carte ou glissez-le), puis confirmez.`
+        );
+      } else if (accuracy && accuracy > 150) {
         showToast(
           'warning',
           'Position approximative',
@@ -963,7 +989,13 @@ const ProfileScreen = ({ navigation }) => {
             accuracy: pos.coords.accuracy,
           },
           'Ma position actuelle',
-          { recenter: true, token }
+          {
+            recenter: true,
+            token,
+            approximate:
+              pos.coords.accuracy >
+              APPROX_ACCURACY_METERS,
+          }
         );
       };
 
@@ -1048,12 +1080,54 @@ const ProfileScreen = ({ navigation }) => {
     );
   };
 
+  // ✅ L'utilisateur confirme que le marqueur est bien sur son adresse
+  const confirmApproximateLocation = () => {
+    if (!hasSelectedLocation) return;
+
+    // Stoppe l'affinage GPS : le choix de l'utilisateur prime
+    cancelLocationRefine();
+
+    const token = locationRequestRef.current;
+    const latitude = Number(selectedLocation.latitude);
+    const longitude = Number(selectedLocation.longitude);
+
+    setSelectedLocation((previous) => ({
+      ...previous,
+      approximate: false,
+      address:
+        previous.address === APPROX_LABEL
+          ? 'Ma position actuelle'
+          : previous.address,
+    }));
+
+    resolveAddressInBackground(
+      latitude,
+      longitude,
+      token
+    );
+
+    showToast(
+      'success',
+      'Position confirmée',
+      'Vérifiez l’adresse affichée avant d’enregistrer.'
+    );
+  };
+
   const validateLocation = () => {
     if (!hasSelectedLocation) {
       showToast(
         'warning',
         'Position manquante',
         'Sélectionnez d’abord une position sur la carte.'
+      );
+      return;
+    }
+
+    if (selectedLocation.approximate) {
+      showToast(
+        'warning',
+        APPROX_LABEL,
+        'Touchez la carte, déplacez le marqueur ou confirmez la position.'
       );
       return;
     }
@@ -1849,7 +1923,9 @@ const ProfileScreen = ({ navigation }) => {
                     },
                   ]}
                 >
-                  Localisation GPS de votre téléphone
+                  {Platform.OS === 'web'
+                    ? 'Estimée par votre navigateur (Wi-Fi / IP)'
+                    : 'Localisation GPS de votre téléphone'}
                 </Text>
               </View>
 
@@ -1874,7 +1950,11 @@ const ProfileScreen = ({ navigation }) => {
                 selectionMarker={
                   selectionMarker
                 }
-                selectionColor={GREEN}
+                selectionColor={
+                  selectedLocation.approximate
+                    ? AMBER
+                    : GREEN
+                }
                 onMapPress={
                   handleMapPress
                 }
@@ -1951,6 +2031,66 @@ const ProfileScreen = ({ navigation }) => {
                 </Text>
               </View>
             </View>
+
+            {hasSelectedLocation &&
+              selectedLocation.approximate && (
+                <View
+                  style={styles.approxBanner}
+                >
+                  <Ionicons
+                    name="warning-outline"
+                    size={18}
+                    color="#B45309"
+                  />
+
+                  <View
+                    style={{ flex: 1 }}
+                  >
+                    <Text
+                      style={
+                        styles.approxTitle
+                      }
+                    >
+                      Position approximative
+                      {selectedLocation.accuracy
+                        ? ` (≈ ${Math.round(
+                            selectedLocation.accuracy
+                          )} m)`
+                        : ''}
+                    </Text>
+
+                    <Text
+                      style={
+                        styles.approxText
+                      }
+                    >
+                      Sur ordinateur, la position
+                      est estimée via le Wi-Fi ou
+                      l’adresse IP. Touchez la
+                      carte ou glissez le marqueur
+                      sur votre adresse exacte.
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={
+                      styles.approxButton
+                    }
+                    onPress={
+                      confirmApproximateLocation
+                    }
+                    activeOpacity={0.85}
+                  >
+                    <Text
+                      style={
+                        styles.approxButtonText
+                      }
+                    >
+                      Confirmer
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
             {hasSelectedLocation && (
               <View
@@ -4573,6 +4713,44 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor:
       'rgba(0,0,0,0.22)',
+  },
+
+  approxBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+
+  approxTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+
+  approxText: {
+    marginTop: 2,
+    fontSize: 11,
+    lineHeight: 15,
+    color: '#92400E',
+  },
+
+  approxButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#F59E0B',
+  },
+
+  approxButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 
   mapInstruction: {

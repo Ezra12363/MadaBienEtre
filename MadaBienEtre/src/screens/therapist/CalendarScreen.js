@@ -2412,8 +2412,14 @@ const CalendarScreen = ({ navigation }) => {
             BOOKINGS LIST
         ================================================== */}
 
-        {filteredBookings.length > 0 &&
-          filteredBookings.map(renderBooking)}
+        {filteredBookings.length > 0 && (
+          <>
+            {filteredBookings.map(renderBooking)}
+
+            {/* ✅ Petit espace SOUS la liste des cartes */}
+            <View style={styles.listBottomSpace} />
+          </>
+        )}
 
         {filteredBookings.length === 0 &&
           bookings.length > 0 && (
@@ -2655,6 +2661,11 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl * 2,
   },
 
+  // Espace sous la dernière carte de la liste (en plus du padding du scroll)
+  listBottomSpace: {
+    height: 24,
+  },
+
   // ========================================================
   // PAGE INTRO
   // ========================================================
@@ -2791,6 +2802,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 15,
     marginTop: spacing.md,
+    // ✅ Petit espace SOUS le calendrier, avant la liste des réservations
+    marginBottom: 14,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,

@@ -30,6 +30,9 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
+import useAISearch from "../../hooks/useAISearch";
+import AISearchPanel from "../../components/ai/AISearchPanel";
 import { typography } from "../../theme";
 import Header from "../../components/common/Header";
 import massageTypeService from "../../services/massageTypeService";
@@ -567,7 +570,7 @@ const AvailabilityCalendar = ({ item, avail, colors, isDark, onPickSlot }) => {
 };
 
 /* ---------- CARD THÉRAPEUTE (style carte "Réservation") ---------- */
-const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, onPress, onBook }) => {
+const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, aiInfo, onPress, onBook }) => {
   const avail = useTherapistAvailability(item);
   const { nextSlot, weekly } = avail;
   const [calOpen, setCalOpen] = useState(false);
@@ -664,6 +667,17 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, on
                 {formatRating(item.rating)} · Massothérapeute
               </Text>
             </View>
+
+            {/* Score de compatibilité IA (/ai/recommend-therapist) */}
+            {aiInfo && aiInfo.score > 0 && (
+              <View style={[cardStyles.inline, { marginTop: 6 }]}>
+                <MaterialCommunityIcons name="auto-fix" size={12} color={SUCCESS} />
+                <Text numberOfLines={2} style={[cardStyles.subBold, { color: SUCCESS, marginLeft: 4, flex: 1 }]}>
+                  IA · {Math.round(aiInfo.score)} % compatible
+                  {aiInfo.reason ? ` — ${aiInfo.reason}` : ""}
+                </Text>
+              </View>
+            )}
 
             {/* Adresse */}
             <View style={[cardStyles.inline, { marginTop: 7 }]}>
@@ -1022,6 +1036,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
   const { massageType: initialType, selectedCategory: initialCategory } = route?.params || {};
 
   const { colors: themeColors, isDark } = useTheme();
+  const { user } = useAuth();
 
   /* ==========================================================
      STATE
@@ -1210,6 +1225,30 @@ const SearchMassageScreen = ({ navigation, route }) => {
       ),
     [massageTypes, selectedType],
   );
+
+  /* ==========================================================
+     IA — classement des thérapeutes, prix estimé, services populaires
+     (/ai/recommend-therapist, /ai/predict-price, /ai/popular-services)
+  ========================================================== */
+
+  // Distance de référence pour l'estimation : thérapeute le plus proche.
+  const referenceDistanceKm = useMemo(() => {
+    const distances = therapists
+      .map((item) => item.distance)
+      .filter((d) => Number.isFinite(d) && d >= 0 && d < 100);
+    return distances.length ? Math.round(Math.min(...distances) * 10) / 10 : 3;
+  }, [therapists]);
+
+  const ai = useAISearch({
+    userId: user?.id,
+    massageTypeName: selectedTypeObject?.name || null,
+    duration: selectedDuration,
+    budgetMax: selectedPrice,
+    referenceDistanceKm,
+    rankingEnabled: sortMode === "ai",
+    hasTherapists: therapists.length > 0,
+  });
+  const aiScores = ai.scores;
 
   /* ==========================================================
      FILTER COUNT
@@ -1486,9 +1525,16 @@ const SearchMassageScreen = ({ navigation, route }) => {
     if (sortMode === "price") {
       result.sort((a, b) => (a.price || 0) - (b.price || 0));
     }
+    if (sortMode === "ai") {
+      // Score IA décroissant ; sans score, on garde l'ordre actuel
+      // (tri stable) en plaçant les non classés à la fin.
+      const scoreOf = (item) => aiScores[String(item.id)]?.score ?? -1;
+      result.sort((a, b) => scoreOf(b) - scoreOf(a));
+    }
 
     setFilteredTherapists(result);
   }, [
+    aiScores,
     therapists,
     massageTypes,
     selectedType,
@@ -1982,15 +2028,27 @@ const SearchMassageScreen = ({ navigation, route }) => {
      THERAPIST CARD
   ========================================================== */
 
+  // Meilleur thérapeute DISPONIBLE selon l'IA (aucun badge sans score réel).
+  const topAiId = useMemo(() => {
+    let best = null;
+    filteredTherapists.forEach((item) => {
+      const info = aiScores[String(item.id)];
+      if (!info || !item.available) return;
+      if (!best || info.score > best.score) best = { id: item.id, score: info.score };
+    });
+    return best ? String(best.id) : null;
+  }, [filteredTherapists, aiScores]);
+
   const renderTherapistCard = useCallback(
-    ({ item, index }) => (
+    ({ item }) => (
       <Animated.View style={[styles.cardWrapper, { opacity: fadeAnim }]}>
         <TherapistCardView
           item={item}
           colors={themeColors}
           isDark={isDark}
           isSelected={selectedMarker?.id === item.id}
-          isRecommended={index === 0 && item.available}
+          isRecommended={topAiId !== null && String(item.id) === topAiId}
+          aiInfo={aiScores[String(item.id)] || null}
           onPress={() => {
             setSelectedMarker(item);
             showToast(`${item.name} sélectionné(e)`, "info");
@@ -2020,7 +2078,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
         />
       </Animated.View>
     ),
-    [selectedMarker, themeColors, isDark, fadeAnim, showMap, navigation, showToast],
+    [selectedMarker, themeColors, isDark, fadeAnim, showMap, navigation, showToast, aiScores, topAiId],
   );
 
   // ==========================================================
@@ -2431,10 +2489,30 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   },
                 ]}
               >
-                {sortMode === "distance" ? "Proximité" : sortMode === "rating" ? "Mieux notés" : "Prix"}
+                {sortMode === "distance" ? "Proximité" : sortMode === "rating" ? "Mieux notés" : sortMode === "ai" ? "Recommandés IA" : "Prix"}
               </Text>
             </TouchableOpacity>
           </View>
+
+          <AISearchPanel
+            ai={ai}
+            aiSortActive={sortMode === "ai"}
+            onToggleSort={(value) => setSortMode(value ? "ai" : "distance")}
+            massageTypeName={selectedTypeObject?.name || null}
+            duration={selectedDuration}
+            onPickPopular={(row) => {
+              const type = massageTypes.find(
+                (item) => Number(item.id) === Number(row.massage_type_id),
+              );
+              if (!type) {
+                showToast("Ce massage n'est plus disponible", "warning");
+                return;
+              }
+              setSelectedCategory(null);
+              setSelectedType(type.id);
+              showToast(`${type.name} sélectionné`, "info");
+            }}
+          />
 
           <View style={styles.resultsHeader}>
             <View style={styles.resultsInfo}>
@@ -2949,6 +3027,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                       { id: "distance", label: "Plus proche", icon: "location-outline" },
                       { id: "rating", label: "Mieux noté", icon: "star-outline" },
                       { id: "price", label: "Prix le plus bas", icon: "pricetag-outline" },
+                      { id: "ai", label: "Recommandé par l'IA", icon: "sparkles-outline" },
                     ].map((option) => {
                       const active = sortMode === option.id;
                       return (

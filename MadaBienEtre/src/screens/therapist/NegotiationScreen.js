@@ -57,6 +57,8 @@ import offerService from '../../services/offerService';
 import bookingService from '../../services/bookingService';
 
 import { formatMadagascarDateTime } from '../../utils/timeAgo';
+import useNegotiationAI from '../../hooks/useNegotiationAI';
+import AINegotiationAdvisor from '../../components/ai/AINegotiationAdvisor';
 
 // ============================================================
 // CONFIRMATION MODAL
@@ -908,10 +910,29 @@ const NegotiationScreen = ({
   ]);
 
   // ==========================================================
+  // IA DE NEGOCIATION (prix juste, contre-offre conseillée,
+  // analyse du marché, probabilité d'acceptation) —
+  // /pricing/suggest, /ai/predict-price, /pricing/market-analysis,
+  // /ai/predict-acceptance
+  // ==========================================================
+
+  const negotiationAI =
+    useNegotiationAI({
+      role: 'therapist',
+      bookingId,
+      currentPrice,
+      enabled:
+        !!bookingId &&
+        isNegotiableBookingStatus(
+          bookingStatus
+        ),
+    });
+
+  // ==========================================================
   // SUGGESTIONS
   // ==========================================================
 
-  const suggestedPrices =
+  const baseSuggestedPrices =
     useMemo(() => {
       if (currentPrice <= 0) {
         return [];
@@ -947,6 +968,40 @@ const NegotiationScreen = ({
         },
       ];
     }, [
+      currentPrice,
+    ]);
+
+  // Le prix conseillé par l'IA passe en premier (puce « IA »),
+  // sans doublon avec les pourcentages classiques.
+  const aiRecommendedPrice =
+    negotiationAI.recommendedPrice;
+
+  const suggestedPrices =
+    useMemo(() => {
+      if (
+        aiRecommendedPrice > 0 &&
+        currentPrice > 0 &&
+        aiRecommendedPrice !==
+          Math.round(currentPrice) &&
+        !baseSuggestedPrices.some(
+          (item) =>
+            item.value ===
+            aiRecommendedPrice
+        )
+      ) {
+        return [
+          {
+            label: 'IA',
+            value: aiRecommendedPrice,
+          },
+          ...baseSuggestedPrices,
+        ];
+      }
+
+      return baseSuggestedPrices;
+    }, [
+      aiRecommendedPrice,
+      baseSuggestedPrices,
       currentPrice,
     ]);
 
@@ -1951,6 +2006,28 @@ const NegotiationScreen = ({
               ) : null}
             </View>
           </View>
+
+          {/* ==================================================
+              CONSEILLER IA
+          ================================================== */}
+
+          {isNegotiable &&
+            !isWaitingForClient && (
+              <AINegotiationAdvisor
+                ai={negotiationAI}
+                currentPrice={
+                  currentPrice
+                }
+                inputPrice={
+                  hasValidCounterPrice
+                    ? numericCounterPrice
+                    : 0
+                }
+                onUsePrice={
+                  selectSuggestedPrice
+                }
+              />
+            )}
 
           {/* ==================================================
               SUGGESTIONS

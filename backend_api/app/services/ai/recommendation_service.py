@@ -1,13 +1,83 @@
-# app/services/ai/recommendation_service.py
-from sqlalchemy.orm import Session
-from typing import List, Dict, Any, Optional
+import logging
 import math
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
+from sqlalchemy.orm import Session
+
 from ...models.user import User
 from ...models.booking import Booking
-from ...models.review import Review
-from ...models.analytics import UserAnalytics  # ✅ Modifié: user_analytics -> analytics
-from ...repositories.therapist_repository import TherapistRepository
+
+logger = logging.getLogger(__name__)
+
+# Symptôme (sans accent) -> types de massage conseillés
+SYMPTOM_TO_TYPES = {
+    "dos": ["therapeutique", "deep tissue"],
+    "nuque": ["therapeutique"],
+    "cou": ["therapeutique"],
+    "epaule": ["therapeutique"],
+    "stress": ["relaxant"],
+    "fatigue": ["relaxant"],
+    "sommeil": ["relaxant"],
+    "sport": ["sportif"],
+    "courbature": ["sportif"],
+    "enceinte": ["prenatal"],
+    "grossesse": ["prenatal"],
+    "pied": ["reflexologie"],
+    "jambe": ["reflexologie", "sportif"],
+}
+
+
+def _strip(text: str) -> str:
+    import unicodedata
+
+    text = unicodedata.normalize("NFD", (text or "").lower())
+    return "".join(c for c in text if unicodedata.category(c) != "Mn")
+
+
+def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Distance Haversine en km (accepte Decimal/float/str)."""
+    lat1, lon1, lat2, lon2 = (float(v) for v in (lat1, lon1, lat2, lon2))
+    R = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlmb = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlmb / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def _get_therapists(db: Session) -> List[User]:
+    return (
+        db.query(User)
+        .filter(
+            User.role == "THERAPIST",
+            User.verification_status == "approved",
+            User.is_active == True,  # noqa: E712
+            User.is_online == True,  # noqa: E712
+            User.deleted_at.is_(None),
+        )
+        .all()
+    )
+
+
+def _therapist_types(t: User) -> List[str]:
+    """Types de massage du thérapeute (si la relation existe), sans accent."""
+    for attr in ("specialties", "massage_types", "therapist_specialties"):
+        try:
+            items = getattr(t, attr, None)
+        except Exception:  # noqa: BLE001
+            items = None
+        if items:
+            names = []
+            for it in items:
+                name = it if isinstance(it, str) else (
+                    getattr(it, "name", None) or getattr(getattr(it, "massage_type", None), "name", None)
+                )
+                if name:
+                    names.append(_strip(str(name)))
+            if names:
+                return names
+    return []
 
 
 async def recommend_therapists(
@@ -19,141 +89,123 @@ async def recommend_therapists(
     preferred_gender: Optional[str] = None,
     symptoms: Optional[str] = None,
     preferred_date: Optional[datetime] = None,
-    duration_minutes: int = 60
+    duration_minutes: int = 60,
 ) -> List[Dict[str, Any]]:
-    """
-    Recommander des thérapeutes basé sur l'IA
-    """
-    # Récupérer l'utilisateur
+    """Recommander des thérapeutes (score sur 100)."""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         return []
-    
-    # Récupérer les thérapeutes disponibles
-    therapists = db.query(User).filter(
-        User.role == "THERAPIST",
-        User.verification_status == "approved",
-        User.is_active == True,
-        User.is_online == True,
-        User.deleted_at.is_(None)
-    ).all()
-    
+
+    therapists = [t for t in _get_therapists(db) if t.id != user_id]
     if not therapists:
         return []
-    
-    # Position de l'utilisateur
-    user_lat = user.latitude
-    user_lon = user.longitude
-    
-    # Récupérer l'historique de l'utilisateur
-    user_bookings = db.query(Booking).filter(
-        Booking.client_id == user_id,
-        Booking.status == "completed"
-    ).order_by(Booking.created_at.desc()).limit(10).all()
-    
-    user_preferences = db.query(UserAnalytics).filter(UserAnalytics.user_id == user_id).first()
-    
+
+    distance_max = distance_max or 10
+    user_pos: Optional[Tuple[float, float]] = None
+    if user.latitude is not None and user.longitude is not None:
+        user_pos = (float(user.latitude), float(user.longitude))
+
+    past_ids = {
+        b.therapist_id
+        for b in db.query(Booking)
+        .filter(Booking.client_id == user_id, Booking.status == "completed")
+        .order_by(Booking.created_at.desc())
+        .limit(10)
+        .all()
+    }
+
+    # Types de massage visés (explicites ou déduits des symptômes)
+    wanted_types: List[str] = []
+    if massage_type:
+        wanted_types.append(_strip(massage_type))
+    if symptoms:
+        s = _strip(symptoms)
+        for key, types in SYMPTOM_TO_TYPES.items():
+            if key in s:
+                wanted_types.extend(types)
+
     recommendations = []
-    
-    for therapist in therapists:
-        score = 0.0
-        reasons = []
-        
-        # 1. Distance (25%)
-        distance = 0
-        if user_lat and user_lon and therapist.latitude and therapist.longitude:
-            distance = calculate_distance(
-                user_lat, user_lon,
-                float(therapist.latitude), float(therapist.longitude)
-            )
-            if distance <= distance_max:
-                distance_score = max(0, 1 - (distance / distance_max)) * 25
-                score += distance_score
-                reasons.append(f"Distance: {distance:.1f} km ({distance_score:.0f}%)")
-        
-        # 2. Prix (20%)
-        if budget_max and therapist.base_price:
-            price_score = max(0, 1 - (float(therapist.base_price) / budget_max)) * 20
-            score += price_score
-            reasons.append(f"Prix: {float(therapist.base_price):.0f} Ar ({price_score:.0f}%)")
+    for t in therapists:
+        parts: List[Tuple[float, str]] = []  # (points, libellé)
+
+        # 1. Distance (25)
+        distance = 0.0
+        if user_pos and t.latitude is not None and t.longitude is not None:
+            distance = calculate_distance(user_pos[0], user_pos[1], float(t.latitude), float(t.longitude))
+            if distance > distance_max:
+                continue  # trop loin
+            pts = max(0.0, 1 - distance / distance_max) * 25
+            parts.append((pts, f"Distance: {distance:.1f} km"))
         else:
-            score += 10
-        
-        # 3. Note (20%)
-        rating_score = float(therapist.rating or 0) * 4
-        score += rating_score
-        reasons.append(f"Note: {float(therapist.rating or 0):.1f}/5 ({rating_score:.0f}%)")
-        
-        # 4. Disponibilité (20%)
-        if therapist.is_available:
-            availability_score = 20
-            reasons.append("Disponible (20%)")
+            parts.append((12.0, "Distance inconnue"))
+
+        # 2. Prix (20)
+        price = float(t.base_price) if t.base_price else None
+        if budget_max and price:
+            if price <= budget_max:
+                pts = 10 + 10 * (1 - price / budget_max)
+                parts.append((pts, f"Prix: {price:.0f} Ar (dans le budget)"))
+            else:
+                parts.append((0.0, f"Prix: {price:.0f} Ar (hors budget)"))
         else:
-            availability_score = 0
-            reasons.append("Non disponible (0%)")
-        score += availability_score
-        
-        # 5. Expérience (10%)
-        experience_score = min(therapist.experience_years or 0, 10)
-        score += experience_score
-        reasons.append(f"Expérience: {therapist.experience_years or 0} ans ({experience_score:.0f}%)")
-        
-        # 6. Type de massage (5%)
-        if massage_type:
-            massage_match = 5
-            score += massage_match
-            reasons.append(f"Correspond au type: {massage_type} (5%)")
-        
-        # Bonus: Préférences de genre (5%)
-        if preferred_gender and preferred_gender != "any":
-            if preferred_gender == "female" and therapist.fullname.endswith("a"):
-                score += 5
-                reasons.append("Genre préféré (5%)")
-        
-        # Bonus: Historique utilisateur
-        if user_bookings and therapist.id in [b.therapist_id for b in user_bookings]:
-            score += 5
-            reasons.append("Déjà réservé (5%)")
-        
-        final_score = min(score, 100)
-        
-        suggested_price = float(therapist.base_price or 30000)
+            parts.append((10.0, "Prix standard"))
+
+        # 3. Note (20)
+        rating = float(t.rating or 0)
+        parts.append((rating * 4, f"Note: {rating:.1f}/5"))
+
+        # 4. Disponibilité (20)
+        if t.is_available:
+            parts.append((20.0, "Disponible"))
+        else:
+            parts.append((0.0, "Non disponible"))
+
+        # 5. Expérience (10)
+        years = t.experience_years or 0
+        parts.append((float(min(years, 10)), f"Expérience: {years} ans"))
+
+        # 6. Type de massage (5)
+        if wanted_types:
+            known = _therapist_types(t)
+            if not known:
+                parts.append((2.5, "Spécialités non renseignées"))
+            elif any(w in k or k in w for w in wanted_types for k in known):
+                parts.append((5.0, "Propose le massage souhaité"))
+
+        # Bonus genre (5) — seulement si la colonne existe
+        gender = getattr(t, "gender", None)
+        if preferred_gender and preferred_gender != "any" and gender:
+            if str(gender).lower() == preferred_gender.lower():
+                parts.append((5.0, "Genre préféré"))
+
+        # Bonus déjà réservé (5)
+        if t.id in past_ids:
+            parts.append((5.0, "Déjà réservé"))
+
+        score = min(sum(p for p, _ in parts), 100.0)
+        top = sorted(parts, key=lambda x: x[0], reverse=True)[:3]
+
+        suggested = float(t.base_price or 30000)
         if budget_max:
-            suggested_price = min(suggested_price, budget_max)
-        
+            suggested = min(suggested, float(budget_max))
+
         recommendations.append({
-            "therapist_id": therapist.id,
-            "fullname": therapist.fullname,
-            "rating": float(therapist.rating or 0),
-            "total_reviews": therapist.total_reviews or 0,
-            "distance_km": round(distance, 2) if distance else 0,
-            "price_suggested": round(suggested_price, 0),
-            "availability": therapist.is_available,
-            "score": round(final_score, 2),
-            "reason": " | ".join(reasons[:3]),
-            "profile_image": therapist.profile_image,
-            "experience_years": therapist.experience_years or 0,
-            "base_price": float(therapist.base_price) if therapist.base_price else None
+            "therapist_id": t.id,
+            "fullname": t.fullname,
+            "rating": rating,
+            "total_reviews": t.total_reviews or 0,
+            "distance_km": round(distance, 2),
+            "price_suggested": round(suggested, 0),
+            "availability": bool(t.is_available),
+            "score": round(score, 2),
+            "reason": " | ".join(f"{label} ({pts:.0f})" for pts, label in top),
+            "profile_image": t.profile_image,
+            "experience_years": years,
+            "base_price": price,
         })
-    
-    recommendations.sort(key=lambda x: x["score"], reverse=True)
-    
+
+    recommendations.sort(key=lambda r: r["score"], reverse=True)
     return recommendations[:10]
-
-
-def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculer la distance entre deux points en kilomètres (Haversine)"""
-    R = 6371  # Rayon de la Terre en km
-    
-    lat1_rad = math.radians(lat1)
-    lat2_rad = math.radians(lat2)
-    delta_lat = math.radians(lat2 - lat1)
-    delta_lon = math.radians(lon2 - lon1)
-    
-    a = math.sin(delta_lat / 2) ** 2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(delta_lon / 2) ** 2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    
-    return R * c
 
 
 async def predict_price(
@@ -161,111 +213,87 @@ async def predict_price(
     massage_type_id: int,
     therapist_id: int,
     duration_minutes: int = 60,
-    distance_km: float = 0
+    distance_km: float = 0,
 ) -> Dict[str, Any]:
-    """
-    Prédire le prix recommandé pour un massage
-    """
-    from ...models.massage import MassageType
-    from ...models.therapist import TherapistEarnings
-    
-    # Récupérer le type de massage
-    massage_type = db.query(MassageType).filter(MassageType.id == massage_type_id).first()
+    """Prix recommandé pour un massage donné (base thérapeute / type de massage)."""
+    try:
+        from ...models.massage import MassageType
+
+        massage_type = db.query(MassageType).filter(MassageType.id == massage_type_id).first()
+    except Exception:  # noqa: BLE001
+        massage_type = None
     if not massage_type:
         return {"suggested_price": 30000, "confidence": 0.5}
-    
-    # Récupérer le thérapeute
+
     therapist = db.query(User).filter(User.id == therapist_id).first()
     if not therapist:
         return {"suggested_price": 30000, "confidence": 0.5}
-    
-    # Prix de base
-    base_price = float(therapist.base_price or massage_type.min_price or 30000)
-    
-    # Ajustements
+
+    min_price = getattr(massage_type, "min_price", None)
+    base_price = float(therapist.base_price or min_price or 30000)
     duration_factor = duration_minutes / 60
     distance_factor = 1 + (distance_km / 100)
-    
-    # Prix suggéré
-    suggested_price = base_price * duration_factor * distance_factor
-    
-    # Arrondir à la centaine près
-    suggested_price = round(suggested_price / 100) * 100
-    
+
+    suggested_price = round(base_price * duration_factor * distance_factor / 100) * 100
     return {
         "suggested_price": suggested_price,
         "confidence": 0.8,
         "base_price": base_price,
         "duration_factor": duration_factor,
-        "distance_factor": distance_factor
+        "distance_factor": distance_factor,
     }
 
 
-async def get_popular_therapists(
-    db: Session,
-    limit: int = 10
-) -> List[Dict[str, Any]]:
-    """
-    Récupérer les thérapeutes les plus populaires
-    """
-    therapists = db.query(User).filter(
-        User.role == "THERAPIST",
-        User.verification_status == "approved",
-        User.is_active == True
-    ).order_by(
-        User.rating.desc(),
-        User.total_reviews.desc()
-    ).limit(limit).all()
-    
-    results = []
-    for therapist in therapists:
-        results.append({
-            "id": therapist.id,
-            "fullname": therapist.fullname,
-            "rating": float(therapist.rating or 0),
-            "total_reviews": therapist.total_reviews or 0,
-            "profile_image": therapist.profile_image,
-            "base_price": float(therapist.base_price) if therapist.base_price else None,
-            "experience_years": therapist.experience_years or 0,
-            "is_online": therapist.is_online
-        })
-    
-    return results
+async def get_popular_therapists(db: Session, limit: int = 10) -> List[Dict[str, Any]]:
+    """Thérapeutes les plus populaires."""
+    therapists = (
+        db.query(User)
+        .filter(
+            User.role == "THERAPIST",
+            User.verification_status == "approved",
+            User.is_active == True,  # noqa: E712
+        )
+        .order_by(User.rating.desc(), User.total_reviews.desc())
+        .limit(limit)
+        .all()
+    )
+    return [
+        {
+            "id": t.id,
+            "fullname": t.fullname,
+            "rating": float(t.rating or 0),
+            "total_reviews": t.total_reviews or 0,
+            "profile_image": t.profile_image,
+            "base_price": float(t.base_price) if t.base_price else None,
+            "experience_years": t.experience_years or 0,
+            "is_online": t.is_online,
+        }
+        for t in therapists
+    ]
 
 
-async def get_therapist_stats(
-    db: Session,
-    therapist_id: int
-) -> Dict[str, Any]:
-    """
-    Récupérer les statistiques d'un thérapeute
-    """
+async def get_therapist_stats(db: Session, therapist_id: int) -> Dict[str, Any]:
+    """Statistiques d'un thérapeute."""
     therapist = db.query(User).filter(User.id == therapist_id).first()
     if not therapist:
         return {}
-    
-    # Compter les réservations
-    total_bookings = db.query(Booking).filter(Booking.therapist_id == therapist_id).count()
-    completed_bookings = db.query(Booking).filter(
+
+    q = db.query(Booking).filter(Booking.therapist_id == therapist_id)
+    total = q.count()
+    completed = q.filter(Booking.status == "completed").count()
+    cancelled = db.query(Booking).filter(
         Booking.therapist_id == therapist_id,
-        Booking.status == "completed"
+        Booking.status.in_(["cancelled_by_client", "cancelled_by_therapist", "cancelled"]),
     ).count()
-    cancelled_bookings = db.query(Booking).filter(
-        Booking.therapist_id == therapist_id,
-        Booking.status.in_(["cancelled_by_client", "cancelled_by_therapist"])
-    ).count()
-    
-    # Calculer le taux de complétion
-    completion_rate = (completed_bookings / total_bookings * 100) if total_bookings > 0 else 0
-    
+
     return {
         "therapist_id": therapist_id,
-        "total_bookings": total_bookings,
-        "completed_bookings": completed_bookings,
-        "cancelled_bookings": cancelled_bookings,
-        "completion_rate": round(completion_rate, 2),
+        "total_bookings": total,
+        "completed_bookings": completed,
+        "cancelled_bookings": cancelled,
+        "completion_rate": round(completed / total * 100, 2) if total else 0,
         "rating": float(therapist.rating or 0),
         "total_reviews": therapist.total_reviews or 0,
         "is_online": therapist.is_online,
-        "is_available": therapist.is_available
+        "is_available": therapist.is_available,
     }

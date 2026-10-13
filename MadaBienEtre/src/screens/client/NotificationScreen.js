@@ -214,12 +214,79 @@ const CATEGORY_LABELS = {
 
 
 /**
+ * `data` peut être un objet OU une chaîne JSON (colonne texte côté backend).
+ */
+const parseNotificationData = (notification) => {
+  let data =
+    notification?.data ||
+    notification?.metadata ||
+    notification?.payload ||
+    {};
+
+  if (typeof data === 'string') {
+    try {
+      data = JSON.parse(data);
+    } catch (_e) {
+      data = {};
+    }
+  }
+
+  return data && typeof data === 'object' ? data : {};
+};
+
+/**
+ * Notification de MESSAGE de chat ?
+ */
+const isChatNotification = (notification) => {
+  const type = String(notification?.type || '').toLowerCase();
+  const data = parseNotificationData(notification);
+
+  return (
+    data.kind === 'chat_message' ||
+    data.screen === 'Chat' ||
+    type.includes('chat') ||
+    type.includes('message')
+  );
+};
+
+/**
+ * Nom de la première route qui existe vraiment dans la navigation
+ * (le chat s'appelle "TherapistChat" côté thérapeute, "Chat" côté client).
+ */
+const pickExistingRoute = (navigation, names) => {
+  let nav = navigation;
+  let guard = 0;
+
+  while (nav && guard < 6) {
+    guard += 1;
+    const routeNames = nav.getState?.()?.routeNames;
+
+    if (Array.isArray(routeNames)) {
+      const found = names.find((n) => routeNames.includes(n));
+      if (found) return found;
+    }
+
+    nav = nav.getParent?.();
+  }
+
+  return names[0];
+};
+
+const CHAT_ROUTE_NAMES = ['Chat', 'TherapistChat', 'ClientChat'];
+
+
+/**
  * Détermine l'action de navigation.
  */
 const resolveNotificationAction = (notification) => {
   const type = String(notification?.type || '')
     .toLowerCase()
     .trim();
+
+  // ✅ Nouveau message -> ouvrir la conversation
+  if (isChatNotification(notification)) {
+    return 'chat';
+  }
 
   const category = resolveCategory(type);
 
@@ -251,11 +318,7 @@ const resolveNotificationAction = (notification) => {
  * Récupère bookingId.
  */
 const getBookingIdFromNotification = (notification) => {
-  const data =
-    notification?.data ||
-    notification?.metadata ||
-    notification?.payload ||
-    {};
+  const data = parseNotificationData(notification);
 
   return (
     notification?.booking_id ??
@@ -275,11 +338,7 @@ const getBookingIdFromNotification = (notification) => {
  * Récupère offerId.
  */
 const getOfferIdFromNotification = (notification) => {
-  const data =
-    notification?.data ||
-    notification?.metadata ||
-    notification?.payload ||
-    {};
+  const data = parseNotificationData(notification);
 
   return (
     notification?.offer_id ??
@@ -864,6 +923,35 @@ const NotificationScreen = ({
           getOfferIdFromNotification(
             notification
           );
+
+
+        /* ------------------------------------------------------
+           MESSAGE DE CHAT
+        ------------------------------------------------------ */
+
+        if (action === 'chat') {
+          if (!bookingId) {
+            showToast({
+              type: 'warning',
+              title: 'Notification',
+              message: 'Identifiant de réservation introuvable.',
+            });
+            return;
+          }
+
+          const chatData = parseNotificationData(notification);
+
+          navigation.navigate(
+            pickExistingRoute(navigation, CHAT_ROUTE_NAMES),
+            {
+              bookingId,
+              otherUserId: chatData.sender_id,
+              otherName: chatData.sender_name,
+            }
+          );
+
+          return;
+        }
 
 
         /* ------------------------------------------------------

@@ -37,9 +37,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../theme';
+import useChatUnread from '../../hooks/useChatUnread';
 
 const ANIMATION_DURATION = 220;
 const HIDE_TRANSLATE_Y = 100;
+
+// Pastille « messages non lus » sur l'onglet Messages (le hook n'est donc
+// appelé que pour cet onglet : Admin et autres onglets ne sont pas concernés).
+const ChatTabBadge = () => {
+  const { unreadCount } = useChatUnread();
+  if (!unreadCount) return null;
+
+  return (
+    <View style={styles.badge} pointerEvents="none">
+      <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+    </View>
+  );
+};
 
 const BottomTabBar = ({
   state,
@@ -187,6 +201,7 @@ const BottomTabBar = ({
                     size={focused ? 23 : 22}
                     color={color}
                   />
+                  {route.name === 'Messages' ? <ChatTabBadge /> : null}
                 </View>
 
                 <Text
@@ -272,6 +287,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     includeFontPadding: false,
     maxWidth: 100,
+  },
+
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: 0,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: '#E53935',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+    includeFontPadding: false,
   },
 
   activeIndicator: {

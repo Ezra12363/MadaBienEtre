@@ -3,10 +3,12 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 import json
+import re
 import asyncio
 import time
 import logging
 import inspect
+import threading
 from datetime import datetime
 
 from sqlalchemy import Enum as SAEnum, JSON as SAJSON
@@ -17,9 +19,25 @@ from ..models.booking import Booking
 from ..models.user import User
 from ..models.notification import Notification
 from ..services.websocket_manager import manager
+from ..services.push_notifications import push_service
+from ..services.chat_notifications import (
+    MAX_MESSAGE_LENGTH,
+    mark_messages_read,
+    notify_new_message,
+    persist_message,
+    presence_join,
+    presence_leave,
+    utc_iso,
+)
 
 router = APIRouter(tags=["WebSocket"])
 logger = logging.getLogger(__name__)
+
+
+def _safe_client_id(data: dict):
+    """client_id venant du mobile : borné à 64 caractères (colonne String(64))."""
+    value = data.get("client_id")
+    return str(value)[:64] if value else None
 
 # ------------------------------------------------------------------
 # État du suivi en mémoire : booking_id -> {"active": bool, "last": dict|None}
@@ -203,6 +221,14 @@ def _notify_client_en_route(db: Session, booking, therapist_name: str, eta, dist
 
         db.add(Notification(**values))
         db.commit()
+
+        # Push Expo (app fermée) en arrière-plan : ne bloque pas le WebSocket
+        threading.Thread(
+            target=push_service.send_sync,
+            args=(booking.client_id, values.get("title", "Votre thérapeute est en route 🚗"),
+                  body, {**payload, "kind": "booking_en_route"}),
+            daemon=True,
+        ).start()
         return True
     except Exception:
         db.rollback()
@@ -382,80 +408,196 @@ async def websocket_tracking(
 async def websocket_chat(
     websocket: WebSocket,
     booking_id: int,
-    token: Optional[str] = Query(None)
+    token: Optional[str] = Query(None),
 ):
-    """WebSocket pour le chat en temps réel entre client et thérapeute"""
+    """Chat temps réel client <-> thérapeute.
+
+    ✅ Authentification OBLIGATOIRE (avant, un token vide était accepté).
+    ✅ L'identité de l'expéditeur vient du TOKEN, jamais du JSON reçu
+       (avant, n'importe qui pouvait écrire "user_id": 12).
+    ✅ Chaque message est ENREGISTRÉ en base puis diffusé à tous (expéditeur
+       compris, avec `client_id` pour confirmer l'envoi : coches ✓ / ✓✓).
+    ✅ Le destinataire reçoit une NOTIFICATION (base + signal instantané +
+       push Expo) s'il n'a pas le chat ouvert.
+    ✅ Accusés de lecture ("read") et indicateur de saisie ("typing").
+    ✅ Session base fermée proprement (avant : fuite de connexions).
+    """
     await manager.connect(websocket)
-    
+    db = next(get_db())
+    room_id = f"chat_{booking_id}"
+    user = None
+    joined = False
+
     try:
-        # Authentification
-        user = None
-        if token:
-            try:
-                user = await get_current_user_ws(token)
-            except Exception:
-                await websocket.send_json({"error": "Authentication failed"})
-                await websocket.close()
-                return
-        
-        # Récupérer la réservation
-        db = next(get_db())
+        token = _clean_token(token)
+        if not token:
+            await websocket.send_json({"error": "Authentication failed", "reason": "missing_token"})
+            await websocket.close()
+            return
+
+        user = await _authenticate_ws(token, db, websocket)
+        if user is None:
+            await websocket.send_json({"error": "Authentication failed", "reason": "invalid_token"})
+            await websocket.close()
+            return
+
         booking = db.query(Booking).filter(Booking.id == booking_id).first()
         if not booking:
             await websocket.send_json({"error": "Booking not found"})
             await websocket.close()
             return
-        
-        if user and user.id not in [booking.client_id, booking.therapist_id]:
+
+        if user.id not in [booking.client_id, booking.therapist_id]:
             await websocket.send_json({"error": "Not authorized"})
             await websocket.close()
             return
-        
-        room_id = f"chat_{booking_id}"
+
         await manager.join_room(websocket, room_id)
-        
+        presence_join(booking_id, user.id)
+        joined = True
+
+        sender_name = getattr(user, "fullname", None) or "Utilisateur"
+
+        await websocket.send_json({"type": "chat_ready", "user_id": user.id,
+                                   "booking_id": booking_id, "timestamp": utc_iso()})
+
         while True:
             data = await websocket.receive_json()
-            
-            if data.get("type") == "message":
+            msg_type = data.get("type")
+
+            if msg_type == "ping":
+                await websocket.send_json({"type": "pong"})
+
+            elif msg_type == "message":
+                text = str(data.get("message") or "").strip()
+                if not text:
+                    continue
+                text = text[:MAX_MESSAGE_LENGTH]
+
+                saved = persist_message(db, booking, user, text)
+                payload = {
+                    "type": "message",
+                    "id": saved["id"] if saved else None,
+                    "client_id": _safe_client_id(data),
+                    "booking_id": booking_id,
+                    "user_id": user.id,
+                    "username": sender_name,
+                    "message": text,
+                    "message_type": "text",
+                    "timestamp": saved["created_at"] if saved else utc_iso(),
+                }
+                # À TOUT LE MONDE, expéditeur inclus (confirmation d'envoi)
+                await manager.broadcast_to_room(room_id, payload)
+
+                await notify_new_message(
+                    db, booking, user, text,
+                    message_id=saved["id"] if saved else None,
+                )
+
+            elif msg_type == "image":
+                image_url = str(data.get("image_url") or "")
+                # Sécurité : seules les images déjà enregistrées par le serveur
+                # (POST /chat/send-image/{booking_id}) de CETTE réservation sont
+                # acceptées — jamais une URL arbitraire fournie par le client.
+                if not re.fullmatch(
+                    rf"/chat/files/{booking_id}/[a-f0-9]{{32}}\.(?:jpg|png|webp)", image_url
+                ):
+                    continue
+                saved = persist_message(db, booking, user, "", "image", str(image_url))
+                await manager.broadcast_to_room(room_id, {
+                    "type": "message",
+                    "id": saved["id"] if saved else None,
+                    "client_id": _safe_client_id(data),
+                    "booking_id": booking_id,
+                    "user_id": user.id,
+                    "username": sender_name,
+                    "message": "",
+                    "message_type": "image",
+                    "image_url": image_url,
+                    "timestamp": saved["created_at"] if saved else utc_iso(),
+                })
+                await notify_new_message(
+                    db, booking, user, "",
+                    message_id=saved["id"] if saved else None,
+                    message_type="image",
+                )
+
+            elif msg_type == "typing":
                 await manager.broadcast_to_room(
                     room_id,
-                    {
-                        "type": "message",
-                        "user_id": data.get("user_id"),
-                        "username": data.get("username"),
-                        "message": data.get("message"),
-                        "timestamp": datetime.utcnow().isoformat()
-                    }
+                    {"type": "typing", "user_id": user.id,
+                     "is_typing": bool(data.get("is_typing"))},
+                    exclude=websocket,
                 )
-            
-            elif data.get("type") == "typing":
+
+            elif msg_type == "read":
+                # L'utilisateur a ouvert/lu la conversation
+                mark_messages_read(db, booking, user)
                 await manager.broadcast_to_room(
                     room_id,
-                    {
-                        "type": "typing",
-                        "user_id": data.get("user_id"),
-                        "is_typing": data.get("is_typing")
-                    },
-                    exclude=websocket
+                    {"type": "read", "reader_id": user.id, "timestamp": utc_iso()},
+                    exclude=websocket,
                 )
-            
-            elif data.get("type") == "image":
-                await manager.broadcast_to_room(
-                    room_id,
-                    {
-                        "type": "image",
-                        "user_id": data.get("user_id"),
-                        "image_url": data.get("image_url"),
-                        "timestamp": datetime.utcnow().isoformat()
-                    }
-                )
-    
+
     except WebSocketDisconnect:
-        await manager.disconnect(websocket)
-    except Exception as e:
-        await websocket.send_json({"error": str(e)})
-        await manager.disconnect(websocket)
+        pass
+    except Exception as e:  # noqa: BLE001
+        logger.exception("Erreur WebSocket chat")
+        try:
+            await websocket.send_json({"error": str(e)})
+        except Exception:  # noqa: BLE001
+            pass
+    finally:
+        if joined and user is not None:
+            presence_leave(booking_id, user.id)
+        try:
+            await manager.disconnect(websocket)
+        finally:
+            db.close()
+
+
+@router.websocket("/ws/notifications")
+async def websocket_notifications(
+    websocket: WebSocket,
+    token: Optional[str] = Query(None),
+):
+    """Canal personnel de l'utilisateur : reçoit un signal INSTANTANÉ dès
+    qu'une notification est créée pour lui (nouveau message, offre...).
+    Le téléphone relit alors GET /notifications sans attendre le polling."""
+    await manager.connect(websocket)
+    db = next(get_db())
+    try:
+        token = _clean_token(token)
+        user = await _authenticate_ws(token, db, websocket) if token else None
+        if user is None:
+            await websocket.send_json({"error": "Authentication failed"})
+            await websocket.close()
+            return
+
+        user_id = user.id
+        db.close()  # plus besoin de la base pour ce canal
+
+        await manager.join_room(websocket, f"user_{user_id}")
+        await websocket.send_json({"type": "notifications_ready", "user_id": user_id})
+
+        while True:
+            data = await websocket.receive_json()
+            if data.get("type") == "ping":
+                await websocket.send_json({"type": "pong"})
+
+    except WebSocketDisconnect:
+        pass
+    except Exception:  # noqa: BLE001
+        logger.exception("Erreur WebSocket notifications")
+    finally:
+        try:
+            await manager.disconnect(websocket)
+        finally:
+            try:
+                db.close()
+            except Exception:  # noqa: BLE001
+                pass
+
 
 @router.get("/ws/connections")
 async def get_connections():
