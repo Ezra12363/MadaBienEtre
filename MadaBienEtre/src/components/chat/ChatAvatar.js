@@ -1,19 +1,19 @@
 // src/components/chat/ChatAvatar.js
-// Avatar carré arrondi (comme la maquette) : photo, sinon initiale.
+// Avatar rond (comme les autres écrans) : photo, sinon initiale sur fond vert doux.
 import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { typography } from '../../theme';
 import { getInitial } from '../../utils/chatUi';
 
-const ChatAvatar = ({ uri, name, size = 48, radius = 12, palette, style }) => {
+const ChatAvatar = ({ uri, name, size = 48, palette, style }) => {
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     setFailed(false);
   }, [uri]);
 
-  const box = { width: size, height: size, borderRadius: radius };
+  const box = { width: size, height: size, borderRadius: size / 2 };
 
   if (uri && !failed) {
     return (

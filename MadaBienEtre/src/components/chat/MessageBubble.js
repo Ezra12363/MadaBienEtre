@@ -1,16 +1,29 @@
 // src/components/chat/MessageBubble.js
-// Une ligne de message, comme la maquette : l'heure en petit AU-DESSUS de la
-// bulle, bulle verte (moi, à droite) ou grise (l'autre, à gauche).
+// Une ligne de message : l'heure en petit AU-DESSUS de la bulle, bulle de la
+// couleur principale de l'app (moi, à droite) ou surface + bordure (l'autre).
 // Gère : texte, image, message supprimé, envoi en cours / échec (réessayer),
-// accusé de lecture (✓ envoyé, ✓✓ vert = lu).
-import { memo } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+// accusé de lecture (✓ envoyé, ✓✓ lu) et suppression de MON message :
+//   - mobile : appui long sur la bulle ;
+//   - web    : bouton corbeille au survol (ou appui long sur écran tactile).
+import { memo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 
 import { typography } from '../../theme';
+import { confirmAsync } from '../../utils/chatImage';
 import { formatClock } from '../../utils/chatUi';
 import ChatMessageContent from './ChatMessageContent';
+
+const IS_WEB = Platform.OS === 'web';
 
 const StatusIcon = ({ status, palette }) => {
   if (status === 'sending') {
@@ -26,19 +39,34 @@ const StatusIcon = ({ status, palette }) => {
 };
 
 const MessageBubble = ({ message, isOwn, showTime, isGroupStart, palette, token, onDelete, onRetry }) => {
+  const [hover, setHover] = useState(false);
+
   const failed = isOwn && message.status === 'failed';
   const isImage = message.type === 'image' && !message.deleted;
+  const canDelete = isOwn && !message.deleted && message.status !== 'sending' && !!onDelete;
+
+  const askDelete = async () => {
+    const ok = await confirmAsync(
+      'Supprimer le message ?',
+      isImage
+        ? 'Cette photo sera supprimée pour tout le monde.'
+        : 'Ce message sera supprimé pour tout le monde.'
+    );
+    if (ok) onDelete(message.id);
+  };
 
   const bubbleStyle = [
     styles.bubble,
     isOwn ? styles.bubbleOwn : styles.bubbleOther,
-    { backgroundColor: isOwn ? palette.ownBubble : palette.otherBubble },
+    isOwn
+      ? { backgroundColor: palette.ownBubble }
+      : { backgroundColor: palette.otherBubble, borderWidth: 1, borderColor: palette.otherBorder },
     isImage && styles.bubbleImage,
-    message.deleted && { opacity: 0.8 },
+    message.deleted && { opacity: 0.75 },
     failed && { borderWidth: 1.5, borderColor: palette.danger },
   ];
 
-  const content = (
+  const bubble = (
     <View style={bubbleStyle}>
       <ChatMessageContent
         message={message}
@@ -51,8 +79,14 @@ const MessageBubble = ({ message, isOwn, showTime, isGroupStart, palette, token,
     </View>
   );
 
+  const hoverProps = IS_WEB
+    ? { onHoverIn: () => setHover(true), onHoverOut: () => setHover(false) }
+    : {};
+  const Wrap = IS_WEB ? Pressable : View;
+
   return (
-    <View
+    <Wrap
+      {...hoverProps}
       style={[
         styles.row,
         isOwn ? styles.rowOwn : styles.rowOther,
@@ -66,30 +100,56 @@ const MessageBubble = ({ message, isOwn, showTime, isGroupStart, palette, token,
         </View>
       )}
 
-      {failed ? (
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => onRetry?.(message.id)}
-          accessibilityRole="button"
-          accessibilityLabel="Échec de l'envoi, appuyer pour réessayer"
-        >
-          {content}
-        </TouchableOpacity>
-      ) : (
-        content
-      )}
+      <View style={styles.bubbleLine}>
+        {IS_WEB && canDelete && !failed && (
+          <TouchableOpacity
+            onPress={askDelete}
+            activeOpacity={0.7}
+            style={[styles.trash, { opacity: hover ? 1 : 0, backgroundColor: palette.dangerSoft }]}
+            accessibilityRole="button"
+            accessibilityLabel="Supprimer ce message"
+          >
+            <Ionicons name="trash-outline" size={16} color={palette.danger} />
+          </TouchableOpacity>
+        )}
+
+        {failed ? (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => onRetry?.(message.id)}
+            accessibilityRole="button"
+            accessibilityLabel="Échec de l'envoi, appuyer pour réessayer"
+          >
+            {bubble}
+          </TouchableOpacity>
+        ) : (
+          bubble
+        )}
+      </View>
 
       {failed && (
-        <Text style={[styles.failedText, { color: palette.danger }]}>
-          Échec de l'envoi · Appuyez pour réessayer
-        </Text>
+        <View style={styles.failedRow}>
+          <Text style={[styles.failedText, { color: palette.danger }]}>
+            Échec de l'envoi · Appuyez pour réessayer
+          </Text>
+          {!!onDelete && (
+            <TouchableOpacity
+              onPress={askDelete}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Supprimer ce message"
+            >
+              <Ionicons name="trash-outline" size={14} color={palette.danger} />
+            </TouchableOpacity>
+          )}
+        </View>
       )}
-    </View>
+    </Wrap>
   );
 };
 
 const styles = StyleSheet.create({
-  row: { maxWidth: '78%', minWidth: 0 },
+  row: { maxWidth: '82%', minWidth: 0 },
   rowOwn: { alignSelf: 'flex-end', alignItems: 'flex-end' },
   rowOther: { alignSelf: 'flex-start', alignItems: 'flex-start' },
 
@@ -99,23 +159,25 @@ const styles = StyleSheet.create({
   time: { fontSize: 11, fontFamily: typography.fontFamily.regular },
   statusIcon: { marginLeft: 4 },
 
+  bubbleLine: { flexDirection: 'row', alignItems: 'center', gap: 6, maxWidth: '100%' },
+  trash: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+
   bubble: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
     maxWidth: '100%',
+    flexShrink: 1,
     ...Platform.select({ web: { wordBreak: 'break-word' }, default: {} }),
   },
   bubbleOwn: { borderBottomRightRadius: 5 },
   bubbleOther: { borderBottomLeftRadius: 5 },
   bubbleImage: { padding: 4 },
 
-  text: {
-    fontSize: 15,
-    lineHeight: 21,
-    fontFamily: typography.fontFamily.regular,
-  },
-  failedText: { fontSize: 11, marginTop: 4, fontFamily: typography.fontFamily.regular },
+  text: { fontSize: 14, lineHeight: 21, fontFamily: typography.fontFamily.regular },
+
+  failedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  failedText: { fontSize: 11, fontFamily: typography.fontFamily.regular },
 });
 
 export default memo(MessageBubble);

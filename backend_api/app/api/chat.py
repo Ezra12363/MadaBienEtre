@@ -10,6 +10,8 @@
 #   GET    /chat/conversations             liste des conversations
 #   GET    /chat/peer/{booking_id}         interlocuteur (nom, photo, en ligne ?)
 #   DELETE /chat/message/{message_id}      suppression (expéditeur uniquement)
+#   DELETE /chat/messages/{booking_id}/mine  supprimer TOUS mes messages de la conversation
+#   DELETE /chat/mine/{booking_id}         supprime TOUS mes messages de la conversation
 #   GET    /chat/files/{booking_id}/{name} image (participants uniquement)
 #
 # Les images sont enregistrées dans CHAT_UPLOAD_DIR (défaut : private_uploads/chat).
@@ -267,6 +269,65 @@ async def send_image(
 
 
 # ---------------------------------------------------------------------------
+# Suppression de TOUS mes messages d'une conversation (soft delete).
+# Les messages de l'autre personne ne sont pas touchés. Si plus aucun message
+# visible n'existe, la conversation disparaît de GET /chat/conversations.
+# ---------------------------------------------------------------------------
+@router.delete("/mine/{booking_id}")
+async def delete_my_messages(
+    booking_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _get_booking_or_403(db, booking_id, current_user)
+
+    rows = (
+        db.query(ChatMessage)
+        .filter(
+            ChatMessage.booking_id == booking_id,
+            ChatMessage.sender_id == current_user.id,
+            ChatMessage.deleted_at.is_(None),
+        )
+        .all()
+    )
+    if not rows:
+        return {"success": True, "deleted": 0, "ids": []}
+
+    now = datetime.utcnow()
+    ids = []
+    image_urls = []
+    for row in rows:
+        ids.append(row.id)
+        if row.image_url:
+            image_urls.append(row.image_url)
+        row.deleted_at = now
+        row.content = ""
+        row.image_url = None
+    db.commit()
+
+    # Suppression physique des images après validation de la transaction
+    for image_url in image_urls:
+        match = re.match(r"^/chat/files/(\d+)/([a-f0-9]{32}\.(?:jpg|png|webp))$", image_url)
+        if match:
+            try:
+                (CHAT_UPLOAD_DIR / match.group(1) / match.group(2)).unlink(missing_ok=True)
+            except OSError:
+                logger.warning("Chat : fichier image non supprimé", exc_info=True)
+
+    await _broadcast(
+        booking_id,
+        {
+            "type": "messages_deleted",
+            "booking_id": booking_id,
+            "sender_id": current_user.id,
+            "ids": ids,
+            "timestamp": utc_iso(),
+        },
+    )
+    return {"success": True, "deleted": len(ids), "ids": ids}
+
+
+# ---------------------------------------------------------------------------
 # Lecture des images (authentifiée)
 #   - app mobile : en-tête Authorization
 #   - web (<img>) : ?token=...  (un <img> ne peut pas envoyer d'en-tête)
@@ -396,10 +457,11 @@ def get_conversations(
 
     ids = list(bookings.keys())
 
-    # Dernier message de chaque réservation
+    # Dernier message VISIBLE (non supprimé) de chaque réservation : une
+    # conversation dont tous les messages sont supprimés disparaît de la liste.
     last_ids = (
         db.query(func.max(ChatMessage.id))
-        .filter(ChatMessage.booking_id.in_(ids))
+        .filter(ChatMessage.booking_id.in_(ids), ChatMessage.deleted_at.is_(None))
         .group_by(ChatMessage.booking_id)
         .all()
     )
@@ -422,6 +484,19 @@ def get_conversations(
         .all()
     )
     unread = {bid: int(n) for bid, n in unread_rows}
+
+    # Nombre de MES messages encore visibles (pour proposer « Supprimer mes messages »)
+    mine_rows = (
+        db.query(ChatMessage.booking_id, func.count(ChatMessage.id))
+        .filter(
+            ChatMessage.booking_id.in_(ids),
+            ChatMessage.sender_id == uid,
+            ChatMessage.deleted_at.is_(None),
+        )
+        .group_by(ChatMessage.booking_id)
+        .all()
+    )
+    mine = {bid: int(n) for bid, n in mine_rows}
 
     other_ids = {
         (b.therapist_id if b.client_id == uid else b.client_id) for b in bookings.values()
@@ -453,9 +528,11 @@ def get_conversations(
                 "preview": preview,
                 "sender_id": last.sender_id,
                 "message_type": last.message_type,
+                "deleted": last.deleted_at is not None,
                 "created_at": _iso(last.created_at),
             },
             "unread_count": unread.get(booking_id, 0),
+            "my_count": mine.get(booking_id, 0),
         })
 
     result.sort(key=lambda c: c["last_message"]["created_at"] or "", reverse=True)
@@ -530,3 +607,65 @@ async def delete_message(
          "timestamp": utc_iso()},
     )
     return {"success": True, "id": msg.id}
+
+
+# ---------------------------------------------------------------------------
+# Suppression de TOUS mes messages d'une conversation (soft delete).
+# Les messages de l'autre personne ne sont jamais touchés. Les photos
+# sont supprimées du disque. Les deux participants voient « Message supprimé ».
+# ---------------------------------------------------------------------------
+_IMAGE_URL_RE = re.compile(r"^/chat/files/(\d+)/([a-f0-9]{32}\.(?:jpg|png|webp))$")
+
+
+@router.delete("/messages/{booking_id}/mine")
+async def delete_my_messages(
+    booking_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    booking = _get_booking_or_403(db, booking_id, current_user)
+
+    rows = (
+        db.query(ChatMessage)
+        .filter(
+            ChatMessage.booking_id == booking.id,
+            ChatMessage.sender_id == current_user.id,
+            ChatMessage.deleted_at.is_(None),
+        )
+        .all()
+    )
+    if not rows:
+        return {"success": True, "deleted": 0, "ids": []}
+
+    now = datetime.utcnow()
+    ids = []
+    image_urls = []
+    for msg in rows:
+        if msg.image_url:
+            image_urls.append(msg.image_url)
+        msg.deleted_at = now
+        msg.content = ""
+        msg.image_url = None
+        ids.append(msg.id)
+    db.commit()
+
+    # Suppression physique des photos (après validation de la transaction)
+    for url in image_urls:
+        match = _IMAGE_URL_RE.match(url)
+        if match:
+            try:
+                (CHAT_UPLOAD_DIR / match.group(1) / match.group(2)).unlink(missing_ok=True)
+            except OSError:
+                logger.warning("Chat : fichier image non supprimé", exc_info=True)
+
+    await _broadcast(
+        booking.id,
+        {
+            "type": "messages_deleted",
+            "ids": ids,
+            "booking_id": booking.id,
+            "sender_id": current_user.id,
+            "timestamp": utc_iso(),
+        },
+    )
+    return {"success": True, "deleted": len(ids), "ids": ids}

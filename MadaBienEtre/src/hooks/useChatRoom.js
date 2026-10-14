@@ -10,6 +10,7 @@
 //  ✅ Pas de doublons (id serveur / client_id), heure UTC corrigée
 //  ✅ Indicateur de saisie, accusés de lecture
 //  ✅ Envoi d'images (aperçu local, upload multipart, réessai) + suppression
+//     d'un message ou de TOUS mes messages (deleteAllMine)
 //  ✅ Dit au contexte de notifications quelle conversation est ouverte
 //     (=> pas de notification pour un message que vous êtes en train de lire)
 // ============================================================================
@@ -269,6 +270,16 @@ export default function useChatRoom({
         setMessages((prev) =>
           prev.map((m) =>
             String(m.id) === String(data.id)
+              ? { ...m, deleted: true, content: '', imageUrl: null, localUri: null }
+              : m
+          )
+        );
+        emitChatChanged();
+      } else if (data.type === 'messages_deleted' && Array.isArray(data.ids)) {
+        const gone = new Set(data.ids.map(String));
+        setMessages((prev) =>
+          prev.map((m) =>
+            gone.has(String(m.id))
               ? { ...m, deleted: true, content: '', imageUrl: null, localUri: null }
               : m
           )
@@ -550,6 +561,44 @@ export default function useChatRoom({
     [authHeaders]
   );
 
+  /* ------------------------- supprimer TOUS mes messages ------------------------- */
+  // DELETE /chat/messages/{bookingId}/mine : les messages de l'autre personne ne
+  // sont jamais touchés. Mise à jour immédiate puis retour arrière si le serveur refuse.
+  const deleteAllMine = useCallback(async () => {
+    if (!bookingId) return { ok: false, count: 0 };
+    const mine = (id) => String(id) === String(myIdRef.current);
+    const before = messagesRef.current;
+    const targets = before.filter((m) => mine(m.senderId) && !m.deleted);
+    if (targets.length === 0) return { ok: true, count: 0 };
+
+    // Messages jamais arrivés au serveur : suppression locale
+    const localOnly = (m) => m.status === 'failed' || m.status === 'sending';
+    targets.filter(localOnly).forEach((m) => {
+      delete assetsRef.current[m.clientId || m.id];
+    });
+
+    const tombstone = { deleted: true, content: '', imageUrl: null, localUri: null };
+    const targetIds = new Set(targets.map((m) => String(m.id)));
+    setMessages((prev) =>
+      prev
+        .filter((m) => !(targetIds.has(String(m.id)) && localOnly(m)))
+        .map((m) => (targetIds.has(String(m.id)) ? { ...m, ...tombstone } : m))
+    );
+
+    try {
+      const res = await axios.delete(`${API_URL}/chat/messages/${bookingId}/mine`, {
+        headers: authHeaders,
+        timeout: 30000,
+      });
+      emitChatChanged();
+      return { ok: true, count: Number(res.data?.deleted ?? targets.length) };
+    } catch (error) {
+      console.warn('Chat : suppression globale échouée', error?.response?.data || error?.message);
+      setMessages(before);
+      return { ok: false, count: 0 };
+    }
+  }, [bookingId, authHeaders]);
+
   /* ------------------------------ saisie ------------------------------ */
   const notifyTyping = useCallback(
     (text) => {
@@ -577,6 +626,7 @@ export default function useChatRoom({
     sendMessage,
     sendImage,
     deleteMessage,
+    deleteAllMine,
     retryMessage,
     notifyTyping,
     reload: loadHistory,

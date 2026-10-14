@@ -14,7 +14,6 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -23,6 +22,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 
+import Header from '../common/Header';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -30,12 +30,14 @@ import useChatImageSending from '../../hooks/useChatImageSending';
 import useChatPeer from '../../hooks/useChatPeer';
 import useChatRoom from '../../hooks/useChatRoom';
 import { typography } from '../../theme';
+import { confirmAsync } from '../../utils/chatImage';
 import { buildChatRows, getFirstName, notifyInfo } from '../../utils/chatUi';
 
+import ChatActionSheet from './ChatActionSheet';
 import ChatComposer from './ChatComposer';
-import ChatHeader from './ChatHeader';
 import ChatImagePreviewModal from './ChatImagePreviewModal';
 import MessageBubble from './MessageBubble';
+import PeerBar from './PeerBar';
 import { CHAT_MAX_WIDTH, getChatPalette } from './chatTheme';
 
 const NEAR_BOTTOM_PX = 140;
@@ -49,8 +51,8 @@ const ChatRoomView = ({
   const params = route?.params || {};
   const bookingId = params.bookingId;
 
-  const { isDark } = useTheme();
-  const palette = useMemo(() => getChatPalette(isDark), [isDark]);
+  const { colors: themeColors, isDark } = useTheme();
+  const palette = useMemo(() => getChatPalette(themeColors, isDark), [themeColors, isDark]);
   const { token, user } = useAuth();
   const { setActiveChatBookingId } = useNotifications();
 
@@ -75,8 +77,10 @@ const ChatRoomView = ({
     sendMessage,
     sendImage,
     deleteMessage,
+    deleteAllMine,
     retryMessage,
     notifyTyping,
+    reload,
   } = useChatRoom({
     bookingId,
     token,
@@ -86,6 +90,7 @@ const ChatRoomView = ({
 
   const [text, setText] = useState('');
   const [headerHeight, setHeaderHeight] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [showJump, setShowJump] = useState(false);
   const [newCount, setNewCount] = useState(0);
 
@@ -114,14 +119,47 @@ const ChatRoomView = ({
     if (navigation?.canGoBack?.()) navigation.goBack();
   }, [navigation]);
 
-  const handleCall = useCallback(
-    () => notifyInfo('Appel', "La fonction d'appel sera disponible prochainement."),
-    []
+  /* ------------------------ supprimer mes messages ------------------------ */
+  const myCount = useMemo(
+    () => messages.filter((m) => String(m.senderId) === String(myId) && !m.deleted).length,
+    [messages, myId]
   );
-  const handleVideo = useCallback(
-    () => notifyInfo('Appel vidéo', "L'appel vidéo sera disponible prochainement."),
-    []
-  );
+
+  const handleDeleteAll = useCallback(async () => {
+    if (myCount === 0) return;
+    const who = peer.name ? ` à ${peer.name}` : '';
+    const ok = await confirmAsync(
+      'Supprimer tous vos messages ?',
+      `Les ${myCount} message${myCount > 1 ? 's' : ''} que vous avez envoyé${myCount > 1 ? 's' : ''}${who} ` +
+        'seront supprimés pour tout le monde. Cette action est irréversible.',
+      'Tout supprimer'
+    );
+    if (!ok) return;
+    const result = await deleteAllMine();
+    if (!result.ok) {
+      notifyInfo('Suppression impossible', 'Vérifiez votre connexion puis réessayez.');
+    }
+  }, [myCount, peer.name, deleteAllMine]);
+
+  const menuActions = useMemo(() => {
+    const list = [];
+    if (myCount > 0) {
+      list.push({
+        key: 'delete-all',
+        label: `Supprimer tous mes messages (${myCount})`,
+        icon: 'trash-outline',
+        destructive: true,
+        onPress: handleDeleteAll,
+      });
+    }
+    list.push({
+      key: 'refresh',
+      label: 'Actualiser la conversation',
+      icon: 'refresh-outline',
+      onPress: () => reload?.(),
+    });
+    return list;
+  }, [myCount, handleDeleteAll, reload]);
 
   /* ---------------------------------- images ---------------------------------- */
   const { pendingAsset, pickImage, cancelPreview, confirmSend } = useChatImageSending({
@@ -202,7 +240,9 @@ const ChatRoomView = ({
       if (item.rowType === 'date') {
         return (
           <View style={styles.dateWrap}>
-            <Text style={[styles.dateText, { color: palette.dateText }]}>{item.label}</Text>
+            <View style={[styles.datePill, { backgroundColor: palette.pillBg }]}>
+              <Text style={[styles.dateText, { color: palette.pillText }]}>{item.label}</Text>
+            </View>
           </View>
         );
       }
@@ -230,8 +270,8 @@ const ChatRoomView = ({
       <View style={[styles.emptyIcon, { backgroundColor: palette.primarySoft }]}>
         <Ionicons name="chatbubble-ellipses-outline" size={34} color={palette.primary} />
       </View>
-      <Text style={[styles.emptyTitle, { color: palette.rowTitle }]}>Aucun message</Text>
-      <Text style={[styles.emptyText, { color: palette.rowSub }]}>
+      <Text style={[styles.emptyTitle, { color: palette.text }]}>Aucun message</Text>
+      <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
         Commencez la conversation{peer.name ? ` avec ${peer.name}` : ''}.
       </Text>
     </View>
@@ -241,20 +281,20 @@ const ChatRoomView = ({
 
   return (
     <View style={[styles.root, { backgroundColor: palette.screenBg }]}>
-      <StatusBar barStyle="light-content" backgroundColor={palette.headerFrom} />
+            {!compactHeader && (
+        <View onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
+          <Header title="Conversation" showBack onBackPress={handleBack} />
+        </View>
+      )}
 
-      <ChatHeader
+      <PeerBar
         palette={palette}
-        title="Conversation"
         name={peer.name}
         photo={peer.photo}
         statusText={status.text}
         statusColor={status.color}
-        compact={compactHeader}
-        onBack={handleBack}
-        onCall={handleCall}
-        onVideo={handleVideo}
-        onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
+        bookingId={bookingId}
+        onMenu={() => setMenuOpen(true)}
       />
 
       {!!fatalError && (
@@ -275,7 +315,7 @@ const ChatRoomView = ({
           {isLoading && messages.length === 0 ? (
             <View style={styles.loading}>
               <ActivityIndicator size="large" color={palette.primary} />
-              <Text style={[styles.loadingText, { color: palette.rowSub }]}>
+              <Text style={[styles.loadingText, { color: palette.textSecondary }]}>
                 Chargement de la conversation…
               </Text>
             </View>
@@ -334,6 +374,15 @@ const ChatRoomView = ({
         />
       </KeyboardAvoidingView>
 
+      <ChatActionSheet
+        visible={menuOpen}
+        title={peer.name || 'Conversation'}
+        subtitle={bookingId ? `Réservation #${bookingId}` : undefined}
+        actions={menuActions}
+        onClose={() => setMenuOpen(false)}
+        palette={palette}
+      />
+
       <ChatImagePreviewModal
         visible={Boolean(pendingAsset)}
         asset={pendingAsset}
@@ -360,7 +409,8 @@ const styles = StyleSheet.create({
   listEmpty: { flexGrow: 1, justifyContent: 'center' },
 
   dateWrap: { alignItems: 'center', marginTop: 6, marginBottom: 6 },
-  dateText: { fontSize: 13, fontFamily: typography.fontFamily.regular },
+  datePill: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 14 },
+  dateText: { fontSize: 12, fontFamily: typography.fontFamily.medium },
 
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   loadingText: { fontSize: 14, fontFamily: typography.fontFamily.regular },

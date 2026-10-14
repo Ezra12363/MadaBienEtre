@@ -81,18 +81,18 @@ export const formatListTime = (value) => {
 /**
  * Transforme la liste de messages en lignes affichables :
  *   - séparateur de date quand le jour change ;
- *   - `showTime` : l'heure n'est affichée qu'une fois par série de messages
- *     du même expéditeur dans la même minute (comme sur la maquette).
+ *   - `isGroupStart` / `isGroupEnd` : série de messages du même expéditeur
+ *     (espacement + coin « queue » de la dernière bulle de la série).
  */
 export const buildChatRows = (messages) => {
   const rows = [];
 
   messages.forEach((message, index) => {
     const previous = messages[index - 1];
-    const date = safeDate(message.createdAt);
-    const dayKey = date.toDateString();
-    const prevDate = previous ? safeDate(previous.createdAt) : null;
-    const prevDayKey = prevDate ? prevDate.toDateString() : null;
+    const next = messages[index + 1];
+    const dayKey = safeDate(message.createdAt).toDateString();
+    const prevDayKey = previous ? safeDate(previous.createdAt).toDateString() : null;
+    const nextDayKey = next ? safeDate(next.createdAt).toDateString() : null;
 
     if (dayKey !== prevDayKey) {
       rows.push({
@@ -102,19 +102,17 @@ export const buildChatRows = (messages) => {
       });
     }
 
-    const sameSender = previous && String(previous.senderId) === String(message.senderId);
-    const sameMinute =
-      prevDate &&
-      dayKey === prevDayKey &&
-      date.getHours() === prevDate.getHours() &&
-      date.getMinutes() === prevDate.getMinutes();
+    const sameAsPrev =
+      previous && dayKey === prevDayKey && String(previous.senderId) === String(message.senderId);
+    const sameAsNext =
+      next && dayKey === nextDayKey && String(next.senderId) === String(message.senderId);
 
     rows.push({
       rowType: 'message',
       id: `msg-${String(message.id ?? index)}`,
       message,
-      showTime: !(sameSender && sameMinute),
-      isGroupStart: !sameSender || dayKey !== prevDayKey,
+      isGroupStart: !sameAsPrev,
+      isGroupEnd: !sameAsNext,
     });
   });
 

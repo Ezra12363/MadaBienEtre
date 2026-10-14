@@ -1,6 +1,7 @@
 // src/components/chat/ChatComposer.js
-// « X est en train d'écrire… » + champ de saisie (icône d'envoi à l'intérieur)
-// + bouton « + » vert clair pour joindre une photo. Android, iOS et Web.
+// Zone de saisie au style de l'application : barre blanche à bordure haute,
+// bouton photo (vert) à gauche, champ arrondi, bouton d'envoi rond vert.
+// « X écrit… » au-dessus. Android, iOS et Web.
 //   - Web : Entrée = envoyer, Maj+Entrée = nouvelle ligne.
 //   - Le champ grandit avec le texte (max ~5 lignes).
 import { useEffect, useState } from 'react';
@@ -18,7 +19,7 @@ const MIN_INPUT_HEIGHT = 46;
 const MAX_INPUT_HEIGHT = 120;
 
 const TypingLine = ({ label, color }) => {
-  const [dots, setDots] = useState(2);
+  const [dots, setDots] = useState(1);
 
   useEffect(() => {
     const timer = setInterval(() => setDots((d) => (d % 3) + 1), 450);
@@ -33,20 +34,11 @@ const TypingLine = ({ label, color }) => {
   );
 };
 
-const ChatComposer = ({
-  palette,
-  value,
-  onChangeText,
-  onSend,
-  onAttach,
-  typingLabel,
-  disabled = false,
-}) => {
+const ChatComposer = ({ palette, value, onChangeText, onSend, onAttach, typingLabel }) => {
   const insets = useSafeAreaInsets();
   const [height, setHeight] = useState(MIN_INPUT_HEIGHT);
   const hasText = value.trim().length > 0;
 
-  // Champ vidé après l'envoi : on revient à la hauteur de départ
   useEffect(() => {
     if (!value) setHeight(MIN_INPUT_HEIGHT);
   }, [value]);
@@ -56,29 +48,51 @@ const ChatComposer = ({
     const { key, shiftKey } = e.nativeEvent || {};
     if (key === 'Enter' && !shiftKey) {
       e.preventDefault?.();
-      if (hasText && !disabled) onSend();
+      if (hasText) onSend();
     }
   };
 
-  const bottomPad = Platform.OS === 'web' ? 14 : Math.max(insets.bottom, 12);
+  const bottomPad = Platform.OS === 'web' ? 10 : Math.max(insets.bottom, 10);
 
   return (
-    <View style={[styles.wrap, { backgroundColor: palette.screenBg, paddingBottom: bottomPad }]}>
+    <View
+      style={[
+        styles.wrap,
+        { backgroundColor: palette.surface, borderTopColor: palette.border, paddingBottom: bottomPad },
+      ]}
+    >
       <View style={styles.column}>
-        <View style={styles.typingSlot}>
-          {!!typingLabel && <TypingLine label={typingLabel} color={palette.meta} />}
-        </View>
+        {!!typingLabel && (
+          <View style={styles.typingSlot}>
+            <TypingLine label={typingLabel} color={palette.textSecondary} />
+          </View>
+        )}
 
         <View style={styles.row}>
-          <View style={[styles.inputBox, { backgroundColor: palette.inputBg }]}>
+          <TouchableOpacity
+            onPress={onAttach}
+            activeOpacity={0.7}
+            style={styles.attach}
+            accessibilityRole="button"
+            accessibilityLabel="Joindre une photo"
+          >
+            <Ionicons name="image-outline" size={26} color={palette.primary} />
+          </TouchableOpacity>
+
+          <View
+            style={[
+              styles.inputBox,
+              { backgroundColor: palette.inputBg, borderColor: palette.inputBorder },
+            ]}
+          >
             <TextInput
               style={[
                 styles.input,
-                { color: palette.inputText, height },
+                { color: palette.text, height },
                 Platform.OS === 'web' && styles.inputWeb,
               ]}
-              placeholder="Écrivez votre message"
-              placeholderTextColor={palette.placeholder}
+              placeholder="Écrivez un message..."
+              placeholderTextColor={palette.textSecondary}
               value={value}
               onChangeText={onChangeText}
               onContentSizeChange={(e) => {
@@ -96,32 +110,17 @@ const ChatComposer = ({
               underlineColorAndroid="transparent"
               accessibilityLabel="Écrire un message"
             />
-
-            <TouchableOpacity
-              onPress={onSend}
-              disabled={!hasText || disabled}
-              activeOpacity={0.7}
-              style={styles.sendButton}
-              accessibilityRole="button"
-              accessibilityLabel="Envoyer le message"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name={hasText ? 'paper-plane' : 'paper-plane-outline'}
-                size={22}
-                color={hasText ? palette.primary : palette.sendIdle}
-              />
-            </TouchableOpacity>
           </View>
 
           <TouchableOpacity
-            onPress={onAttach}
-            activeOpacity={0.8}
-            style={[styles.plusButton, { backgroundColor: palette.primarySoft }]}
+            onPress={onSend}
+            disabled={!hasText}
+            activeOpacity={0.85}
+            style={[styles.send, { backgroundColor: palette.primary }, !hasText && styles.sendOff]}
             accessibilityRole="button"
-            accessibilityLabel="Joindre une photo"
+            accessibilityLabel="Envoyer le message"
           >
-            <Ionicons name="add" size={30} color={palette.primary} />
+            <Ionicons name="send" size={20} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
@@ -129,7 +128,7 @@ const ChatComposer = ({
           <Text
             style={[
               styles.counter,
-              { color: value.length >= MAX_MESSAGE_LENGTH ? palette.danger : palette.meta },
+              { color: value.length >= MAX_MESSAGE_LENGTH ? palette.danger : palette.textSecondary },
             ]}
           >
             {value.length}/{MAX_MESSAGE_LENGTH}
@@ -141,26 +140,25 @@ const ChatComposer = ({
 };
 
 const styles = StyleSheet.create({
-  wrap: { paddingHorizontal: 16, paddingTop: 2 },
+  wrap: { paddingHorizontal: 12, paddingTop: 8, borderTopWidth: 1 },
   column: { width: '100%', maxWidth: CHAT_MAX_WIDTH, alignSelf: 'center' },
 
-  typingSlot: { minHeight: 22, justifyContent: 'center', paddingLeft: 4, paddingBottom: 2 },
-  typing: { fontSize: 12, fontFamily: typography.fontFamily.regular },
+  typingSlot: { paddingLeft: 52, paddingBottom: 4 },
+  typing: { fontSize: 12, fontStyle: 'italic', fontFamily: typography.fontFamily.regular },
 
-  row: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
+  row: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  attach: { width: 42, height: MIN_INPUT_HEIGHT, alignItems: 'center', justifyContent: 'center' },
 
   inputBox: {
     flex: 1,
     minHeight: MIN_INPUT_HEIGHT,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingLeft: 16,
-    paddingRight: 8,
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
   },
   input: {
-    flex: 1,
-    minWidth: 0,
+    width: '100%',
     fontSize: 15,
     fontFamily: typography.fontFamily.regular,
     paddingTop: Platform.OS === 'ios' ? 13 : 9,
@@ -170,14 +168,14 @@ const styles = StyleSheet.create({
   },
   inputWeb: { outlineStyle: 'none', outlineWidth: 0, resize: 'none', cursor: 'text' },
 
-  sendButton: { width: 40, height: MIN_INPUT_HEIGHT, alignItems: 'center', justifyContent: 'center' },
-  plusButton: {
+  send: {
     width: MIN_INPUT_HEIGHT,
     height: MIN_INPUT_HEIGHT,
-    borderRadius: 14,
+    borderRadius: MIN_INPUT_HEIGHT / 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  sendOff: { opacity: 0.45 },
 
   counter: { fontSize: 10, textAlign: 'right', marginTop: 4, fontFamily: typography.fontFamily.regular },
 });

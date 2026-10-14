@@ -1,15 +1,17 @@
 // src/screens/shared/ConversationsScreen.js
-// Liste des conversations (client ET thérapeute) — maquette « Messages » :
-// en-tête vert arrondi + recherche, puis avatar, nom, heure, dernier message
-// et pastille « non lus ». Se rafraîchit seule quand un message arrive.
-// Android, iOS et Web.
+// Liste des conversations (client ET thérapeute), au style des autres écrans :
+// Header partagé, fond du thème, cartes arrondies, recherche.
+// Chaque ligne : avatar, nom, heure, dernier message (« Message supprimé » en
+// italique quand il a été supprimé), pastille « non lus » et menu ⋮ :
+//   - Marquer comme lu
+//   - Supprimer tous mes messages (envoyés à cette personne)
+// Se rafraîchit seule quand un message arrive. Android, iOS et Web.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Platform,
   RefreshControl,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -18,36 +20,36 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import axios from 'axios';
 
+import ChatActionSheet from '../../components/chat/ChatActionSheet';
 import ChatAvatar from '../../components/chat/ChatAvatar';
 import { CHAT_MAX_WIDTH, getChatPalette } from '../../components/chat/chatTheme';
+import Header from '../../components/common/Header';
 import { API_URL } from '../../config/env';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import useChatUnread from '../../hooks/useChatUnread';
 import { typography } from '../../theme';
-import { confirmAsync } from '../../utils/chatImage';
 import { emitChatChanged } from '../../utils/chatEvents';
+import { confirmAsync } from '../../utils/chatImage';
 import { formatListTime, notifyInfo, resolvePhotoUrl } from '../../utils/chatUi';
 import { cleanToken } from '../../utils/wsUrl';
 
 const isTherapistRole = (role) => String(role || '').toUpperCase() === 'THERAPIST';
 
 const ConversationsScreen = ({ navigation }) => {
-  const { isDark } = useTheme();
-  const palette = useMemo(() => getChatPalette(isDark), [isDark]);
+  const { colors: themeColors, isDark } = useTheme();
+  const palette = useMemo(() => getChatPalette(themeColors, isDark), [themeColors, isDark]);
   const { token, user } = useAuth();
   const { unreadCount } = useChatUnread();
-  const insets = useSafeAreaInsets();
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [query, setQuery] = useState('');
+  const [menuFor, setMenuFor] = useState(null); // conversation dont le menu ⋮ est ouvert
   const aliveRef = useRef(true);
 
   const authHeaders = useMemo(
@@ -112,17 +114,9 @@ const ConversationsScreen = ({ navigation }) => {
     [navigation, user?.role]
   );
 
+  /* ------------------------------ actions du menu ------------------------------ */
   const markAsRead = useCallback(
     async (c) => {
-      const name = c.other_user?.fullname || 'cette personne';
-      const ok = await confirmAsync(
-        'Marquer comme lu ?',
-        `Les messages de ${name} seront marqués comme lus.`,
-        'Marquer comme lu'
-      );
-      if (!ok) return;
-
-      // Mise à jour immédiate de la liste, puis appel serveur
       setItems((prev) =>
         prev.map((x) => (x.booking_id === c.booking_id ? { ...x, unread_count: 0 } : x))
       );
@@ -137,6 +131,62 @@ const ConversationsScreen = ({ navigation }) => {
     [authHeaders, load]
   );
 
+  const deleteMine = useCallback(
+    async (c) => {
+      const n = c.my_count || 0;
+      const name = c.other_user?.fullname || 'cette personne';
+      const ok = await confirmAsync(
+        'Supprimer tous vos messages ?',
+        `${n > 0 ? `Les ${n} message${n > 1 ? 's' : ''} que vous avez envoyé${n > 1 ? 's' : ''}` : 'Les messages que vous avez envoyés'} ` +
+          `à ${name} seront supprimés pour tout le monde. Cette action est irréversible.`,
+        'Tout supprimer'
+      );
+      if (!ok) return;
+
+      try {
+        await axios.delete(`${API_URL}/chat/messages/${c.booking_id}/mine`, {
+          headers: authHeaders,
+          timeout: 30000,
+        });
+        emitChatChanged();
+      } catch (_e) {
+        notifyInfo('Suppression impossible', 'Vérifiez votre connexion puis réessayez.');
+      }
+      load();
+    },
+    [authHeaders, load]
+  );
+
+  const menuActions = useMemo(() => {
+    if (!menuFor) return [];
+    const list = [];
+    if ((menuFor.unread_count || 0) > 0) {
+      list.push({
+        key: 'read',
+        label: 'Marquer comme lu',
+        icon: 'checkmark-done-outline',
+        onPress: () => markAsRead(menuFor),
+      });
+    }
+    if ((menuFor.my_count || 0) > 0) {
+      list.push({
+        key: 'delete-mine',
+        label: `Supprimer mes messages (${menuFor.my_count})`,
+        icon: 'trash-outline',
+        destructive: true,
+        onPress: () => deleteMine(menuFor),
+      });
+    }
+    list.push({
+      key: 'open',
+      label: 'Ouvrir la conversation',
+      icon: 'chatbubble-ellipses-outline',
+      onPress: () => openChat(menuFor),
+    });
+    return list;
+  }, [menuFor, markAsRead, deleteMine, openChat]);
+
+  /* --------------------------------- liste --------------------------------- */
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
@@ -150,44 +200,50 @@ const ConversationsScreen = ({ navigation }) => {
   const renderItem = ({ item }) => {
     const name = item.other_user?.fullname || 'Utilisateur';
     const photo = resolvePhotoUrl(item.other_user?.profile_image);
-    const mine = String(item.last_message?.sender_id) === String(user?.id);
+    const last = item.last_message || {};
+    const deleted = Boolean(last.deleted);
+    const mine = String(last.sender_id) === String(user?.id);
     const unread = item.unread_count || 0;
 
     return (
       <TouchableOpacity
-        style={[styles.row, { borderBottomColor: palette.rowDivider }]}
+        style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
         onPress={() => openChat(item)}
-        activeOpacity={0.7}
+        activeOpacity={0.75}
         accessibilityRole="button"
         accessibilityLabel={`Conversation avec ${name}${unread ? `, ${unread} non lus` : ''}`}
       >
-        <ChatAvatar uri={photo} name={name} size={50} radius={13} palette={palette} />
+        <ChatAvatar uri={photo} name={name} size={52} palette={palette} />
 
         <View style={styles.body}>
           <View style={styles.line}>
             <Text
-              style={[styles.name, { color: palette.rowTitle }, unread > 0 && styles.bold]}
+              style={[styles.name, { color: palette.text }, unread > 0 && styles.bold]}
               numberOfLines={1}
             >
               {name}
             </Text>
-            <Text style={[styles.time, { color: unread ? palette.primary : palette.rowSub }]}>
-              {formatListTime(item.last_message?.created_at)}
+            <Text style={[styles.time, { color: unread ? palette.primary : palette.textSecondary }]}>
+              {formatListTime(last.created_at)}
             </Text>
           </View>
 
           <View style={styles.line}>
             <View style={styles.previewWrap}>
+              {deleted && (
+                <Ionicons name="ban-outline" size={14} color={palette.textSecondary} />
+              )}
               <Text
                 style={[
                   styles.preview,
-                  { color: unread ? palette.rowTitle : palette.rowSub },
+                  { color: unread ? palette.text : palette.textSecondary },
                   unread > 0 && styles.bold,
+                  deleted && styles.deleted,
                 ]}
                 numberOfLines={1}
               >
-                {mine ? 'Vous : ' : ''}
-                {item.last_message?.preview}
+                {mine && !deleted ? 'Vous : ' : ''}
+                {last.preview}
               </Text>
 
               {unread > 0 && (
@@ -197,18 +253,14 @@ const ConversationsScreen = ({ navigation }) => {
               )}
             </View>
 
-            {unread > 0 ? (
-              <TouchableOpacity
-                onPress={() => markAsRead(item)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityRole="button"
-                accessibilityLabel="Marquer comme lu"
-              >
-                <Ionicons name="ellipsis-horizontal" size={18} color={palette.rowSub} />
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.ellipsisSpace} />
-            )}
+            <TouchableOpacity
+              onPress={() => setMenuFor(item)}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Options de la conversation"
+            >
+              <Ionicons name="ellipsis-horizontal" size={20} color={palette.textSecondary} />
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -216,71 +268,47 @@ const ConversationsScreen = ({ navigation }) => {
   };
 
   const canGoBack = Boolean(navigation?.canGoBack?.());
-  const topPad = insets.top + 10;
 
   return (
     <View style={[styles.container, { backgroundColor: palette.screenBg }]}>
-      <StatusBar barStyle="light-content" backgroundColor={palette.headerFrom} />
+      <Header title="Messages" showBack={canGoBack} />
 
-      <LinearGradient
-        colors={[palette.headerFrom, palette.headerTo]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.header, { paddingTop: topPad }]}
-      >
-        <View style={styles.headerInner}>
-          <View style={styles.topRow}>
-            <View style={styles.sideSlot}>
-              {canGoBack && (
-                <TouchableOpacity
-                  onPress={() => navigation.goBack()}
-                  activeOpacity={0.75}
-                  style={styles.sideButton}
-                  accessibilityRole="button"
-                  accessibilityLabel="Retour"
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="chevron-back" size={28} color={palette.headerText} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <Text style={[styles.title, { color: palette.headerText }]}>Messages</Text>
-
-            <View style={styles.sideSlot} />
-          </View>
-
-          <View style={[styles.search, { backgroundColor: palette.searchBg }]}>
-            <Ionicons name="search-outline" size={20} color={palette.placeholder} />
-            <TextInput
-              style={[
-                styles.searchInput,
-                { color: palette.searchText },
-                Platform.OS === 'web' && styles.searchInputWeb,
-              ]}
-              placeholder="Rechercher"
-              placeholderTextColor={palette.placeholder}
-              value={query}
-              onChangeText={setQuery}
-              returnKeyType="search"
-              autoCorrect={false}
-              autoCapitalize="none"
-              underlineColorAndroid="transparent"
-              accessibilityLabel="Rechercher une conversation"
-            />
-            {query.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setQuery('')}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityRole="button"
-                accessibilityLabel="Effacer la recherche"
-              >
-                <Ionicons name="close-circle" size={18} color={palette.placeholder} />
-              </TouchableOpacity>
-            )}
-          </View>
+      <View style={styles.searchWrap}>
+        <View
+          style={[
+            styles.search,
+            { backgroundColor: palette.surface, borderColor: palette.border },
+          ]}
+        >
+          <Ionicons name="search-outline" size={20} color={palette.placeholder} />
+          <TextInput
+            style={[
+              styles.searchInput,
+              { color: palette.text },
+              Platform.OS === 'web' && styles.searchInputWeb,
+            ]}
+            placeholder="Rechercher une conversation"
+            placeholderTextColor={palette.placeholder}
+            value={query}
+            onChangeText={setQuery}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+            underlineColorAndroid="transparent"
+            accessibilityLabel="Rechercher une conversation"
+          />
+          {query.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setQuery('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Effacer la recherche"
+            >
+              <Ionicons name="close-circle" size={18} color={palette.placeholder} />
+            </TouchableOpacity>
+          )}
         </View>
-      </LinearGradient>
+      </View>
 
       {loading ? (
         <View style={styles.center}>
@@ -318,11 +346,11 @@ const ConversationsScreen = ({ navigation }) => {
                   color={palette.primary}
                 />
               </View>
-              <Text style={[styles.emptyTitle, { color: palette.rowTitle }]}>
+              <Text style={[styles.emptyTitle, { color: palette.text }]}>
                 {error || (query ? 'Aucun résultat' : 'Aucune conversation')}
               </Text>
               {!error && (
-                <Text style={[styles.emptyText, { color: palette.rowSub }]}>
+                <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
                   {query
                     ? `Aucune conversation ne correspond à « ${query.trim()} ».`
                     : `Vos échanges avec ${isTherapistRole(user?.role) ? 'vos clients' : 'votre thérapeute'} apparaîtront ici.`}
@@ -341,6 +369,15 @@ const ConversationsScreen = ({ navigation }) => {
           }
         />
       )}
+
+      <ChatActionSheet
+        visible={Boolean(menuFor)}
+        title={menuFor?.other_user?.fullname || 'Conversation'}
+        subtitle={menuFor?.booking_id ? `Réservation #${menuFor.booking_id}` : undefined}
+        actions={menuActions}
+        onClose={() => setMenuFor(null)}
+        palette={palette}
+      />
     </View>
   );
 };
@@ -348,48 +385,26 @@ const ConversationsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  header: {
-    paddingHorizontal: 18,
-    paddingBottom: 22,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    zIndex: 2,
-    ...Platform.select({
-      android: { elevation: 6 },
-      ios: {
-        shadowColor: '#0B8F54',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.18,
-        shadowRadius: 10,
-      },
-      web: { boxShadow: '0 6px 16px rgba(11,143,84,0.18)' },
-      default: {},
-    }),
+  searchWrap: {
+    width: '100%',
+    maxWidth: CHAT_MAX_WIDTH,
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 14,
   },
-  headerInner: { width: '100%', maxWidth: CHAT_MAX_WIDTH, alignSelf: 'center' },
-  topRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-  sideSlot: { width: 40, alignItems: 'flex-start' },
-  sideButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  title: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 21,
-    fontFamily: typography.fontFamily.medium,
-    fontWeight: '600',
-  },
-
   search: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    height: 48,
+    height: 46,
     paddingHorizontal: 14,
     borderRadius: 14,
+    borderWidth: 1,
   },
   searchInput: {
     flex: 1,
     minWidth: 0,
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: typography.fontFamily.regular,
     paddingVertical: 0,
     margin: 0,
@@ -401,28 +416,40 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: CHAT_MAX_WIDTH,
     alignSelf: 'center',
-    paddingHorizontal: 18,
-    paddingTop: 10,
+    paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 100,
+    gap: 10,
   },
   emptyList: { flexGrow: 1 },
 
-  row: {
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    ...Platform.select({ web: { cursor: 'pointer' }, default: {} }),
+    padding: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    ...Platform.select({
+      android: { elevation: 1 },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+      },
+      web: { boxShadow: '0 2px 6px rgba(0,0,0,0.05)', cursor: 'pointer' },
+      default: {},
+    }),
   },
   body: { flex: 1, minWidth: 0, gap: 5 },
   line: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  name: { flex: 1, fontSize: 16, fontFamily: typography.fontFamily.medium, fontWeight: '600' },
+  name: { flex: 1, fontSize: 15, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   bold: { fontWeight: '800' },
-  time: { fontSize: 13, fontFamily: typography.fontFamily.regular },
-  previewWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minWidth: 0 },
-  preview: { flexShrink: 1, fontSize: 14, fontFamily: typography.fontFamily.regular },
-  ellipsisSpace: { width: 18, height: 18 },
+  time: { fontSize: 12, fontFamily: typography.fontFamily.regular },
+  previewWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
+  preview: { flexShrink: 1, fontSize: 13, fontFamily: typography.fontFamily.regular },
+  deleted: { fontStyle: 'italic' },
 
   badge: {
     minWidth: 20,
