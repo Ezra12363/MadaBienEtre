@@ -153,8 +153,26 @@ const pickNative = async () => {
 /** Retourne null (annulé), { asset } ou { error }. */
 export const pickChatImage = () => (Platform.OS === 'web' ? pickWeb() : pickNative());
 
-/** Confirmation compatible web (Alert multi-boutons inopérant sur react-native-web). */
-export const confirmAsync = (title, message, confirmLabel = 'Supprimer') => {
+// Modale de confirmation de l'application (components/chat/ChatConfirmHost).
+// Un « hôte » est monté par chaque écran qui en a besoin et s'enregistre ici ;
+// sans hôte, on retombe sur window.confirm / Alert (ancien comportement).
+let confirmHandler = null;
+
+export const registerConfirmHandler = (handler) => {
+  confirmHandler = handler;
+  return () => {
+    if (confirmHandler === handler) confirmHandler = null;
+  };
+};
+
+/**
+ * Confirmation compatible web + Android + iOS.
+ * options : { tone: 'danger' | 'info' | 'warning', cancelLabel, icon }
+ */
+export const confirmAsync = (title, message, confirmLabel = 'Supprimer', options = {}) => {
+  if (confirmHandler) {
+    return confirmHandler({ title, message, confirmLabel, ...options });
+  }
   if (Platform.OS === 'web') {
     // eslint-disable-next-line no-alert
     return Promise.resolve(window.confirm(`${title}\n\n${message}`));

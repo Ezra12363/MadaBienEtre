@@ -26,9 +26,35 @@ const PING_MS = 25000;
 const ACK_TIMEOUT_MS = 10000;
 const FATAL_ERRORS = ['Authentication failed', 'Not authorized', 'Booking not found'];
 
+// Une position est stockée dans `content` sous la forme  [[loc]]{"lat":..,"lng":..,"address":..,"type":..}
+// (aucune colonne ajoutée en base). L'API la décode déjà ; ceci protège le cas
+// où le message arrive brut (ex. via WebSocket).
+const LOC_PREFIX = '[[loc]]';
+const decodeLocation = (content) => {
+  if (typeof content !== 'string' || !content.startsWith(LOC_PREFIX)) return null;
+  try {
+    const d = JSON.parse(content.slice(LOC_PREFIX.length));
+    const hasCoords = d.lat != null && d.lng != null;
+    const latitude = hasCoords ? Number(d.lat) : null;
+    const longitude = hasCoords ? Number(d.lng) : null;
+    if (hasCoords && (!Number.isFinite(latitude) || !Number.isFinite(longitude))) return null;
+    if (!hasCoords && !d.address) return null;
+    return {
+      latitude,
+      longitude,
+      address: d.address || null,
+      locationType: d.type === 'booking' ? 'booking' : 'live',
+      bookingInfo: d.info && typeof d.info === 'object' ? d.info : null,
+    };
+  } catch (_e) {
+    return null;
+  }
+};
+
 export const normalizeMessage = (raw, index = 0) => {
   const m = raw || {};
-  const type = m.message_type || m.type || 'text';
+  const loc = m.latitude != null ? null : decodeLocation(m.content ?? m.message ?? m.text ?? m.body);
+  const type = loc ? 'location' : m.message_type || m.type || 'text';
   const isRead = m.is_read === true || m.read === true || m.status === 'read';
   return {
     ...m,
@@ -36,10 +62,19 @@ export const normalizeMessage = (raw, index = 0) => {
     clientId: m.clientId ?? m.client_id ?? null,
     senderId: m.senderId ?? m.sender_id ?? m.user_id ?? m.sender?.id,
     senderName: m.senderName || m.sender_name || m.username || m.sender?.fullname || '',
-    content: m.content ?? m.message ?? m.text ?? m.body ?? '',
+    content: loc
+      ? loc.bookingInfo
+        ? `📋 Réservation ${loc.bookingInfo.ref || ''}`.trim()
+        : loc.locationType === 'booking' ? '📍 Lieu du rendez-vous' : '📍 Position actuelle'
+      : m.content ?? m.message ?? m.text ?? m.body ?? '',
     type: type === 'message' ? 'text' : type,
     imageUrl: m.imageUrl || m.image_url || null,
     localUri: m.localUri || null,
+    latitude: loc ? loc.latitude : m.latitude != null ? Number(m.latitude) : null,
+    longitude: loc ? loc.longitude : m.longitude != null ? Number(m.longitude) : null,
+    address: loc ? loc.address : m.address || null,
+    locationType: loc ? loc.locationType : m.locationType || m.location_type || null,
+    bookingInfo: loc ? loc.bookingInfo : m.bookingInfo || m.booking_info || null,
     deleted: m.deleted === true || Boolean(m.deleted_at),
     createdAt: parseServerDate(m.createdAt || m.created_at || m.timestamp).toISOString(),
     status: m.status && m.status !== 'message' ? m.status : isRead ? 'read' : 'delivered',
@@ -415,6 +450,65 @@ export default function useChatRoom({
     [bookingId, authHeaders, markFailed]
   );
 
+  /* ----------------------- partage de position ----------------------- */
+  const postLocation = useCallback(
+    async (clientId, loc) => {
+      try {
+        const res = await axios.post(
+          `${API_URL}/chat/send-location/${bookingId}`,
+          {
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            address: loc.address || null,
+            location_type: loc.locationType,
+            client_id: clientId,
+          },
+          { headers: authHeaders, timeout: 20000 }
+        );
+        const saved = normalizeMessage({
+          ...res.data,
+          client_id: clientId,
+          sender_id: myIdRef.current,
+          status: 'delivered',
+        });
+        setMessages((prev) => mergeMessage(prev, saved).sort(byDate));
+        return true;
+      } catch (error) {
+        console.warn('Chat : partage de position échoué', error?.response?.data || error?.message);
+        markFailed(clientId);
+        return false;
+      }
+    },
+    [bookingId, authHeaders, markFailed]
+  );
+
+  const sendLocation = useCallback(
+    async ({ latitude, longitude, address, locationType = 'live' }) => {
+      if (!bookingId || latitude == null || longitude == null) return false;
+      const clientId = `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const label = locationType === 'booking' ? '📍 Lieu du rendez-vous' : '📍 Position actuelle';
+      setMessages((prev) => [
+        ...prev,
+        normalizeMessage({
+          id: clientId,
+          client_id: clientId,
+          sender_id: myIdRef.current,
+          sender_name: myNameRef.current,
+          content: address ? `${label} — ${address}` : label,
+          message_type: 'location',
+          latitude,
+          longitude,
+          address,
+          location_type: locationType,
+          created_at: new Date().toISOString(),
+          status: 'sending',
+        }),
+      ]);
+      return postLocation(clientId, { latitude, longitude, address, locationType });
+    },
+    [bookingId, postLocation]
+  );
+
   const deliver = useCallback(
     async (clientId, content) => {
       // 1) WebSocket (temps réel + notification créée par le serveur)
@@ -500,9 +594,18 @@ export default function useChatRoom({
         else markFailed(clientId);
         return;
       }
+      if (target.type === 'location') {
+        postLocation(clientId, {
+          latitude: target.latitude,
+          longitude: target.longitude,
+          address: target.address,
+          locationType: target.locationType || 'live',
+        });
+        return;
+      }
       deliver(clientId, target.content);
     },
-    [deliver, uploadImage, markFailed]
+    [deliver, uploadImage, markFailed, postLocation]
   );
 
   const sendImage = useCallback(
@@ -625,6 +728,7 @@ export default function useChatRoom({
     fatalError,
     sendMessage,
     sendImage,
+    sendLocation,
     deleteMessage,
     deleteAllMine,
     retryMessage,

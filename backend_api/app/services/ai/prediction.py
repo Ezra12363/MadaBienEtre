@@ -35,13 +35,27 @@ async def predict_acceptance_probability(
     booking: Booking,
     proposed_price: float,
     db: Session,
+    reference_price: Optional[float] = None,
 ) -> float:
-    """Prédire la probabilité d'acceptation d'une offre (0..1)."""
+    """
+    Prédire la probabilité d'acceptation d'une offre (0..1).
+
+    ✅ FIX 500 « La prédiction d'acceptation a échoué » : l'endpoint
+    /ai/predict-acceptance (api/ai.py) appelle cette fonction avec
+    `reference_price=...`, mais ce paramètre n'existait pas ici -> TypeError
+    (unexpected keyword argument) -> HTTP 500.
+
+    reference_price : offre actuelle de l'autre partie (celle qui doit
+    accepter). Par défaut : prix initialement proposé par le client.
+    """
     probability = 0.5
     proposed_price = float(proposed_price or 0)
 
-    # 1. Prix proposé vs prix demandé par le client
-    asked = float(getattr(booking, "client_price_proposed", 0) or 0)
+    # 1. Prix proposé vs prix de référence (offre de l'autre partie,
+    #    sinon prix demandé par le client)
+    asked = float(reference_price or 0)
+    if asked <= 0:
+        asked = float(getattr(booking, "client_price_proposed", 0) or 0)
     if asked > 0 and proposed_price > 0:
         ratio = proposed_price / asked
         if 0.8 <= ratio <= 1.2:

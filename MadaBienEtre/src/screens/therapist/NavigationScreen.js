@@ -68,7 +68,12 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
+import ChatActionSheet from '../../components/chat/ChatActionSheet';
+import { getChatPalette } from '../../components/chat/chatTheme';
+import useShareToChat from '../../hooks/useShareToChat';
 import useLocationTracking from '../../hooks/useLocationTracking';
 import { createTrackingSocket } from '../../services/trackingSocket';
 import { API_URL } from '../../config/env';
@@ -124,6 +129,13 @@ export default function NavigationScreen({ route: navRoute }) {
   const params = navRoute?.params || {};
 
   const bookingId = params.bookingId;
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const { shareBooking, shareLivePosition, shareBookingAndPosition, busy: sharingToChat, host: shareHost } = useShareToChat({
+    navigation,
+    role: 'therapist',
+  });
 
   const clientAddress =
     params.clientAddress || params.address || 'Adresse du client';
@@ -131,7 +143,7 @@ export default function NavigationScreen({ route: navRoute }) {
   const clientLatitude = toNumber(params.clientLatitude ?? params.latitude);
   const clientLongitude = toNumber(params.clientLongitude ?? params.longitude);
 
-  const { colors: themeColors } = useTheme();
+  const { colors: themeColors, isDark } = useTheme();
   const mapRef = useRef(null);
 
   const { token, user } = useAuth();
@@ -1238,6 +1250,21 @@ export default function NavigationScreen({ route: navRoute }) {
             </View>
           )}
 
+          {/* ✅ PARTAGER DANS LA MESSAGERIE : adresse + infos de la réservation / ma position */}
+          <TouchableOpacity
+            style={[styles.shareButton, { borderColor: PRIMARY, opacity: sharingToChat ? 0.6 : 1 }]}
+            onPress={() => setShareSheetOpen(true)}
+            disabled={sharingToChat || !bookingId}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Partager dans la messagerie"
+          >
+            <Ionicons name="chatbubble-ellipses-outline" size={20} color={PRIMARY} />
+            <Text style={[styles.shareButtonText, { color: PRIMARY }]}>
+              Partager dans la messagerie
+            </Text>
+          </TouchableOpacity>
+
           {/* ✅ ENVOYER / ARRÊTER LE PARTAGE DE POSITION AU CLIENT */}
           <TouchableOpacity
             style={[
@@ -1299,6 +1326,63 @@ export default function NavigationScreen({ route: navRoute }) {
     >
       <Header title="Navigation vers le client" showBack />
 
+      {shareHost}
+
+      <ChatActionSheet
+        visible={shareSheetOpen}
+        title="Partager dans la messagerie"
+        subtitle={bookingId ? `Réservation #${bookingId}` : undefined}
+        palette={getChatPalette(themeColors, Boolean(isDark))}
+        onClose={() => setShareSheetOpen(false)}
+        actions={[
+          {
+            // ✅ Partager l'adresse envoie AUSSI la position « en route » du
+            // thérapeute : le client la voit dans la messagerie et peut la
+            // suivre sur sa page de suivi (TrackingScreen).
+            key: 'booking',
+            label: "Adresse + ma position en route",
+            icon: 'calendar-outline',
+            onPress: () => {
+              const peer = { id: params.clientId, name: params.clientName };
+              if (hasRealPosition && activeLocation) {
+                shareBookingAndPosition(
+                  bookingId,
+                  {
+                    latitude: activeLocation.latitude,
+                    longitude: activeLocation.longitude,
+                    address: currentAddress || null,
+                  },
+                  peer
+                );
+                return;
+              }
+              // GPS pas encore disponible : on partage au moins l'adresse
+              shareBooking(bookingId, peer);
+            },
+          },
+          {
+            key: 'live',
+            label: 'Ma position en route (seule)',
+            icon: 'navigate-outline',
+            onPress: () => {
+              if (!hasRealPosition || !activeLocation) {
+                Alert.alert('Position', 'Votre position GPS réelle n\'est pas encore disponible.');
+                return;
+              }
+              shareLivePosition(
+                bookingId,
+                {
+                  latitude: activeLocation.latitude,
+                  longitude: activeLocation.longitude,
+                  address: currentAddress || null,
+                },
+                { id: params.clientId, name: params.clientName }
+              );
+            },
+          },
+        ]}
+      />
+
       {/* ==================================================
           CARTE — occupe tout l'écran restant. Le bandeau bas
           flotte désormais au-dessus, pour une carte agrandie.
@@ -1312,7 +1396,7 @@ export default function NavigationScreen({ route: navRoute }) {
           {mapBlock}
           <ScrollView
             style={[styles.sidePanel, { width: sidePanelWidth, backgroundColor: themeColors.surface, borderLeftColor: themeColors.border || '#E5E5E5' }]}
-            contentContainerStyle={styles.sidePanelContent}
+            contentContainerStyle={[styles.sidePanelContent, { paddingBottom: spacing.xl + insets.bottom + 16 }]}
             showsVerticalScrollIndicator
             keyboardShouldPersistTaps="handled"
           >
@@ -1322,7 +1406,7 @@ export default function NavigationScreen({ route: navRoute }) {
       ) : (
         <ScrollView
           style={styles.screenArea}
-          contentContainerStyle={styles.narrowContent}
+          contentContainerStyle={[styles.narrowContent, { paddingBottom: insets.bottom + 24 }]}
           nestedScrollEnabled
           showsVerticalScrollIndicator
           keyboardShouldPersistTaps="handled"

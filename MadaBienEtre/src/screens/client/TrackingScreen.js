@@ -59,7 +59,9 @@ import * as Location from 'expo-location';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { spacing, typography } from '../../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Header from '../../components/common/Header';
+import useShareToChat from '../../hooks/useShareToChat';
 import SOSButton from '../../components/sos/SOSButton';
 
 import bookingService from '../../services/bookingService';
@@ -255,9 +257,14 @@ const photoStyles = StyleSheet.create({
 // ============================================================
 
 const TrackingScreen = ({ navigation, route: navRoute }) => {
-  const { bookingId } = navRoute.params;
+  const { bookingId, sharedPosition } = navRoute.params || {};
   const { colors: themeColors } = useTheme();
   const { token } = useAuth();
+  const insets = useSafeAreaInsets();
+  const { shareBooking, busy: sharing, host: shareHost } = useShareToChat({
+    navigation,
+    role: 'client',
+  });
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const _isSmallScreen = screenWidth < 600;
   const _isTabletWidth = screenWidth >= 768;
@@ -300,6 +307,40 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
     therapistLocationRef.current = pos;
     setTherapistLocation(pos);
   }, []);
+
+  // ==========================================================
+  // 0. POSITION « EN ROUTE » REÇUE DANS LA MESSAGERIE
+  //
+  // Quand le client touche le message « Thérapeute en route » dans la
+  // conversation, la position partagée est transmise ici (sharedPosition).
+  // On l'affiche tout de suite ; le suivi en direct (WebSocket) et le
+  // rafraîchissement périodique prennent le relais ensuite.
+  // ==========================================================
+
+  const sharedLat = sharedPosition?.latitude;
+  const sharedLng = sharedPosition?.longitude;
+  const sharedAt = sharedPosition?.at;
+  const hasSharedPosition =
+    sharedLat != null &&
+    sharedLng != null &&
+    Number.isFinite(Number(sharedLat)) &&
+    Number.isFinite(Number(sharedLng));
+
+  useEffect(() => {
+    if (!hasSharedPosition) return;
+
+    const pos = { latitude: Number(sharedLat), longitude: Number(sharedLng) };
+
+    // « frais » pendant LIVE_FRESH_MS : le profil (position en base, plus
+    // ancienne) n'écrase pas la position partagée.
+    lastSocketUpdateRef.current = Date.now();
+    updateTherapistLocation(pos);
+
+    if (destinationRef.current) {
+      updateRoute(pos, destinationRef.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasSharedPosition, sharedLat, sharedLng, sharedAt]);
 
   // ==========================================================
   // 1. CHARGER LA RÉSERVATION RÉELLE
@@ -779,7 +820,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 28 + insets.bottom + 16 }]}
         showsVerticalScrollIndicator={Platform.OS === 'web'}
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled
@@ -918,6 +959,44 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
             </Text>
           </View>
 
+          {/* Partager l'adresse + les infos de la réservation dans la messagerie */}
+          {!!booking?.therapist_id && (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              disabled={sharing}
+              onPress={() =>
+                shareBooking(bookingId, {
+                  id: booking?.therapist_id,
+                  name: therapistName,
+                  photo: therapistPhoto,
+                })
+              }
+              accessibilityRole="button"
+              accessibilityLabel="Partager l'adresse avec le thérapeute dans la messagerie"
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                marginTop: 10,
+                paddingVertical: 11,
+                borderRadius: 12,
+                borderWidth: 1.5,
+                borderColor: PRIMARY,
+                opacity: sharing ? 0.6 : 1,
+              }}
+            >
+              {sharing ? (
+                <ActivityIndicator size="small" color={PRIMARY} />
+              ) : (
+                <Ionicons name="chatbubble-ellipses-outline" size={18} color={PRIMARY} />
+              )}
+              <Text style={{ color: PRIMARY, fontWeight: '700', fontSize: 14 }}>
+                Partager l'adresse dans la messagerie
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {liveActive && lastLiveAt ? (
             <Text style={[styles.liveUpdateText, { color: themeColors.textSecondary }]}>
               Position mise à jour à {new Date(lastLiveAt).toLocaleTimeString('fr-FR')}
@@ -1035,6 +1114,8 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
         </Animatable.View>
       )}
       </ScrollView>
+
+      {shareHost}
     </View>
   );
 };

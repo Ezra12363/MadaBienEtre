@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { confirmAsync, resolveChatImageUrl } from '../../utils/chatImage';
+import LocationMessageCard from './LocationMessageCard';
 
 const ChatMessageContent = ({
   message,
@@ -46,6 +47,18 @@ const ChatMessageContent = ({
         <Ionicons name="ban-outline" size={14} color={textColor} style={{ opacity: 0.7 }} />
         <Text style={[textStyle, styles.deletedText, { color: textColor }]}>Message supprimé</Text>
       </View>
+    );
+  }
+
+  /* ---------- position partagée ---------- */
+  if (message.type === 'location') {
+    return (
+      <LocationMessageCard
+        message={message}
+        isOwn={isOwn}
+        textColor={textColor}
+        onLongPress={askDelete}
+      />
     );
   }
 

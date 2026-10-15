@@ -1090,6 +1090,11 @@ class NotificationService {
 
     }
 
+    // ✅ FCM (Firebase) non configuré : inutile de réessayer à chaque lancement.
+    if (this._pushUnavailable) {
+      return null;
+    }
+
     try {
 
       let projectId;
@@ -1114,7 +1119,25 @@ class NotificationService {
 
     } catch (error) {
 
-      console.error('Error getting push token:', error);
+      // ✅ FIX « Default FirebaseApp is not initialized » : sur Android, les
+      // notifications push (FCM) exigent google-services.json dans le build.
+      // Sans lui, ce n'est PAS un bug de code : on désactive simplement le
+      // push distant. L'app continue de fonctionner (WebSocket + polling +
+      // notifications locales). Voir app.json -> android.googleServicesFile.
+      const message = String(error?.message || error || '');
+      const fcmMissing =
+        /FirebaseApp|Firebase Messaging|googleServicesFile|fcm-credentials/i.test(message);
+
+      if (fcmMissing) {
+        this._pushUnavailable = true;
+        console.warn(
+          '⚠️ [Push] Firebase (FCM) non configuré — push distant désactivé. ' +
+            'Ajoutez google-services.json et "android.googleServicesFile" dans app.json, ' +
+            'puis refaites un build (le push ne marche pas dans Expo Go).'
+        );
+      } else {
+        console.warn('⚠️ [Push] Impossible d\'obtenir le token push :', message);
+      }
 
       return null;
 

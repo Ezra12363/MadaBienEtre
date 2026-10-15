@@ -95,7 +95,7 @@ class Settings(BaseSettings):
     
     # Rate Limiting
     RATE_LIMIT_ENABLED: bool = True
-    RATE_LIMIT_REQUESTS: int = 100
+    RATE_LIMIT_REQUESTS: int = 600  # ✅ 100 -> 600 req / période (polling + plusieurs onglets)
     RATE_LIMIT_PERIOD: int = 60
     
     # File Upload

@@ -22,6 +22,7 @@ import { typography } from '../../theme';
 import { confirmAsync } from '../../utils/chatImage';
 import { formatClock } from '../../utils/chatUi';
 import ChatMessageContent from './ChatMessageContent';
+import ChatStatusLabel from './ChatStatusLabel';
 
 const IS_WEB = Platform.OS === 'web';
 
@@ -42,7 +43,7 @@ const MessageBubble = ({ message, isOwn, showTime, isGroupStart, palette, token,
   const [hover, setHover] = useState(false);
 
   const failed = isOwn && message.status === 'failed';
-  const isImage = message.type === 'image' && !message.deleted;
+  const isImage = (message.type === 'image' || message.type === 'location') && !message.deleted;
   const canDelete = isOwn && !message.deleted && message.status !== 'sending' && !!onDelete;
 
   const askDelete = async () => {
@@ -97,6 +98,7 @@ const MessageBubble = ({ message, isOwn, showTime, isGroupStart, palette, token,
         <View style={[styles.metaRow, isOwn ? styles.metaOwn : styles.metaOther]}>
           <Text style={[styles.time, { color: palette.meta }]}>{formatClock(message.createdAt)}</Text>
           {isOwn && !message.deleted && <StatusIcon status={message.status} palette={palette} />}
+          {isOwn && !message.deleted && <ChatStatusLabel status={message.status} palette={palette} />}
         </View>
       )}
 

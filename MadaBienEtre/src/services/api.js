@@ -47,6 +47,8 @@ api.interceptors.request.use(
 // ============================================================
 // ✅ INTERCEPTEUR DE RÉPONSE : Gestion des erreurs et refresh token
 // ============================================================
+const MAX_429_RETRIES = 3;
+
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -69,6 +71,38 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // ✅ FIX « 429 Too many requests » : le backend limite le nombre de
+    // requêtes par minute. Plutôt que de montrer une erreur rouge, on
+    // ATTEND (Retry-After, sinon backoff exponentiel) puis on REJOUE
+    // automatiquement la requête de LECTURE (GET) — jusqu'à 3 fois.
+    // Les écritures (POST/PUT/DELETE) ne sont jamais rejouées (risque de
+    // doublon) : l'erreur est simplement renvoyée à l'appelant.
+    if (error.response?.status === 429 && originalRequest) {
+      const method = String(originalRequest.method || 'get').toLowerCase();
+      const attempt = originalRequest._retry429 || 0;
+
+      if (method === 'get' && attempt < MAX_429_RETRIES) {
+        originalRequest._retry429 = attempt + 1;
+
+        const retryAfterSec = Number(error.response.headers?.['retry-after']);
+        const baseDelay =
+          Number.isFinite(retryAfterSec) && retryAfterSec > 0
+            ? Math.min(retryAfterSec * 1000, 20000)
+            : 1500 * 2 ** attempt;
+        const delay = baseDelay + Math.floor(Math.random() * 400);
+
+        console.warn(
+          `⏳ [API 429] ${originalRequest.url} — nouvel essai ${attempt + 1}/${MAX_429_RETRIES} dans ${Math.round(delay / 1000)} s`
+        );
+
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return api(originalRequest);
+      }
+
+      console.warn(`⏳ [API 429] ${originalRequest.url} — trop de requêtes, abandon.`);
+      return Promise.reject(error);
+    }
+
     // ✅ FIXÉ : ny "Network Error" (tsy misy error.response mihitsy,
     // ex: backend tsy azo antenaina, IP diso, CORS) dia TSY 401, ka
     // io code teo aloha io dia efa "log" azy ho console.error mahery
@@ -80,6 +114,14 @@ api.interceptors.response.use(
       if (!error.response) {
         console.warn(
           `🟠 [API NETWORK] ${originalRequest?.method?.toUpperCase()} ${originalRequest?.baseURL}${originalRequest?.url} — ${error.message} (vérifiez que le backend tourne et que l'IP configurée dans config/env.js est correcte et joignable depuis cet appareil/navigateur)`
+        );
+      } else if (error.response.status === 404) {
+        // ✅ 404 = ressource introuvable (cas attendu, géré par l'appelant) :
+        // simple avertissement, pas d'écran d'erreur rouge.
+        console.warn(
+          `🟡 [API 404] ${originalRequest?.method?.toUpperCase()} ${originalRequest?.url} — ${
+            error.response.data?.message || error.response.data?.detail || 'introuvable'
+          }`
         );
       } else {
         console.error(`🟠 [API ERROR] ${error.response.status}`, error.response.data);

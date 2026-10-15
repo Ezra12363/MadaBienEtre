@@ -22,6 +22,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 
+import AddressMapPickerModal from '../map/AddressMapPickerModal';
 import Header from '../common/Header';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
@@ -29,11 +30,15 @@ import { useTheme } from '../../context/ThemeContext';
 import useChatImageSending from '../../hooks/useChatImageSending';
 import useChatPeer from '../../hooks/useChatPeer';
 import useChatRoom from '../../hooks/useChatRoom';
+import useShareLocation from '../../hooks/useShareLocation';
+import chatService from '../../services/chatService';
 import { typography } from '../../theme';
 import { confirmAsync } from '../../utils/chatImage';
 import { buildChatRows, getFirstName, notifyInfo } from '../../utils/chatUi';
 
 import ChatActionSheet from './ChatActionSheet';
+import ChatConfirmHost from './ChatConfirmHost';
+import { ChatTrackingProvider } from './ChatTrackingContext';
 import ChatComposer from './ChatComposer';
 import ChatImagePreviewModal from './ChatImagePreviewModal';
 import MessageBubble from './MessageBubble';
@@ -76,6 +81,7 @@ const ChatRoomView = ({
     fatalError,
     sendMessage,
     sendImage,
+    sendLocation,
     deleteMessage,
     deleteAllMine,
     retryMessage,
@@ -160,6 +166,68 @@ const ChatRoomView = ({
     });
     return list;
   }, [myCount, handleDeleteAll, reload]);
+
+  /* ------------------------- partage de position ------------------------- */
+  // Client    -> lieu de la réservation (adresse + GPS enregistrés)
+  // Thérapeute -> sa position actuelle (GPS du téléphone) en route
+  // Dans les deux cas : carte de confirmation, puis envoi avec latitude,
+  // longitude, adresse et location_type ('booking' | 'live').
+  const { getCurrentPosition } = useShareLocation();
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [picker, setPicker] = useState(null); // { mode, coord }
+  const isTherapist = String(user?.role || '').toUpperCase().includes('THERAPIST');
+
+  const handleShareBooking = useCallback(async () => {
+    const res = await chatService.getBookingLocation(bookingId);
+    const d = res.success ? res.data : null;
+    const hasCoord = d && d.latitude != null && d.longitude != null;
+    if (!hasCoord) {
+      notifyInfo(
+        'Lieu de la réservation',
+        'Aucune position GPS enregistrée pour cette réservation : choisissez le lieu sur la carte.'
+      );
+    }
+    setPicker({
+      mode: 'booking',
+      coord: hasCoord ? { latitude: d.latitude, longitude: d.longitude } : null,
+    });
+  }, [bookingId]);
+
+  const handleShareLive = useCallback(async () => {
+    const res = await getCurrentPosition();
+    if (!res.ok) {
+      notifyInfo('Position', `${res.message} Vous pouvez choisir un lieu sur la carte.`);
+      setPicker({ mode: 'live', coord: null });
+      return;
+    }
+    setPicker({ mode: 'live', coord: { latitude: res.latitude, longitude: res.longitude } });
+  }, [getCurrentPosition]);
+
+  const shareActions = useMemo(() => {
+    const booking = {
+      key: 'share-booking',
+      label: 'Partager le lieu du rendez-vous',
+      icon: 'home-outline',
+      onPress: handleShareBooking,
+    };
+    const live = {
+      key: 'share-live',
+      label: 'Partager ma position actuelle',
+      icon: 'navigate-outline',
+      onPress: handleShareLive,
+    };
+    return isTherapist ? [live, booking] : [booking, live];
+  }, [isTherapist, handleShareBooking, handleShareLive]);
+
+  const handleConfirmLocation = useCallback(
+    ({ address, latitude, longitude }) => {
+      const mode = picker?.mode || 'live';
+      setPicker(null);
+      nearBottomRef.current = true;
+      sendLocation({ latitude, longitude, address, locationType: mode });
+    },
+    [picker, sendLocation]
+  );
 
   /* ---------------------------------- images ---------------------------------- */
   const { pendingAsset, pickImage, cancelPreview, confirmSend } = useChatImageSending({
@@ -277,9 +345,30 @@ const ChatRoomView = ({
     </View>
   );
 
+  // Client : toucher « thérapeute en route » ouvre le suivi (TrackingScreen)
+  // avec la position reçue dans le message.
+  const trackingValue = useMemo(() => {
+    if (isTherapist || !bookingId) return null;
+    return {
+      openTracking: (position) =>
+        navigation?.navigate?.('Tracking', {
+          bookingId,
+          sharedPosition: position
+            ? {
+                latitude: position.latitude,
+                longitude: position.longitude,
+                address: position.address || null,
+                at: Date.now(),
+              }
+            : undefined,
+        }),
+    };
+  }, [isTherapist, bookingId, navigation]);
+
   const typingLabel = isTyping ? `${getFirstName(peer.name) || 'Votre interlocuteur'} écrit` : '';
 
   return (
+    <ChatTrackingProvider value={trackingValue}>
     <View style={[styles.root, { backgroundColor: palette.screenBg }]}>
             {!compactHeader && (
         <View onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
@@ -370,6 +459,7 @@ const ChatRoomView = ({
           onChangeText={handleChangeText}
           onSend={handleSend}
           onAttach={pickImage}
+          onShareLocation={() => setShareMenuOpen(true)}
           typingLabel={typingLabel}
         />
       </KeyboardAvoidingView>
@@ -383,6 +473,26 @@ const ChatRoomView = ({
         palette={palette}
       />
 
+      <ChatActionSheet
+        visible={shareMenuOpen}
+        title="Partager une position"
+        subtitle="Le destinataire pourra ouvrir la carte et l'itinéraire."
+        actions={shareActions}
+        onClose={() => setShareMenuOpen(false)}
+        palette={palette}
+      />
+
+      {!!picker && (
+        <AddressMapPickerModal
+          visible
+          initialCoordinate={picker.coord}
+          onClose={() => setPicker(null)}
+          onConfirm={handleConfirmLocation}
+        />
+      )}
+
+      <ChatConfirmHost />
+
       <ChatImagePreviewModal
         visible={Boolean(pendingAsset)}
         asset={pendingAsset}
@@ -390,6 +500,7 @@ const ChatRoomView = ({
         onConfirm={confirmSend}
       />
     </View>
+    </ChatTrackingProvider>
   );
 };
 

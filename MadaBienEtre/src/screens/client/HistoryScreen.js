@@ -30,6 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Header from '../../components/common/Header';
 import { useAuth } from '../../context/AuthContext';
+import useShareToChat from '../../hooks/useShareToChat';
 import { useTheme } from '../../context/ThemeContext';
 import bookingService from '../../services/bookingService';
 import massageTypeService from '../../services/massageTypeService';
@@ -740,9 +741,11 @@ const BookingActionSheet = ({
   visible,
   booking,
   canCancel,
+  canShare,
   themeColors,
   onClose,
   onViewDetails,
+  onShare,
   onCancel,
 }) => {
   const insets = useSafeAreaInsets();
@@ -761,7 +764,7 @@ const BookingActionSheet = ({
             styles.actionSheet,
             {
               backgroundColor: themeColors.card,
-              paddingBottom: 20 + (Platform.OS === 'android' ? insets.bottom : 0),
+              paddingBottom: 20 + insets.bottom,
             },
           ]}
           onPress={() => {}}
@@ -788,6 +791,21 @@ const BookingActionSheet = ({
               Voir les détails
             </Text>
           </TouchableOpacity>
+
+          {canShare && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={onShare}
+              style={styles.actionSheetRow}
+            >
+              <View style={[styles.actionSheetIcon, { backgroundColor: COLORS.primarySoft }]}>
+                <Ionicons name="chatbubble-ellipses-outline" size={18} color={COLORS.primary} />
+              </View>
+              <Text style={[styles.actionSheetRowText, { color: themeColors.text }]}>
+                Partager avec le thérapeute
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {canCancel && (
             <TouchableOpacity
@@ -1141,7 +1159,7 @@ const Tag = ({ label, themeColors }) => (
   </View>
 );
 
-const BookingCard = ({ booking, themeColors, onPress, onMenuPress }) => {
+const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress }) => {
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
   const statusConfig = getStatusConfig(booking.status);
@@ -1260,6 +1278,30 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress }) => {
               )}
             </View>
 
+            {showTherapist && onSharePress && !['cancelled', 'canceled', 'rejected', 'expired'].includes(String(booking.status).toLowerCase()) && (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => onSharePress(booking)}
+                accessibilityRole="button"
+                accessibilityLabel="Partager la réservation avec le thérapeute dans la messagerie"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  paddingHorizontal: 10,
+                  paddingVertical: 6,
+                  borderRadius: 14,
+                  backgroundColor: COLORS.primarySoft,
+                  marginLeft: 'auto',
+                  marginRight: 6,
+                }}
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={14} color={COLORS.primary} />
+                <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: '700' }}>Partager</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -1335,6 +1377,9 @@ const HistoryScreen = ({ navigation }) => {
   const { colors: themeColors } = useTheme();
 
   const therapistNameCacheRef = useRef(new Map());
+  // ✅ IDs déjà connus comme introuvables (404 « Thérapeute non trouvé ») :
+  // on ne les redemande plus à chaque rafraîchissement de l'historique.
+  const therapistMissingRef = useRef(new Set());
 
   const [bookings, setBookings] = useState([]);
   const [activeFilter, setActiveFilter] = useState('all');
@@ -1422,6 +1467,7 @@ const HistoryScreen = ({ navigation }) => {
         therapist?.id &&
         !therapist?.hasName &&
         !therapistNameCacheRef.current.has(therapist.id) &&
+        !therapistMissingRef.current.has(therapist.id) &&
         !seen.has(therapist.id)
       ) {
         seen.add(therapist.id);
@@ -1441,9 +1487,12 @@ const HistoryScreen = ({ navigation }) => {
             if (resolvedName) {
               therapistNameCacheRef.current.set(therapistId, resolvedName);
             }
+          } else if (result?.notFound) {
+            // Thérapeute introuvable : on mémorise, sans erreur ni nouvelle requête.
+            therapistMissingRef.current.add(therapistId);
           }
         } catch (fetchError) {
-          console.error('Erreur chargement nom thérapeute:', fetchError);
+          console.warn('Chargement nom thérapeute impossible:', fetchError?.message || fetchError);
         }
       }),
     );
@@ -1707,6 +1756,35 @@ const HistoryScreen = ({ navigation }) => {
     }
   }, [cancelTarget, isCancelling, loadBookings, showToast]);
 
+  // ---------- PARTAGE DANS LA MESSAGERIE ----------
+  const { shareBooking, host: shareHost } = useShareToChat({ navigation, role: 'client' });
+
+  const canShareBooking = useCallback(
+    (booking) =>
+      Boolean(
+        booking?.therapist?.isAssigned &&
+          !['cancelled', 'canceled', 'rejected', 'expired'].includes(
+            String(booking.status).toLowerCase(),
+          ),
+      ),
+    [],
+  );
+
+  const handleSharePress = useCallback(
+    (booking) => {
+      if (!booking) return;
+      const t = booking.therapist || {};
+      shareBooking(booking.bookingId, { id: t.id, name: t.name, photo: t.photo });
+    },
+    [shareBooking],
+  );
+
+  const handleShareFromMenu = useCallback(() => {
+    const target = menuTarget;
+    setMenuTarget(null);
+    handleSharePress(target);
+  }, [menuTarget, handleSharePress]);
+
   const menuCanCancel = Boolean(
     menuTarget &&
       (menuTarget.status === 'pending' ||
@@ -1729,10 +1807,11 @@ const HistoryScreen = ({ navigation }) => {
           themeColors={themeColors}
           onPress={handleBookingPress}
           onMenuPress={handleMenuPress}
+          onSharePress={handleSharePress}
         />
       );
     },
-    [themeColors, handleBookingPress, handleMenuPress, resolveBookingImage],
+    [themeColors, handleBookingPress, handleMenuPress, handleSharePress, resolveBookingImage],
   );
 
   const keyExtractor = useCallback(
@@ -1910,11 +1989,15 @@ const HistoryScreen = ({ navigation }) => {
         visible={!!menuTarget}
         booking={menuTarget}
         canCancel={menuCanCancel}
+        canShare={canShareBooking(menuTarget)}
         themeColors={themeColors}
         onClose={closeMenu}
         onViewDetails={handleViewDetailsFromMenu}
+        onShare={handleShareFromMenu}
         onCancel={requestCancelBooking}
       />
+
+      {shareHost}
 
       <ConfirmModal
         visible={!!cancelTarget}

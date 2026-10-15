@@ -14,6 +14,8 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { typography } from '../../theme';
 
 /**
@@ -22,6 +24,7 @@ import { typography } from '../../theme';
  */
 const ChatActionSheet = ({ visible, title, subtitle, actions = [], onClose, palette }) => {
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const centered = Platform.OS === 'web' && width >= 700;
 
   return (
@@ -43,6 +46,7 @@ const ChatActionSheet = ({ visible, title, subtitle, actions = [], onClose, pale
             styles.sheet,
             { backgroundColor: palette.surface, borderColor: palette.border },
             centered ? styles.sheetCentered : styles.sheetBottom,
+            !centered && { paddingBottom: 12 + insets.bottom }, // jamais sous la barre Android
           ]}
           onPress={() => {}}
         >

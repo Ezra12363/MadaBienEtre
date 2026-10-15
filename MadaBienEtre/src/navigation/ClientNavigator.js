@@ -103,6 +103,36 @@ const useStackScreenOptions = () => {
 };
 
 // ============================================================
+// ÉCRANS COMMUNS À TOUTES LES PILES
+// ============================================================
+//
+// ✅ Barre de navigation (logo + menu + profil) toujours visible.
+// Quand un écran (Tracking, Payment, Chat, ...) n'était pas déclaré dans la
+// pile de l'onglet courant, React Navigation « remontait » vers le
+// RootNavigator : l'écran s'ouvrait alors EN DEHORS de ClientNavigator, donc
+// SANS la TopNavBar. En déclarant ces écrans dans chaque pile, ils restent à
+// l'intérieur des onglets, avec le header / la barre de navigation.
+// `exclude` évite les doublons avec les écrans déjà déclarés dans la pile.
+
+const COMMON_SCREENS = [
+  ['BookingDetail', BookingDetailScreen],
+  ['Chat', ChatScreen],
+  ['Payment', PaymentScreen],
+  ['Rating', RatingScreen],
+  ['Tracking', TrackingScreen],
+  ['SOS', SOSScreen],
+  ['Notifications', NotificationScreen],
+  ['History', HistoryScreen],
+  ['Negotiation', NegotiationScreen],
+  ['Offers', OffersScreen],
+];
+
+const renderCommonScreens = (exclude = []) =>
+  COMMON_SCREENS.filter(([name]) => !exclude.includes(name)).map(([name, component]) => (
+    <Stack.Screen key={`common-${name}`} name={name} component={component} />
+  ));
+
+// ============================================================
 // HOME STACK
 // ============================================================
 
@@ -206,6 +236,11 @@ const HomeStack = () => {
         name="Tracking"
         component={TrackingScreen}
       />
+
+      <Stack.Screen
+        name="ChatDetail"
+        component={ChatScreen}
+      />
     </Stack.Navigator>
   );
 };
@@ -274,6 +309,16 @@ const BookingStack = () => {
         name="Offers"
         component={OffersScreen}
       />
+
+      <Stack.Screen
+        name="ChatDetail"
+        component={ChatScreen}
+      />
+
+      {renderCommonScreens([
+        'BookingDetail', 'Chat', 'Payment', 'Rating', 'Tracking',
+        'Notifications', 'History', 'Negotiation', 'Offers',
+      ])}
     </Stack.Navigator>
   );
 };
@@ -301,6 +346,11 @@ const ChatStack = () => {
         name="Notifications"
         component={NotificationScreen}
       />
+
+      {/* ✅ Tracking / Réservation / Paiement... restent dans l'onglet Messages
+          (avec la barre de navigation) quand on les ouvre depuis la discussion
+          — ex. « Suivre le thérapeute en route ». */}
+      {renderCommonScreens(['Notifications'])}
     </Stack.Navigator>
   );
 };
@@ -348,6 +398,15 @@ const ProfileStack = () => {
         name="BookingScreen"
         component={BookingScreen}
       />
+
+      <Stack.Screen
+        name="ChatDetail"
+        component={ChatScreen}
+      />
+
+      {renderCommonScreens([
+        'Notifications', 'BookingDetail', 'History', 'Payment', 'Rating',
+      ])}
     </Stack.Navigator>
   );
 };
@@ -416,6 +475,16 @@ const HistoryStack = () => {
         name="Notifications"
         component={NotificationScreen}
       />
+
+      <Stack.Screen
+        name="ChatDetail"
+        component={ChatScreen}
+      />
+
+      {renderCommonScreens([
+        'BookingDetail', 'Chat', 'Payment', 'Rating', 'Tracking',
+        'Notifications', 'Negotiation', 'Offers',
+      ])}
     </Stack.Navigator>
   );
 };

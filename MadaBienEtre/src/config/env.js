@@ -8,7 +8,7 @@ const extra =
   Constants?.manifest?.extra ||
   {};
 
-const DEFAULT_API_URL = 'http://10.174.179.30:8000';
+const DEFAULT_API_URL = 'http://10.126.2.30:8000';
 
 const rawApiUrl =
   extra.apiUrl ||

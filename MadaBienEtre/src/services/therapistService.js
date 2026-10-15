@@ -40,7 +40,14 @@ class TherapistService {
     try {
       const response = await get(`/therapists/${therapistId}`);
       if (response.error) {
-        return { success: false, error: response.error.message };
+        // ✅ 404 = thérapeute supprimé / désactivé / ID qui n'est pas un
+        // thérapeute : ce n'est pas une panne, l'appelant peut l'ignorer
+        // (notFound) au lieu de réessayer à chaque chargement.
+        return {
+          success: false,
+          notFound: response.error.status === 404,
+          error: response.error.message,
+        };
       }
       return { success: true, data: response.data };
     } catch (error) {

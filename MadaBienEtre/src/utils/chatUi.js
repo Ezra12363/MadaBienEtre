@@ -111,12 +111,32 @@ export const buildChatRows = (messages) => {
       rowType: 'message',
       id: `msg-${String(message.id ?? index)}`,
       message,
+      showTime: true, // heure + statut (Envoi… / Envoyé / Lu) sous chaque message
       isGroupStart: !sameAsPrev,
       isGroupEnd: !sameAsNext,
     });
   });
 
   return rows;
+};
+
+/* ------------------------------ statut / carte ------------------------------ */
+
+export const MESSAGE_STATUS_LABELS = {
+  sending: 'Envoi…',
+  sent: 'Envoyé',
+  delivered: 'Envoyé',
+  read: 'Lu',
+  failed: 'Échec',
+};
+
+export const getStatusLabel = (status) => MESSAGE_STATUS_LABELS[status] || '';
+
+/** Lien Google Maps vers une position (ouvre l'app Maps sur mobile). */
+export const getMapsUrl = (latitude, longitude, address) => {
+  const hasCoords = Number.isFinite(latitude) && Number.isFinite(longitude);
+  const query = hasCoords ? `${latitude},${longitude}` : encodeURIComponent(address || '');
+  return `https://www.google.com/maps/search/?api=1&query=${query}`;
 };
 
 /* ------------------------------ messages UI ------------------------------ */

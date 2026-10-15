@@ -72,37 +72,81 @@ class BodyLoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
+    """
+    Limitation de débit par adresse IP (fenêtre glissante).
+
+    ✅ FIX « 429 Too many requests » : en développement, TOUS les onglets web /
+    téléphones sortent avec la même IP, et l'application interroge souvent
+    (notifications, messages non lus, offres...). Avant : 100 req / 60 s pour
+    toutes les requêtes, y compris les pré-requêtes CORS (OPTIONS), les
+    WebSockets, les fichiers statiques. Maintenant :
+      - les OPTIONS (preflight CORS), /ws, /uploads, /static, /docs, /health
+        ne comptent plus ;
+      - la réponse 429 contient l'en-tête Retry-After (le client réessaie
+        automatiquement au bon moment) ;
+      - les anciennes entrées sont nettoyées (pas de fuite mémoire).
+    """
+
+    EXEMPT_PREFIXES = (
+        "/ws",
+        "/uploads",
+        "/static",
+        "/docs",
+        "/redoc",
+        "/openapi.json",
+        "/health",
+    )
+
     def __init__(self, app, max_requests: int = 100, window: int = 60):
         super().__init__(app)
         self.max_requests = max_requests
         self.window = window
         self.requests = {}
-    
+        self._last_cleanup = time.time()
+
+    def _is_exempt(self, request: Request) -> bool:
+        if request.method == "OPTIONS":
+            return True
+        path = request.url.path or ""
+        return path == "/" or path.startswith(self.EXEMPT_PREFIXES)
+
+    def _cleanup(self, now: float) -> None:
+        if now - self._last_cleanup < self.window:
+            return
+        self._last_cleanup = now
+        for key in list(self.requests.keys()):
+            fresh = [t for t in self.requests[key] if now - t < self.window]
+            if fresh:
+                self.requests[key] = fresh
+            else:
+                del self.requests[key]
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        if not settings.RATE_LIMIT_ENABLED:
+        if not settings.RATE_LIMIT_ENABLED or self._is_exempt(request):
             return await call_next(request)
-        
+
         client_id = request.client.host if request.client else "unknown"
         now = time.time()
-        
-        if client_id in self.requests:
-            self.requests[client_id] = [
-                req_time for req_time in self.requests[client_id]
-                if now - req_time < self.window
-            ]
-        else:
-            self.requests[client_id] = []
-        
-        if len(self.requests[client_id]) >= self.max_requests:
+        self._cleanup(now)
+
+        history = [
+            req_time for req_time in self.requests.get(client_id, [])
+            if now - req_time < self.window
+        ]
+        self.requests[client_id] = history
+
+        if len(history) >= self.max_requests:
+            retry_after = max(1, int(self.window - (now - history[0])) + 1)
             return Response(
                 content=json.dumps({
                     "detail": "Too many requests. Please try again later."
                 }),
                 status_code=429,
-                media_type="application/json"
+                media_type="application/json",
+                headers={"Retry-After": str(retry_after)},
             )
-        
-        self.requests[client_id].append(now)
+
+        history.append(now)
         return await call_next(request)
 
 class ExceptionHandlerMiddleware(BaseHTTPMiddleware):

@@ -34,7 +34,7 @@ const TypingLine = ({ label, color }) => {
   );
 };
 
-const ChatComposer = ({ palette, value, onChangeText, onSend, onAttach, typingLabel }) => {
+const ChatComposer = ({ palette, value, onChangeText, onSend, onAttach, onShareLocation, typingLabel }) => {
   const insets = useSafeAreaInsets();
   const [height, setHeight] = useState(MIN_INPUT_HEIGHT);
   const hasText = value.trim().length > 0;
@@ -78,6 +78,18 @@ const ChatComposer = ({ palette, value, onChangeText, onSend, onAttach, typingLa
           >
             <Ionicons name="image-outline" size={26} color={palette.primary} />
           </TouchableOpacity>
+
+          {!!onShareLocation && (
+            <TouchableOpacity
+              onPress={onShareLocation}
+              activeOpacity={0.7}
+              style={styles.attach}
+              accessibilityRole="button"
+              accessibilityLabel="Partager une position"
+            >
+              <Ionicons name="location-outline" size={26} color={palette.primary} />
+            </TouchableOpacity>
+          )}
 
           <View
             style={[
@@ -147,7 +159,7 @@ const styles = StyleSheet.create({
   typing: { fontSize: 12, fontStyle: 'italic', fontFamily: typography.fontFamily.regular },
 
   row: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
-  attach: { width: 42, height: MIN_INPUT_HEIGHT, alignItems: 'center', justifyContent: 'center' },
+  attach: { width: 38, height: MIN_INPUT_HEIGHT, alignItems: 'center', justifyContent: 'center' },
 
   inputBox: {
     flex: 1,

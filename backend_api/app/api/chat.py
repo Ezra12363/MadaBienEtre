@@ -5,6 +5,9 @@
 #   GET    /chat/history/{booking_id}      historique
 #   POST   /chat/send/{booking_id}         envoi texte (secours si WebSocket coupé)
 #   POST   /chat/send-image/{booking_id}   envoi d'une image (multipart)
+#   POST   /chat/send-location/{booking_id}  partage de position (booking | live)
+#   GET    /chat/booking-location/{booking_id}  lieu de la réservation (adresse + GPS)
+#   POST   /chat/share-booking/{booking_id}   partage adresse + infos de la réservation
 #   PUT    /chat/read/{booking_id}         marquer comme lu
 #   GET    /chat/unread                    badge : total + par réservation
 #   GET    /chat/conversations             liste des conversations
@@ -22,11 +25,12 @@
 # servies uniquement après authentification.
 # ============================================================================
 import inspect
+import json
 import logging
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -34,6 +38,7 @@ from fastapi import (
     APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile, status,
 )
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
@@ -97,10 +102,98 @@ def _iso(dt: Optional[datetime]) -> Optional[str]:
     return utc_iso(dt) if isinstance(dt, datetime) else None
 
 
+# ---------------------------------------------------------------------------
+# Position partagée — AUCUNE nouvelle table ni colonne.
+# Le message est enregistré comme un message texte normal dans chat_messages ;
+# le champ `content` contient  [[loc]]{"lat":..,"lng":..,"address":..,"type":..}
+# et l'API le « décode » : le mobile reçoit message_type="location" avec
+# latitude, longitude, address, location_type.
+# ---------------------------------------------------------------------------
+LOC_PREFIX = "[[loc]]"
+LOCATION_TYPES = ("booking", "live")
+
+
+def _encode_location(
+    lat: Optional[float],
+    lng: Optional[float],
+    address: Optional[str],
+    loc_type: str,
+    info: Optional[Dict[str, Any]] = None,
+) -> str:
+    data: Dict[str, Any] = {"lat": lat, "lng": lng, "address": address, "type": loc_type}
+    if info:
+        data["info"] = info
+    return LOC_PREFIX + json.dumps(data, ensure_ascii=False, separators=(",", ":"))
+
+
+def _decode_location(content: Optional[str]) -> Optional[Dict[str, Any]]:
+    """Retourne {latitude, longitude, address, location_type, booking_info} ou None."""
+    if not content or not content.startswith(LOC_PREFIX):
+        return None
+    try:
+        data = json.loads(content[len(LOC_PREFIX):])
+        if not isinstance(data, dict):
+            return None
+    except ValueError:
+        return None
+
+    lat = lng = None
+    if data.get("lat") is not None and data.get("lng") is not None:
+        try:
+            lat, lng = float(data["lat"]), float(data["lng"])
+        except (TypeError, ValueError):
+            return None
+        if not (-90 <= lat <= 90 and -180 <= lng <= 180):
+            return None
+
+    address = str(data["address"])[:500] if data.get("address") else None
+    if lat is None and not address:
+        return None  # ni coordonnées ni adresse : rien à afficher
+
+    info = data.get("info")
+    booking_info = (
+        {str(k)[:30]: str(v)[:200] for k, v in info.items() if v not in (None, "")}
+        if isinstance(info, dict)
+        else None
+    ) or None
+
+    loc_type = data.get("type") if data.get("type") in LOCATION_TYPES else "live"
+    return {
+        "latitude": lat,
+        "longitude": lng,
+        "address": address,
+        "location_type": loc_type,
+        "booking_info": booking_info,
+    }
+
+
+def _location_label(loc: Dict[str, Any]) -> str:
+    """Texte lisible (notification, anciens clients) — jamais le JSON brut."""
+    info = loc.get("booking_info")
+    if info:
+        parts = [f"📋 Réservation {info.get('ref', '')}".strip()]
+        if info.get("service"):
+            parts.append(info["service"])
+        if info.get("date"):
+            parts.append(info["date"])
+        label = " · ".join(parts)
+    else:
+        label = "📍 Lieu du rendez-vous" if loc["location_type"] == "booking" else "📍 Position actuelle"
+    return f"{label} — {loc['address']}" if loc.get("address") else label
+
+
+def _location_view(content: Optional[str], deleted: bool = False) -> Dict[str, Any]:
+    """Champs à fusionner dans la réponse JSON (message_type, content, position)."""
+    loc = None if deleted else _decode_location(content)
+    if loc is None:
+        return {}
+    return {"message_type": "location", "content": _location_label(loc), **loc}
+
+
 def _serialize(msg: ChatMessage, me_id: Optional[int] = None) -> Dict[str, Any]:
     deleted = msg.deleted_at is not None
     sender = msg.sender
-    return {
+    data = {
         "id": msg.id,
         "booking_id": msg.booking_id,
         "sender_id": msg.sender_id,
@@ -115,6 +208,8 @@ def _serialize(msg: ChatMessage, me_id: Optional[int] = None) -> Dict[str, Any]:
         "created_at": _iso(msg.created_at),
         "read_at": _iso(msg.read_at),
     }
+    data.update(_location_view(msg.content, deleted))
+    return data
 
 
 async def _broadcast(booking_id: int, payload: Dict[str, Any]) -> None:
@@ -151,7 +246,7 @@ def _save_message(
 
 def _ws_payload(row: ChatMessage, sender: User) -> Dict[str, Any]:
     """Même format que le message diffusé par /ws/chat/{booking_id}."""
-    return {
+    payload = {
         "type": "message",
         "id": row.id,
         "client_id": row.client_id,
@@ -163,6 +258,13 @@ def _ws_payload(row: ChatMessage, sender: User) -> Dict[str, Any]:
         "image_url": row.image_url,
         "timestamp": _iso(row.created_at),
     }
+    view = _location_view(row.content)
+    if view:
+        payload["message_type"] = view["message_type"]
+        payload["message"] = view["content"]
+        for key in ("latitude", "longitude", "address", "location_type", "booking_info"):
+            payload[key] = view[key]
+    return payload
 
 
 # ---------------------------------------------------------------------------
@@ -266,6 +368,185 @@ async def send_image(
         db, booking, current_user, "", message_id=row.id, message_type="image"
     )
     return _serialize(row, current_user.id)
+
+
+# ---------------------------------------------------------------------------
+# Partage de position
+#   location_type = "booking" : lieu de la réservation (client)
+#   location_type = "live"    : position GPS actuelle (thérapeute en route)
+# ---------------------------------------------------------------------------
+class LocationSendRequest(BaseModel):
+    latitude: float = Field(..., ge=-90, le=90)
+    longitude: float = Field(..., ge=-180, le=180)
+    address: Optional[str] = Field(None, max_length=500)
+    location_type: str = Field("live")
+    client_id: Optional[str] = Field(None, max_length=64)
+
+
+@router.post("/send-location/{booking_id}")
+async def send_location(
+    booking_id: int,
+    payload: LocationSendRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    booking = _get_booking_or_403(db, booking_id, current_user)
+
+    if payload.location_type not in LOCATION_TYPES:
+        raise HTTPException(422, "location_type doit être « booking » ou « live »")
+
+    # Idempotence : un renvoi avec le même client_id ne crée pas de doublon
+    if payload.client_id:
+        existing = (
+            db.query(ChatMessage)
+            .filter(
+                ChatMessage.booking_id == booking_id,
+                ChatMessage.sender_id == current_user.id,
+                ChatMessage.client_id == payload.client_id,
+            )
+            .first()
+        )
+        if existing:
+            return _serialize(existing, current_user.id)
+
+    address = (payload.address or "").strip() or None
+    encoded = _encode_location(payload.latitude, payload.longitude, address, payload.location_type)
+    row = _save_message(db, booking, current_user, encoded, client_id=payload.client_id)
+
+    await _broadcast(booking_id, _ws_payload(row, current_user))
+    try:
+        # texte lisible pour la notification (jamais le JSON brut)
+        await notify_new_message(
+            db,
+            booking,
+            current_user,
+            _location_label(_decode_location(encoded)),
+            message_id=row.id,
+        )
+    except Exception:  # noqa: BLE001 - la notification ne doit jamais bloquer l'envoi
+        logger.exception("Chat : notification de position impossible")
+    return _serialize(row, current_user.id)
+
+
+_STATUS_FR = {
+    "pending": "En attente",
+    "negotiation": "En négociation",
+    "negotiating": "En négociation",
+    "accepted": "Acceptée",
+    "confirmed": "Confirmée",
+    "on_the_way": "Thérapeute en route",
+    "in_progress": "En cours",
+    "completed": "Terminée",
+    "cancelled": "Annulée",
+    "canceled": "Annulée",
+}
+
+
+def _fmt_booking_date(value: Any) -> Optional[str]:
+    """Date de la réservation en heure de Madagascar (UTC+3)."""
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        dt = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone(timedelta(hours=3))).strftime("%d/%m/%Y à %H:%M")
+    return str(value)
+
+
+def _fmt_price(value: Any) -> Optional[str]:
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        return None
+    return f"{int(round(amount)):,}".replace(",", " ") + " Ar"
+
+
+def _booking_info(db: Session, booking: Booking) -> Dict[str, Any]:
+    """Résumé lisible de la réservation (tout est lu côté serveur : les trois
+    écrans — historique client, suivi client, navigation thérapeute — partagent
+    exactement les mêmes informations)."""
+    client = db.query(User).filter(User.id == booking.client_id).first()
+    mtype = getattr(booking, "massage_type", None)
+    status_raw = getattr(booking, "status", None)
+    status_raw = str(getattr(status_raw, "value", status_raw) or "").lower()
+    duration = getattr(booking, "scheduled_duration_minutes", None) or getattr(
+        booking, "duration_minutes", None
+    )
+    price = getattr(booking, "final_price", None) or getattr(booking, "client_price_proposed", None)
+    notes = getattr(booking, "special_instructions", None)
+
+    info = {
+        "ref": f"#{booking.id}",
+        "service": getattr(mtype, "name", None) if mtype is not None and not isinstance(mtype, str) else mtype,
+        "date": _fmt_booking_date(getattr(booking, "scheduled_date", None)),
+        "duration": f"{int(duration)} min" if duration else None,
+        "price": _fmt_price(price),
+        "status": _STATUS_FR.get(status_raw, status_raw or None),
+        "client": getattr(client, "fullname", None),
+        "notes": (notes or "").strip()[:200] or None,
+    }
+    return {k: str(v)[:200] for k, v in info.items() if v not in (None, "")}
+
+
+class ShareBookingRequest(BaseModel):
+    client_id: Optional[str] = Field(None, max_length=64)
+
+
+@router.post("/share-booking/{booking_id}")
+async def share_booking(
+    booking_id: int,
+    payload: Optional[ShareBookingRequest] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Envoie dans la conversation l'adresse + les informations de la réservation
+    (client OU thérapeute). Le destinataire peut toucher l'adresse pour ouvrir
+    Google Maps."""
+    booking = _get_booking_or_403(db, booking_id, current_user)
+    if not booking.therapist_id:
+        raise HTTPException(409, "Aucun thérapeute n'est encore assigné à cette réservation")
+
+    lat = getattr(booking, "client_latitude", None)
+    lng = getattr(booking, "client_longitude", None)
+    address = (getattr(booking, "address", None) or "").strip() or None
+    if lat is None and lng is None and not address:
+        raise HTTPException(422, "Cette réservation n'a ni adresse ni position GPS")
+
+    client_id = payload.client_id if payload else None
+    encoded = _encode_location(
+        float(lat) if lat is not None and lng is not None else None,
+        float(lng) if lat is not None and lng is not None else None,
+        address,
+        "booking",
+        _booking_info(db, booking),
+    )
+    row = _save_message(db, booking, current_user, encoded, client_id=client_id)
+
+    await _broadcast(booking_id, _ws_payload(row, current_user))
+    try:
+        await notify_new_message(
+            db, booking, current_user, _location_label(_decode_location(encoded)), message_id=row.id
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("Chat : notification de réservation impossible")
+    return _serialize(row, current_user.id)
+
+
+@router.get("/booking-location/{booking_id}")
+def get_booking_location(
+    booking_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Lieu de la réservation (adresse + GPS du client)."""
+    booking = _get_booking_or_403(db, booking_id, current_user)
+    lat = getattr(booking, "client_latitude", None)
+    lng = getattr(booking, "client_longitude", None)
+    return {
+        "booking_id": booking.id,
+        "address": getattr(booking, "address", None),
+        "latitude": float(lat) if lat is not None else None,
+        "longitude": float(lng) if lng is not None else None,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -511,6 +792,12 @@ def get_conversations(
             preview = "Message supprimé"
         elif last.message_type == "image":
             preview = "📷 Photo"
+        elif _decode_location(last.content):
+            preview = (
+                "📋 Réservation partagée"
+                if _decode_location(last.content).get("booking_info")
+                else "📍 Position partagée"
+            )
         else:
             preview = (last.content or "").replace("\n", " ")[:120]
         result.append({
@@ -527,8 +814,10 @@ def get_conversations(
                 "id": last.id,
                 "preview": preview,
                 "sender_id": last.sender_id,
-                "message_type": last.message_type,
+                "message_type": "location" if _decode_location(last.content) else last.message_type,
                 "deleted": last.deleted_at is not None,
+                "is_read": bool(last.is_read),
+                "status": "read" if last.is_read else "delivered",
                 "created_at": _iso(last.created_at),
             },
             "unread_count": unread.get(booking_id, 0),

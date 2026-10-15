@@ -23,7 +23,9 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 
 import ChatActionSheet from '../../components/chat/ChatActionSheet';
+import ChatConfirmHost from '../../components/chat/ChatConfirmHost';
 import ChatAvatar from '../../components/chat/ChatAvatar';
+import ChatStatusLabel from '../../components/chat/ChatStatusLabel';
 import { CHAT_MAX_WIDTH, getChatPalette } from '../../components/chat/chatTheme';
 import Header from '../../components/common/Header';
 import { API_URL } from '../../config/env';
@@ -206,13 +208,19 @@ const ConversationsScreen = ({ navigation }) => {
     const unread = item.unread_count || 0;
 
     return (
-      <TouchableOpacity
+      // ✅ FIX web : un <button> ne peut pas contenir un autre <button>
+      // (TouchableOpacity imbriqué => erreur validateDOMNesting). La carte est
+      // donc une simple View ; la zone cliquable et le bouton ⋮ sont FRÈRES.
+      <View
         style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}
-        onPress={() => openChat(item)}
-        activeOpacity={0.75}
-        accessibilityRole="button"
-        accessibilityLabel={`Conversation avec ${name}${unread ? `, ${unread} non lus` : ''}`}
       >
+        <TouchableOpacity
+          style={styles.cardMain}
+          onPress={() => openChat(item)}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel={`Conversation avec ${name}${unread ? `, ${unread} non lus` : ''}`}
+        >
         <ChatAvatar uri={photo} name={name} size={52} palette={palette} />
 
         <View style={styles.body}>
@@ -245,6 +253,12 @@ const ConversationsScreen = ({ navigation }) => {
                 {mine && !deleted ? 'Vous : ' : ''}
                 {last.preview}
               </Text>
+              {mine && !deleted && (
+                <ChatStatusLabel
+                  status={last.is_read || last.status === 'read' ? 'read' : 'delivered'}
+                  palette={palette}
+                />
+              )}
 
               {unread > 0 && (
                 <View style={[styles.badge, { backgroundColor: palette.primary }]}>
@@ -252,18 +266,20 @@ const ConversationsScreen = ({ navigation }) => {
                 </View>
               )}
             </View>
-
-            <TouchableOpacity
-              onPress={() => setMenuFor(item)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              accessibilityRole="button"
-              accessibilityLabel="Options de la conversation"
-            >
-              <Ionicons name="ellipsis-horizontal" size={20} color={palette.textSecondary} />
-            </TouchableOpacity>
           </View>
         </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setMenuFor(item)}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.menuBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Options de la conversation"
+        >
+          <Ionicons name="ellipsis-horizontal" size={20} color={palette.textSecondary} />
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -370,6 +386,8 @@ const ConversationsScreen = ({ navigation }) => {
         />
       )}
 
+      <ChatConfirmHost />
+
       <ChatActionSheet
         visible={Boolean(menuFor)}
         title={menuFor?.other_user?.fullname || 'Conversation'}
@@ -423,10 +441,24 @@ const styles = StyleSheet.create({
   },
   emptyList: { flexGrow: 1 },
 
-  card: {
+  cardMain: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
+  },
+  menuBtn: {
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     padding: 14,
     borderRadius: 16,
     borderWidth: 1,
