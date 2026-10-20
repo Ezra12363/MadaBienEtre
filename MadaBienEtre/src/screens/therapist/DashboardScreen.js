@@ -20,6 +20,7 @@ import {
   FlatList,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -92,6 +93,10 @@ const _SOFT_GREEN = '#F3FAF6';
 const GOLD = '#F59E0B';
 const RED = '#E45858';
 const BLUE = '#3B82F6';
+
+// Écran de chargement (spinner centré + "Mada Bien-être")
+const LOADING_GREEN = '#2E7D32';
+const LOADING_BACKGROUND = '#F5F5F5';
 
 
 // ============================================================
@@ -253,13 +258,15 @@ const DashboardScreen = ({ navigation }) => {
   /*
    * isRefresh = true  -> appel déclenché par le pull-to-refresh
    *                      (RefreshControl) : on NE touche PAS à
-   *                      isLoading, donc l'écran plein écran avec
-   *                      le logo (voir plus bas) ne se réaffiche
-   *                      pas ; seul le spinner natif du
-   *                      RefreshControl tourne, sans logo.
-   * isRefresh = false -> chargement initial (premier montage) :
+   *                      isLoading, donc l'écran de chargement
+   *                      plein écran (spinner + "Mada Bien-être")
+   *                      ne se réaffiche pas ; seul le spinner
+   *                      natif du RefreshControl tourne.
+   * isRefresh = false -> chargement initial (premier montage, ou
+   *                      actualisation de la page sur le web) :
    *                      isLoading passe à true, ce qui affiche
-   *                      l'écran logo + spinner ci-dessous.
+   *                      l'écran de chargement ci-dessous : un
+   *                      spinner centré avec "Mada Bien-être".
    */
   const loadDashboardData = useCallback(async (options = {}) => {
     const { isRefresh = false } = options;
@@ -764,27 +771,25 @@ const DashboardScreen = ({ navigation }) => {
 
   // ==========================================================
   // LOADING
+  // Spinner vert centré au milieu de l'écran + texte
+  // "Mada Bien-être" en dessous (affiché à l'actualisation
+  // de la page / au premier chargement).
   // ==========================================================
 
   if (isLoading) {
     return (
       <View
-        style={[
-          styles.loadingContainer,
-          {
-            backgroundColor,
-          },
-        ]}
+        style={styles.loadingContainer}
+        accessibilityRole="progressbar"
+        accessibilityLabel="Chargement en cours"
       >
-        <Text
-          style={[
-            styles.loadingText,
-            {
-              color: secondaryTextColor,
-            },
-          ]}
-        >
-          Préparation de votre espace...
+        <ActivityIndicator
+          size={Platform.OS === 'ios' ? 'large' : 42}
+          color={LOADING_GREEN}
+        />
+
+        <Text style={styles.loadingText}>
+          Mada Bien-être
         </Text>
       </View>
     );
@@ -1220,7 +1225,7 @@ const DashboardScreen = ({ navigation }) => {
             animation="fadeInUp"
             delay={220}
             duration={500}
-            style={{ marginBottom: 16 }}
+            style={{ marginTop: 16, marginBottom: 16 }}
           >
             <AITherapistHomeBlock
               onOpenAssistant={(tab) =>
@@ -1697,40 +1702,31 @@ const styles = StyleSheet.create({
 
   // ==========================================================
   // LOADING
+  // Spinner centré (horizontalement + verticalement) avec le
+  // texte "Mada Bien-être" en dessous.
   // ==========================================================
 
   loadingContainer: {
     flex: 1,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-  },
-
-  loadingLogoContainer: {
-    width: 84,
-    height: 84,
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    elevation: 4,
-  },
-
-  loadingLogo: {
-    width: 60,
-    height: 60,
-    resizeMode: 'contain',
-  },
-
-  loadingIndicator: {
-    marginTop: 22,
+    backgroundColor: LOADING_BACKGROUND,
   },
 
   loadingText: {
-    marginTop: 14,
-    fontSize: 14,
+    marginTop: 22,
+    fontSize: 22,
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '400',
+    color: LOADING_GREEN,
+    fontFamily: Platform.select({
+      web: "'Times New Roman', Times, serif",
+      ios: 'Times New Roman',
+      android: 'serif',
+      default: 'serif',
+    }),
   },
 
   // ==========================================================

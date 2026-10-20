@@ -1,156 +1,282 @@
 // src/services/paymentService.js
-import { get, post } from './api';
+//
+// Client API du flux de paiement + wallet + retraits.
+//
+// ⚠️ Aucune clé API (Vanila Pay / Stripe) ici : elles se mettent UNIQUEMENT
+// dans le fichier .env du BACKEND (voir .env.paiements.EXEMPLE).
+// L'application ne fait que parler à notre backend FastAPI.
+import { Linking, Platform } from 'react-native';
+
+import { get, post, put } from './api';
+
+const wrap = async (fn) => {
+  try {
+    const response = await fn();
+    if (response?.error) {
+      return {
+        success: false,
+        error: response.error.message || 'Une erreur est survenue.',
+        status: response.error.status,
+      };
+    }
+    return { success: true, data: response.data };
+  } catch (error) {
+    return { success: false, error: error?.message || 'Une erreur est survenue.' };
+  }
+};
 
 class PaymentService {
-  /**
-   * Créer un paiement
-   */
-  async createPayment(paymentData) {
-    try {
-      const response = await post('/payments/create', paymentData);
-      if (response.error) {
-        return { success: false, error: response.error.message };
-      }
-      return { success: true, data: response.data };
-    } catch (error) {
-      return { success: false, error: error.message || 'Erreur lors du paiement' };
-    }
+  // ---------- Client ----------
+  /** Moyens de paiement disponibles (MVola, Orange, Airtel, carte, espèces) */
+  getMethods() {
+    return wrap(() => get('/payments/methods'));
+  }
+
+  /** Prix à payer + « peut-on payer maintenant ? » (réservation confirmée) */
+  getQuote(bookingId) {
+    return wrap(() => get(`/payments/quote/${bookingId}`));
   }
 
   /**
-   * Paiement Mobile Money
+   * Démarre un paiement. Le montant est calculé PAR LE SERVEUR.
+   * @param {{bookingId:number, method:'mobile_money'|'card'|'cash', provider?:string, phone?:string}} p
    */
-  async payWithMobileMoney(bookingId, amount, phone, provider) {
-    try {
-      const response = await post('/payments/mobile-money', {
+  initiate({ bookingId, method, provider, phone }) {
+    return wrap(() =>
+      post('/payments/initiate', {
         booking_id: bookingId,
-        amount,
-        phone,
-        provider,
-      });
-      if (response.error) {
-        return { success: false, error: response.error.message };
+        method,
+        provider: provider || undefined,
+        phone: phone || undefined,
+      })
+    );
+  }
+
+  /** Le backend interroge le fournisseur ; seul lui peut passer le statut à « completed » */
+  verify(paymentId) {
+    return wrap(() => post(`/payments/${paymentId}/verify`));
+  }
+
+  cancel(paymentId) {
+    return wrap(() => post(`/payments/${paymentId}/cancel`));
+  }
+
+  getHistory() {
+    return wrap(() => get('/payments/history'));
+  }
+
+  getBookingPayment(bookingId) {
+    return wrap(() => get(`/payments/booking/${bookingId}`));
+  }
+
+  /** Ouvre le reçu PDF (QR + code-barres) dans le navigateur / lecteur PDF */
+  async openReceipt(paymentId) {
+    const res = await wrap(() => get(`/payments/${paymentId}/receipt-link`));
+    if (!res.success) return res;
+    const url = res.data?.url;
+    if (!url) return { success: false, error: 'Lien du reçu introuvable.' };
+
+    try {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(url, '_blank');
+      } else {
+        await Linking.openURL(url);
       }
-      return { success: true, data: response.data };
+      return { success: true };
     } catch (error) {
-      return { success: false, error: error.message || 'Erreur lors du paiement Mobile Money' };
+      return { success: false, error: "Impossible d'ouvrir le reçu." };
     }
   }
 
-  /**
-   * Paiement par carte bancaire
-   */
-  async payWithCard(bookingId, amount, cardToken) {
+  /** Ouvre la page de paiement sécurisée (carte : Stripe / Vanila Pay) */
+  async openPaymentUrl(url) {
+    if (!url) return false;
     try {
-      const response = await post('/payments/card', {
-        booking_id: bookingId,
-        amount,
-        card_token: cardToken,
-      });
-      if (response.error) {
-        return { success: false, error: response.error.message };
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(url, '_blank');
+      } else {
+        await Linking.openURL(url);
       }
-      return { success: true, data: response.data };
+      return true;
     } catch (error) {
-      return { success: false, error: error.message || 'Erreur lors du paiement par carte' };
+      return false;
     }
   }
 
-  /**
-   * Paiement Vanila Pay
-   */
-  async payWithVanilaPay(bookingId, amount) {
-    try {
-      const response = await post('/payments/vanila-pay', {
-        booking_id: bookingId,
-        amount,
-      });
-      if (response.error) {
-        return { success: false, error: response.error.message };
-      }
-      return { success: true, data: response.data };
-    } catch (error) {
-      return { success: false, error: error.message || 'Erreur lors du paiement Vanila Pay' };
-    }
+  // ---------- Thérapeute ----------
+  getMyWallet() {
+    return wrap(() => get('/wallet/me'));
+  }
+
+  confirmCash(paymentId) {
+    return wrap(() => post(`/payments/${paymentId}/confirm-cash`));
+  }
+
+  requestWithdrawal(payload) {
+    return wrap(() => post('/wallet/withdrawals', payload));
+  }
+
+  cancelWithdrawal(withdrawalId) {
+    return wrap(() => post(`/wallet/withdrawals/${withdrawalId}/cancel`));
+  }
+
+  // ---------- Admin ----------
+  adminSummary() {
+    return wrap(() => get('/wallet/admin/summary'));
+  }
+
+  adminPayments(status) {
+    return wrap(() => get('/payments/admin/payments', status && status !== 'all' ? { status } : {}));
+  }
+
+  adminStats() {
+    return wrap(() => get('/payments/admin/stats'));
+  }
+
+  adminTransactions() {
+    return wrap(() => get('/wallet/admin/transactions'));
+  }
+
+  adminWithdrawals(status) {
+    return wrap(() => get('/wallet/admin/withdrawals', status && status !== 'all' ? { status } : {}));
+  }
+
+  adminApproveWithdrawal(id) {
+    return wrap(() => post(`/wallet/admin/withdrawals/${id}/approve`));
+  }
+
+  adminCompleteWithdrawal(id, transferReference) {
+    return wrap(() =>
+      post(`/wallet/admin/withdrawals/${id}/complete`, { transfer_reference: transferReference })
+    );
+  }
+
+  adminRejectWithdrawal(id, reason) {
+    return wrap(() => post(`/wallet/admin/withdrawals/${id}/reject`, { reason: reason || '' }));
+  }
+  // ---------- Statuts de paiement en liste (historique, offres, groupes) ----------
+  /** { [bookingId]: payment } pour plusieurs réservations en UNE requête */
+  getBatch(bookingIds = []) {
+    const ids = [...new Set((bookingIds || []).filter(Boolean))];
+    if (!ids.length) return Promise.resolve({ success: true, data: {} });
+    return wrap(() => get('/payments/batch', { booking_ids: ids.join(',') }));
+  }
+
+  // ---------- Reçus ----------
+  /** Toutes les infos du reçu (affichage dans l'app + QR). view: client | therapist (admin) */
+  getReceiptData(paymentId, view) {
+    return wrap(() => get(`/payments/${paymentId}/receipt-data`, view ? { view } : {}));
   }
 
   /**
-   * Obtenir l'historique des paiements
+   * Télécharge (ou ouvre) un PDF à partir d'une route « receipt-link ».
+   * Web : le navigateur télécharge. Android / iOS : fichier enregistré puis
+   * feuille de partage (Enregistrer dans Fichiers, WhatsApp, e-mail...).
    */
-  async getPaymentHistory() {
+  async downloadPdf(linkPath, filename = 'recu.pdf', params = {}) {
+    const res = await wrap(() => get(linkPath, params));
+    if (!res.success) return res;
+    const { download_url: downloadUrl, url } = res.data || {};
+    if (!downloadUrl && !url) return { success: false, error: 'Lien du reçu introuvable.' };
     try {
-      const response = await get('/payments/history');
-      if (response.error) {
-        return { success: false, error: response.error.message };
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(downloadUrl || url, '_blank');
+        return { success: true };
       }
-      return { success: true, data: response.data };
+      let FileSystem;
+      let Sharing;
+      try {
+        try {
+          FileSystem = require('expo-file-system/legacy');
+        } catch (e) {
+          FileSystem = require('expo-file-system');
+        }
+        Sharing = require('expo-sharing');
+      } catch (e) {
+        await Linking.openURL(url || downloadUrl);
+        return { success: true };
+      }
+      const target = `${FileSystem.cacheDirectory}${filename}`;
+      const dl = await FileSystem.downloadAsync(downloadUrl || url, target);
+      if (dl?.status && dl.status >= 400) {
+        return { success: false, error: 'Le téléchargement du reçu a échoué.' };
+      }
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(dl.uri, {
+          mimeType: 'application/pdf',
+          UTI: 'com.adobe.pdf',
+          dialogTitle: 'Enregistrer / partager le reçu',
+        });
+      } else {
+        await Linking.openURL(url || downloadUrl);
+      }
+      return { success: true };
     } catch (error) {
-      return { success: false, error: error.message || 'Erreur lors du chargement' };
+      return { success: false, error: "Impossible de télécharger le reçu." };
     }
   }
 
-  /**
-   * Obtenir un paiement spécifique
-   */
-  async getPayment(paymentId) {
-    try {
-      const response = await get(`/payments/${paymentId}`);
-      if (response.error) {
-        return { success: false, error: response.error.message };
-      }
-      return { success: true, data: response.data };
-    } catch (error) {
-      return { success: false, error: error.message || 'Erreur lors du chargement' };
-    }
+  downloadPaymentReceipt(paymentId, view) {
+    return this.downloadPdf(
+      `/payments/${paymentId}/receipt-link`,
+      `recu-MBE-${String(paymentId).padStart(6, '0')}.pdf`,
+      view ? { view } : {}
+    );
   }
 
-  /**
-   * Rembourser un paiement
-   */
-  async refundPayment(paymentId, amount = null, reason = '') {
-    try {
-      const response = await post('/payments/refund', {
-        payment_id: paymentId,
-        amount,
-        reason,
-      });
-      if (response.error) {
-        return { success: false, error: response.error.message };
-      }
-      return { success: true, data: response.data };
-    } catch (error) {
-      return { success: false, error: error.message || 'Erreur lors du remboursement' };
-    }
+  downloadWithdrawalReceipt(withdrawalId) {
+    return this.downloadPdf(`/wallet/withdrawals/${withdrawalId}/receipt-link`, `recu-retrait-${withdrawalId}.pdf`);
   }
 
-  /**
-   * Vérifier le statut d'un paiement
-   */
-  async verifyPayment(transactionId) {
-    try {
-      const response = await post(`/payments/verify/${transactionId}`);
-      if (response.error) {
-        return { success: false, error: response.error.message };
-      }
-      return { success: true, data: response.data };
-    } catch (error) {
-      return { success: false, error: error.message || 'Erreur lors de la vérification' };
-    }
+  downloadCommissionReceipt(commissionId) {
+    return this.downloadPdf(`/wallet/commissions/${commissionId}/receipt-link`, `recu-commission-${commissionId}.pdf`);
   }
 
-  /**
-   * Obtenir les méthodes de paiement disponibles
-   */
-  async getPaymentMethods() {
-    try {
-      const response = await get('/payments/methods');
-      if (response.error) {
-        return { success: false, error: response.error.message };
-      }
-      return { success: true, data: response.data };
-    } catch (error) {
-      return { success: false, error: error.message || 'Erreur lors du chargement' };
-    }
+  // ---------- Thérapeute : statistiques, commissions ----------
+  myStats() {
+    return wrap(() => get('/wallet/me/stats'));
+  }
+
+  myCommissions() {
+    return wrap(() => get('/wallet/commissions'));
+  }
+
+  /** @param {{amount:number, method:'wallet'|'mobile_money'|'bank_transfer'|'cash', provider?:string, phone_number?:string, transfer_reference?:string}} payload */
+  payCommission(payload) {
+    return wrap(() => post('/wallet/commissions/pay', payload));
+  }
+
+  // ---------- Admin : stats, commissions, paramètres ----------
+  adminWalletStats() {
+    return wrap(() => get('/wallet/admin/stats'));
+  }
+
+  adminCommissions(status) {
+    return wrap(() => get('/wallet/admin/commissions', status && status !== 'all' ? { status } : {}));
+  }
+
+  adminCommissionsDue() {
+    return wrap(() => get('/wallet/admin/commissions/due'));
+  }
+
+  adminApproveCommission(id) {
+    return wrap(() => post(`/wallet/admin/commissions/${id}/approve`));
+  }
+
+  adminRejectCommission(id, reason) {
+    return wrap(() => post(`/wallet/admin/commissions/${id}/reject`, { reason: reason || '' }));
+  }
+
+  adminGetSettings() {
+    return wrap(() => get('/wallet/admin/settings'));
+  }
+
+  adminSaveSettings(values) {
+    return wrap(() => put('/wallet/admin/settings', values));
+  }
+
+  adminApplyCommission() {
+    return wrap(() => post('/wallet/admin/settings/apply-commission'));
   }
 }
 

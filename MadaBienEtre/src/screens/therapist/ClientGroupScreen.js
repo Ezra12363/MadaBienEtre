@@ -34,6 +34,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import offerService from '../../services/offerService';
 import Header from '../../components/common/Header';
+import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
 import { useTheme } from '../../context/ThemeContext';
 
 import {
@@ -1768,6 +1769,13 @@ export default function ClientGroupScreen({
                   </Text>
                 </View>
 
+                {/* Statut du paiement (Payé / En attente) + reçu du client */}
+                <BookingPaymentSection
+                  booking={booking}
+                  role="therapist"
+                  navigation={navigation}
+                />
+
                 {showExpiry ? (
                   <View
                     style={
@@ -2057,6 +2065,7 @@ export default function ClientGroupScreen({
         handleOpenDirections,
         now,
         therapistPosition,
+        navigation,
       ]
     );
 
@@ -2775,11 +2784,11 @@ export default function ClientGroupScreen({
         isWeb &&
           webStyles.fullScreen,
       ]}
-      edges={[
-        'left',
-        'right',
-        'bottom',
-      ]}
+      edges={
+        isWeb
+          ? ['left', 'right', 'bottom']
+          : ['left', 'right']
+      }
     >
       <View
         style={[

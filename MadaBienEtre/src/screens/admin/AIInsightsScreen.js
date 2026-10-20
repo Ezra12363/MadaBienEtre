@@ -23,6 +23,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
+import useScreenLayout from '../../hooks/useScreenLayout';
 import aiService from '../../services/aiService';
 import {
   AITabs,
@@ -48,8 +49,15 @@ const TABS = [
 
 const Kpi = ({ icon, label, value, hint }) => {
   const { colors: tc } = useTheme();
+  const { isDesktop } = useScreenLayout();
   return (
-    <View style={[styles.kpi, { backgroundColor: tc.surface, borderColor: tc.border }]}>
+    <View
+      style={[
+        styles.kpi,
+        isDesktop && styles.kpiDesktop, // 4 cartes par ligne sur grand écran
+        { backgroundColor: tc.surface, borderColor: tc.border },
+      ]}
+    >
       <View style={styles.kpiIcon}>
         <Ionicons name={icon} size={18} color={colors.primary} />
       </View>
@@ -64,6 +72,7 @@ const Kpi = ({ icon, label, value, hint }) => {
 
 const AIInsightsScreen = () => {
   const { colors: themeColors } = useTheme();
+  const { sidePadding } = useScreenLayout();
 
   const [tab, setTab] = useState('overview');
   const [loading, setLoading] = useState(true);
@@ -140,17 +149,31 @@ const AIInsightsScreen = () => {
       style={[styles.container, { backgroundColor: themeColors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Header title="IA & Chatbot" subtitle="Indicateurs et analyses intelligentes" showBack />
+      {/* Web large : le titre + le retour passent dans la sous-barre de la
+          TopNavBar (plus de 2e bande blanche séparée). Android / iOS /
+          web étroit : header inchangé. */}
+      <Header
+        title="IA & Chatbot"
+        subtitle="Indicateurs et analyses intelligentes"
+        showBack
+        mergeWithTopNav
+      />
 
-      <View style={styles.body}>
+      <View style={[styles.body, { paddingHorizontal: sidePadding }]}>
         <AITabs tabs={TABS} active={tab} onChange={setTab} />
 
         {tab === 'chat' ? (
           <AIChatPanel role="ADMIN" />
         ) : (
           <ScrollView
-            showsVerticalScrollIndicator={false}
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={Platform.OS === 'web'}
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+            scrollEnabled
+            bounces
+            alwaysBounceVertical
+            overScrollMode="always"
             contentContainerStyle={styles.scroll}
             refreshControl={
               isOverview ? (
@@ -228,16 +251,19 @@ const AIInsightsScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  // minHeight: 0 est INDISPENSABLE sur le web : sans lui, un parent flex
+  // grandit avec son contenu au lieu de laisser le ScrollView défiler.
+  container: { flex: 1, minHeight: 0 },
   body: {
     flex: 1,
+    minHeight: 0,
     width: '100%',
-    maxWidth: 1000,
-    alignSelf: 'center',
-    paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
   },
-  scroll: { paddingBottom: spacing.xxl },
+  // Le ScrollView occupe tout l'espace restant sous les onglets et défile
+  // verticalement (haut <-> bas) sur Android, iOS et web.
+  scrollView: { flex: 1, minHeight: 0, width: '100%' },
+  scroll: { flexGrow: 1, paddingBottom: spacing.xxl },
   period: { fontSize: typography.fontSize.sm, marginBottom: spacing.sm },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   kpi: {
@@ -247,6 +273,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: spacing.md,
   },
+  kpiDesktop: { flexBasis: '22%' },
   kpiIcon: {
     width: 32,
     height: 32,

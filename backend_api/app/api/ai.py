@@ -76,12 +76,24 @@ def _same_id(first_id, second_id) -> bool:
         return str(first_id).strip() == str(second_id).strip()
 
 
-def _require_booking_access(user: User, booking: Booking) -> None:
+def _require_booking_access(
+    user: User,
+    booking: Booking,
+    db: Optional[Session] = None,
+) -> None:
     """
-    Autorise uniquement :
+    Autorise :
     - le client propriétaire ;
     - le thérapeute assigné ;
+    - un thérapeute qui NÉGOCIE : il a déjà une offre sur cette réservation,
+      ou la réservation est encore ouverte (pending / negotiating, sans
+      thérapeute assigné) ;
     - l'administrateur.
+
+    ✅ FIX 403 « vous ne participez pas à cette réservation » : pendant la
+    négociation, le thérapeute n'est pas encore `booking.therapist_id`, donc
+    l'estimation de probabilité d'acceptation (/ai/predict-acceptance) lui
+    était refusée.
     """
     if _is_admin(user):
         return
@@ -95,6 +107,31 @@ def _require_booking_access(user: User, booking: Booking) -> None:
 
     if is_client or is_therapist:
         return
+
+    if _get_role(user) == "THERAPIST":
+        status = str(getattr(booking, "status", "") or "").lower()
+        unassigned = getattr(booking, "therapist_id", None) is None
+
+        if unassigned and status in ("pending", "negotiating"):
+            return
+
+        if db is not None:
+            try:
+                from ..models.offer import Offer
+
+                has_offer = (
+                    db.query(Offer.id)
+                    .filter(
+                        Offer.booking_id == booking.id,
+                        Offer.therapist_id == user.id,
+                    )
+                    .first()
+                    is not None
+                )
+                if has_offer:
+                    return
+            except Exception:
+                logger.exception("Vérification de l'offre du thérapeute impossible")
 
     logger.warning(
         "Accès réservation refusé : user_id=%s, role=%s, "
@@ -245,7 +282,7 @@ async def predict_acceptance(
             detail="Réservation introuvable.",
         )
 
-    _require_booking_access(current_user, booking)
+    _require_booking_access(current_user, booking, db)
 
     try:
         probability = await predict_acceptance_probability(

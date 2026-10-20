@@ -15,6 +15,7 @@ import {
   ScrollView,
   ActivityIndicator,
   StyleSheet,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -213,6 +214,7 @@ const AIChatPanel = ({ role = 'CLIENT', style, initialMessage = null }) => {
               color: themeColors.text,
               backgroundColor: isDark ? '#2C2C2C' : '#F5F5F5',
             },
+            Platform.OS === 'web' && styles.inputWeb,
           ]}
           placeholder="Posez votre question..."
           placeholderTextColor={themeColors.textSecondary}
@@ -270,6 +272,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
     minHeight: 44,
   },
+  inputWeb: { outlineStyle: 'none', outlineWidth: 0 },
   sendButton: {
     width: 44,
     height: 44,

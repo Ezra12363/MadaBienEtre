@@ -561,10 +561,20 @@ async def get_earnings(
     current_user: User = Depends(get_current_therapist),
     db: Session = Depends(get_db)
 ):
-    """Obtenir les gains du thérapeute par période"""
+    """
+    Gains du thérapeute (wallet) — basés sur les PAIEMENTS CONFIRMÉS.
+
+    - available       : solde retirable (wallet)
+    - net_earnings    : gains nets de la période (après commission)
+    - commission_*    : commission Mada Bien-Être
+    Un retrait en attente n'est jamais compté comme payé.
+    """
     try:
+        from ..models.payment import Payment
+        from ..services import wallet_service
+
         now = datetime.utcnow()
-        
+
         if period == "day":
             start_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
         elif period == "week":
@@ -575,26 +585,39 @@ async def get_earnings(
             start_date = now - timedelta(days=365)
         else:
             start_date = now - timedelta(days=30)
-        
-        bookings = db.query(Booking).filter(
-            Booking.therapist_id == current_user.id,
-            Booking.status == "completed",
-            Booking.actual_end_time >= start_date
-        ).all()
-        
-        total_earnings = sum(float(b.final_price or 0) for b in bookings)
-        commission = total_earnings * (float(current_user.commission_rate or 10) / 100)
-        net_earnings = total_earnings - commission
-        
+
+        payments = (
+            db.query(Payment)
+            .join(Booking, Booking.id == Payment.booking_id)
+            .filter(
+                Booking.therapist_id == current_user.id,
+                Payment.status == "completed",
+                Payment.completed_at >= start_date,
+            )
+            .all()
+        )
+
+        total_earnings = sum(float(p.amount or 0) for p in payments)
+        commission = sum(float((p.payment_metadata or {}).get("commission_amount", 0)) for p in payments)
+        net_earnings = sum(float((p.payment_metadata or {}).get("net_amount", 0)) for p in payments)
+
+        summary = wallet_service.wallet_summary(db, current_user.id)
+
         return {
             "period": period,
-            "total_bookings": len(bookings),
+            "total_bookings": len(payments),
             "total_earnings": total_earnings,
-            "commission_rate": current_user.commission_rate,
+            "commission_rate": float(wallet_service.commission_rate_for(current_user)),
             "commission_amount": commission,
             "net_earnings": net_earnings,
             "start_date": start_date.isoformat() if start_date else None,
-            "end_date": now.isoformat() if now else None
+            "end_date": now.isoformat() if now else None,
+            # --- wallet ---
+            "available": summary["available"],
+            "pending_withdrawals": summary["withdrawals_pending"],
+            "withdrawn": summary["withdrawals_paid"],
+            "lifetime_net": summary["total_earnings"],
+            "pending_commission": summary["pending_commission"],
         }
     except Exception as e:
         logger.error(f"❌ Erreur get_earnings: {e}")

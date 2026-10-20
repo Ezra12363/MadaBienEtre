@@ -13,9 +13,8 @@
 // ============================================================================
 import { useCallback, useEffect, useState } from 'react';
 import { AppState } from 'react-native';
-import axios from 'axios';
 
-import { API_URL } from '../config/env';
+import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { onChatChanged } from '../utils/chatEvents';
 import { buildWsUrl, cleanToken } from '../utils/wsUrl';
@@ -48,10 +47,9 @@ export const refreshChatUnread = async () => {
     return;
   }
   try {
-    const res = await axios.get(`${API_URL}/chat/unread`, {
-      headers: { Authorization: `Bearer ${runningToken}` },
-      timeout: 10000,
-    });
+    // ✅ via l'instance `api` : en cas de 401 le token est rafraîchi
+    // automatiquement (au lieu de réessayer en boucle avec un token expiré).
+    const res = await api.get('/chat/unread', { timeout: 10000 });
     const count = Number(res.data?.unread_count ?? res.data?.count ?? 0) || 0;
     const byBooking = res.data?.by_booking || {};
     if (count !== snapshot.count || JSON.stringify(byBooking) !== JSON.stringify(snapshot.byBooking)) {

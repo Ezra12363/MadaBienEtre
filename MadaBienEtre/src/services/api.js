@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // "Network Error" — ity fichier ity sy notificationService.js dia
 // nampiasa IP roa SAMIHAFA (172.28.182.30 vs 192.168.1.45).
 import { API_URL, API_TIMEOUT } from '../config/env';
+import { emitSessionExpired, emitTokenRefreshed } from '../utils/authEvents';
 
 console.log('🌐 [API CONFIG] Base URL utilisée :', API_URL);
 
@@ -134,9 +135,11 @@ api.interceptors.response.use(
     const refreshToken = await AsyncStorage.getItem('@mada_refresh_token');
     if (!refreshToken) {
       console.log('   ℹ️ [AUTH] Requête protégée reçue en 401 sans refresh token — utilisateur non authentifié (normal si non connecté).');
+      const hadSession = !!(await AsyncStorage.getItem('@mada_token'));
       await AsyncStorage.removeItem('@mada_token');
       await AsyncStorage.removeItem('@mada_refresh_token');
       await AsyncStorage.removeItem('@mada_user');
+      if (hadSession) emitSessionExpired(); // session expirée : retour à la connexion
       return Promise.reject(error);
     }
 
@@ -169,6 +172,10 @@ api.interceptors.response.use(
 
       console.log('✅ Token rafraîchi avec succès');
 
+      // ✅ Informe AuthContext : l'état React doit porter le NOUVEAU token
+      // (WebSocket, /chat/unread... l'utilisent directement).
+      emitTokenRefreshed(access_token, newRefreshToken);
+
       processQueue(null, access_token);
 
       originalRequest.headers.Authorization = `Bearer ${access_token}`;
@@ -180,6 +187,8 @@ api.interceptors.response.use(
       await AsyncStorage.removeItem('@mada_token');
       await AsyncStorage.removeItem('@mada_refresh_token');
       await AsyncStorage.removeItem('@mada_user');
+
+      emitSessionExpired(); // refresh token expiré/invalide : reconnexion nécessaire
 
       processQueue(refreshError, null);
 

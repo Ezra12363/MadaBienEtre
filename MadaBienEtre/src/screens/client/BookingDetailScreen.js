@@ -59,6 +59,7 @@ import {
 } from '../../theme';
 
 import Header from '../../components/common/Header';
+import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
 import SOSButton from '../../components/sos/SOSButton';
 
 import bookingService from '../../services/bookingService';
@@ -1974,6 +1975,13 @@ const BookingDetailScreen = ({
                   </Text>
                 </View>
               )}
+
+            {/* Statut du paiement (sous le prix) */}
+            <BookingPaymentSection
+              booking={booking}
+              role="client"
+              navigation={navigation}
+            />
           </View>
         </FadeSlideIn>
 

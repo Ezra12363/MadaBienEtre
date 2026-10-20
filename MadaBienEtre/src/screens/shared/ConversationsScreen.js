@@ -26,7 +26,11 @@ import ChatActionSheet from '../../components/chat/ChatActionSheet';
 import ChatConfirmHost from '../../components/chat/ChatConfirmHost';
 import ChatAvatar from '../../components/chat/ChatAvatar';
 import ChatStatusLabel from '../../components/chat/ChatStatusLabel';
-import { CHAT_MAX_WIDTH, getChatPalette } from '../../components/chat/chatTheme';
+import {
+  CHAT_MAX_WIDTH,
+  getChatPalette,
+  useChatSidePadding,
+} from '../../components/chat/chatTheme';
 import Header from '../../components/common/Header';
 import { API_URL } from '../../config/env';
 import { useAuth } from '../../context/AuthContext';
@@ -45,6 +49,7 @@ const ConversationsScreen = ({ navigation }) => {
   const palette = useMemo(() => getChatPalette(themeColors, isDark), [themeColors, isDark]);
   const { token, user } = useAuth();
   const { unreadCount } = useChatUnread();
+  const side = useChatSidePadding(); // padding latéral responsive (plein écran)
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -289,7 +294,7 @@ const ConversationsScreen = ({ navigation }) => {
     <View style={[styles.container, { backgroundColor: palette.screenBg }]}>
       <Header title="Messages" showBack={canGoBack} />
 
-      <View style={styles.searchWrap}>
+      <View style={[styles.searchWrap, { paddingHorizontal: side }]}>
         <View
           style={[
             styles.search,
@@ -336,7 +341,11 @@ const ConversationsScreen = ({ navigation }) => {
           keyExtractor={(c) => String(c.booking_id)}
           renderItem={renderItem}
           style={styles.list}
-          contentContainerStyle={[styles.listContent, filtered.length === 0 && styles.emptyList]}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingHorizontal: side },
+            filtered.length === 0 && styles.emptyList,
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           refreshControl={
@@ -436,7 +445,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 100,
+    paddingBottom: 24,
     gap: 10,
   },
   emptyList: { flexGrow: 1 },

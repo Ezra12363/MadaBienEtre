@@ -1,965 +1,622 @@
 // src/screens/client/PaymentScreen.js
 //
-// ============================================================
-// FIX ANDROID + WEB
-// ============================================================
+// Paiement d'une réservation CONFIRMÉE.
 //
-// 1. BUG PRIX : le backend renvoie "final_price" (snake_case),
-//    pas "finalPrice". L'ancien code lisait booking.finalPrice
-//    qui est TOUJOURS undefined => le montant affiché et envoyé
-//    au paiement était faux. Corrigé avec une chaîne de repli
-//    (final_price -> therapist_initial_price ->
-//    client_price_proposed -> price -> amount du paramètre).
+//  1. Affiche le prix à payer (calculé par le serveur) ;
+//  2. le client choisit : MVola / Orange Money / Airtel Money, carte bancaire,
+//     ou espèces (payées à la fin du massage) ;
+//  3. le BACKEND interroge le fournisseur ; l'écran « sonde » /payments/{id}/verify
+//     jusqu'à la confirmation officielle — jamais sur simple déclaration ;
+//  4. paiement confirmé -> reçu PDF (QR code + code-barres).
 //
-// 2. Alert.alert AVEC PLUSIEURS BOUTONS NE FONCTIONNE PAS SUR
-//    WEB (react-native-web ne supporte pas les callbacks
-//    onPress par bouton). Le "onPress" de navigation après un
-//    paiement réussi ne se déclenchait donc jamais sur Web.
-//    => Remplacé par une modale interne (FeedbackModal) qui
-//    fonctionne à l'identique sur Android ET sur Web.
+// Aucune donnée de carte ne transite par l'application : la carte se règle
+// sur la page sécurisée du fournisseur (Stripe / Vanila Pay).
 //
-// 3. Clavier : comportement KeyboardAvoidingView adapté par
-//    plateforme (iOS: padding, Android/Web: rien de spécial,
-//    on laisse le ScrollView gérer).
-//
-// 4. Champs numériques (téléphone, carte, CVV, expiration)
-//    filtrés manuellement, car "keyboardType" ne bloque PAS la
-//    saisie de lettres sur le Web.
-//
-// 5. Écran de chargement tant que la réservation n'est pas
-//    chargée, pour éviter d'afficher un montant à 0 Ar le temps
-//    du fetch (fréquent sur Web où le premier rendu est rapide).
-//
-// 6. Bouton "Payer" désactivé (grisé) tant que le formulaire
-//    n'est pas valide, sur les deux plateformes.
-// ============================================================
-
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+// MODE « MOYENS DE PAIEMENT » (depuis Profil > Moyens de paiement) :
+// quand l'écran est ouvert SANS bookingId, il affiche simplement la liste
+// des moyens de paiement acceptés (disponibles / bientôt disponibles),
+// sans prix ni bouton « Payer ».
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
   ActivityIndicator,
-  Animated,
   KeyboardAvoidingView,
   Platform,
-  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as Animatable from 'react-native-animatable';
-import { useTheme } from '../../context/ThemeContext';
-import { useAuth } from '../../context/AuthContext';
-import { colors, spacing, typography } from '../../theme';
+
 import Header from '../../components/common/Header';
-import axios from 'axios';
-import { API_URL } from '../../config';
+import { useTheme } from '../../context/ThemeContext';
+import paymentService from '../../services/paymentService';
+import { colors } from '../../theme';
 
-// ============================================================
-// HELPERS
-// ============================================================
+const PRIMARY = colors.primary || '#0B7A2A';
+const POLL_MS = 4000;
+const POLL_MAX_MS = 3 * 60 * 1000; // 3 min pour valider sur le téléphone
 
-const toNumber = (value, fallback = 0) => {
-  if (value === null || value === undefined || value === '') return fallback;
-  const n = Number(String(value).replace(/\s/g, '').replace(',', '.'));
-  return Number.isFinite(n) ? n : fallback;
-};
+const formatAr = (value) => `${Math.round(Number(value) || 0).toLocaleString('fr-FR')} Ar`;
+const onlyDigits = (t) => String(t || '').replace(/[^0-9]/g, '');
 
-const formatAr = (value) => `${Math.round(toNumber(value)).toLocaleString('fr-FR')} Ar`;
-
-const onlyDigits = (text) => String(text || '').replace(/[^0-9]/g, '');
-
-const extractErrorMessage = (error, fallback = 'Une erreur est survenue.') => {
-  // Erreur réseau (pas de réponse du serveur) — fréquent sur Web (CORS, offline...).
-  if (!error?.response) {
-    if (error?.message === 'Network Error') {
-      return 'Impossible de contacter le serveur. Vérifiez votre connexion internet.';
-    }
-    return error?.message || fallback;
-  }
-
-  const data = error.response.data;
-
-  if (typeof data?.detail === 'string') return data.detail;
-
-  if (Array.isArray(data?.detail)) {
-    return data.detail.map((d) => d?.msg || d?.message || String(d)).join(', ');
-  }
-
-  if (typeof data?.message === 'string') return data.message;
-
-  return fallback;
-};
-
-// Anthracite -> vert clair de secours si "colors.primaryLight" n'existe pas
-// dans le thème (évite un crash / dégradé cassé du LinearGradient).
-const GRADIENT_END_COLOR = colors.primaryLight || colors.primary;
-
-// ============================================================
-// FEEDBACK MODAL
-//
-// Remplace Alert.alert() pour les résultats de paiement et les
-// erreurs de validation : fonctionne de façon identique sur
-// Android ET sur Web (contrairement à Alert.alert, dont les
-// callbacks de bouton ne se déclenchent pas de manière fiable
-// sur react-native-web).
-// ============================================================
-
-const FeedbackModal = ({ visible, type, title, message, onClose }) => {
-  const config = {
-    success: { icon: 'checkmark-circle', color: colors.primary },
-    pending: { icon: 'time-outline', color: '#F5B642' },
-    error: { icon: 'alert-circle', color: '#D93636' },
-  }[type] || { icon: 'information-circle', color: colors.primary };
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={feedbackStyles.overlay}>
-        <View style={feedbackStyles.card}>
-          <View style={[feedbackStyles.iconCircle, { backgroundColor: `${config.color}1A` }]}>
-            <Ionicons name={config.icon} size={30} color={config.color} />
-          </View>
-
-          <Text style={feedbackStyles.title}>{title}</Text>
-          {message ? <Text style={feedbackStyles.message}>{message}</Text> : null}
-
-          <TouchableOpacity
-            style={[feedbackStyles.button, { backgroundColor: config.color }]}
-            onPress={onClose}
-            activeOpacity={0.85}
-          >
-            <Text style={feedbackStyles.buttonText}>OK</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-const feedbackStyles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 22,
-    alignItems: 'center',
-  },
-  iconCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  title: { fontSize: 16, fontWeight: '800', color: '#1C1C1C', textAlign: 'center' },
-  message: {
-    fontSize: 13,
-    color: '#7A7A7A',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 19,
-  },
-  button: {
-    marginTop: 20,
-    minWidth: 140,
-    minHeight: 46,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-  },
-  buttonText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
-});
-
-// ============================================================
-// SCREEN
-// ============================================================
+// Choix proposés au client (id -> method + provider envoyés au backend)
+const OPTIONS = [
+  { id: 'mvola', label: 'MVola', method: 'mobile_money', provider: 'mvola', icon: '📱', hint: '034 / 038' },
+  { id: 'orange_money', label: 'Orange Money', method: 'mobile_money', provider: 'orange_money', icon: '🟠', hint: '032 / 037' },
+  { id: 'airtel_money', label: 'Airtel Money', method: 'mobile_money', provider: 'airtel_money', icon: '🔴', hint: '033' },
+  { id: 'card', label: 'Carte bancaire', method: 'card', icon: '💳', hint: 'Page sécurisée' },
+  { id: 'cash', label: 'Espèces', method: 'cash', icon: '💵', hint: 'À la fin du massage' },
+];
 
 const PaymentScreen = ({ navigation, route }) => {
-  const { bookingId, amount } = route.params || {};
-  const { colors: themeColors } = useTheme();
-  const { token } = useAuth();
+  const { bookingId } = route.params || {};
+  const { colors: theme } = useTheme();
 
-  const [selectedMethod, setSelectedMethod] = useState(null);
-  const [mobileMoneyProvider, setMobileMoneyProvider] = useState(null);
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
-  const [cvv, setCvv] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isBookingLoading, setIsBookingLoading] = useState(true);
-  const [booking, setBooking] = useState(null);
-  const [feedback, setFeedback] = useState(null); // { type, title, message, onClose }
+  // Pas de réservation => simple consultation des moyens de paiement
+  const methodsMode = !bookingId;
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [loading, setLoading] = useState(true);
+  const [quote, setQuote] = useState(null);
+  const [methods, setMethods] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [phone, setPhone] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  // attente de confirmation
+  const [payment, setPayment] = useState(null);
+  const [instructions, setInstructions] = useState(null);
+  const [paymentUrl, setPaymentUrl] = useState(null);
+  const [timedOut, setTimedOut] = useState(false);
+
   const mountedRef = useRef(true);
-
-  const paymentMethods = [
-    { id: 'mobile_money', name: 'Mobile Money', icon: 'phone-portrait-outline' },
-    { id: 'card', name: 'Carte Bancaire', icon: 'card-outline' },
-    { id: 'vanila_pay', name: 'Vanila Pay', icon: 'shield-outline' },
-  ];
-
-  const mobileProviders = [
-    { id: 'mvola', name: 'MVola', icon: '📱' },
-    { id: 'orange_money', name: 'Orange Money', icon: '🟠' },
-    { id: 'airtel_money', name: 'Airtel Money', icon: '🔴' },
-  ];
-
-  // ==========================================================
-  // FEEDBACK HELPER
-  // ==========================================================
-
-  const showFeedback = useCallback((type, title, message, onCloseExtra) => {
-    setFeedback({
-      type,
-      title,
-      message,
-      onClose: () => {
-        setFeedback(null);
-        if (typeof onCloseExtra === 'function') onCloseExtra();
-      },
-    });
-  }, []);
-
-  // ==========================================================
-  // LOAD BOOKING
-  // ==========================================================
+  const pollRef = useRef(null);
+  const startedAtRef = useRef(0);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
 
-  const loadBooking = useCallback(async () => {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    // Mode consultation (Profil > Moyens de paiement) : pas de devis
     if (!bookingId) {
-      setIsBookingLoading(false);
+      const only = await paymentService.getMethods();
+      if (!mountedRef.current) return;
+      if (only.success) {
+        setMethods(only.data);
+      } else {
+        setError(only.error || 'Impossible de charger les moyens de paiement.');
+      }
+      setLoading(false);
       return;
     }
 
-    try {
-      setIsBookingLoading(true);
-
-      const response = await axios.get(`${API_URL}/bookings/${bookingId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (mountedRef.current) {
-        setBooking(response.data);
-      }
-    } catch (error) {
-      console.error('Error loading booking:', error);
-      // Repli : on garde au moins le montant transmis en paramètre de
-      // navigation pour ne pas bloquer l'écran de paiement.
-      if (mountedRef.current) {
-        setBooking({ id: bookingId, final_price: amount || 0 });
-      }
-    } finally {
-      if (mountedRef.current) setIsBookingLoading(false);
+    const [q, m] = await Promise.all([
+      paymentService.getQuote(bookingId),
+      paymentService.getMethods(),
+    ]);
+    if (!mountedRef.current) return;
+    if (q.success) {
+      setQuote(q.data);
+      // Déjà payé : on affiche directement le reçu
+      if (q.data?.payment?.status === 'completed') setPayment(q.data.payment);
+    } else {
+      setError(q.error);
     }
-  }, [bookingId, amount, token]);
+    if (m.success) setMethods(m.data);
+    setLoading(false);
+  }, [bookingId]);
 
   useEffect(() => {
-    loadBooking();
+    load();
+  }, [load]);
 
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 500,
-      useNativeDriver: Platform.OS !== 'web',
-    }).start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const isEnabled = useCallback(
+    (opt) => {
+      if (!methods) return false;
+      if (opt.method === 'mobile_money') return !!methods.mobile_money?.enabled;
+      if (opt.method === 'card') return !!methods.card?.enabled;
+      return !!methods.cash?.enabled;
+    },
+    [methods]
+  );
 
-  // ==========================================================
-  // MONTANT — chaîne de repli sur les vrais champs backend
-  // (le backend renvoie "final_price", pas "finalPrice")
-  // ==========================================================
+  const option = OPTIONS.find((o) => o.id === selected) || null;
+  const amount = quote?.amount || 0;
+  const isMobile = option?.method === 'mobile_money';
+  const phoneOk = !isMobile || phone.length === 10;
+  const canSubmit = !!option && isEnabled(option) && phoneOk && !submitting && !!quote?.can_pay;
 
-  const totalAmount = useMemo(() => {
-    const value =
-      booking?.final_price ??
-      booking?.finalPrice ??
-      booking?.therapist_initial_price ??
-      booking?.client_price_proposed ??
-      booking?.price ??
-      amount ??
-      0;
-
-    return toNumber(value, 0);
-  }, [booking, amount]);
-
-  // ==========================================================
-  // SANITIZED INPUTS (fonctionne aussi sur Web, où keyboardType
-  // ne filtre pas réellement les caractères saisis)
-  // ==========================================================
-
-  const handlePhoneChange = (text) => {
-    setPhoneNumber(onlyDigits(text).slice(0, 10));
-  };
-
-  const handleCardNumberChange = (text) => {
-    const digits = onlyDigits(text).slice(0, 16);
-    const formatted = digits.replace(/(.{4})/g, '$1 ').trim();
-    setCardNumber(formatted);
-  };
-
-  const handleExpiryChange = (text) => {
-    const digits = onlyDigits(text).slice(0, 4);
-    if (digits.length >= 3) {
-      setExpiryDate(`${digits.slice(0, 2)}/${digits.slice(2)}`);
-    } else {
-      setExpiryDate(digits);
+  // ---------------------------------------------------------------- sondage
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
     }
   };
 
-  const handleCvvChange = (text) => {
-    setCvv(onlyDigits(text).slice(0, 4));
-  };
+  const checkOnce = useCallback(
+    async (paymentId, { cash = false } = {}) => {
+      const res = await paymentService.verify(paymentId);
+      if (!mountedRef.current) return;
+      if (!res.success) return; // erreur réseau passagère : on réessaie
+      const p = res.data;
+      setPayment(p);
+      if (p.status === 'completed') {
+        stopPolling();
+      } else if (['failed', 'cancelled'].includes(p.status)) {
+        stopPolling();
+        setError(
+          p.status === 'failed'
+            ? "Le paiement a échoué ou a été refusé. Vous n'avez pas été débité. Réessayez."
+            : 'Le paiement a été annulé.'
+        );
+        setPayment(null);
+      } else if (!cash && Date.now() - startedAtRef.current > POLL_MAX_MS) {
+        stopPolling();
+        setTimedOut(true);
+      }
+    },
+    []
+  );
 
-  // ==========================================================
-  // VALIDATION
-  // ==========================================================
+  const startPolling = useCallback(
+    (paymentId, cash) => {
+      stopPolling();
+      startedAtRef.current = Date.now();
+      setTimedOut(false);
+      pollRef.current = setInterval(() => checkOnce(paymentId, { cash }), cash ? 8000 : POLL_MS);
+    },
+    [checkOnce]
+  );
 
-  const isFormValid = useMemo(() => {
-    if (!selectedMethod || totalAmount <= 0) return false;
+  // ------------------------------------------------------------------ payer
+  const handlePay = async () => {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    setError(null);
 
-    if (selectedMethod === 'mobile_money') {
-      return !!mobileMoneyProvider && phoneNumber.length >= 9;
+    const res = await paymentService.initiate({
+      bookingId,
+      method: option.method,
+      provider: option.provider,
+      phone: isMobile ? phone : undefined,
+    });
+
+    if (!mountedRef.current) return;
+    setSubmitting(false);
+
+    if (!res.success) {
+      setError(res.error || 'Le paiement a échoué.');
+      return;
     }
 
-    if (selectedMethod === 'card') {
+    const p = res.data;
+    setPayment(p);
+    setInstructions(p.instructions || null);
+    setPaymentUrl(p.payment_url || null);
+
+    if (p.status === 'completed') return;
+
+    if (p.payment_url) {
+      await paymentService.openPaymentUrl(p.payment_url);
+    }
+    startPolling(p.id, p.method === 'cash');
+  };
+
+  const handleCancel = async () => {
+    stopPolling();
+    if (payment?.id) await paymentService.cancel(payment.id);
+    setPayment(null);
+    setInstructions(null);
+    setPaymentUrl(null);
+    setTimedOut(false);
+  };
+
+  const handleReceipt = async () => {
+    if (!payment?.id) return;
+    const res = await paymentService.openReceipt(payment.id);
+    if (!res.success) setError(res.error);
+  };
+
+  const goBooking = () => navigation.navigate('BookingDetail', { bookingId });
+
+  // ---------------------------------------------------------------- rendu
+  const card = { backgroundColor: theme.surface, borderColor: theme.border || '#E5E7EB' };
+
+  // ------------------------------------------- mode « Moyens de paiement »
+  const renderMethodsList = () => (
+    <>
+      <View style={[styles.amountCard, card]}>
+        <View style={[styles.bigIcon, { backgroundColor: `${PRIMARY}1A` }]}>
+          <Ionicons name="card-outline" size={44} color={PRIMARY} />
+        </View>
+        <Text style={[styles.title, { color: theme.text }]}>Moyens de paiement</Text>
+        <Text style={[styles.muted, { color: theme.textSecondary, textAlign: 'center' }]}>
+          Voici les moyens de paiement acceptés. Vous choisirez le vôtre au moment de payer une
+          réservation confirmée.
+        </Text>
+      </View>
+
+      <Text style={[styles.section, { color: theme.text }]}>Modes acceptés</Text>
+
+      {OPTIONS.map((opt) => {
+        const enabled = isEnabled(opt);
+        return (
+          <View key={opt.id} style={[styles.option, card, !enabled && { opacity: 0.55 }]}>
+            <Text style={styles.optionIcon}>{opt.icon}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.optionLabel, { color: theme.text }]}>{opt.label}</Text>
+              <Text style={[styles.muted, { color: theme.textSecondary }]}>{opt.hint}</Text>
+            </View>
+            <View
+              style={[
+                styles.statusPill,
+                { backgroundColor: enabled ? `${PRIMARY}1A` : '#E5E7EB' },
+              ]}
+            >
+              <Text
+                style={[styles.statusPillText, { color: enabled ? PRIMARY : '#6B7280' }]}
+              >
+                {enabled ? 'Disponible' : 'Bientôt'}
+              </Text>
+            </View>
+          </View>
+        );
+      })}
+
+      {methods?.sandbox ? (
+        <Text style={[styles.muted, { color: '#B45309', marginTop: 10 }]}>
+          ⚠️ Mode TEST actif : aucun vrai argent n'est débité.
+        </Text>
+      ) : null}
+
+      <View style={[styles.notice, { backgroundColor: `${PRIMARY}14`, marginTop: 14 }]}>
+        <Ionicons name="shield-checkmark" size={18} color={PRIMARY} />
+        <Text style={[styles.noticeText, { color: theme.textSecondary }]}>
+          Aucune donnée de carte n'est enregistrée dans l'application : la carte se règle sur la
+          page sécurisée du fournisseur.
+        </Text>
+      </View>
+    </>
+  );
+
+  const renderBody = () => {
+    if (loading) {
       return (
-        cardNumber.replace(/\s/g, '').length >= 16 &&
-        /^\d{2}\/\d{2}$/.test(expiryDate) &&
-        cvv.length >= 3
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={PRIMARY} />
+          <Text style={[styles.muted, { color: theme.textSecondary }]}>
+            {methodsMode ? 'Chargement des moyens de paiement…' : 'Chargement du paiement…'}
+          </Text>
+        </View>
       );
     }
 
-    // vanila_pay n'a pas de champ supplémentaire.
-    return true;
-  }, [selectedMethod, mobileMoneyProvider, phoneNumber, cardNumber, expiryDate, cvv, totalAmount]);
-
-  // ==========================================================
-  // PAYMENT
-  // ==========================================================
-
-  const handlePayment = async () => {
-    if (isLoading) return;
-
-    if (!selectedMethod) {
-      showFeedback('error', 'Mode de paiement requis', 'Veuillez sélectionner un mode de paiement.');
-      return;
-    }
-
-    if (totalAmount <= 0) {
-      showFeedback('error', 'Montant invalide', 'Le montant à payer est introuvable ou invalide.');
-      return;
-    }
-
-    if (selectedMethod === 'mobile_money') {
-      if (!mobileMoneyProvider) {
-        showFeedback('error', 'Opérateur requis', 'Veuillez sélectionner un opérateur Mobile Money.');
-        return;
-      }
-      if (phoneNumber.length < 9) {
-        showFeedback('error', 'Numéro invalide', 'Veuillez saisir un numéro de téléphone valide.');
-        return;
-      }
-    }
-
-    if (selectedMethod === 'card') {
-      if (cardNumber.replace(/\s/g, '').length < 16) {
-        showFeedback('error', 'Carte invalide', 'Veuillez saisir un numéro de carte à 16 chiffres.');
-        return;
-      }
-      if (!/^\d{2}\/\d{2}$/.test(expiryDate)) {
-        showFeedback('error', 'Date invalide', "Veuillez saisir une date d'expiration valide (MM/AA).");
-        return;
-      }
-      if (cvv.length < 3) {
-        showFeedback('error', 'CVV invalide', 'Veuillez saisir un CVV valide.');
-        return;
-      }
-    }
-
-    setIsLoading(true);
-
-    try {
-      let endpoint = '';
-      let payload = {};
-
-      if (selectedMethod === 'mobile_money') {
-        endpoint = `${API_URL}/payments/mobile-money`;
-        payload = {
-          booking_id: bookingId,
-          amount: totalAmount,
-          phone: phoneNumber,
-          provider: mobileMoneyProvider,
-        };
-      } else if (selectedMethod === 'card') {
-        endpoint = `${API_URL}/payments/card`;
-        payload = {
-          booking_id: bookingId,
-          amount: totalAmount,
-          card_number: cardNumber.replace(/\s/g, ''),
-          expiry_date: expiryDate,
-          cvv,
-        };
-      } else if (selectedMethod === 'vanila_pay') {
-        endpoint = `${API_URL}/payments/vanila-pay`;
-        payload = {
-          booking_id: bookingId,
-          amount: totalAmount,
-        };
-      }
-
-      const response = await axios.post(endpoint, payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const status = response?.data?.status;
-
-      if (status === 'completed') {
-        showFeedback(
-          'success',
-          'Paiement réussi',
-          'Votre paiement a été effectué avec succès.',
-          () => navigation.navigate('BookingDetail', { bookingId })
-        );
-      } else {
-        showFeedback(
-          'pending',
-          'Paiement en attente',
-          'Votre paiement est en cours de validation.',
-          () => navigation.navigate('BookingDetail', { bookingId })
+    if (methodsMode) {
+      if (!methods) {
+        return (
+          <View style={styles.center}>
+            <Ionicons name="alert-circle-outline" size={42} color="#D93636" />
+            <Text style={[styles.title, { color: theme.text }]}>Moyens de paiement indisponibles</Text>
+            {error ? (
+              <Text style={[styles.muted, { color: theme.textSecondary, textAlign: 'center' }]}>
+                {error}
+              </Text>
+            ) : null}
+            <TouchableOpacity style={styles.primaryBtn} onPress={load}>
+              <Text style={styles.primaryBtnText}>Réessayer</Text>
+            </TouchableOpacity>
+          </View>
         );
       }
-    } catch (error) {
-      console.error('Payment error:', error);
-      showFeedback('error', 'Échec du paiement', extractErrorMessage(error, 'Erreur lors du paiement.'));
-    } finally {
-      if (mountedRef.current) setIsLoading(false);
+      return renderMethodsList();
     }
-  };
 
-  // ==========================================================
-  // LOADING SCREEN (évite un montant à 0 Ar affiché brièvement)
-  // ==========================================================
+    if (!quote) {
+      return (
+        <View style={styles.center}>
+          <Ionicons name="alert-circle-outline" size={42} color="#D93636" />
+          <Text style={[styles.title, { color: theme.text }]}>Paiement indisponible</Text>
+          <Text style={[styles.muted, { color: theme.textSecondary }]}>{error}</Text>
+          <TouchableOpacity style={styles.primaryBtn} onPress={load}>
+            <Text style={styles.primaryBtnText}>Réessayer</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
 
-  if (isBookingLoading) {
+    // ----- Paiement confirmé : reçu -----
+    if (payment?.status === 'completed') {
+      return (
+        <View style={styles.center}>
+          <View style={[styles.bigIcon, { backgroundColor: `${PRIMARY}1A` }]}>
+            <Ionicons name="checkmark-circle" size={56} color={PRIMARY} />
+          </View>
+          <Text style={[styles.title, { color: theme.text }]}>Paiement confirmé</Text>
+          <Text style={styles.bigAmount}>{formatAr(payment.amount)}</Text>
+          <Text style={[styles.muted, { color: theme.textSecondary }]}>
+            Transaction {payment.transaction_id}
+          </Text>
+
+          <TouchableOpacity style={styles.primaryBtn} onPress={handleReceipt} activeOpacity={0.85}>
+            <Ionicons name="document-text-outline" size={18} color="#fff" />
+            <Text style={styles.primaryBtnText}>Télécharger le reçu (PDF)</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.linkBtn} onPress={goBooking}>
+            <Text style={[styles.linkText, { color: PRIMARY }]}>Retour à la réservation</Text>
+          </TouchableOpacity>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        </View>
+      );
+    }
+
+    // ----- En attente de confirmation -----
+    if (payment && ['pending', 'processing'].includes(payment.status)) {
+      const isCash = payment.method === 'cash';
+      return (
+        <View style={styles.center}>
+          <View style={[styles.bigIcon, { backgroundColor: '#F5B6421A' }]}>
+            {timedOut ? (
+              <Ionicons name="time-outline" size={50} color="#F5B642" />
+            ) : (
+              <ActivityIndicator size="large" color="#F5B642" />
+            )}
+          </View>
+          <Text style={[styles.title, { color: theme.text }]}>
+            {isCash ? 'Paiement en espèces' : 'En attente de confirmation'}
+          </Text>
+          <Text style={styles.bigAmount}>{formatAr(payment.amount)}</Text>
+          <Text style={[styles.muted, { color: theme.textSecondary, textAlign: 'center' }]}>
+            {instructions ||
+              (isCash
+                ? 'Payez le thérapeute à la fin du massage. Il confirmera la réception.'
+                : 'Validez le paiement sur votre téléphone.')}
+          </Text>
+          {payment.payment_method && !isCash ? (
+            <Text style={[styles.muted, { color: theme.textSecondary }]}>
+              {String(payment.payment_method).replace('_', ' ')}
+            </Text>
+          ) : null}
+
+          {paymentUrl ? (
+            <TouchableOpacity
+              style={styles.primaryBtn}
+              onPress={() => paymentService.openPaymentUrl(paymentUrl)}
+            >
+              <Ionicons name="open-outline" size={18} color="#fff" />
+              <Text style={styles.primaryBtnText}>Ouvrir la page de paiement</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {!isCash && (
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: '#2563EB' }]}
+              onPress={() => {
+                setTimedOut(false);
+                startPolling(payment.id, false);
+                checkOnce(payment.id);
+              }}
+            >
+              <Ionicons name="refresh" size={18} color="#fff" />
+              <Text style={styles.primaryBtnText}>Vérifier maintenant</Text>
+            </TouchableOpacity>
+          )}
+
+          {isCash ? (
+            <TouchableOpacity style={styles.primaryBtn} onPress={goBooking}>
+              <Text style={styles.primaryBtnText}>Retour à la réservation</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          <TouchableOpacity style={styles.linkBtn} onPress={handleCancel}>
+            <Text style={[styles.linkText, { color: '#D93636' }]}>Annuler ce paiement</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    // ----- Formulaire -----
     return (
-      <View style={[styles.container, { backgroundColor: themeColors.background }]}>
-        <Header title="Paiement" showBack />
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
-            Chargement du paiement...
+      <>
+        <View style={[styles.amountCard, card]}>
+          <Text style={[styles.muted, { color: theme.textSecondary }]}>Prix à payer</Text>
+          <Text style={styles.bigAmount}>{formatAr(amount)}</Text>
+          <Text style={[styles.muted, { color: theme.textSecondary }]}>
+            Réservation #{bookingId}
           </Text>
         </View>
-      </View>
-    );
-  }
 
-  // ==========================================================
-  // MAIN
-  // ==========================================================
+        {!quote.can_pay ? (
+          <View style={[styles.notice, { backgroundColor: '#FEF3C7' }]}>
+            <Ionicons name="information-circle" size={18} color="#B45309" />
+            <Text style={styles.noticeText}>
+              {quote.reason || "Le paiement n'est pas encore disponible."}
+            </Text>
+          </View>
+        ) : null}
+
+        <Text style={[styles.section, { color: theme.text }]}>Mode de paiement</Text>
+
+        {OPTIONS.map((opt) => {
+          const enabled = isEnabled(opt);
+          const active = selected === opt.id;
+          return (
+            <TouchableOpacity
+              key={opt.id}
+              activeOpacity={0.85}
+              disabled={!enabled || !quote.can_pay}
+              onPress={() => {
+                setSelected(opt.id);
+                setError(null);
+              }}
+              style={[
+                styles.option,
+                card,
+                active && { borderColor: PRIMARY, backgroundColor: `${PRIMARY}0F` },
+                (!enabled || !quote.can_pay) && { opacity: 0.45 },
+              ]}
+            >
+              <Text style={styles.optionIcon}>{opt.icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.optionLabel, { color: theme.text }]}>{opt.label}</Text>
+                <Text style={[styles.muted, { color: theme.textSecondary }]}>
+                  {enabled ? opt.hint : 'Bientôt disponible'}
+                </Text>
+              </View>
+              <Ionicons
+                name={active ? 'radio-button-on' : 'radio-button-off'}
+                size={22}
+                color={active ? PRIMARY : '#9CA3AF'}
+              />
+            </TouchableOpacity>
+          );
+        })}
+
+        {isMobile ? (
+          <View style={{ marginTop: 6 }}>
+            <Text style={[styles.section, { color: theme.text }]}>Numéro {option.label}</Text>
+            <TextInput
+              value={phone}
+              onChangeText={(t) => setPhone(onlyDigits(t).slice(0, 10))}
+              placeholder="034 12 345 67"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="phone-pad"
+              maxLength={10}
+              style={[styles.input, card, { color: theme.text }]}
+            />
+            <Text style={[styles.muted, { color: theme.textSecondary }]}>
+              Vous recevrez une demande de confirmation sur ce numéro.
+            </Text>
+          </View>
+        ) : null}
+
+        {methods?.sandbox ? (
+          <Text style={[styles.muted, { color: '#B45309', marginTop: 10 }]}>
+            ⚠️ Mode TEST actif : aucun vrai argent n'est débité.
+          </Text>
+        ) : null}
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={handlePay}
+          disabled={!canSubmit}
+          style={[styles.primaryBtn, { marginTop: 18 }, !canSubmit && { opacity: 0.45 }]}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <>
+              <Ionicons name="lock-closed" size={17} color="#fff" />
+              <Text style={styles.primaryBtnText}>
+                {option?.method === 'cash' ? 'Confirmer — payer en espèces' : `Payer ${formatAr(amount)}`}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </>
+    );
+  };
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: themeColors.background }]}
+      style={[styles.container, { backgroundColor: theme.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <Header title="Paiement" showBack />
-
+      <Header title={methodsMode ? 'Moyens de paiement' : 'Paiement'} showBack />
       <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <Animated.View style={{ opacity: fadeAnim }}>
-          {/* Montant */}
-          <Animatable.View animation="fadeInDown" duration={500} useNativeDriver={Platform.OS !== 'web'}>
-            <View style={[styles.amountCard, { backgroundColor: themeColors.surface }]}>
-              <Text style={[styles.amountLabel, { color: themeColors.textSecondary }]}>
-                Montant à payer
-              </Text>
-              <Text style={styles.amountValue}>{formatAr(totalAmount)}</Text>
-              <Text style={[styles.amountSubtext, { color: themeColors.textSecondary }]}>
-                Réservation #{bookingId}
-              </Text>
-            </View>
-          </Animatable.View>
-
-          {/* Méthodes de paiement */}
-          <Animatable.View
-            animation="fadeInUp"
-            delay={150}
-            duration={500}
-            useNativeDriver={Platform.OS !== 'web'}
-          >
-            <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Mode de paiement</Text>
-            <View style={styles.methodsGrid}>
-              {paymentMethods.map((method) => {
-                const active = selectedMethod === method.id;
-                return (
-                  <TouchableOpacity
-                    key={method.id}
-                    style={[
-                      styles.methodCard,
-                      active && styles.methodCardActive,
-                      { backgroundColor: themeColors.surface },
-                    ]}
-                    onPress={() => setSelectedMethod(method.id)}
-                    activeOpacity={0.7}
-                  >
-                    <View
-                      style={[
-                        styles.methodIcon,
-                        { backgroundColor: active ? `${colors.primary}20` : 'transparent' },
-                      ]}
-                    >
-                      <Ionicons
-                        name={method.icon}
-                        size={26}
-                        color={active ? colors.primary : themeColors.textSecondary}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.methodName,
-                        { color: active ? colors.primary : themeColors.text },
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {method.name}
-                    </Text>
-                    {active ? (
-                      <View style={styles.checkmark}>
-                        <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
-                      </View>
-                    ) : null}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </Animatable.View>
-
-          {/* Formulaire Mobile Money */}
-          {selectedMethod === 'mobile_money' ? (
-            <Animatable.View
-              animation="fadeInUp"
-              delay={200}
-              duration={500}
-              useNativeDriver={Platform.OS !== 'web'}
-            >
-              <View style={[styles.formCard, { backgroundColor: themeColors.surface }]}>
-                <Text style={[styles.formTitle, { color: themeColors.text }]}>
-                  Sélectionnez votre opérateur
-                </Text>
-
-                <View style={styles.providersContainer}>
-                  {mobileProviders.map((provider) => {
-                    const active = mobileMoneyProvider === provider.id;
-                    return (
-                      <TouchableOpacity
-                        key={provider.id}
-                        style={[
-                          styles.providerButton,
-                          active && styles.providerButtonActive,
-                          { backgroundColor: themeColors.surface },
-                        ]}
-                        onPress={() => setMobileMoneyProvider(provider.id)}
-                        activeOpacity={0.75}
-                      >
-                        <Text style={styles.providerIcon}>{provider.icon}</Text>
-                        <Text
-                          style={[
-                            styles.providerName,
-                            { color: active ? colors.primary : themeColors.text },
-                          ]}
-                        >
-                          {provider.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: themeColors.text }]}>
-                    Numéro de téléphone
-                  </Text>
-                  <View style={[styles.inputContainer, { borderColor: '#E0E0E0' }]}>
-                    <Text style={styles.countryCode}>+261</Text>
-                    <TextInput
-                      style={[styles.input, { color: themeColors.text }]}
-                      placeholder="34 00 000 00"
-                      placeholderTextColor={themeColors.textSecondary}
-                      value={phoneNumber}
-                      onChangeText={handlePhoneChange}
-                      keyboardType="phone-pad"
-                      maxLength={10}
-                    />
-                  </View>
-                </View>
-              </View>
-            </Animatable.View>
-          ) : null}
-
-          {/* Formulaire Carte Bancaire */}
-          {selectedMethod === 'card' ? (
-            <Animatable.View
-              animation="fadeInUp"
-              delay={200}
-              duration={500}
-              useNativeDriver={Platform.OS !== 'web'}
-            >
-              <View style={[styles.formCard, { backgroundColor: themeColors.surface }]}>
-                <Text style={[styles.formTitle, { color: themeColors.text }]}>
-                  Informations de la carte
-                </Text>
-
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.inputLabel, { color: themeColors.text }]}>Numéro de carte</Text>
-                  <View style={[styles.inputContainer, { borderColor: '#E0E0E0' }]}>
-                    <Ionicons name="card-outline" size={20} color={themeColors.textSecondary} />
-                    <TextInput
-                      style={[styles.input, { color: themeColors.text }]}
-                      placeholder="1234 5678 9012 3456"
-                      placeholderTextColor={themeColors.textSecondary}
-                      value={cardNumber}
-                      onChangeText={handleCardNumberChange}
-                      keyboardType="number-pad"
-                      maxLength={19}
-                    />
-                  </View>
-                </View>
-
-                <View style={styles.rowInputs}>
-                  <View style={[styles.rowInput, styles.halfInput]}>
-                    <Text style={[styles.inputLabel, { color: themeColors.text }]}>
-                      Date d'expiration
-                    </Text>
-                    <View style={[styles.inputContainer, { borderColor: '#E0E0E0' }]}>
-                      <TextInput
-                        style={[styles.input, { color: themeColors.text }]}
-                        placeholder="MM/AA"
-                        placeholderTextColor={themeColors.textSecondary}
-                        value={expiryDate}
-                        onChangeText={handleExpiryChange}
-                        keyboardType="number-pad"
-                        maxLength={5}
-                      />
-                    </View>
-                  </View>
-
-                  <View style={[styles.rowInput, styles.halfInput]}>
-                    <Text style={[styles.inputLabel, { color: themeColors.text }]}>CVV</Text>
-                    <View style={[styles.inputContainer, { borderColor: '#E0E0E0' }]}>
-                      <TextInput
-                        style={[styles.input, { color: themeColors.text }]}
-                        placeholder="***"
-                        placeholderTextColor={themeColors.textSecondary}
-                        value={cvv}
-                        onChangeText={handleCvvChange}
-                        keyboardType="number-pad"
-                        maxLength={4}
-                        secureTextEntry
-                      />
-                    </View>
-                  </View>
-                </View>
-              </View>
-            </Animatable.View>
-          ) : null}
-
-          {/* Bouton de paiement */}
-          <Animatable.View
-            animation="fadeInUp"
-            delay={250}
-            duration={500}
-            useNativeDriver={Platform.OS !== 'web'}
-          >
-            <TouchableOpacity
-              style={[styles.payButton, !isFormValid && styles.payButtonDisabled]}
-              onPress={handlePayment}
-              disabled={isLoading || !isFormValid}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={[colors.primary, GRADIENT_END_COLOR]}
-                style={styles.payGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
-                  <View style={styles.payContent}>
-                    <Text style={styles.payText}>Payer {formatAr(totalAmount)}</Text>
-                    <Ionicons name="arrow-forward" size={20} color="#fff" />
-                  </View>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animatable.View>
-
-          {/* Sécurité */}
-          <View style={styles.securityContainer}>
-            <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
-            <Text style={[styles.securityText, { color: themeColors.textSecondary }]}>
-              Paiement sécurisé • Chiffré SSL
-            </Text>
-          </View>
-        </Animated.View>
+        {renderBody()}
       </ScrollView>
-
-      <FeedbackModal
-        visible={!!feedback}
-        type={feedback?.type}
-        title={feedback?.title}
-        message={feedback?.message}
-        onClose={() => {
-          if (feedback?.onClose) feedback.onClose();
-        }}
-      />
     </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centerContainer: {
-    flex: 1,
+  container: { flex: 1 },
+  content: { padding: 16, paddingBottom: 40 },
+  center: { alignItems: 'center', paddingVertical: 36, gap: 10 },
+  bigIcon: {
+    width: 92,
+    height: 92,
+    borderRadius: 46,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 30,
+    marginBottom: 6,
   },
-  loadingText: {
-    marginTop: 10,
-    fontSize: typography.fontSize?.sm || 12,
-    fontFamily: typography.fontFamily?.regular,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl,
-  },
+  title: { fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  bigAmount: { fontSize: 30, fontWeight: '900', color: PRIMARY, marginVertical: 2 },
+  muted: { fontSize: 12.5 },
+  section: { fontSize: 15, fontWeight: '800', marginTop: 18, marginBottom: 10 },
   amountCard: {
-    borderRadius: 16,
-    padding: spacing.lg,
     alignItems: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  amountLabel: {
-    fontSize: typography.fontSize?.sm || 12,
-    fontFamily: typography.fontFamily?.regular,
-  },
-  amountValue: {
-    fontSize: typography.fontSize?.xxxl || 28,
-    fontFamily: typography.fontFamily?.bold,
-    color: colors.primary,
-    marginVertical: spacing.xs,
-  },
-  amountSubtext: {
-    fontSize: typography.fontSize?.sm || 12,
-    fontFamily: typography.fontFamily?.regular,
-  },
-  sectionTitle: {
-    fontSize: typography.fontSize?.lg || 16,
-    fontFamily: typography.fontFamily?.bold,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  methodsGrid: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  methodCard: {
-    flex: 1,
-    padding: spacing.md,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    position: 'relative',
-    minHeight: 96,
-    justifyContent: 'center',
-  },
-  methodCardActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}10`,
-  },
-  methodIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
-  methodName: {
-    fontSize: typography.fontSize?.sm || 12,
-    fontFamily: typography.fontFamily?.medium,
-    textAlign: 'center',
-  },
-  checkmark: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-  },
-  formCard: {
-    borderRadius: 16,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  formTitle: {
-    fontSize: typography.fontSize?.md || 14,
-    fontFamily: typography.fontFamily?.semiBold,
-    marginBottom: spacing.md,
-  },
-  providersContainer: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  providerButton: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  providerButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: `${colors.primary}10`,
-  },
-  providerIcon: {
-    fontSize: 22,
-  },
-  providerName: {
-    fontSize: typography.fontSize?.xs || 10,
-    fontFamily: typography.fontFamily?.medium,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  inputGroup: {
-    marginBottom: spacing.md,
-  },
-  inputLabel: {
-    fontSize: typography.fontSize?.sm || 12,
-    fontFamily: typography.fontFamily?.medium,
-    marginBottom: spacing.xs,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    padding: 20,
+    borderRadius: 18,
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    gap: spacing.sm,
+    gap: 2,
   },
-  countryCode: {
-    fontSize: typography.fontSize?.md || 14,
-    fontFamily: typography.fontFamily?.medium,
-    color: colors.textSecondary,
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    marginBottom: 10,
   },
+  optionIcon: { fontSize: 24 },
+  optionLabel: { fontSize: 15, fontWeight: '700' },
   input: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    fontSize: typography.fontSize?.md || 14,
-    fontFamily: typography.fontFamily?.regular,
-    // Evite le contour de focus bleu par défaut du navigateur sur Web.
-    ...Platform.select({ web: { outlineStyle: 'none' }, default: {} }),
-  },
-  rowInputs: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  rowInput: {
-    flex: 1,
-  },
-  halfInput: {
-    flex: 0.5,
-  },
-  payButton: {
+    borderWidth: 1,
     borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: spacing.md,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    marginBottom: 6,
   },
-  payButtonDisabled: {
-    opacity: 0.5,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  payGradient: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  payContent: {
+  notice: {
     flexDirection: 'row',
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    marginTop: 12,
     alignItems: 'center',
-    gap: spacing.sm,
   },
-  payText: {
-    color: '#fff',
-    fontSize: typography.fontSize?.lg || 16,
-    fontFamily: typography.fontFamily?.bold,
-  },
-  securityContainer: {
+  noticeText: { flex: 1, fontSize: 12.5, color: '#92400E' },
+  primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
+    gap: 8,
+    minHeight: 50,
+    borderRadius: 14,
+    paddingHorizontal: 22,
+    backgroundColor: PRIMARY,
+    alignSelf: 'stretch',
+    marginTop: 8,
   },
-  securityText: {
-    fontSize: typography.fontSize?.sm || 12,
-    fontFamily: typography.fontFamily?.regular,
-  },
+  primaryBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  linkBtn: { paddingVertical: 12 },
+  linkText: { fontWeight: '700', fontSize: 14 },
+  errorText: { color: '#D93636', fontSize: 13, marginTop: 12, textAlign: 'center' },
+  statusPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  statusPillText: { fontSize: 11.5, fontWeight: '800' },
 });
 
 export default PaymentScreen;

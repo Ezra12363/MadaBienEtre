@@ -8,10 +8,17 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { typography } from '../../theme';
 import ChatAvatar from './ChatAvatar';
-import { CHAT_MAX_WIDTH } from './chatTheme';
+import { CHAT_MAX_WIDTH, useChatSidePadding } from './chatTheme';
 
-const PeerBar = ({ palette, name, photo, statusText, statusColor, bookingId, onMenu }) => (
-  <View style={[styles.bar, { backgroundColor: palette.surface, borderBottomColor: palette.border }]}>
+const PeerBar = ({ palette, name, photo, statusText, statusColor, bookingId, onMenu }) => {
+  const side = useChatSidePadding();
+  return (
+  <View
+    style={[
+      styles.bar,
+      { backgroundColor: palette.surface, borderBottomColor: palette.border, paddingHorizontal: side },
+    ]}
+  >
     <View style={styles.inner}>
       <ChatAvatar uri={photo} name={name} size={42} palette={palette} />
 
@@ -41,7 +48,8 @@ const PeerBar = ({ palette, name, photo, statusText, statusColor, bookingId, onM
       )}
     </View>
   </View>
-);
+  );
+};
 
 const styles = StyleSheet.create({
   bar: { paddingHorizontal: 14, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },

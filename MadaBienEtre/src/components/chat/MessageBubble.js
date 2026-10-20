@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -23,6 +24,7 @@ import { confirmAsync } from '../../utils/chatImage';
 import { formatClock } from '../../utils/chatUi';
 import ChatMessageContent from './ChatMessageContent';
 import ChatStatusLabel from './ChatStatusLabel';
+import { getChatBubbleMaxWidth } from './chatTheme';
 
 const IS_WEB = Platform.OS === 'web';
 
@@ -41,6 +43,7 @@ const StatusIcon = ({ status, palette }) => {
 
 const MessageBubble = ({ message, isOwn, showTime, isGroupStart, palette, token, onDelete, onRetry }) => {
   const [hover, setHover] = useState(false);
+  const { width: screenWidth } = useWindowDimensions();
 
   const failed = isOwn && message.status === 'failed';
   const isImage = (message.type === 'image' || message.type === 'location') && !message.deleted;
@@ -90,6 +93,7 @@ const MessageBubble = ({ message, isOwn, showTime, isGroupStart, palette, token,
       {...hoverProps}
       style={[
         styles.row,
+        { maxWidth: getChatBubbleMaxWidth(screenWidth) },
         isOwn ? styles.rowOwn : styles.rowOther,
         { marginTop: isGroupStart ? 12 : 4 },
       ]}

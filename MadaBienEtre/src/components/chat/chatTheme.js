@@ -3,7 +3,31 @@
 // mêmes couleurs, mêmes surfaces et mêmes bordures que les autres écrans.
 // Fonctionne en clair / sombre, sur Android, iOS et Web.
 
-export const CHAT_MAX_WIDTH = 760; // largeur max du contenu sur le web large
+import { useWindowDimensions } from 'react-native';
+
+// ✅ Plein écran : plus de largeur maximale centrée (elle laissait des bandes
+// vides à gauche/droite sur le web). Conservé pour compatibilité : '100%'.
+export const CHAT_MAX_WIDTH = '100%';
+
+// Padding latéral adapté à la largeur réelle de la fenêtre (web / Android / iOS).
+export const getChatSidePadding = (width) => {
+  if (width >= 1280) return 32;
+  if (width >= 1024) return 28;
+  if (width >= 768) return 20;
+  return 16;
+};
+
+export const useChatSidePadding = () => {
+  const { width } = useWindowDimensions();
+  return getChatSidePadding(width);
+};
+
+// Largeur max d'une bulle de message selon l'écran.
+export const getChatBubbleMaxWidth = (width) => {
+  if (width >= 1024) return '62%';
+  if (width >= 768) return '72%';
+  return '82%';
+};
 
 export const getChatPalette = (themeColors = {}, isDark = false) => {
   const primary = themeColors.primary || '#2E7D32';

@@ -7,7 +7,9 @@
 // pour éviter tout conflit avec "Notifications" (client) et
 // "TherapistNotifications" (thérapeute).
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+import { useFocusEffect } from '@react-navigation/native';
 
 import {
   View,
@@ -26,6 +28,10 @@ import { useTheme } from '../../context/ThemeContext';
 import { useNotifications } from '../../context/NotificationContext';
 
 import Header from '../../components/common/Header';
+import ChatConfirmHost from '../../components/chat/ChatConfirmHost';
+import notificationService from '../../services/notificationService';
+import { confirmAsync } from '../../utils/chatImage';
+import { notifyInfo } from '../../utils/chatUi';
 
 import { colors, typography, spacing } from '../../theme';
 
@@ -50,32 +56,62 @@ const INFO = '#2584D8';
 // Le type exact dépend du backend ; on retombe sur une icône
 // générique si le type est inconnu ou absent.
 const getNotificationVisual = (type) => {
-  switch (String(type || '').toLowerCase()) {
-    case 'user':
-    case 'new_user':
-      return { icon: 'person-add-outline', color: PRIMARY };
+  const t = String(type || '').toLowerCase();
 
-    case 'therapist':
-    case 'therapist_application':
-    case 'approval':
-      return { icon: 'checkmark-done-outline', color: INFO };
-
-    case 'payment':
-      return { icon: 'cash-outline', color: '#2196F3' };
-
-    case 'review':
-      return { icon: 'star-outline', color: '#9B59B6' };
-
-    case 'sos':
-    case 'alert':
-      return { icon: 'alert-circle-outline', color: DANGER };
-
-    case 'system':
-      return { icon: 'settings-outline', color: WARNING };
-
-    default:
-      return { icon: 'notifications-outline', color: PRIMARY };
+  if (t.includes('sos') || t.includes('alert') || t.includes('emergency')) {
+    return { icon: 'alert-circle-outline', color: DANGER };
   }
+  if (t.includes('therapist') || t.includes('approval')) {
+    return { icon: 'checkmark-done-outline', color: INFO };
+  }
+  if (t.includes('payment') || t.includes('refund')) {
+    return { icon: 'cash-outline', color: '#2196F3' };
+  }
+  if (t.includes('review')) {
+    return { icon: 'star-outline', color: '#9B59B6' };
+  }
+  if (t.includes('user')) {
+    return { icon: 'person-add-outline', color: PRIMARY };
+  }
+  if (t.includes('system')) {
+    return { icon: 'settings-outline', color: WARNING };
+  }
+  return { icon: 'notifications-outline', color: PRIMARY };
+};
+
+// Écran admin à ouvrir selon le type de notification (routes de AdminNavigator)
+// Catégorie « désactivable » (clé <cat>_enabled du backend) d'un type de notification.
+// null = pas d'interrupteur dédié (utiliser l'interrupteur général).
+const getCategory = (type) => {
+  const t = String(type || '').toLowerCase();
+
+  if (t.includes('sos') || t.includes('emergency')) return 'sos';
+  if (t.includes('payment') || t.includes('refund')) return 'payment';
+  if (t.includes('review')) return 'review';
+  if (t.includes('offer') || t.includes('negotiation')) return 'offer';
+  if (t.includes('booking') || t.includes('reservation')) return 'booking';
+  if (t.includes('chat') || t.includes('message')) return 'chat';
+  return null;
+};
+
+const CATEGORY_LABELS = {
+  sos: 'SOS',
+  payment: 'Paiements',
+  review: 'Avis',
+  offer: 'Négociations',
+  booking: 'Réservations',
+  chat: 'Messages',
+};
+
+const getTargetScreen = (type) => {
+  const t = String(type || '').toLowerCase();
+
+  if (t.includes('sos') || t.includes('alert') || t.includes('emergency')) return 'SOSAlerts';
+  if (t.includes('therapist') || t.includes('approval')) return 'Approvals';
+  if (t.includes('payment') || t.includes('refund')) return 'Payments';
+  if (t.includes('review')) return 'Reviews';
+  if (t.includes('user')) return 'Users';
+  return null;
 };
 
 // Le backend renvoie `created_at` (snake_case, UTC sans "Z").
@@ -89,6 +125,9 @@ const isNotificationRead = (item) =>
    SCREEN
 ============================================================ */
 
+// Rafraîchissement automatique tant que l'écran est affiché
+const AUTO_REFRESH_MS = 15000;
+
 const NotificationScreen = ({ navigation }) => {
   const { colors: themeColors, isDark } = useTheme();
 
@@ -96,66 +135,248 @@ const NotificationScreen = ({ navigation }) => {
   // durées (12 sec, 2 min…) avancent en direct.
   const now = useNow(1000);
 
-  // On protège chaque champ/fonction du contexte au cas où sa
-  // forme exacte diffère selon les rôles (le contexte est partagé
-  // par toute l'application, pas propre à l'admin).
-  const notificationsCtx = useNotifications() || {};
+  // ✅ FIX : le contexte global ne fournit QUE le compteur (unreadCount) et
+  // des actions ; il ne contient PAS la liste des notifications. L'ancien
+  // écran lisait `notifications` du contexte => liste toujours vide.
+  // On charge donc la liste directement depuis l'API (/notifications).
+  const { markAsRead, markAllAsRead, loadUnreadCount } = useNotifications() || {};
 
-  const {
-    notifications = [],
-    unreadCount = 0,
-    loading = false,
-    markAsRead,
-    markAllAsRead,
-    refreshNotifications,
-    fetchNotifications,
-  } = notificationsCtx;
-
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [filter, setFilter] = useState('all'); // 'all' | 'unread'
+  const [error, setError] = useState(null);
+  // Interrupteur général (push_enabled) : false = notifications désactivées
+  const [enabled, setEnabled] = useState(true);
+  const [busyId, setBusyId] = useState(null);
 
-  const refresh = useCallback(async () => {
-    const fn = refreshNotifications || fetchNotifications;
-
-    if (typeof fn === 'function') {
-      try {
-        await fn();
-      } catch (error) {
-        console.error('Erreur de rafraîchissement des notifications :', error);
-      }
-    }
-  }, [refreshNotifications, fetchNotifications]);
+  const mountedRef = useRef(true);
+  const loadingRef = useRef(false);
 
   useEffect(() => {
-    refresh();
-    // On ne veut rafraîchir qu'au montage de l'écran.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
+
+  const loadNotifications = useCallback(async ({ silent = false } = {}) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    if (!silent) setLoading(true);
+
+    try {
+      const result = await notificationService.getNotifications({ limit: 100 });
+      if (!mountedRef.current) return;
+
+      if (result?.success) {
+        const list = [...(result.notifications || [])].sort((a, b) => {
+          const da = new Date(getNotificationDate(b) || 0).getTime();
+          const db = new Date(getNotificationDate(a) || 0).getTime();
+          return da - db;
+        });
+        setNotifications(list);
+        setError(null);
+      } else if (!silent) {
+        setError(result?.error || 'Impossible de charger les notifications.');
+      }
+    } catch (e) {
+      if (mountedRef.current && !silent) {
+        setError(e?.message || 'Impossible de charger les notifications.');
+      }
+    } finally {
+      loadingRef.current = false;
+      if (mountedRef.current) setLoading(false);
+    }
+  }, []);
+
+  // Chargement à chaque affichage de l'écran + rafraîchissement automatique
+  const loadPreferences = useCallback(async () => {
+    try {
+      const res = await notificationService.getPreferences();
+      if (mountedRef.current && res?.success && res.data) {
+        setEnabled(res.data.push_enabled !== false);
+      }
+    } catch (e) {
+      // préférences illisibles : on garde « activé »
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadPreferences();
+      loadNotifications();
+      const timer = setInterval(() => loadNotifications({ silent: true }), AUTO_REFRESH_MS);
+      return () => clearInterval(timer);
+    }, [loadNotifications, loadPreferences])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
-
     try {
-      await refresh();
+      await loadNotifications({ silent: true });
+      if (typeof loadUnreadCount === 'function') loadUnreadCount();
     } finally {
       setRefreshing(false);
     }
   };
 
-  const handleMarkAllAsRead = () => {
-    if (typeof markAllAsRead === 'function') {
-      markAllAsRead();
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !isNotificationRead(n)).length,
+    [notifications]
+  );
+
+  const visibleNotifications = useMemo(
+    () => (filter === 'unread' ? notifications.filter((n) => !isNotificationRead(n)) : notifications),
+    [notifications, filter]
+  );
+
+  const setReadLocally = (id) =>
+    setNotifications((prev) =>
+      prev.map((n) => (String(n.id) === String(id) ? { ...n, is_read: true, read: true } : n))
+    );
+
+  const handleMarkAllAsRead = async () => {
+    // Mise à jour immédiate de l'écran, puis synchronisation serveur
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true, read: true })));
+    try {
+      if (typeof markAllAsRead === 'function') {
+        await markAllAsRead();
+      } else {
+        await notificationService.markAllAsRead();
+        if (typeof loadUnreadCount === 'function') loadUnreadCount();
+      }
+    } catch (e) {
+      console.warn('Tout marquer comme lu a échoué :', e?.message || e);
+      loadNotifications({ silent: true });
     }
   };
 
-  const handlePressItem = (item) => {
-    if (!isNotificationRead(item) && typeof markAsRead === 'function') {
-      markAsRead(item.id);
+  const handlePressItem = async (item) => {
+    if (!isNotificationRead(item)) {
+      setReadLocally(item.id);
+      try {
+        if (typeof markAsRead === 'function') {
+          await markAsRead(item.id);
+        } else {
+          await notificationService.markAsRead(item.id);
+          if (typeof loadUnreadCount === 'function') loadUnreadCount();
+        }
+      } catch (e) {
+        console.warn('Marquer comme lue a échoué :', e?.message || e);
+      }
     }
 
-    // Si le backend fournit une destination (écran + params), on
-    // laisse la notification y amener l'admin directement.
-    if (item?.targetScreen) {
-      navigation.navigate(item.targetScreen, item.targetParams);
+    // Destination fournie par le backend, sinon déduite du type
+    const target = item?.targetScreen || getTargetScreen(item?.type);
+    if (target) {
+      try {
+        navigation.navigate(target, item?.targetParams);
+      } catch (e) {
+        console.warn('Navigation impossible :', e?.message || e);
+      }
+    }
+  };
+
+  /* ==========================================================
+     SUPPRIMER / DÉSACTIVER
+  ========================================================== */
+
+  const refreshBadge = () => {
+    if (typeof loadUnreadCount === 'function') loadUnreadCount();
+  };
+
+  const handleDelete = async (item) => {
+    const ok = await confirmAsync(
+      'Supprimer cette notification ?',
+      'Elle sera définitivement retirée de votre liste.',
+      'Supprimer',
+      { tone: 'danger', cancelLabel: 'Annuler', icon: 'trash-outline' }
+    );
+    if (!ok) return;
+
+    setBusyId(item.id);
+    const snapshot = notifications;
+    // Retrait immédiat de l'écran
+    setNotifications((prev) => prev.filter((n) => String(n.id) !== String(item.id)));
+
+    try {
+      const res = await notificationService.deleteNotification(item.id);
+      if (!res?.success) throw new Error(res?.error || 'Suppression impossible');
+      refreshBadge();
+    } catch (e) {
+      setNotifications(snapshot); // on remet la notification si le serveur refuse
+      notifyInfo('Suppression impossible', e?.message || 'Réessayez dans un instant.');
+    } finally {
+      if (mountedRef.current) setBusyId(null);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (notifications.length === 0) return;
+
+    const ok = await confirmAsync(
+      'Supprimer toutes les notifications ?',
+      `${notifications.length} notification${notifications.length > 1 ? 's' : ''} seront définitivement supprimée${notifications.length > 1 ? 's' : ''}.`,
+      'Tout supprimer',
+      { tone: 'danger', cancelLabel: 'Annuler', icon: 'trash-outline' }
+    );
+    if (!ok) return;
+
+    const snapshot = notifications;
+    setNotifications([]);
+
+    try {
+      const res = await notificationService.deleteAllNotifications();
+      if (!res?.success) throw new Error(res?.error || 'Suppression impossible');
+      refreshBadge();
+    } catch (e) {
+      setNotifications(snapshot);
+      notifyInfo('Suppression impossible', e?.message || 'Réessayez dans un instant.');
+    }
+  };
+
+  // Désactive un TYPE de notification (ex. « Paiements »)
+  const handleDisableCategory = async (item) => {
+    const category = getCategory(item?.type);
+    if (!category) return;
+    const label = CATEGORY_LABELS[category];
+
+    const ok = await confirmAsync(
+      `Désactiver « ${label} » ?`,
+      `Vous ne recevrez plus de notifications « ${label} ». Vous pourrez les réactiver depuis le bouton cloche en haut de l'écran.`,
+      'Désactiver',
+      { tone: 'warning', cancelLabel: 'Annuler', icon: 'notifications-off-outline' }
+    );
+    if (!ok) return;
+
+    const res = await notificationService.updatePreferences({ [`${category}_enabled`]: false });
+    if (res?.success) {
+      notifyInfo('Notifications désactivées', `Plus de notifications « ${label} ».`);
+    } else {
+      notifyInfo('Action impossible', res?.error || 'Réessayez dans un instant.');
+    }
+  };
+
+  // Interrupteur général : désactiver / réactiver TOUTES les notifications
+  const handleToggleEnabled = async () => {
+    const next = !enabled;
+
+    if (!next) {
+      const ok = await confirmAsync(
+        'Désactiver les notifications ?',
+        'Vous ne recevrez plus de nouvelles notifications (sauf alertes SOS urgentes).',
+        'Désactiver',
+        { tone: 'warning', cancelLabel: 'Annuler', icon: 'notifications-off-outline' }
+      );
+      if (!ok) return;
+    }
+
+    setEnabled(next);
+    const res = await notificationService.updatePreferences({ push_enabled: next });
+    if (!res?.success) {
+      setEnabled(!next);
+      notifyInfo('Action impossible', res?.error || 'Réessayez dans un instant.');
     }
   };
 
@@ -167,10 +388,10 @@ const NotificationScreen = ({ navigation }) => {
     const visual = getNotificationVisual(item.type);
     const isUnread = !isNotificationRead(item);
 
+    // ⚠️ Web : un bouton ne peut pas contenir d'autres boutons. La carte est une
+    // View ; la zone cliquable et les boutons d'action sont FRÈRES.
     return (
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={() => handlePressItem(item)}
+      <View
         style={[
           styles.item,
           {
@@ -185,6 +406,11 @@ const NotificationScreen = ({ navigation }) => {
           },
         ]}
       >
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => handlePressItem(item)}
+          style={styles.itemMain}
+        >
         <View
           style={[
             styles.itemIcon,
@@ -212,7 +438,7 @@ const NotificationScreen = ({ navigation }) => {
 
           {item.message || item.body ? (
             <Text
-              numberOfLines={2}
+              numberOfLines={3}
               style={[
                 styles.itemMessage,
                 { color: themeColors.textSecondary || '#718078' },
@@ -231,7 +457,37 @@ const NotificationScreen = ({ navigation }) => {
             {formatTimeAgo(getNotificationDate(item), now)}
           </Text>
         </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+
+        <View style={styles.itemActions}>
+          {getCategory(item.type) ? (
+            <TouchableOpacity
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => handleDisableCategory(item)}
+              accessibilityRole="button"
+              accessibilityLabel="Désactiver ce type de notification"
+              style={styles.iconBtn}
+            >
+              <Ionicons
+                name="notifications-off-outline"
+                size={18}
+                color={themeColors.textSecondary || '#9AA5A0'}
+              />
+            </TouchableOpacity>
+          ) : null}
+
+          <TouchableOpacity
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => handleDelete(item)}
+            disabled={String(busyId) === String(item.id)}
+            accessibilityRole="button"
+            accessibilityLabel="Supprimer la notification"
+            style={styles.iconBtn}
+          >
+            <Ionicons name="trash-outline" size={18} color={DANGER} />
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   };
 
@@ -252,7 +508,7 @@ const NotificationScreen = ({ navigation }) => {
       <View style={styles.emptyContainer}>
         <View style={styles.emptyIcon}>
           <Ionicons
-            name="notifications-off-outline"
+            name={error ? 'cloud-offline-outline' : 'notifications-off-outline'}
             size={30}
             color={themeColors.textSecondary || '#9AA5A0'}
           />
@@ -264,8 +520,22 @@ const NotificationScreen = ({ navigation }) => {
             { color: themeColors.textSecondary || '#718078' },
           ]}
         >
-          Aucune notification pour le moment
+          {error
+            ? error
+            : filter === 'unread'
+            ? 'Aucune notification non lue'
+            : 'Aucune notification pour le moment'}
         </Text>
+
+        {error ? (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => loadNotifications()}
+            style={styles.retryButton}
+          >
+            <Text style={styles.retryText}>Réessayer</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     );
   };
@@ -273,6 +543,35 @@ const NotificationScreen = ({ navigation }) => {
   /* ==========================================================
      RENDER
   ========================================================== */
+
+  const renderFilters = () => (
+    <View style={styles.filters}>
+      {[
+        { key: 'all', label: `Toutes (${notifications.length})` },
+        { key: 'unread', label: `Non lues (${unreadCount})` },
+      ].map((f) => {
+        const active = filter === f.key;
+        return (
+          <TouchableOpacity
+            key={f.key}
+            activeOpacity={0.85}
+            onPress={() => setFilter(f.key)}
+            style={[
+              styles.chip,
+              {
+                backgroundColor: active ? PRIMARY : themeColors.surface,
+                borderColor: active ? PRIMARY : themeColors.border || '#E7E9EF',
+              },
+            ]}
+          >
+            <Text style={[styles.chipText, { color: active ? '#FFFFFF' : themeColors.text }]}>
+              {f.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
 
   return (
     <View
@@ -291,34 +590,72 @@ const NotificationScreen = ({ navigation }) => {
         showBack
         onBackPress={() => navigation.goBack()}
         rightComponent={
-          unreadCount > 0 ? (
+          <View style={styles.headerActions}>
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={handleMarkAllAsRead}
+              onPress={handleToggleEnabled}
               style={styles.markAllButton}
               accessibilityRole="button"
-              accessibilityLabel="Tout marquer comme lu"
+              accessibilityLabel={enabled ? 'Désactiver les notifications' : 'Activer les notifications'}
             >
               <Ionicons
-                name="checkmark-done-outline"
+                name={enabled ? 'notifications-outline' : 'notifications-off-outline'}
                 size={20}
                 color="#FFFFFF"
               />
             </TouchableOpacity>
-          ) : null
+
+            {unreadCount > 0 ? (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleMarkAllAsRead}
+                style={styles.markAllButton}
+                accessibilityRole="button"
+                accessibilityLabel="Tout marquer comme lu"
+              >
+                <Ionicons name="checkmark-done-outline" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+
+            {notifications.length > 0 ? (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleDeleteAll}
+                style={styles.markAllButton}
+                accessibilityRole="button"
+                accessibilityLabel="Tout supprimer"
+              >
+                <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
         }
       />
 
+      {!enabled && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={handleToggleEnabled}
+          style={styles.disabledBanner}
+        >
+          <Ionicons name="notifications-off-outline" size={16} color="#FFFFFF" />
+          <Text style={styles.disabledBannerText}>
+            Notifications désactivées — toucher pour réactiver
+          </Text>
+        </TouchableOpacity>
+      )}
+
       <FlatList
-        data={notifications}
+        data={visibleNotifications}
         // `now` force le rafraîchissement des durées
         extraData={now}
         keyExtractor={(item, index) =>
           String(item?.id ?? index)
         }
         renderItem={renderItem}
+        ListHeaderComponent={renderFilters}
         contentContainerStyle={
-          notifications.length === 0
+          visibleNotifications.length === 0
             ? styles.listContentEmpty
             : styles.listContent
         }
@@ -333,6 +670,9 @@ const NotificationScreen = ({ navigation }) => {
         ListEmptyComponent={renderEmpty}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Fenêtre de confirmation (web + Android + iOS) */}
+      <ChatConfirmHost />
     </View>
   );
 };
@@ -344,6 +684,83 @@ const NotificationScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  itemMain: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+
+  itemActions: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingLeft: 6,
+  },
+
+  iconBtn: {
+    padding: 4,
+  },
+
+  disabledBanner: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    top: Platform.OS === 'web' ? 76 : 86,
+    zIndex: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#E89B22',
+  },
+
+  disabledBannerText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  filters: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+
+  chipText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+
+  retryButton: {
+    marginTop: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: PRIMARY,
+  },
+
+  retryText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 13,
   },
 
   listContent: {

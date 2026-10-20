@@ -26,6 +26,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
+import useScreenLayout from '../../hooks/useScreenLayout';
 import aiService from '../../services/aiService';
 import {
   AICard,
@@ -81,6 +82,7 @@ const QUICK_OPTIONS = [
 
 const AIRecommendationScreen = ({ navigation, route }) => {
   const { colors: themeColors } = useTheme();
+  const { sidePadding } = useScreenLayout();
   const { user } = useAuth();
 
   const initialTab = TABS.some((t) => t.id === route?.params?.initialTab)
@@ -148,7 +150,7 @@ const AIRecommendationScreen = ({ navigation, route }) => {
     >
       <Header title="✨ Assistant IA" subtitle="Recommandations, prix et chatbot" showBack />
 
-      <View style={styles.body}>
+      <View style={[styles.body, { paddingHorizontal: sidePadding }]}>
         <AITabs tabs={TABS} active={tab} onChange={setTab} />
 
         {tab === 'chat' ? (
@@ -264,9 +266,6 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     width: '100%',
-    maxWidth: 900,
-    alignSelf: 'center',
-    paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
   },
   scroll: { paddingBottom: spacing.xxl },

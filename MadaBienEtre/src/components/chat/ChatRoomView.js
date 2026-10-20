@@ -43,7 +43,7 @@ import ChatComposer from './ChatComposer';
 import ChatImagePreviewModal from './ChatImagePreviewModal';
 import MessageBubble from './MessageBubble';
 import PeerBar from './PeerBar';
-import { CHAT_MAX_WIDTH, getChatPalette } from './chatTheme';
+import { CHAT_MAX_WIDTH, getChatPalette, useChatSidePadding } from './chatTheme';
 
 const NEAR_BOTTOM_PX = 140;
 
@@ -60,6 +60,7 @@ const ChatRoomView = ({
   const palette = useMemo(() => getChatPalette(themeColors, isDark), [themeColors, isDark]);
   const { token, user } = useAuth();
   const { setActiveChatBookingId } = useNotifications();
+  const side = useChatSidePadding(); // padding latéral responsive (plein écran)
 
   /* ----------------------------- interlocuteur ----------------------------- */
   const peer = useChatPeer({
@@ -417,6 +418,7 @@ const ChatRoomView = ({
               style={styles.list}
               contentContainerStyle={[
                 styles.listContent,
+                { paddingHorizontal: side },
                 rows.length === 0 && styles.listEmpty,
               ]}
               ListEmptyComponent={empty}

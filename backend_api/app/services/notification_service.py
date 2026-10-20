@@ -27,6 +27,35 @@ _PREF_BY_TYPE = {
     "chat_message": "chat_notifications",
 }
 
+# Mots-clés (sous-chaînes) -> colonne de préférence. Permet de reconnaître
+# aussi sos_alert, new_review, payment_received, booking_confirmed, etc.
+_PREF_KEYWORDS = (
+    ("sos", "sos_notifications"),
+    ("emergency", "sos_notifications"),
+    ("chat", "chat_notifications"),
+    ("message", "chat_notifications"),
+    ("offer", "offer_notifications"),
+    ("negotiation", "offer_notifications"),
+    ("counter", "offer_notifications"),
+    ("payment", "payment_notifications"),
+    ("refund", "payment_notifications"),
+    ("review", "review_notifications"),
+    ("promo", "promotion_notifications"),
+    ("booking", "booking_notifications"),
+    ("reservation", "booking_notifications"),
+)
+
+
+def preference_column(notification_type: Optional[str]) -> Optional[str]:
+    """Colonne de préférence d'un type de notification (None = pas de catégorie)."""
+    t = str(notification_type or "").lower().strip()
+    if t in _PREF_BY_TYPE:
+        return _PREF_BY_TYPE[t]
+    for keyword, column in _PREF_KEYWORDS:
+        if keyword in t:
+            return column
+    return None
+
 
 class NotificationService:
     """Service centralisé de création et de gestion des notifications."""
@@ -71,6 +100,27 @@ class NotificationService:
         return notification
 
     @staticmethod
+    def in_app_allowed(db: Session, user_id: int, notification_type: str) -> bool:
+        """
+        L'utilisateur accepte-t-il de RECEVOIR ce type de notification ?
+        (interrupteur général push_enabled + catégorie).
+        """
+        try:
+            pref = db.query(NotificationPreference).filter(
+                NotificationPreference.user_id == user_id
+            ).first()
+            if pref is None:
+                return True
+            if pref.push_enabled is False:
+                return False
+            col = preference_column(notification_type)
+            if col and getattr(pref, col, True) is False:
+                return False
+        except Exception:  # noqa: BLE001
+            logger.debug("Préférences illisibles", exc_info=True)
+        return True
+
+    @staticmethod
     def push_allowed(db: Session, user_id: int, notification_type: str) -> bool:
         """Respecte les préférences de l'utilisateur (push + catégorie)."""
         try:
@@ -81,7 +131,7 @@ class NotificationService:
                 return True
             if pref.push_enabled is False:
                 return False
-            col = _PREF_BY_TYPE.get(notification_type)
+            col = preference_column(notification_type)
             if col and getattr(pref, col, True) is False:
                 return False
         except Exception:  # noqa: BLE001
@@ -209,6 +259,19 @@ def send_notification(
     """
     db = SessionLocal()
     try:
+        # ✅ « Désactiver » une notification : si l'utilisateur a coupé les
+        # notifications (interrupteur général ou catégorie), on ne la crée
+        # pas du tout (ni liste, ni push, ni bannière). Les alertes
+        # urgentes (SOS) passent toujours.
+        if priority != "urgent" and not NotificationService.in_app_allowed(
+            db, user_id, notification_type
+        ):
+            logger.info(
+                "NOTIFICATION IGNOREE (désactivée) user_id=%s type=%s",
+                user_id, notification_type,
+            )
+            return None
+
         notification = NotificationService.create_notification(
             db=db,
             user_id=user_id,
@@ -238,6 +301,51 @@ def send_notification(
         return None
     finally:
         db.close()
+
+
+def send_admin_notification(
+    title: str,
+    body: str,
+    notification_type: str,
+    data: Optional[Dict[str, Any]] = None,
+    priority: str = "normal",
+    booking_id: Optional[int] = None,
+    send_push: bool = True,
+) -> int:
+    """
+    Notifie TOUS les administrateurs actifs (nouvel utilisateur, thérapeute à
+    valider, paiement, avis...). Ne lève jamais d'exception : un échec de
+    notification ne doit pas faire échouer l'action qui l'a déclenchée.
+    Retourne le nombre d'admins notifiés.
+    """
+    db = SessionLocal()
+    try:
+        admin_ids = [
+            row[0]
+            for row in db.query(User.id)
+            .filter(User.role == "ADMIN", User.is_active == True)  # noqa: E712
+            .all()
+        ]
+    except Exception:  # noqa: BLE001
+        logger.exception("Lecture des administrateurs impossible")
+        return 0
+    finally:
+        db.close()
+
+    sent = 0
+    for admin_id in admin_ids:
+        if send_notification(
+            user_id=admin_id,
+            title=title,
+            body=body,
+            notification_type=notification_type,
+            data=data,
+            priority=priority,
+            booking_id=booking_id,
+            send_push=send_push,
+        ):
+            sent += 1
+    return sent
 
 
 def send_booking_notification(user_id: int, booking_id: int, status: str, message: str) -> None:

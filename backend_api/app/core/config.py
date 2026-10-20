@@ -62,6 +62,23 @@ class Settings(BaseSettings):
     VANILA_PAY_API_KEY: Optional[str] = os.getenv("VANILA_PAY_API_KEY")
     VANILA_PAY_API_URL: str = os.getenv("VANILA_PAY_API_URL", "https://api.vanila-pay.com/v1")
     VANILA_PAY_MERCHANT_ID: Optional[str] = os.getenv("VANILA_PAY_MERCHANT_ID")
+    # Secret de signature des webhooks Vanila Pay (HMAC-SHA256)
+    VANILA_PAY_WEBHOOK_SECRET: str = os.getenv("VANILA_PAY_WEBHOOK_SECRET", "")
+    # Chemins de l'API Vanila Pay (à adapter à la documentation officielle reçue)
+    VANILA_PAY_CREATE_PATH: str = os.getenv("VANILA_PAY_CREATE_PATH", "/payments")
+    VANILA_PAY_STATUS_PATH: str = os.getenv("VANILA_PAY_STATUS_PATH", "/payments/{id}")
+
+    # Paiements — règles de la plateforme
+    # Mode TEST : simule la confirmation du fournisseur (JAMAIS en production !)
+    PAYMENT_SANDBOX: bool = os.getenv("PAYMENT_SANDBOX", "False").lower() == "true"
+    # Commission Mada Bien-Être (%), utilisée si le thérapeute n'a pas de taux propre
+    PLATFORM_COMMISSION_RATE: float = float(os.getenv("PLATFORM_COMMISSION_RATE", "10"))
+    # Devise envoyée à Stripe (MGA = zéro décimale ; sinon « eur »...)
+    STRIPE_CURRENCY: str = os.getenv("STRIPE_CURRENCY", "mga")
+    # Retrait minimum (Ar)
+    MIN_WITHDRAWAL_AMOUNT: float = float(os.getenv("MIN_WITHDRAWAL_AMOUNT", "5000"))
+    # Acceptation du paiement en espèces
+    PAYMENT_CASH_ENABLED: bool = os.getenv("PAYMENT_CASH_ENABLED", "True").lower() == "true"
     
     # OpenRouter AI
     OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")

@@ -21,6 +21,7 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 import { spacing } from '../../theme';
 import Header from '../../components/common/Header';
+import useScreenLayout from '../../hooks/useScreenLayout';
 import { AITabs } from '../../components/ai/AIPrimitives';
 import AIPricingBlock from '../../components/ai/AIPricingBlock';
 import AIMarketAnalysisCard from '../../components/ai/AIMarketAnalysisCard';
@@ -37,6 +38,7 @@ const TABS = [
 
 const AIAssistantScreen = ({ route }) => {
   const { colors: themeColors } = useTheme();
+  const { sidePadding } = useScreenLayout();
   const params = route?.params || {};
 
   const [tab, setTab] = useState(
@@ -50,7 +52,7 @@ const AIAssistantScreen = ({ route }) => {
     >
       <Header title="✨ Assistant IA" subtitle="Tarification intelligente" showBack />
 
-      <View style={styles.body}>
+      <View style={[styles.body, { paddingHorizontal: sidePadding }]}>
         <AITabs tabs={TABS} active={tab} onChange={setTab} />
 
         {tab === 'chat' ? (
@@ -88,9 +90,6 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     width: '100%',
-    maxWidth: 900,
-    alignSelf: 'center',
-    paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
   },
   scroll: { paddingBottom: spacing.xxl },

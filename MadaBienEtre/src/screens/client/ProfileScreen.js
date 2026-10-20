@@ -509,12 +509,13 @@ const ProfileScreen = ({ navigation }) => {
         label: 'Moyens de paiement',
         description:
           'Gérer mes méthodes de paiement',
-        onPress: () =>
-          showToast(
-            'info',
-            'Moyens de paiement',
-            'Cette fonctionnalité sera bientôt disponible.'
-          ),
+        onPress: () => {
+          // Ouvre l'écran "Moyens de paiement" (PaymentScreen, mode
+          // consultation : aucun bookingId n'est transmis).
+          navigation.navigate('Payment', {
+            mode: 'methods',
+          });
+        },
       },
 
       {

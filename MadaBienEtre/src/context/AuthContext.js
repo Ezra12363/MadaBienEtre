@@ -2,6 +2,7 @@
 import { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import authService from '../services/authService';
 import api from '../services/api'; // ✅ Ajout de l'import api
+import { onSessionExpired, onTokenRefreshed } from '../utils/authEvents';
 
 const AuthContext = createContext();
 
@@ -14,6 +15,25 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     checkAuthStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ✅ FIX « 401 /chat/unread » + WebSocket qui se coupe aussitôt :
+  // quand api.js rafraîchit le token, l'état React doit le recevoir aussi ;
+  // sinon les hooks continuent avec l'ancien token expiré.
+  useEffect(() => {
+    const offToken = onTokenRefreshed((accessToken) => {
+      if (accessToken) setToken(accessToken);
+    });
+    // Refresh token expiré : retour propre à l'écran de connexion
+    const offSession = onSessionExpired(() => {
+      setToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
+    });
+    return () => {
+      offToken();
+      offSession();
+    };
   }, []);
 
   const checkAuthStatus = async () => {

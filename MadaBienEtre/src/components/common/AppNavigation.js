@@ -175,6 +175,12 @@ export const NavBridgeProvider = ({ children }) => {
 
   const setPageContext = useCallback((data) => {
     setPageContextState((prev) => {
+      // `null` = l'écran qui avait publié son titre/retour dans la
+      // sous-barre n'est plus affiché : on vide la sous-barre.
+      if (!data) {
+        return prev === null ? prev : null;
+      }
+
       if (
         prev &&
         prev.title === data.title &&

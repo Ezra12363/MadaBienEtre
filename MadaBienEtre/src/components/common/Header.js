@@ -1,3 +1,5 @@
+import { useCallback, useRef } from 'react';
+
 import {
   View,
   Text,
@@ -9,9 +11,11 @@ import {
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 import { colors, typography } from '../../theme';
+import { useTheme } from '../../context/ThemeContext';
+import { useNavBridge, useTopNavLayout } from './AppNavigation';
 
 /* =========================================================
    COLORS — thème RESPONSIVE du header
@@ -32,7 +36,24 @@ const GREEN_DARK = '#0B633C';
 // dans l'application (ex: OffersScreen) pour rester cohérent.
 const WEB_LARGE_BREAKPOINT = 850;
 
-const getHeaderColors = isLargeWebScreen => {
+const getHeaderColors = (isLargeWebScreen, isDark = false) => {
+  // ---- MODE SOMBRE : fond sombre, texte/icônes clairs ----
+  if (isDark) {
+    return {
+      headerBg: isLargeWebScreen ? '#1E1E1E' : '#0F4D32',
+      borderColor: isLargeWebScreen ? '#333333' : '#0B3D2A',
+
+      titleColor: '#FFFFFF',
+      subtitleColor: 'rgba(255,255,255,0.70)',
+      iconColor: '#FFFFFF',
+
+      backButtonBg: 'rgba(255,255,255,0.10)',
+      backButtonBorder: 'rgba(255,255,255,0.22)',
+
+      logoBoxBg: 'rgba(255,255,255,0.12)',
+    };
+  }
+
   if (isLargeWebScreen) {
     // ---- WEB / GRAND ÉCRAN : fond blanc, texte/icônes verts ----
     return {
@@ -74,8 +95,62 @@ const Header = ({
   leftComponent,
   rightComponent,
   showLogo = false,
+  // Opt-in : sur le WEB LARGE (barre fusionnée), le titre + le bouton
+  // retour s'affichent dans la sous-barre de la TopNavBar (même mode que
+  // AppHeader) au lieu d'une 2e bande blanche séparée sous la barre verte.
+  // Android / iOS / web étroit : AUCUN changement.
+  mergeWithTopNav = false,
 }) => {
   const navigation = useNavigation();
+
+  // Thème clair / sombre (ThemeContext). Repli sur clair si absent.
+  const themeCtx = useTheme();
+  const isDark = !!themeCtx?.isDark;
+
+  // ---- Mode fusionné (web large) -------------------------------------
+  const bridge = useNavBridge();
+  const { isMerged } = useTopNavLayout();
+  const isMergedHeader =
+    mergeWithTopNav && isMerged && !!bridge && showBack;
+  const setPageContext = bridge?.setPageContext;
+
+  // Callback « retour » STABLE (référence constante) : sinon le pont
+  // serait remis à jour à chaque rendu -> boucle infinie. Voir le
+  // commentaire anti "Maximum update depth" dans AppNavigation.js.
+  const backRef = useRef(null);
+  backRef.current = () => {
+    if (onBackPress) {
+      onBackPress();
+      return;
+    }
+
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+    }
+  };
+  const stableBack = useCallback(() => backRef.current?.(), []);
+
+  // Publie le titre dans la sous-barre tant que l'écran est affiché,
+  // puis la vide quand on le quitte (sinon elle resterait visible sur
+  // les autres écrans).
+  useFocusEffect(
+    useCallback(() => {
+      if (!isMergedHeader || !setPageContext) {
+        return undefined;
+      }
+
+      setPageContext({
+        title,
+        subtitle,
+        showBack: true,
+        onBack: stableBack,
+      });
+
+      return () => {
+        setPageContext(null);
+      };
+    }, [isMergedHeader, setPageContext, title, subtitle, stableBack])
+  );
 
   // ✅ Largeur réelle de la fenêtre — permet de savoir si on est
   // sur un "grand écran" web (ordinateur) ou un "petit écran"
@@ -87,7 +162,12 @@ const Header = ({
   const isLargeWebScreen =
     isWeb && width >= WEB_LARGE_BREAKPOINT;
 
-  const HEADER_COLORS = getHeaderColors(isLargeWebScreen);
+  const HEADER_COLORS = getHeaderColors(isLargeWebScreen, isDark);
+
+  // Web large : la TopNavBar affiche déjà titre + retour.
+  if (isMergedHeader) {
+    return null;
+  }
 
   const handleBack = () => {
     if (onBackPress) {

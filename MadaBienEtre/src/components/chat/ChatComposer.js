@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { typography } from '../../theme';
-import { CHAT_MAX_WIDTH } from './chatTheme';
+import { CHAT_MAX_WIDTH, useChatSidePadding } from './chatTheme';
 
 export const MAX_MESSAGE_LENGTH = 2000; // identique au backend (schemas/chat.py)
 
@@ -36,6 +36,7 @@ const TypingLine = ({ label, color }) => {
 
 const ChatComposer = ({ palette, value, onChangeText, onSend, onAttach, onShareLocation, typingLabel }) => {
   const insets = useSafeAreaInsets();
+  const side = useChatSidePadding();
   const [height, setHeight] = useState(MIN_INPUT_HEIGHT);
   const hasText = value.trim().length > 0;
 
@@ -58,7 +59,12 @@ const ChatComposer = ({ palette, value, onChangeText, onSend, onAttach, onShareL
     <View
       style={[
         styles.wrap,
-        { backgroundColor: palette.surface, borderTopColor: palette.border, paddingBottom: bottomPad },
+        {
+          backgroundColor: palette.surface,
+          borderTopColor: palette.border,
+          paddingBottom: bottomPad,
+          paddingHorizontal: side,
+        },
       ]}
     >
       <View style={styles.column}>

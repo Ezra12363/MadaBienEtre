@@ -42,6 +42,7 @@ import bookingService from '../../services/bookingService';
 import offerService from '../../services/offerService';
 
 import Header from '../../components/common/Header';
+import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
 
 import { useTheme } from '../../context/ThemeContext';
 import MapViewWrapper from '../../components/map/MapViewWrapper';
@@ -2186,6 +2187,13 @@ export default function OffersScreen({ navigation, route }) {
                 </Text>
               </View>
 
+              {/* Statut du paiement (Payé / En attente) + reçu */}
+              <BookingPaymentSection
+                booking={booking}
+                role="therapist"
+                navigation={navigation}
+              />
+
               {showExpiry ? (
                 <View style={styles.cardExpiryRow}>
                   <Ionicons
@@ -2360,6 +2368,7 @@ export default function OffersScreen({ navigation, route }) {
       handleOpenDirections,
       now,
       therapistPosition,
+      navigation,
     ]
   );
 
@@ -3432,7 +3441,7 @@ export default function OffersScreen({ navigation, route }) {
   // ==========================================================
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
       <View style={styles.screen}>
         <StatusBar
           translucent
@@ -4003,7 +4012,7 @@ const createStyles = (colors, isDark) => {
     // CARD
     // ========================================================
 
-    mobileList: { padding: 12, paddingBottom: 28 },
+    mobileList: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 2 },
 
     card: {
       flex: 1,

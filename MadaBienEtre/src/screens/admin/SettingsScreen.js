@@ -49,6 +49,7 @@ import {
 } from '../../theme';
 
 import Header from '../../components/common/Header';
+import PaymentSettingsPanel from '../../components/payment/PaymentSettingsPanel';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import useResponsive from '../../hooks/useResponsive';
 import adminService from '../../services/adminService';
@@ -1657,6 +1658,11 @@ const SettingsScreen = ({ navigation }) => {
                 </View>
               </View>
             </View>
+
+            {/* =================================================
+                PAIEMENTS & COMMISSIONS
+            ================================================= */}
+            <PaymentSettingsPanel />
 
             {/* =================================================
                 SETTINGS GRID

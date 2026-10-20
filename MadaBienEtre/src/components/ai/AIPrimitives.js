@@ -10,6 +10,8 @@ import {
   ActivityIndicator,
   ScrollView,
   StyleSheet,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
@@ -185,6 +187,7 @@ export const AIField = ({
             styles.fieldInput,
             { color: tc.text },
             multiline && styles.fieldMultiline,
+            Platform.OS === 'web' && styles.fieldInputWeb,
           ]}
           value={value}
           onChangeText={onChangeText}
@@ -208,12 +211,16 @@ export const AIField = ({
 // ------------------------------------------------------------
 export const AITabs = ({ tabs, active, onChange }) => {
   const { colors: tc } = useTheme();
+  // Écran large : les onglets se partagent toute la largeur (plein écran).
+  const { width } = useWindowDimensions();
+  const fill = width >= 768;
   return (
     <View style={[styles.tabs, { backgroundColor: tc.surface, borderColor: tc.border }]}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabsContent}
+        contentContainerStyle={[styles.tabsContent, fill && styles.tabsContentFill]}
+        style={styles.tabsScroll}
       >
         {tabs.map((tab) => {
           const isActive = tab.id === active;
@@ -224,6 +231,7 @@ export const AITabs = ({ tabs, active, onChange }) => {
               onPress={() => onChange(tab.id)}
               style={[
                 styles.tab,
+                fill && styles.tabFill,
                 isActive && { backgroundColor: colors.primary },
               ]}
             >
@@ -439,6 +447,7 @@ const styles = StyleSheet.create({
     minHeight: 44,
   },
   fieldMultiline: { minHeight: 70, textAlignVertical: 'top' },
+  fieldInputWeb: { outlineStyle: 'none', outlineWidth: 0 },
   fieldSuffix: { fontSize: typography.fontSize.sm, fontFamily: font.medium },
   tabs: {
     borderRadius: 14,
@@ -446,7 +455,9 @@ const styles = StyleSheet.create({
     padding: 4,
     marginBottom: spacing.md,
   },
+  tabsScroll: { width: '100%' },
   tabsContent: { gap: 4 },
+  tabsContentFill: { flexGrow: 1 },
   tab: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -455,6 +466,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 10,
   },
+  tabFill: { flex: 1, justifyContent: 'center' },
   tabText: { fontSize: typography.fontSize.sm, fontFamily: font.semiBold },
   errorBox: {
     flexDirection: 'row',

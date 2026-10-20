@@ -30,6 +30,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { useTopNavLayout } from '../../components/common/AppNavigation';
 import { colors, typography } from '../../theme';
 import Header from '../../components/common/Header';
+import AIFeatureButton from '../../components/ai/AIFeatureButton';
 import adminService from '../../services/adminService';
 
 const IS_WEB = Platform.OS === 'web';
@@ -1016,6 +1017,20 @@ const DashboardScreen = ({ navigation }) => {
           )}
 
           {/* ====================================================
+              ✨ IA & CHATBOT — accès bien visible (Android, iOS, web)
+              Sur le web large, le même accès existe aussi dans la
+              TopNavBar (icône étincelles).
+          ==================================================== */}
+
+          <View style={styles.aiBannerWrap}>
+            <AIFeatureButton
+              title="✨ IA & Chatbot"
+              subtitle="KPI, prévisions, fraude et assistant intelligent"
+              onPress={() => navigateTo('AIInsights', 'IA & Chatbot')}
+            />
+          </View>
+
+          {/* ====================================================
               STATISTIQUES
           ==================================================== */}
 
@@ -1701,6 +1716,11 @@ const styles = StyleSheet.create({
   /* ==========================================================
      PAGE HEADER
   ========================================================== */
+
+  aiBannerWrap: {
+    width: '100%',
+    marginBottom: 6,
+  },
 
   pageHeader: {
     width: '100%',

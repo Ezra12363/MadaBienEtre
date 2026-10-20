@@ -8,7 +8,7 @@ from ..models.booking import Booking
 from ..models.user import User
 from ..schemas.review import ReviewCreate, ReviewResponse, ReviewUpdate
 from ..services.rating_service import update_therapist_rating
-from ..services.notification_service import send_notification
+from ..services.notification_service import send_notification, send_admin_notification
 
 router = APIRouter(prefix="/reviews", tags=["Reviews"])
 
@@ -63,6 +63,19 @@ async def create_review(
             "new_review",
             {"review_id": review.id, "booking_id": booking.id}
         )
+
+    # ✅ Notifier les administrateurs
+    try:
+        send_admin_notification(
+            "Nouvel avis client",
+            f"{current_user.fullname} a laissé une note de {review_data.rating}/5 "
+            f"(réservation #{booking.id}).",
+            "new_review",
+            {"review_id": review.id, "booking_id": booking.id, "rating": review_data.rating},
+            booking_id=booking.id,
+        )
+    except Exception:
+        pass
     
     return review
 

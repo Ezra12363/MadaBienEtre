@@ -1,4 +1,5 @@
 // src/theme/index.js
+import { Platform } from 'react-native';
 import { DefaultTheme } from 'react-native-paper';
 
 export const colors = {
@@ -37,13 +38,26 @@ export const spacing = {
   xxxl: 64,
 };
 
+// Les polices « Poppins-* » ne sont chargées nulle part dans le projet
+// (aucun useFonts / @font-face). Sur le web, un nom de police inconnu fait
+// retomber le navigateur sur une police À EMPATTEMENTS (Times) : c'est ce
+// qui rendait les titres, onglets et cartes « différents » du reste de
+// l'application. On utilise donc une pile de polices système sur le web ;
+// sur Android / iOS on laisse la police système (undefined), et le
+// fontWeight des styles continue de fonctionner normalement.
+const WEB_FONT_STACK =
+  "Inter, 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif";
+
+const pickFont = () =>
+  Platform.OS === 'web' ? WEB_FONT_STACK : undefined;
+
 export const typography = {
   fontFamily: {
-    regular: 'Poppins-Regular',
-    medium: 'Poppins-Medium',
-    semiBold: 'Poppins-SemiBold',
-    bold: 'Poppins-Bold',
-    light: 'Poppins-Light',
+    regular: pickFont(),
+    medium: pickFont(),
+    semiBold: pickFont(),
+    bold: pickFont(),
+    light: pickFont(),
   },
   fontSize: {
     xs: 10,

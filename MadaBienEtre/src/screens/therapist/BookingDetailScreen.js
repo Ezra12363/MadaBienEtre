@@ -48,6 +48,7 @@ import {
 } from '../../theme';
 
 import Header from '../../components/common/Header';
+import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
 
 import bookingService from '../../services/bookingService';
 import offerService from '../../services/offerService';
@@ -1806,6 +1807,13 @@ const BookingDetailScreen = ({
                   </Text>
                 </View>
               )}
+
+            {/* Statut du paiement (sous le prix) */}
+            <BookingPaymentSection
+              booking={booking}
+              role="therapist"
+              navigation={navigation}
+            />
           </View>
         </FadeSlideIn>
 

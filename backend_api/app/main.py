@@ -26,6 +26,7 @@ from .api import (
     bookings,
     offers,
     payments,
+    wallet,  # ✅ PAIEMENT : wallet thérapeute, retraits, vue admin
     reviews,
     notifications,
     geolocation,
@@ -362,10 +363,16 @@ app.include_router(offers.router)
 
 
 # ============================================================
-# API ROUTERS — PAIEMENTS, AVIS ET NOTIFICATIONS
+# API ROUTERS — PAIEMENTS, WALLET, AVIS ET NOTIFICATIONS
+#
+# payments.router            : initiate / verify / webhooks / reçu PDF
+# wallet.router              : wallet thérapeute, retraits, vue admin
+# wallet.withdrawals_router  : POST /withdrawals/create (ancien écran)
 # ============================================================
 
 app.include_router(payments.router)
+app.include_router(wallet.router)
+app.include_router(wallet.withdrawals_router)
 app.include_router(reviews.router)
 app.include_router(notifications.router)
 

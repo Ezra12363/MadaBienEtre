@@ -1,6 +1,7 @@
 // src/components/ai/AIChatBubble.js
 import { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import useScreenLayout from '../../hooks/useScreenLayout';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
@@ -15,6 +16,7 @@ const AIChatBubble = ({
   suggestions = [],
 }) => {
   const { colors: themeColors } = useTheme();
+  const { bubbleMaxWidth } = useScreenLayout();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const text = typeof message === 'string' ? message : '';
@@ -42,6 +44,7 @@ const AIChatBubble = ({
           styles.bubble,
           isUser ? styles.userBubble : styles.aiBubble,
           {
+            maxWidth: bubbleMaxWidth,
             backgroundColor: isUser ? colors.primary : themeColors.surface,
             borderColor: isUser ? colors.primary : themeColors.border,
           },

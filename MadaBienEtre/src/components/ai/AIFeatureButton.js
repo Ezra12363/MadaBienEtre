@@ -82,13 +82,16 @@ const styles = StyleSheet.create({
   bannerTitle: {
     color: '#fff',
     fontSize: typography.fontSize.lg,
+    lineHeight: 24,
+    fontWeight: '700',
     fontFamily: typography.fontFamily.bold,
   },
   bannerSubtitle: {
     color: 'rgba(255,255,255,0.88)',
     fontSize: typography.fontSize.sm,
+    lineHeight: 18,
     fontFamily: typography.fontFamily.regular,
-    marginTop: 2,
+    marginTop: 4,
   },
   fab: {
     position: 'absolute',

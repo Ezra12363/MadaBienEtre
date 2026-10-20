@@ -30,6 +30,7 @@ from ..schemas.auth import (
     RefreshTokenRequest
 )
 from ..services.email_service import send_otp_email
+from ..services.notification_service import send_admin_notification
 from ..core.config import settings
 from fastapi.security import OAuth2PasswordRequestForm
 
@@ -105,6 +106,28 @@ async def verify_otp(otp_data: OTPRequest, db: Session = Depends(get_db)):
     user.otp_code = None
     user.otp_expires_at = None
     db.commit()
+
+    # ✅ Notifier les administrateurs (compte vérifié = nouvel inscrit actif)
+    try:
+        role = str(getattr(user, "role", "") or "").upper()
+        if role == "THERAPIST":
+            send_admin_notification(
+                "Nouveau thérapeute à valider",
+                f"{user.fullname} vient de s'inscrire comme thérapeute. "
+                "Son profil attend votre validation.",
+                "therapist_application",
+                {"user_id": user.id, "role": role},
+                priority="high",
+            )
+        elif role == "CLIENT":
+            send_admin_notification(
+                "Nouvel utilisateur inscrit",
+                f"{user.fullname} vient de créer un compte client.",
+                "new_user",
+                {"user_id": user.id, "role": role},
+            )
+    except Exception:
+        pass
     
     return {"message": "Account verified successfully"}
 

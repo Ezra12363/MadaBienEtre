@@ -29,6 +29,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Header from '../../components/common/Header';
+import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
 import { useAuth } from '../../context/AuthContext';
 import useShareToChat from '../../hooks/useShareToChat';
 import { useTheme } from '../../context/ThemeContext';
@@ -1802,16 +1803,29 @@ const HistoryScreen = ({ navigation }) => {
           : { ...item, imageUrl: resolvedImageUrl };
 
       return (
-        <BookingCard
-          booking={bookingWithImage}
-          themeColors={themeColors}
-          onPress={handleBookingPress}
-          onMenuPress={handleMenuPress}
-          onSharePress={handleSharePress}
-        />
+        <View>
+          <BookingCard
+            booking={bookingWithImage}
+            themeColors={themeColors}
+            onPress={handleBookingPress}
+            onMenuPress={handleMenuPress}
+            onSharePress={handleSharePress}
+          />
+          {/* Statut du paiement sous le prix : Payer maintenant / Voir le reçu */}
+          <BookingPaymentSection
+            booking={{
+              id: item.bookingId,
+              status: item.status,
+              final_price: item.displayPrice,
+            }}
+            role="client"
+            navigation={navigation}
+            style={{ marginTop: -6, marginBottom: 14, marginHorizontal: 2 }}
+          />
+        </View>
       );
     },
-    [themeColors, handleBookingPress, handleMenuPress, handleSharePress, resolveBookingImage],
+    [themeColors, handleBookingPress, handleMenuPress, handleSharePress, resolveBookingImage, navigation],
   );
 
   const keyExtractor = useCallback(
