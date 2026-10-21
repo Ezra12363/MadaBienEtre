@@ -58,6 +58,10 @@ const DashboardScreen = ({ navigation }) => {
   const [dashboardData, setDashboardData] = useState(null);
   const [stats, setStats] = useState(null);
 
+  // Statistiques des utilisateurs (déplacées depuis UsersScreen)
+  const [userStats, setUserStats] = useState(null);
+  const [showUserStats, setShowUserStats] = useState(true);
+
   const [error, setError] = useState(null);
 
   /* ============================================================
@@ -81,6 +85,11 @@ const DashboardScreen = ({ navigation }) => {
   const isLargeScreen = windowWidth >= 1200;
 
   const columns = isLargeScreen ? 4 : 2;
+
+  // Actions rapides : 3 colonnes sur grand écran, 1 colonne (liste) sinon.
+  const quickColumns = windowWidth >= 900 ? 3 : 1;
+  const quickWidth =
+    quickColumns === 3 ? '32%' : '100%';
 
   const cardGap = IS_WEB
     ? windowWidth >= 1200
@@ -190,7 +199,7 @@ const DashboardScreen = ({ navigation }) => {
     setError(null);
 
     try {
-      const [dashboard, statistics] =
+      const [dashboard, statistics, userStatistics] =
         await Promise.all([
           adminService
             .getAdminDashboard()
@@ -211,7 +220,24 @@ const DashboardScreen = ({ navigation }) => {
               );
               return null;
             }),
+
+          adminService
+            .getUserStats()
+            .catch((e) => {
+              console.error(
+                'User statistics error:',
+                e
+              );
+              return null;
+            }),
         ]);
+
+      setUserStats(
+        userStatistics &&
+          typeof userStatistics === 'object'
+          ? userStatistics
+          : {}
+      );
 
       if (dashboard) {
         setDashboardData(dashboard);
@@ -241,6 +267,7 @@ const DashboardScreen = ({ navigation }) => {
 
       setDashboardData({});
       setStats({});
+      setUserStats({});
 
       setError(
         'Une erreur est survenue lors du chargement du tableau de bord.'
@@ -548,7 +575,7 @@ const DashboardScreen = ({ navigation }) => {
           styles.quickAction,
 
           {
-            width: cardWidth,
+            width: quickWidth,
             backgroundColor:
               themeColors.surface,
 
@@ -674,6 +701,468 @@ const DashboardScreen = ({ navigation }) => {
       </View>
     </View>
   );
+
+  /* ============================================================
+     STATISTIQUES UTILISATEURS (déplacées depuis UsersScreen)
+  ============================================================ */
+
+  const renderUserStats = () => {
+    const us = userStats || {};
+
+    const num = (v) => Number(v || 0);
+
+    const total = num(
+      us.total ?? dashboardData?.users?.total
+    );
+    const therapistsCount = num(
+      us.therapists ??
+        dashboardData?.users?.therapists
+    );
+    const activeCount = num(us.active);
+    const verifiedCount = num(
+      us.verified_therapists
+    );
+
+    const percent = (part, whole) =>
+      whole > 0
+        ? Math.min(
+            100,
+            Math.round((part / whole) * 100)
+          )
+        : 0;
+
+    // Chaque catégorie = une carte séparée.
+    const groups = [
+      {
+        key: 'users',
+        title: 'Utilisateurs',
+        subtitle: 'Répartition par rôle',
+        icon: 'people-outline',
+        color: '#3B82F6',
+        perRow: 3,
+        items: [
+          {
+            key: 'clients',
+            icon: 'person-outline',
+            label: 'Clients',
+            value: num(us.clients),
+            color: '#0EA5E9',
+            screen: 'UsersScreen',
+          },
+          {
+            key: 'therapists',
+            icon: 'fitness-outline',
+            label: 'Thérapeutes',
+            value: therapistsCount,
+            color: '#16A34A',
+            screen: 'Therapists',
+          },
+          {
+            key: 'admins',
+            icon: 'shield-checkmark-outline',
+            label: 'Admins',
+            value: num(us.admins),
+            color: '#E53935',
+            screen: 'UsersScreen',
+          },
+        ],
+      },
+      {
+        key: 'accounts',
+        title: 'Statut des comptes',
+        subtitle: 'Activité de la plateforme',
+        icon: 'pulse-outline',
+        color: '#16A34A',
+        perRow: 3,
+        items: [
+          {
+            key: 'active',
+            icon: 'checkmark-circle-outline',
+            label: 'Actifs',
+            value: activeCount,
+            color: '#22C55E',
+            screen: 'UsersScreen',
+          },
+          {
+            key: 'inactive',
+            icon: 'close-circle-outline',
+            label: 'Inactifs',
+            value: num(us.inactive),
+            color: '#EF4444',
+            screen: 'UsersScreen',
+          },
+          {
+            key: 'new',
+            icon: 'trending-up-outline',
+            label: 'Nouveaux (7j)',
+            value: num(us.new_users_last_week),
+            color: '#F59E0B',
+            screen: 'UsersScreen',
+          },
+        ],
+        progress: {
+          label: "Taux d'activité",
+          value: percent(activeCount, total),
+          color: '#22C55E',
+        },
+      },
+      {
+        key: 'therapists',
+        title: 'Thérapeutes',
+        subtitle: 'Vérification et disponibilité',
+        icon: 'fitness-outline',
+        color: '#8B5CF6',
+        perRow: 2,
+        items: [
+          {
+            key: 'verified',
+            icon: 'ribbon-outline',
+            label: 'Vérifiés',
+            value: verifiedCount,
+            color: '#10B981',
+            screen: 'Therapists',
+          },
+          {
+            key: 'online',
+            icon: 'wifi-outline',
+            label: 'En ligne',
+            value: num(us.online_therapists),
+            color: '#6366F1',
+            screen: 'Therapists',
+          },
+        ],
+        progress: {
+          label: 'Taux de vérification',
+          value: percent(
+            verifiedCount,
+            therapistsCount
+          ),
+          color: '#10B981',
+        },
+      },
+    ];
+
+    // Grand écran : 3 cartes côte à côte. Sinon : empilées.
+    const groupWidth =
+      windowWidth >= 900 ? '33.3333%' : '100%';
+
+    const borderColor = isDark
+      ? 'rgba(255,255,255,0.07)'
+      : 'rgba(15,23,42,0.07)';
+
+    return (
+      <View style={styles.userStatsSection}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() =>
+            setShowUserStats((v) => !v)
+          }
+          style={styles.userStatsHeader}
+          accessibilityRole="button"
+          accessibilityLabel={
+            showUserStats
+              ? 'Masquer les statistiques'
+              : 'Afficher les statistiques'
+          }
+        >
+          <View
+            style={[
+              styles.sectionIcon,
+              {
+                backgroundColor: `${colors.primary}12`,
+              },
+            ]}
+          >
+            <Ionicons
+              name="stats-chart-outline"
+              size={18}
+              color={colors.primary}
+            />
+          </View>
+
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                { color: themeColors.text },
+              ]}
+              numberOfLines={1}
+            >
+              Statistiques des utilisateurs
+            </Text>
+
+            <Text
+              style={[
+                styles.sectionSubtitle,
+                {
+                  color:
+                    themeColors.textSecondary,
+                },
+              ]}
+              numberOfLines={1}
+            >
+              Vue détaillée des comptes de la
+              plateforme
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.userStatsToggle,
+              {
+                backgroundColor: `${colors.primary}10`,
+              },
+            ]}
+          >
+            {windowWidth >= 520 ? (
+              <Text
+                style={[
+                  styles.userStatsToggleText,
+                  { color: colors.primary },
+                ]}
+              >
+                {showUserStats
+                  ? 'Masquer'
+                  : 'Afficher'}
+              </Text>
+            ) : null}
+
+            <Ionicons
+              name={
+                showUserStats
+                  ? 'chevron-up'
+                  : 'chevron-down'
+              }
+              size={18}
+              color={colors.primary}
+            />
+          </View>
+        </TouchableOpacity>
+
+        {showUserStats && (
+          <View style={styles.userGroupsRow}>
+            {groups.map((group) => (
+              <View
+                key={group.key}
+                style={[
+                  styles.userGroupWrap,
+                  { width: groupWidth },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.userGroupCard,
+                    {
+                      backgroundColor:
+                        themeColors.surface,
+                      borderColor,
+                    },
+                  ]}
+                >
+                  {/* En-tête de la carte */}
+                  <View
+                    style={styles.userGroupHeader}
+                  >
+                    <View
+                      style={[
+                        styles.userGroupIcon,
+                        {
+                          backgroundColor: `${group.color}16`,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={group.icon}
+                        size={20}
+                        color={group.color}
+                      />
+                    </View>
+
+                    <View
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.userGroupTitle,
+                          {
+                            color:
+                              themeColors.text,
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {group.title}
+                      </Text>
+
+                      <Text
+                        style={[
+                          styles.userGroupSubtitle,
+                          {
+                            color:
+                              themeColors.textSecondary,
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {group.subtitle}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Tuiles */}
+                  <View style={styles.userTilesGrid}>
+                    {group.items.map((item) => (
+                      <View
+                        key={item.key}
+                        style={{
+                          width: `${
+                            100 / group.perRow
+                          }%`,
+                          padding: 4,
+                        }}
+                      >
+                        <Pressable
+                          onPress={() =>
+                            navigateTo(
+                              item.screen,
+                              item.label
+                            )
+                          }
+                          style={({
+                            pressed,
+                          }) => [
+                            styles.userStatTile,
+                            {
+                              backgroundColor: `${item.color}0F`,
+                              borderColor: `${item.color}22`,
+                              opacity: pressed
+                                ? 0.85
+                                : 1,
+                            },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.userStatIcon,
+                              {
+                                backgroundColor: `${item.color}22`,
+                              },
+                            ]}
+                          >
+                            <Ionicons
+                              name={item.icon}
+                              size={18}
+                              color={item.color}
+                            />
+                          </View>
+
+                          <Text
+                            style={[
+                              styles.userStatValue,
+                              {
+                                color:
+                                  themeColors.text,
+                              },
+                            ]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                          >
+                            {formatNumber(
+                              item.value
+                            )}
+                          </Text>
+
+                          <Text
+                            style={[
+                              styles.userStatLabel,
+                              {
+                                color:
+                                  themeColors.textSecondary,
+                              },
+                            ]}
+                            numberOfLines={2}
+                          >
+                            {item.label}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    ))}
+                  </View>
+
+                  {/* Barre de progression (si applicable) */}
+                  {group.progress ? (
+                    <View
+                      style={
+                        styles.userProgressBlock
+                      }
+                    >
+                      <View
+                        style={
+                          styles.userProgressRow
+                        }
+                      >
+                        <Text
+                          style={[
+                            styles.userProgressLabel,
+                            {
+                              color:
+                                themeColors.textSecondary,
+                            },
+                          ]}
+                        >
+                          {group.progress.label}
+                        </Text>
+
+                        <Text
+                          style={[
+                            styles.userProgressValue,
+                            {
+                              color:
+                                group.progress
+                                  .color,
+                            },
+                          ]}
+                        >
+                          {group.progress.value}%
+                        </Text>
+                      </View>
+
+                      <View
+                        style={[
+                          styles.userProgressTrack,
+                          {
+                            backgroundColor:
+                              isDark
+                                ? 'rgba(255,255,255,0.08)'
+                                : '#E5EAF4',
+                          },
+                        ]}
+                      >
+                        <View
+                          style={[
+                            styles.userProgressBar,
+                            {
+                              width: `${group.progress.value}%`,
+                              backgroundColor:
+                                group.progress
+                                  .color,
+                            },
+                          ]}
+                        />
+                      </View>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   /* ============================================================
      LOADING
@@ -1017,6 +1506,56 @@ const DashboardScreen = ({ navigation }) => {
           )}
 
           {/* ====================================================
+              SOS
+          ==================================================== */}
+
+          {dashboardData?.sos?.active >
+            0 && (
+            <TouchableOpacity
+              style={styles.sosAlert}
+              onPress={() =>
+                navigation.navigate(
+                  'SOSAlerts'
+                )
+              }
+              activeOpacity={0.85}
+            >
+              <View style={styles.sosIcon}>
+                <Ionicons
+                  name="alert-circle"
+                  size={24}
+                  color="#FFFFFF"
+                />
+              </View>
+
+              <View style={styles.sosContent}>
+                <Text
+                  style={styles.sosTitle}
+                >
+                  Alerte SOS active
+                </Text>
+
+                <Text
+                  style={styles.sosText}
+                >
+                  {
+                    dashboardData.sos
+                      .active
+                  }{' '}
+                  alerte(s) nécessitent
+                  votre attention.
+                </Text>
+              </View>
+
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color="#FFFFFF"
+              />
+            </TouchableOpacity>
+          )}
+
+          {/* ====================================================
               ✨ IA & CHATBOT — accès bien visible (Android, iOS, web)
               Sur le web large, le même accès existe aussi dans la
               TopNavBar (icône étincelles).
@@ -1068,22 +1607,6 @@ const DashboardScreen = ({ navigation }) => {
             />
 
             <StatCard
-              icon="fitness-outline"
-              label="Thérapeutes"
-              value={
-                dashboardData?.users
-                  ?.therapists || 0
-              }
-              color="#16A34A"
-              subtitle="Professionnels"
-              onPress={() =>
-                navigation.navigate(
-                  'Therapists'
-                )
-              }
-            />
-
-            <StatCard
               icon="calendar-outline"
               label="Réservations"
               value={
@@ -1115,157 +1638,29 @@ const DashboardScreen = ({ navigation }) => {
                 )
               }
             />
-          </View>
 
-          {/* ====================================================
-              REVENUE
-          ==================================================== */}
-
-          <View
-            style={[
-              styles.revenueCard,
-              {
-                backgroundColor:
-                  themeColors.surface,
-
-                borderColor: isDark
-                  ? 'rgba(255,255,255,0.06)'
-                  : 'rgba(15,23,42,0.06)',
-              },
-            ]}
-          >
-            <View
-              style={styles.revenueLeft}
-            >
-              <View
-                style={[
-                  styles.revenueIcon,
-                  {
-                    backgroundColor:
-                      `${colors.primary}14`,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name="trending-up-outline"
-                  size={22}
-                  color={colors.primary}
-                />
-              </View>
-
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={[
-                    styles.revenueLabel,
-                    {
-                      color:
-                        themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  Revenu du jour
-                </Text>
-
-                <Text
-                  style={[
-                    styles.revenueValue,
-                    {
-                      color:
-                        themeColors.text,
-                    },
-                  ]}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                >
-                  {formatMoney(
-                    dashboardData?.revenue
-                      ?.today || 0
-                  )}
-                </Text>
-              </View>
-            </View>
-
-            <View
-              style={[
-                styles.revenueBadge,
-                {
-                  backgroundColor:
-                    `${colors.primary}12`,
-                },
-              ]}
-            >
-              <Ionicons
-                name="calendar-outline"
-                size={14}
-                color={colors.primary}
-              />
-
-              {windowWidth >= 400 ||
-              IS_WEB ? (
-                <Text
-                  style={[
-                    styles.revenueBadgeText,
-                    {
-                      color:
-                        colors.primary,
-                    },
-                  ]}
-                >
-                  Aujourd'hui
-                </Text>
-              ) : null}
-            </View>
-          </View>
-
-          {/* ====================================================
-              SOS
-          ==================================================== */}
-
-          {dashboardData?.sos?.active >
-            0 && (
-            <TouchableOpacity
-              style={styles.sosAlert}
+            <StatCard
+              icon="today-outline"
+              label="Revenu du jour"
+              value={formatMoney(
+                dashboardData?.revenue
+                  ?.today || 0
+              )}
+              color="#8B5CF6"
+              subtitle="Encaissé aujourd'hui"
               onPress={() =>
                 navigation.navigate(
-                  'SOSAlerts'
+                  'Payments'
                 )
               }
-              activeOpacity={0.85}
-            >
-              <View style={styles.sosIcon}>
-                <Ionicons
-                  name="alert-circle"
-                  size={24}
-                  color="#FFFFFF"
-                />
-              </View>
+            />
+          </View>
 
-              <View style={styles.sosContent}>
-                <Text
-                  style={styles.sosTitle}
-                >
-                  Alerte SOS active
-                </Text>
+          {/* ====================================================
+              STATISTIQUES DES UTILISATEURS (déplacées depuis UsersScreen)
+          ==================================================== */}
 
-                <Text
-                  style={styles.sosText}
-                >
-                  {
-                    dashboardData.sos
-                      .active
-                  }{' '}
-                  alerte(s) nécessitent
-                  votre attention.
-                </Text>
-              </View>
-
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
-          )}
+          {renderUserStats()}
 
           {/* ====================================================
               QUICK ACTIONS
@@ -1282,9 +1677,9 @@ const DashboardScreen = ({ navigation }) => {
               styles.quickGrid,
               {
                 columnGap:
-                  columns === 4
-                    ? '1.35%'
-                    : '2%',
+                  quickColumns === 3
+                    ? '2%'
+                    : 0,
               },
             ]}
           >
@@ -1312,13 +1707,6 @@ const DashboardScreen = ({ navigation }) => {
               screen="Reviews"
             />
 
-            <QuickAction
-              icon="bulb-outline"
-              label="IA & Chatbot"
-              description="KPI, prévisions, fraude et chatbot IA"
-              color="#8B5CF6"
-              screen="AIInsights"
-            />
           </View>
 
           {/* ====================================================
@@ -1390,7 +1778,7 @@ const DashboardScreen = ({ navigation }) => {
                     value={formatMoney(
                       stats.revenue || 0
                     )}
-                    label="Revenus"
+                    label="Revenus (période)"
                     color="#E53935"
                     themeColors={
                       themeColors
@@ -2435,6 +2823,227 @@ const styles = StyleSheet.create({
   },
 
   progressBar: {
+    height: '100%',
+
+    borderRadius: 10,
+  },
+
+  /* ==========================================================
+     STATISTIQUES UTILISATEURS
+  ========================================================== */
+
+  userStatsSection: {
+    width: '100%',
+
+    marginBottom: 12,
+  },
+
+  userStatsHeader: {
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    minHeight: 44,
+
+    marginBottom: 10,
+  },
+
+  userStatsToggle: {
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    gap: 5,
+
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+
+    borderRadius: 10,
+
+    marginLeft: 8,
+  },
+
+  userStatsToggleText: {
+    fontSize: 12,
+
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  // Les 3 cartes (catégories) : séparées, chacune avec son espace.
+  userGroupsRow: {
+    width: 'auto',
+
+    flexDirection: 'row',
+
+    flexWrap: 'wrap',
+
+    marginHorizontal: -6,
+  },
+
+  userGroupWrap: {
+    padding: 6,
+  },
+
+  userGroupCard: {
+    flex: 1,
+
+    borderRadius: 18,
+
+    borderWidth: 1,
+
+    padding: IS_WEB ? 16 : 13,
+
+    shadowColor: '#000',
+
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+
+    shadowOpacity: 0.04,
+
+    shadowRadius: 9,
+
+    elevation: 2,
+  },
+
+  userGroupHeader: {
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    marginBottom: 10,
+  },
+
+  userGroupIcon: {
+    width: 42,
+    height: 42,
+
+    borderRadius: 13,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginRight: 11,
+  },
+
+  userGroupTitle: {
+    fontSize: 15,
+
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  userGroupSubtitle: {
+    marginTop: 2,
+
+    fontSize: 11,
+
+    fontFamily:
+      typography.fontFamily.regular,
+  },
+
+  userTilesGrid: {
+    width: 'auto',
+
+    flexDirection: 'row',
+
+    flexWrap: 'wrap',
+
+    marginHorizontal: -4,
+  },
+
+  userStatTile: {
+    minHeight: 104,
+
+    borderRadius: 14,
+
+    borderWidth: 1,
+
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+  },
+
+  userStatIcon: {
+    width: 36,
+    height: 36,
+
+    borderRadius: 18,
+
+    alignItems: 'center',
+    justifyContent: 'center',
+
+    marginBottom: 7,
+  },
+
+  userStatValue: {
+    fontSize: IS_WEB ? 22 : 19,
+
+    maxWidth: '100%',
+
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  userStatLabel: {
+    marginTop: 3,
+
+    fontSize: 11,
+
+    lineHeight: 14,
+
+    textAlign: 'center',
+
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  userProgressBlock: {
+    marginTop: 'auto',
+
+    paddingTop: 10,
+  },
+
+  userProgressRow: {
+    flexDirection: 'row',
+
+    alignItems: 'center',
+
+    justifyContent: 'space-between',
+  },
+
+  userProgressLabel: {
+    fontSize: 11,
+
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  userProgressValue: {
+    fontSize: 12,
+
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  userProgressTrack: {
+    width: '100%',
+
+    height: 6,
+
+    borderRadius: 10,
+
+    marginTop: 7,
+
+    overflow: 'hidden',
+  },
+
+  userProgressBar: {
     height: '100%',
 
     borderRadius: 10,

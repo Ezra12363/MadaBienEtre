@@ -31,13 +31,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// npm install xlsx  ->  nécessaire pour l'export Excel (web uniquement)
-import * as XLSX from 'xlsx';
-// npm install @react-native-community/datetimepicker  ->  nécessaire pour le calendrier natif (iOS / Android)
-import DateTimePicker from '@react-native-community/datetimepicker';
-// npx expo install expo-file-system expo-sharing  ->  nécessaire pour l'export Excel sur Android / iOS
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
@@ -408,217 +401,6 @@ const ConfirmationModal = ({
 };
 
 /* ============================================================
-   CHAMP DATE (saisie clavier + calendrier automatique)
-   IMPORTANT :
-   Comme pour ConfirmationModal, ce composant reste HORS de
-   ApprovalsScreen pour éviter tout remount / perte de focus
-   pendant la saisie.
-
-   Comportement :
-   - Web      : <input type="date"> natif du navigateur.
-                L'utilisateur peut TAPER la date (JJ/MM/AAAA)
-                OU cliquer l'icône calendrier fournie
-                automatiquement par le navigateur.
-   - Mobile   : champ tactile qui ouvre le calendrier natif
-                iOS / Android (@react-native-community/datetimepicker).
-                Sur Android le sélecteur natif s'affiche
-                directement ; sur iOS il s'affiche dans une
-                petite feuille avec un bouton "Valider".
-============================================================ */
-
-const DateField = ({
-  value,
-  onChange,
-  placeholder,
-  themeColors,
-  isDark,
-}) => {
-  const [showPicker, setShowPicker] =
-    useState(false);
-
-  const [tempDate, setTempDate] =
-    useState(
-      value ? new Date(value) : new Date()
-    );
-
-  const toISODate = (d) =>
-    d.toISOString().slice(0, 10);
-
-  const openPicker = useCallback(() => {
-    setTempDate(
-      value ? new Date(value) : new Date()
-    );
-    setShowPicker(true);
-  }, [value]);
-
-  const handleNativeChange = useCallback(
-    (event, selectedDate) => {
-      if (Platform.OS === 'android') {
-        setShowPicker(false);
-        if (
-          event.type === 'set' &&
-          selectedDate
-        ) {
-          onChange(toISODate(selectedDate));
-        }
-        return;
-      }
-
-      if (selectedDate) {
-        setTempDate(selectedDate);
-      }
-    },
-    [onChange]
-  );
-
-  const confirmIOS = useCallback(() => {
-    onChange(toISODate(tempDate));
-    setShowPicker(false);
-  }, [tempDate, onChange]);
-
-  const cancelIOS = useCallback(() => {
-    setShowPicker(false);
-  }, []);
-
-  if (IS_WEB) {
-    return (
-      <input
-        type="date"
-        value={value || ''}
-        onChange={(e) =>
-          onChange(e.target.value)
-        }
-        placeholder={placeholder}
-        style={{
-          flex: 1,
-          minWidth: 108,
-          border: 'none',
-          outline: 'none',
-          background: 'transparent',
-          fontSize: 11,
-          fontFamily:
-            typography.fontFamily.regular,
-          color: themeColors.text,
-          colorScheme: isDark
-            ? 'dark'
-            : 'light',
-        }}
-      />
-    );
-  }
-
-  return (
-    <>
-      <TouchableOpacity
-        onPress={openPicker}
-        activeOpacity={0.7}
-        style={styles.dateFieldTouchable}
-      >
-        <Text
-          style={[
-            styles.dateFilterInput,
-            {
-              color: value
-                ? themeColors.text
-                : themeColors.textSecondary,
-            },
-          ]}
-          numberOfLines={1}
-        >
-          {value || placeholder}
-        </Text>
-      </TouchableOpacity>
-
-      {showPicker &&
-        Platform.OS === 'android' && (
-          <DateTimePicker
-            value={tempDate}
-            mode="date"
-            display="default"
-            onChange={handleNativeChange}
-          />
-        )}
-
-      {showPicker &&
-        Platform.OS === 'ios' && (
-          <Modal
-            transparent
-            animationType="fade"
-            visible={showPicker}
-            onRequestClose={cancelIOS}
-          >
-            <View
-              style={
-                styles.iosDatePickerOverlay
-              }
-            >
-              <View
-                style={[
-                  styles.iosDatePickerSheet,
-                  {
-                    backgroundColor:
-                      themeColors.surface,
-                  },
-                ]}
-              >
-                <DateTimePicker
-                  value={tempDate}
-                  mode="date"
-                  display="spinner"
-                  onChange={
-                    handleNativeChange
-                  }
-                  textColor={
-                    themeColors.text
-                  }
-                />
-
-                <View
-                  style={
-                    styles.iosDatePickerActions
-                  }
-                >
-                  <TouchableOpacity
-                    onPress={cancelIOS}
-                    activeOpacity={0.8}
-                    style={
-                      styles.iosDatePickerCancel
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.iosDatePickerCancelText
-                      }
-                    >
-                      Annuler
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={confirmIOS}
-                    activeOpacity={0.8}
-                    style={
-                      styles.iosDatePickerConfirm
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.iosDatePickerConfirmText
-                      }
-                    >
-                      Valider
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
-        )}
-    </>
-  );
-};
-
-/* ============================================================
    SCREEN
 ============================================================ */
 
@@ -709,28 +491,6 @@ const ApprovalsScreen = () => {
 
   const [filter, setFilter] =
     useState('all');
-
-  /* ==========================================================
-     ✅ FILTRE PAR DATE DE DEMANDE
-  ========================================================== */
-
-  const [dateFrom, setDateFrom] =
-    useState('');
-
-  const [dateTo, setDateTo] =
-    useState('');
-
-  const clearDateFilter = () => {
-    setDateFrom('');
-    setDateTo('');
-  };
-
-  /* ==========================================================
-     ✅ EXPORT EXCEL (état de chargement, web + mobile)
-  ========================================================== */
-
-  const [exportingExcel, setExportingExcel] =
-    useState(false);
 
   /* ==========================================================
      REJECTION DESCRIPTION
@@ -1147,231 +907,10 @@ const ApprovalsScreen = () => {
           !item.identity_document_url;
       }
 
-      let matchesDate = true;
-
-      const itemDate = formatDate(
-        item.created_at
-      );
-
-      if (
-        dateFrom &&
-        itemDate !== 'N/A'
-      ) {
-        matchesDate =
-          matchesDate &&
-          itemDate >= dateFrom;
-      }
-
-      if (
-        dateTo &&
-        itemDate !== 'N/A'
-      ) {
-        matchesDate =
-          matchesDate &&
-          itemDate <= dateTo;
-      }
-
-      if (
-        (dateFrom || dateTo) &&
-        itemDate === 'N/A'
-      ) {
-        matchesDate = false;
-      }
-
       return (
-        matchesSearch &&
-        matchesFilter &&
-        matchesDate
+        matchesSearch && matchesFilter
       );
     });
-
-  /* ==========================================================
-     ✅ EXPORT EXCEL (liste filtrée, y compris le filtre de date)
-  ========================================================== */
-
-  const handleExportExcel = async () => {
-    if (!filteredTherapists.length) {
-      showToast(
-        'Aucune donnée à exporter pour ces filtres.',
-        'warning'
-      );
-      return;
-    }
-
-    if (exportingExcel) {
-      return;
-    }
-
-    setExportingExcel(true);
-
-    try {
-      const rows = filteredTherapists.map(
-        (item, index) => {
-          const status =
-            getRequestStatus(item);
-
-          return {
-            'N°': index + 1,
-            ID: item.id ?? '',
-            'Nom complet':
-              item.fullname || '',
-            Email: item.email || '',
-            Téléphone: item.phone || '',
-            CIN: item.cin_number || '',
-            'Date de la demande':
-              formatDate(item.created_at),
-            'Statut de la demande':
-              status.label,
-            'Document CIN':
-              item.identity_document_url
-                ? 'Disponible'
-                : 'Manquante',
-            'Certificat professionnel':
-              item.certificate_professionnel
-                ? 'Disponible'
-                : 'Manquant',
-          };
-        }
-      );
-
-      const worksheet =
-        XLSX.utils.json_to_sheet(rows);
-
-      worksheet['!cols'] = [
-        { wch: 5 },
-        { wch: 8 },
-        { wch: 26 },
-        { wch: 28 },
-        { wch: 16 },
-        { wch: 16 },
-        { wch: 15 },
-        { wch: 17 },
-        { wch: 15 },
-        { wch: 22 },
-      ];
-
-      const workbook =
-        XLSX.utils.book_new();
-
-      XLSX.utils.book_append_sheet(
-        workbook,
-        worksheet,
-        'Demandes'
-      );
-
-      const dateSuffix = new Date()
-        .toISOString()
-        .slice(0, 10);
-
-      const fileName = `demandes_therapeutes_${dateSuffix}.xlsx`;
-
-      /* ------------------------------------------------------
-         WEB : téléchargement direct via un lien Blob
-      ------------------------------------------------------ */
-
-      if (IS_WEB) {
-        const wbout = XLSX.write(
-          workbook,
-          {
-            bookType: 'xlsx',
-            type: 'array',
-          }
-        );
-
-        const blob = new Blob(
-          [wbout],
-          {
-            type: 'application/octet-stream',
-          }
-        );
-
-        const blobUrl =
-          window.URL.createObjectURL(
-            blob
-          );
-
-        const link =
-          document.createElement('a');
-
-        link.href = blobUrl;
-        link.download = fileName;
-
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        window.URL.revokeObjectURL(
-          blobUrl
-        );
-      } else {
-        /* ------------------------------------------------------
-           ANDROID / iOS : écriture du fichier puis partage natif
-        ------------------------------------------------------ */
-
-        const wbout = XLSX.write(
-          workbook,
-          {
-            bookType: 'xlsx',
-            type: 'base64',
-          }
-        );
-
-        const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
-
-        await FileSystem.writeAsStringAsync(
-          fileUri,
-          wbout,
-          {
-            encoding:
-              FileSystem.EncodingType
-                .Base64,
-          }
-        );
-
-        const canShare =
-          await Sharing.isAvailableAsync();
-
-        if (!canShare) {
-          showToast(
-            "Le partage de fichiers n'est pas disponible sur cet appareil. Le fichier a été enregistré dans le cache de l'application.",
-            'warning'
-          );
-        } else {
-          await Sharing.shareAsync(
-            fileUri,
-            {
-              mimeType:
-                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              dialogTitle:
-                'Exporter Excel',
-              UTI: 'com.microsoft.excel.xlsx',
-            }
-          );
-        }
-      }
-
-      showToast(
-        `Export Excel généré (${filteredTherapists.length} ligne${
-          filteredTherapists.length > 1
-            ? 's'
-            : ''
-        }).`,
-        'success'
-      );
-    } catch (err) {
-      console.error(
-        'Export Excel error:',
-        err
-      );
-
-      showToast(
-        "Échec de l'export Excel.",
-        'error'
-      );
-    } finally {
-      setExportingExcel(false);
-    }
-  };
 
   /* ==========================================================
      OPEN DETAILS
@@ -1749,11 +1288,15 @@ const ApprovalsScreen = () => {
   const SearchAndFilters =
     () => (
       <View
-        style={styles.toolbar}
+        style={[
+          styles.toolbar,
+          isMobile && styles.toolbarMobile,
+        ]}
       >
         <View
           style={[
             styles.searchBox,
+            isMobile && styles.searchBoxMobile,
             {
               backgroundColor:
                 themeColors.surface,
@@ -1776,7 +1319,15 @@ const ApprovalsScreen = () => {
             onChangeText={
               setSearch
             }
-            placeholder="Rechercher nom, email, téléphone, CIN..."
+            placeholder={
+              isVerySmallMobile
+                ? 'Rechercher...'
+                : 'Rechercher nom, email, téléphone, CIN...'
+            }
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+            clearButtonMode="never"
             placeholderTextColor={
               themeColors.textSecondary
             }
@@ -1811,6 +1362,7 @@ const ApprovalsScreen = () => {
           showsHorizontalScrollIndicator={
             false
           }
+          style={styles.filtersScroll}
           contentContainerStyle={
             styles.filters
           }
@@ -1835,160 +1387,6 @@ const ApprovalsScreen = () => {
         </ScrollView>
       </View>
     );
-
-  /* ==========================================================
-     ✅ BARRE DE FILTRE PAR DATE + EXPORT EXCEL
-  ========================================================== */
-
-  const DateFilterBar = () => (
-    <View
-      style={styles.dateFilterBar}
-    >
-      <View
-        style={[
-          styles.dateFilterField,
-          {
-            backgroundColor:
-              themeColors.surface,
-            borderColor:
-              themeColors.border ||
-              'rgba(15,23,42,0.08)',
-          },
-        ]}
-      >
-        <Ionicons
-          name="calendar-outline"
-          size={15}
-          color={
-            themeColors.textSecondary
-          }
-        />
-
-        <DateField
-          value={dateFrom}
-          onChange={setDateFrom}
-          placeholder="Du (AAAA-MM-JJ)"
-          themeColors={themeColors}
-          isDark={isDark}
-        />
-      </View>
-
-      <Text
-        style={[
-          styles.dateFilterSeparator,
-          {
-            color:
-              themeColors.textSecondary,
-          },
-        ]}
-      >
-        →
-      </Text>
-
-      <View
-        style={[
-          styles.dateFilterField,
-          {
-            backgroundColor:
-              themeColors.surface,
-            borderColor:
-              themeColors.border ||
-              'rgba(15,23,42,0.08)',
-          },
-        ]}
-      >
-        <Ionicons
-          name="calendar-outline"
-          size={15}
-          color={
-            themeColors.textSecondary
-          }
-        />
-
-        <DateField
-          value={dateTo}
-          onChange={setDateTo}
-          placeholder="Au (AAAA-MM-JJ)"
-          themeColors={themeColors}
-          isDark={isDark}
-        />
-      </View>
-
-      {(!!dateFrom || !!dateTo) && (
-        <TouchableOpacity
-          onPress={clearDateFilter}
-          activeOpacity={0.8}
-          style={[
-            styles.dateFilterClear,
-            {
-              backgroundColor:
-                themeColors.surface,
-              borderColor:
-                themeColors.border ||
-                'rgba(15,23,42,0.08)',
-            },
-          ]}
-        >
-          <Ionicons
-            name="close-circle-outline"
-            size={15}
-            color={
-              themeColors.textSecondary
-            }
-          />
-
-          <Text
-            style={[
-              styles.dateFilterClearText,
-              {
-                color:
-                  themeColors.textSecondary,
-              },
-            ]}
-          >
-            Effacer
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      <TouchableOpacity
-        onPress={handleExportExcel}
-        disabled={exportingExcel}
-        activeOpacity={0.85}
-        style={[
-          styles.exportExcelButton,
-          {
-            opacity: exportingExcel
-              ? 0.7
-              : 1,
-          },
-        ]}
-      >
-        {exportingExcel ? (
-          <ActivityIndicator
-            size="small"
-            color="#FFFFFF"
-          />
-        ) : (
-          <Ionicons
-            name="download-outline"
-            size={16}
-            color="#FFFFFF"
-          />
-        )}
-
-        <Text
-          style={
-            styles.exportExcelButtonText
-          }
-        >
-          {exportingExcel
-            ? 'Export en cours…'
-            : 'Exporter Excel'}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
 
   /* ==========================================================
      MOBILE CARD
@@ -2615,7 +2013,7 @@ const ApprovalsScreen = () => {
         styles.tableWrapper,
         {
           ...(IS_WEB
-            ? { maxHeight: Math.max(windowHeight - 330, 320) }
+            ? { maxHeight: Math.max(windowHeight - 280, 320) }
             : null),
           backgroundColor:
             themeColors.surface,
@@ -2901,11 +2299,9 @@ const ApprovalsScreen = () => {
 
         {/* SEARCH */}
 
-        <SearchAndFilters />
-
-        {/* ✅ FILTRE PAR DATE + EXPORT EXCEL */}
-
-        <DateFilterBar />
+        {/* Appelé comme une fonction pour éviter de remonter le champ
+            (sinon le champ de recherche perd le focus à chaque lettre). */}
+        {SearchAndFilters()}
 
         {/* COUNTER */}
 
@@ -2976,7 +2372,7 @@ const ApprovalsScreen = () => {
           style={styles.content}
         >
           {IS_WEB ? (
-            <WebTable />
+            WebTable()
           ) : (
             <FlatList
               data={
@@ -3233,23 +2629,22 @@ const styles = StyleSheet.create({
 
   toolbar: {
     width: '100%',
-    flexDirection:
-      IS_WEB
-        ? 'row'
-        : 'column',
-    alignItems:
-      IS_WEB
-        ? 'center'
-        : 'stretch',
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 10,
     marginBottom: 12,
   },
 
+  // Petit écran (mobile ou fenêtre web étroite) : recherche pleine largeur,
+  // filtres en dessous.
+  toolbarMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+
   searchBox: {
-    flex:
-      IS_WEB
-        ? 1
-        : undefined,
+    flex: 1,
+    minWidth: 0,
     minHeight: 44,
     borderRadius: 12,
     borderWidth: 1,
@@ -3258,14 +2653,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
+  searchBoxMobile: {
+    flex: 0,
+    width: '100%',
+    minHeight: 46,
+  },
+
   searchInput: {
     flex: 1,
+    minWidth: 0,
     marginLeft: 9,
     paddingVertical: 8,
-    fontSize: 12,
+    fontSize: IS_WEB ? 12 : 14,
     fontFamily:
       typography.fontFamily.regular,
-    outlineStyle: 'none',
+    ...(IS_WEB
+      ? { outlineStyle: 'none' }
+      : null),
+  },
+
+  filtersScroll: {
+    flexGrow: 0,
+    flexShrink: 0,
   },
 
   filters: {
@@ -3287,148 +2696,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily:
       typography.fontFamily.semiBold,
-  },
-
-  /* ==========================================================
-     ✅ FILTRE PAR DATE / EXPORT EXCEL
-  ========================================================== */
-
-  dateFilterBar: {
-    width: '100%',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-
-  dateFilterField: {
-    minHeight: 40,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-
-  dateFilterInput: {
-    minWidth: 108,
-    paddingVertical: 6,
-    fontSize: 11,
-    fontFamily:
-      typography.fontFamily.regular,
-    outlineStyle: 'none',
-  },
-
-  dateFieldTouchable: {
-    flex: 1,
-    minWidth: 108,
-    paddingVertical: 6,
-  },
-
-  iosDatePickerOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor:
-      'rgba(8,10,20,0.45)',
-  },
-
-  iosDatePickerSheet: {
-    width: '100%',
-    paddingTop: 8,
-    paddingBottom: 24,
-    paddingHorizontal: 16,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-  },
-
-  iosDatePickerActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 8,
-  },
-
-  iosDatePickerCancel: {
-    minHeight: 40,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F1F5F9',
-  },
-
-  iosDatePickerCancelText: {
-    fontSize: 13,
-    color: '#64748B',
-    fontFamily:
-      typography.fontFamily.semiBold,
-  },
-
-  iosDatePickerConfirm: {
-    minHeight: 40,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
-  },
-
-  iosDatePickerConfirmText: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    fontFamily:
-      typography.fontFamily.bold,
-  },
-
-  dateFilterSeparator: {
-    fontSize: 13,
-    fontFamily:
-      typography.fontFamily.semiBold,
-  },
-
-  dateFilterClear: {
-    minHeight: 40,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-  },
-
-  dateFilterClearText: {
-    fontSize: 11,
-    fontFamily:
-      typography.fontFamily.semiBold,
-  },
-
-  exportExcelButton: {
-    minHeight: 40,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    backgroundColor: '#16A34A',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 7,
-
-    shadowColor: '#16A34A',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.22,
-    shadowRadius: 7,
-    elevation: 3,
-  },
-
-  exportExcelButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontFamily:
-      typography.fontFamily.bold,
   },
 
   /* ==========================================================

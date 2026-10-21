@@ -85,9 +85,6 @@ const UsersScreen = () => {
     bio: '',
   });
 
-  const [stats, setStats] = useState(null);
-  const [showStats, setShowStats] = useState(false);
-
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createData, setCreateData] = useState({
     fullname: '',
@@ -359,7 +356,8 @@ const UsersScreen = () => {
     setIsLoading(true);
     setError(null);
     try {
-      await Promise.all([loadUsers(), loadStats()]);
+      // Les statistiques utilisateurs sont désormais affichées sur le tableau de bord (DashboardScreen).
+      await loadUsers();
     } catch (err) {
       console.error('❌ Erreur chargement:', err);
       setError('Impossible de charger les données');
@@ -401,48 +399,6 @@ const UsersScreen = () => {
       setUsers([]);
       setFilteredUsers([]);
       showToast('Impossible de charger les utilisateurs', 'error');
-    }
-  };
-
-  const loadStats = async () => {
-    try {
-      const data = await adminService.getUserStats();
-      if (data && typeof data === 'object') {
-        setStats(data);
-      } else {
-        calculateStatsFromUsers();
-      }
-    } catch (err) {
-      console.error('❌ Error loading stats:', err);
-      calculateStatsFromUsers();
-    }
-  };
-
-  const calculateStatsFromUsers = () => {
-    if (users.length > 0) {
-      setStats({
-        total: users.length,
-        clients: users.filter((u) => u.role === 'CLIENT').length,
-        therapists: users.filter((u) => u.role === 'THERAPIST').length,
-        admins: users.filter((u) => u.role === 'ADMIN').length,
-        active: users.filter((u) => u.is_active).length,
-        inactive: users.filter((u) => !u.is_active).length,
-        new_users_last_week: 0,
-        verified_therapists: users.filter((u) => u.role === 'THERAPIST' && u.verification_status === 'approved').length,
-        online_therapists: users.filter((u) => u.role === 'THERAPIST' && u.is_online).length,
-      });
-    } else {
-      setStats({
-        total: 0,
-        clients: 0,
-        therapists: 0,
-        admins: 0,
-        active: 0,
-        inactive: 0,
-        new_users_last_week: 0,
-        verified_therapists: 0,
-        online_therapists: 0,
-      });
     }
   };
 
@@ -1586,77 +1542,6 @@ const UsersScreen = () => {
   };
 
   /* ==========================================================
-     STATS
-  ========================================================== */
-
-  const renderStats = () => {
-    if (!stats) return null;
-
-    const items = [
-      { icon: 'people-outline', label: 'Total', value: stats.total || 0, color: '#4A90D9' },
-      { icon: 'person-outline', label: 'Clients', value: stats.clients || 0, color: '#4A90D9' },
-      { icon: 'fitness-outline', label: 'Thérapeutes', value: stats.therapists || 0, color: '#27AE60' },
-      { icon: 'shield-checkmark-outline', label: 'Admins', value: stats.admins || 0, color: '#E74C3C' },
-      { icon: 'checkmark-circle-outline', label: 'Actifs', value: stats.active || 0, color: '#27AE60' },
-      { icon: 'close-circle-outline', label: 'Inactifs', value: stats.inactive || 0, color: '#E74C3C' },
-      { icon: 'trending-up-outline', label: 'Nouveaux (7j)', value: stats.new_users_last_week || 0, color: '#F5A623' },
-      { icon: 'shield-checkmark-outline', label: 'Vérifiés', value: stats.verified_therapists || 0, color: '#27AE60' },
-      { icon: 'wifi-outline', label: 'En ligne', value: stats.online_therapists || 0, color: '#4A90D9' },
-    ];
-
-    return (
-      <View
-        style={[
-          styles.statsContainer,
-          {
-            backgroundColor: themeColors.surface,
-            marginHorizontal: IS_WEB ? horizontalPadding : 0,
-          },
-        ]}
-      >
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.statsGrid}>
-            {items.map((item, index) => (
-              <View key={index} style={styles.statItem}>
-                <View
-                  style={[
-                    styles.statIconContainer,
-                    {
-                      backgroundColor: item.color + '20',
-                    },
-                  ]}
-                >
-                  <Ionicons name={item.icon} size={16} color={item.color} />
-                </View>
-                <Text
-                  style={[
-                    styles.statValue,
-                    {
-                      color: themeColors.text,
-                    },
-                  ]}
-                >
-                  {item.value}
-                </Text>
-                <Text
-                  style={[
-                    styles.statLabel,
-                    {
-                      color: themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </ScrollView>
-      </View>
-    );
-  };
-
-  /* ==========================================================
      HEADER CELL
   ========================================================== */
 
@@ -2032,40 +1917,6 @@ const UsersScreen = () => {
               })}
             </ScrollView>
           </View>
-
-          {/* STATS TOGGLE */}
-          <View
-            style={[
-              styles.statsToggleContainer,
-              {
-                paddingHorizontal: IS_WEB ? horizontalPadding : 12,
-              },
-            ]}
-          >
-            <TouchableOpacity
-              style={styles.statsToggle}
-              onPress={() => setShowStats(!showStats)}
-            >
-              <Text
-                style={[
-                  styles.statsToggleText,
-                  {
-                    color: colors.primary,
-                  },
-                ]}
-              >
-                {showStats ? '📊 Masquer les statistiques' : '📊 Voir les statistiques'}
-              </Text>
-
-              <Ionicons
-                name={showStats ? 'chevron-up' : 'chevron-down'}
-                size={20}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {showStats && renderStats()}
 
           {/* ERROR */}
           {error && (
@@ -2637,73 +2488,6 @@ const styles = StyleSheet.create({
   filterText: {
     fontSize: 12,
     fontFamily: typography.fontFamily.medium,
-  },
-
-  /* ============================================================
-     STATS
-  ============================================================ */
-
-  statsToggleContainer: {
-    paddingVertical: 4,
-  },
-
-  statsToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-  },
-
-  statsToggleText: {
-    fontSize: 13,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  statsContainer: {
-    marginBottom: 10,
-    borderRadius: 14,
-    paddingVertical: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-
-  statsGrid: {
-    flexDirection: 'row',
-    paddingHorizontal: 12,
-    gap: 12,
-  },
-
-  statItem: {
-    alignItems: 'center',
-    minWidth: 68,
-    paddingVertical: 4,
-  },
-
-  statIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-
-  statValue: {
-    fontSize: 16,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  statLabel: {
-    fontSize: 9,
-    fontFamily: typography.fontFamily.regular,
-    textAlign: 'center',
   },
 
   /* ============================================================
