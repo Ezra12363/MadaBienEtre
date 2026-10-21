@@ -23,7 +23,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import Header from '../../components/common/Header';
-import { formatAr } from '../../components/payment/paymentUtils';
+import { formatAr, formatDateTime } from '../../components/payment/paymentUtils';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 
@@ -122,6 +122,8 @@ const WithdrawScreen = ({ navigation }) => {
       setError(res.error || 'La demande a échoué. Réessayez.');
       return;
     }
+    // Le montant est DÉJÀ déduit du solde disponible : on met l'affichage à jour tout de suite.
+    if (res.data?.wallet_after) setWallet((prev) => ({ ...(prev || {}), ...res.data.wallet_after }));
     setDone(res.data);
   };
 
@@ -142,7 +144,18 @@ const WithdrawScreen = ({ navigation }) => {
             demande ; vous serez notifié et le reçu PDF sera disponible dans « Mes gains &gt; Retraits ».
           </Text>
           <Text style={[styles.centerText, sub]}>Référence : {done.reference}</Text>
-          <TouchableOpacity style={styles.primary} onPress={() => navigation.goBack()}>
+          {done.created_at ? <Text style={[styles.centerText, sub]}>Demandé le {formatDateTime(done.created_at)} (heure de Madagascar)</Text> : null}
+          <Text style={[styles.title, txt]}>Nouveau solde disponible : {formatAr(available)}</Text>
+          <TouchableOpacity
+            style={styles.primary}
+            onPress={() => {
+              try {
+                navigation.navigate('EarningsScreen', { tab: 'retraits', ts: Date.now() });
+              } catch (e) {
+                navigation.goBack();
+              }
+            }}
+          >
             <Text style={styles.primaryText}>Voir mes retraits</Text>
           </TouchableOpacity>
         </View>
@@ -169,6 +182,12 @@ const WithdrawScreen = ({ navigation }) => {
               Minimum {formatAr(minWithdrawal)}
               {feePercent > 0 ? ` · frais ${feePercent} %` : ''}
             </Text>
+            {value > 0 ? (
+              <View style={styles.afterRow}>
+                <Text style={styles.balanceHint}>Solde après cette demande</Text>
+                <Text style={[styles.afterValue, value > available && { color: '#FECACA' }]}>{formatAr(available - value)}</Text>
+              </View>
+            ) : null}
           </View>
 
           <View style={[styles.card, box]}>
@@ -278,7 +297,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
   centerText: { fontSize: 14, textAlign: 'center', lineHeight: 20, fontWeight: '400' },
   title: { fontSize: 20, fontWeight: '400' },
-  scroll: { padding: 16, paddingBottom: 40, gap: 14, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  scroll: { padding: 16, paddingBottom: 40, gap: 14, width: '100%', maxWidth: 1100, alignSelf: 'center' },
+  afterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.4)' },
+  afterValue: { color: '#fff', fontSize: 18, fontWeight: '400' },
   balance: { backgroundColor: GREEN, borderRadius: 18, padding: 18 },
   balanceLabel: { color: '#CFE5D8', fontSize: 13, fontWeight: '400' },
   balanceValue: { color: '#fff', fontSize: 30, marginTop: 4, fontWeight: '400' },

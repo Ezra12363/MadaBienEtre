@@ -28,7 +28,7 @@ from ..models.payment import Payment, Transaction
 from ..models.therapist import TherapistEarnings, Withdrawal
 from ..models.user import User
 from ..services import platform_settings, receipt_links, receipt_service
-from ..services.mg_time import iso_utc, mg_now, to_mg
+from ..utils.date_utils import iso_utc
 from ..services import wallet_service as ws
 from ..services.wallet_service import WalletError
 
@@ -112,14 +112,14 @@ async def my_wallet(
         db.query(Transaction)
         .filter(Transaction.user_id == current_user.id)
         .order_by(Transaction.id.desc())
-        .limit(50)
+        .limit(300)
         .all()
     )
     withdrawals = (
         db.query(Withdrawal)
         .filter(Withdrawal.therapist_id == current_user.id)
         .order_by(Withdrawal.id.desc())
-        .limit(30)
+        .limit(200)
         .all()
     )
     # Espèces en attente de confirmation par le thérapeute
@@ -143,7 +143,7 @@ async def my_wallet(
         "commission_payments": [
             _cp(c) for c in db.query(CommissionPayment)
             .filter(CommissionPayment.therapist_id == current_user.id)
-            .order_by(CommissionPayment.id.desc()).limit(30).all()
+            .order_by(CommissionPayment.id.desc()).limit(200).all()
         ],
         "transactions": [_t(t) for t in transactions],
         "withdrawals": [_w(w) for w in withdrawals],
@@ -153,6 +153,8 @@ async def my_wallet(
                 "booking_id": p.booking_id,
                 "amount": float(p.amount or 0),
                 "created_at": iso_utc(p.created_at),
+                "client_sent_at": (p.payment_data or {}).get("client_sent_at"),
+                "payer_name": p.payer_name,
             }
             for p in cash_pending
         ],
@@ -164,7 +166,10 @@ def _create_withdrawal(body: WithdrawalCreate, db: Session, user: User) -> Dict[
         w = ws.request_withdrawal(db, user, body.model_dump() if hasattr(body, "model_dump") else body.dict())
     except WalletError as exc:
         raise HTTPException(400, str(exc))
-    return _w(w, user.fullname)
+    out = _w(w, user.fullname)
+    # Solde mis à jour : le montant demandé est déjà DÉDUIT de « available » (bloqué en attente).
+    out["wallet_after"] = ws.wallet_summary(db, user.id)
+    return out
 
 
 @router.post("/withdrawals")
@@ -218,7 +223,9 @@ async def cancel_my_withdrawal(
         w = ws.cancel_withdrawal(db, w)
     except WalletError as exc:
         raise HTTPException(400, str(exc))
-    return _w(w)
+    out = _w(w)
+    out["wallet_after"] = ws.wallet_summary(db, current_user.id)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -258,7 +265,7 @@ async def admin_summary(
 async def admin_transactions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin),
-    limit: int = Query(100, le=500),
+    limit: int = Query(300, le=1000),
 ):
     rows = db.query(Transaction).order_by(Transaction.id.desc()).limit(limit).all()
     names = {
@@ -277,7 +284,7 @@ async def admin_withdrawals(
     q = db.query(Withdrawal)
     if status and status != "all":
         q = q.filter(Withdrawal.status == status)
-    rows = q.order_by(Withdrawal.id.desc()).limit(200).all()
+    rows = q.order_by(Withdrawal.id.desc()).limit(500).all()
     names = {
         u.id: u.fullname
         for u in db.query(User).filter(User.id.in_({r.therapist_id for r in rows} or {0})).all()
@@ -420,7 +427,10 @@ async def pay_my_commission(
 ):
     try:
         data = body.model_dump() if hasattr(body, "model_dump") else body.dict()
-        return _cp(ws.pay_commission(db, current_user, data), current_user.fullname)
+        out = _cp(ws.pay_commission(db, current_user, data), current_user.fullname)
+        # Solde mis à jour : paiement « wallet » = montant déjà déduit de « available ».
+        out["wallet_after"] = ws.wallet_summary(db, current_user.id)
+        return out
     except WalletError as exc:
         db.rollback()
         raise HTTPException(400, str(exc))
@@ -428,7 +438,7 @@ async def pay_my_commission(
 
 # ---------------- Thérapeute : statistiques + graphiques ----------------
 def _fill_series(payments, withdrawals, days: int = 30, months: int = 12):
-    today = mg_now().date()
+    today = datetime.utcnow().date()
     daily = {
         (today - timedelta(days=i)).isoformat(): {"date": (today - timedelta(days=i)).isoformat(),
                                                   "gross": 0.0, "net": 0.0, "commission": 0.0, "count": 0}
@@ -440,7 +450,7 @@ def _fill_series(payments, withdrawals, days: int = 30, months: int = 12):
                for k in _last_months(months)}
     for p in payments:
         meta = p.payment_metadata or {}
-        when = to_mg(p.completed_at or p.created_at)
+        when = p.completed_at or p.created_at
         g, n, c = float(p.amount or 0), float(meta.get("net_amount", 0) or 0), float(meta.get("commission_amount", 0) or 0)
         if when and when.date().isoformat() in daily:
             d = daily[when.date().isoformat()]
@@ -450,7 +460,7 @@ def _fill_series(payments, withdrawals, days: int = 30, months: int = 12):
             m = monthly[mk]
             m["gross"] += g; m["net"] += n; m["commission"] += c; m["count"] += 1
     for w in withdrawals:
-        mk = _month_key(to_mg(w.completed_at or w.created_at))
+        mk = _month_key(w.completed_at or w.created_at)
         if mk in monthly and w.status == "completed":
             monthly[mk]["withdrawn"] += float(w.amount or 0)
     return list(daily.values()), list(monthly.values())
@@ -740,7 +750,6 @@ async def admin_get_settings(
         "settings": platform_settings.get_config(),
         "gateways": {
             "stripe_configured": gw.stripe_configured(),
-            "stripe_reason": gw.stripe_status()["reason"],
             "vanila_configured": gw.vanila_configured(),
             "sandbox": bool(settings.PAYMENT_SANDBOX),
             "stripe_webhook_url": f"{settings.BASE_URL.rstrip('/')}/payments/webhook/stripe",

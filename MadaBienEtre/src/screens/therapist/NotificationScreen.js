@@ -1335,6 +1335,27 @@ const NotificationScreen = ({
           );
 
 
+        /* ------------------------------------------------------
+           ARGENT : retrait accepté/payé/refusé, commission
+           -> page Gains (onglet Retraits / Commission) directement
+        ------------------------------------------------------ */
+        const moneyData = getNotificationData(notification) || {};
+        const moneyKind = String(moneyData.kind || '').toLowerCase();
+        if (
+          moneyData.screen === 'Earnings' ||
+          moneyKind.startsWith('withdrawal') ||
+          moneyKind.startsWith('commission')
+        ) {
+          navigation.navigate('Gains', {
+            screen: 'EarningsScreen',
+            params: { tab: moneyData.tab || 'retraits', ts: Date.now() },
+          });
+          return;
+        }
+        const isPaymentNotif =
+          moneyKind.startsWith('payment') ||
+          String(notification?.type || '').toLowerCase().includes('payment');
+
         console.log(
           '🔔 [THERAPIST NOTIFICATION]',
           {
@@ -1346,26 +1367,6 @@ const NotificationScreen = ({
           }
         );
 
-
-        /* ------------------------------------------------------
-           RETRAIT / COMMISSION (accepté, payé, refusé, validé...)
-           -> directement la page « Gains », onglet concerné.
-        ------------------------------------------------------ */
-        {
-          const nd = getNotificationData(notification) || {};
-          const raw = `${notification?.type || ''} ${notification?.title || ''}`.toLowerCase();
-          const isCommission =
-            nd.commission_payment_id || (!bookingId && raw.includes('commission'));
-          const isWithdrawal =
-            nd.withdrawal_id || (!bookingId && (raw.includes('retrait') || raw.includes('withdraw')));
-          if (isCommission || isWithdrawal) {
-            navigation.navigate('Gains', {
-              screen: 'EarningsScreen',
-              params: { tab: isCommission ? 'commission' : 'retraits', ts: Date.now() },
-            });
-            return;
-          }
-        }
 
         /* ------------------------------------------------------
            NEGOTIATION
@@ -1441,6 +1442,7 @@ const NotificationScreen = ({
 
               params: {
                 bookingId,
+                openPayment: isPaymentNotif,
               },
             }
           );

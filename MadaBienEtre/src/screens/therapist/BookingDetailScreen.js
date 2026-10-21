@@ -1813,6 +1813,7 @@ const BookingDetailScreen = ({
               booking={booking}
               role="therapist"
               navigation={navigation}
+              defaultOpen={!!route?.params?.openPayment}
             />
           </View>
         </FadeSlideIn>

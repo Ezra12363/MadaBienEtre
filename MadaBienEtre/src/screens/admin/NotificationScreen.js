@@ -282,7 +282,15 @@ const NotificationScreen = ({ navigation }) => {
           }
           d = d || {};
           params = {
-            tab: d.commission_payment_id ? 'commissions' : d.withdrawal_id ? 'withdrawals' : 'payments',
+            // Le backend envoie déjà data.tab : 'payments' | 'withdrawals' | 'commissions'
+            tab:
+              d.tab ||
+              (d.commission_payment_id
+                ? 'commissions'
+                : d.withdrawal_id
+                ? 'withdrawals'
+                : 'payments'),
+            focusId: d.payment_id || d.withdrawal_id || d.commission_payment_id || null,
             ts: Date.now(),
           };
         }

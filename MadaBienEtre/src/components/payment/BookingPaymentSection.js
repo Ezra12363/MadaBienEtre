@@ -60,8 +60,12 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
   const payment = hasPreloaded ? preloaded : fetched;
 
   const [open, setOpen] = useState(defaultOpen);
-  const [autoOpened, setAutoOpened] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // Ouvert automatiquement quand on arrive depuis une notification de paiement.
+  useEffect(() => {
+    if (defaultOpen) setOpen(true);
+  }, [defaultOpen]);
 
   // Rafraîchir quand on revient de l'écran de paiement.
   useEffect(() => {
@@ -105,36 +109,28 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
     ]);
   };
 
-  const pending = state === 'pending';
-  const needsConfirm = isTherapist && state === 'paid' && payment?.method !== 'cash' && !payment?.therapist_confirmed;
-
-  const confirmReceipt = async () => {
+  const notifyTherapist = async () => {
     setBusy(true);
-    const res = await paymentService.therapistConfirm(payment.id);
+    const res = await paymentService.clientSent(payment.id);
     setBusy(false);
     if (!res.success) {
-      Alert.alert('Paiement', res.error || 'Impossible de confirmer.');
+      Alert.alert('Paiement', res.error || 'Impossible de prévenir le thérapeute.');
       return;
     }
     if (!hasPreloaded) await reload();
     onChanged?.();
   };
+
+  const pending = state === 'pending';
   const cashWaiting = payment?.method === 'cash' && ['pending', 'processing'].includes(payment?.status);
 
-  useEffect(() => {
-    if (needsConfirm && !autoOpened) {
-      setOpen(true);
-      setAutoOpened(true);
-    }
-  }, [needsConfirm, autoOpened]);
-
   const summary = useMemo(() => {
-    if (state === 'paid' && needsConfirm) return 'Paiement reçu — à confirmer';
     if (state === 'paid') return isTherapist ? 'Le client a payé' : 'Paiement effectué';
     if (state === 'refunded') return 'Paiement remboursé';
+    if (payment?.awaiting_confirmation) return isTherapist ? 'Paiement reçu à confirmer' : 'En attente de confirmation du thérapeute';
     if (payment?.status === 'processing') return 'Paiement en cours de vérification';
     return isTherapist ? 'Le client n’a pas encore payé' : 'Paiement à effectuer';
-  }, [state, payment, isTherapist, needsConfirm]);
+  }, [state, payment, isTherapist]);
 
   if (!booking || !payable) return null;
 
@@ -151,7 +147,6 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
           </View>
         </View>
         <View style={styles.headRight}>
-          {amount > 0 ? <Text style={[styles.headAmount, { color: tc.text }]}>{formatAr(amount)}</Text> : null}
           <PaymentStatusBadge state={state} />
           <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={tc.textSecondary} />
         </View>
@@ -161,27 +156,14 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
         <View style={[styles.body, { borderTopColor: tc.border }]}>
           <Line tc={tc} label={pending ? 'Montant à payer' : isTherapist ? 'Montant payé par le client' : 'Montant payé'} value={formatAr(amount)} />
           {!pending ? <Line tc={tc} label="Mode de paiement" value={payment?.method_label} /> : null}
-          {state === 'paid' ? <Line tc={tc} label="Date et heure du paiement" value={formatDateTime(payment?.paid_at || payment?.completed_at)} /> : null}
+          {payment?.created_at ? <Line tc={tc} label="Paiement initié le" value={formatDateTime(payment.created_at)} /> : null}
+          {payment?.client_sent_at && pending ? <Line tc={tc} label="Client : « argent remis » le" value={formatDateTime(payment.client_sent_at)} /> : null}
+          {state === 'paid' ? <Line tc={tc} label="Payé le (heure de Madagascar)" value={formatDateTime(payment?.paid_at || payment?.completed_at)} /> : null}
           {isTherapist && state === 'paid' && payment?.net_amount ? (
             <>
               <Line tc={tc} label={`Commission (${payment.commission_rate ?? '—'} %)`} value={formatAr(payment.commission_amount)} />
               <Line tc={tc} label="Votre part nette" value={formatAr(payment.net_amount)} />
             </>
-          ) : null}
-
-          {state === 'paid' && payment?.method !== 'cash' ? (
-            <Line
-              tc={tc}
-              label="Réception par le thérapeute"
-              value={payment?.therapist_confirmed ? `Confirmée le ${formatDateTime(payment.therapist_confirmed_at)}` : 'En attente de confirmation'}
-            />
-          ) : null}
-
-          {needsConfirm ? (
-            <TouchableOpacity style={[styles.primary, { backgroundColor: '#B8924A' }]} onPress={confirmReceipt} disabled={busy} activeOpacity={0.85}>
-              {busy ? <ActivityIndicator color="#fff" /> : <Ionicons name="shield-checkmark-outline" size={18} color="#fff" />}
-              <Text style={styles.primaryText}>Confirmer la réception du paiement</Text>
-            </TouchableOpacity>
           ) : null}
 
           {/* ----- Actions ----- */}
@@ -203,10 +185,28 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
             </TouchableOpacity>
           ) : null}
 
+          {pending && !isTherapist && cashWaiting && !payment?.client_sent_at ? (
+            <TouchableOpacity style={[styles.primary, styles.secondary]} onPress={notifyTherapist} disabled={busy} activeOpacity={0.85}>
+              {busy ? <ActivityIndicator color={GREEN} /> : <Ionicons name="paper-plane-outline" size={18} color={GREEN} />}
+              <Text style={[styles.primaryText, { color: GREEN }]}>J’ai remis les espèces — prévenir le thérapeute</Text>
+            </TouchableOpacity>
+          ) : null}
+
           {pending && !isTherapist && cashWaiting ? (
             <Text style={[styles.hint, { color: tc.textSecondary }]}>
-              Espèces choisies : le thérapeute confirmera la réception à la fin du massage.
+              {payment?.client_sent_at
+                ? 'Votre thérapeute a été prévenu. Le paiement sera validé dès qu’il aura confirmé la réception.'
+                : 'Espèces choisies : après avoir remis l’argent, appuyez sur le bouton ci-dessus ; le thérapeute confirmera la réception.'}
             </Text>
+          ) : null}
+
+          {pending && isTherapist && payment?.awaiting_confirmation ? (
+            <View style={styles.notice}>
+              <Ionicons name="alert-circle-outline" size={18} color="#B45309" />
+              <Text style={styles.noticeText}>
+                Le client indique vous avoir remis {formatAr(amount)} le {formatDateTime(payment.client_sent_at)}. Vérifiez puis confirmez la réception.
+              </Text>
+            </View>
           ) : null}
 
           {pending && isTherapist && cashWaiting ? (
@@ -233,7 +233,6 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, gap: 8 },
   headLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
   headRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  headAmount: { fontSize: 13, fontWeight: '400' },
   title: { fontSize: 14, fontWeight: '400' },
   sub: { fontSize: 12, marginTop: 1, fontWeight: '400' },
   body: { borderTopWidth: 1, paddingHorizontal: 12, paddingBottom: 12, paddingTop: 6 },
@@ -251,5 +250,8 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   primaryText: { color: '#fff', fontSize: 15, fontWeight: '400' },
+  secondary: { backgroundColor: '#E8F3EC', borderWidth: 1, borderColor: GREEN },
+  notice: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: '#FEF3C7', borderRadius: 10, padding: 10, marginTop: 10 },
+  noticeText: { flex: 1, color: '#92400E', fontSize: 13, lineHeight: 18, fontWeight: '400' },
   hint: { fontSize: 12, marginTop: 10, lineHeight: 17, fontWeight: '400' },
 });

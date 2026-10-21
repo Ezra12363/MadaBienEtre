@@ -24,8 +24,8 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 
 from ..core.config import settings
+from ..utils.date_utils import fmt_mada, iso_utc
 from . import platform_settings
-from .mg_time import fmt_mg
 
 # ----------------------------- thème ---------------------------------------
 GREEN = HexColor("#1F6B45")
@@ -67,11 +67,11 @@ def ar(value: Any) -> str:
 
 
 def fmt_dt(value: Optional[datetime], convert: bool = True) -> str:
-    """Date + heure de MADAGASCAR (UTC+3). convert=False : date déjà saisie en heure locale
-    (ex. date de la séance choisie par le client)."""
+    """Date + heure.  convert=True : `value` est en UTC (base de données) -> HEURE DE MADAGASCAR (UTC+3).
+    convert=False : `value` est déjà une heure locale (ex. date de séance saisie dans l'app)."""
     if not value:
         return "—"
-    return fmt_mg(value) if convert else value.strftime("%d/%m/%Y à %H:%M")
+    return fmt_mada(value) if convert else value.strftime("%d/%m/%Y à %H:%M")
 
 
 def method_label(method: Optional[str], provider: Optional[str] = None) -> str:
@@ -309,7 +309,8 @@ def payment_doc(ctx: Dict[str, Any], view: str) -> Dict[str, Any]:
         (
             "Paiement",
             [
-                ("Date et heure", ctx["paid_at_label"]),
+                ("Payé le (heure de Madagascar)", ctx["paid_at_label"]),
+                ("Paiement initié le", ctx.get("created_at_label")),
                 ("Mode de paiement", ctx["method_label"]),
                 ("Numéro payeur", ctx.get("payer_phone")),
                 ("Transaction", ctx["transaction_id"]),
@@ -368,6 +369,7 @@ def withdrawal_doc(w: Any, therapist_name: str, therapist_phone: str = "") -> Di
             "Retrait",
             [
                 ("Demandé le", fmt_dt(w.created_at)),
+                ("Accepté le", fmt_dt(w.processed_at) if getattr(w, "processed_at", None) else None),
                 ("Payé le", fmt_dt(w.completed_at)),
                 ("Mode de retrait", method_label(w.method, None)),
                 ("Destination", dest),
@@ -409,7 +411,7 @@ def commission_doc(cp: Any, therapist_name: str) -> Dict[str, Any]:
             "Paiement de commission",
             [
                 ("Soumis le", fmt_dt(cp.created_at)),
-                ("Validé le", fmt_dt(cp.completed_at)),
+                ("Validé le", fmt_dt(cp.completed_at) if cp.completed_at else None),
                 ("Mode", method_label(cp.method, cp.provider)),
                 ("Numéro", cp.phone_number),
                 ("Référence du transfert", cp.transfer_reference),
@@ -466,7 +468,8 @@ def doc_json(doc: Dict[str, Any]) -> Dict[str, Any]:
         ],
         "barcode_data": doc["barcode_data"],
         "verify_url": doc["verify_url"],
-        "issued_at": doc["issued_at"].isoformat() if doc.get("issued_at") else None,
+        "issued_at": iso_utc(doc.get("issued_at")),
+        "issued_at_label": fmt_dt(doc.get("issued_at")) if doc.get("issued_at") else None,
         "footer": cfg.get("receipt_footer") or "",
     }
 

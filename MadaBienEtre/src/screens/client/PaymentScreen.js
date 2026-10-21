@@ -43,19 +43,12 @@ const POLL_MAX_MS = 3 * 60 * 1000; // 3 min pour valider sur le téléphone
 const formatAr = (value) => `${Math.round(Number(value) || 0).toLocaleString('fr-FR')} Ar`;
 const onlyDigits = (t) => String(t || '').replace(/[^0-9]/g, '');
 
-// Masque de saisie du numéro malgache : 0341234567 -> « 034 12 345 67 »
-const formatMgPhone = (digits) => {
-  const d = onlyDigits(digits).slice(0, 10);
-  const parts = [d.slice(0, 3), d.slice(3, 5), d.slice(5, 8), d.slice(8, 10)].filter(Boolean);
-  return parts.join(' ');
-};
-
 // Choix proposés au client (id -> method + provider envoyés au backend)
 const OPTIONS = [
   { id: 'mvola', label: 'MVola', method: 'mobile_money', provider: 'mvola', icon: '📱', hint: '034 / 038' },
   { id: 'orange_money', label: 'Orange Money', method: 'mobile_money', provider: 'orange_money', icon: '🟠', hint: '032 / 037' },
   { id: 'airtel_money', label: 'Airtel Money', method: 'mobile_money', provider: 'airtel_money', icon: '🔴', hint: '033' },
-  { id: 'card', label: 'Carte bancaire', method: 'card', icon: '💳', hint: 'Page sécurisée' },
+  { id: 'card', label: 'Carte bancaire', method: 'card', icon: '💳', hint: 'Formulaire sécurisé Stripe (numéro formaté automatiquement)' },
   { id: 'cash', label: 'Espèces', method: 'cash', icon: '💵', hint: 'À la fin du massage' },
 ];
 
@@ -79,6 +72,7 @@ const PaymentScreen = ({ navigation, route }) => {
   const [instructions, setInstructions] = useState(null);
   const [paymentUrl, setPaymentUrl] = useState(null);
   const [timedOut, setTimedOut] = useState(false);
+  const [notifying, setNotifying] = useState(false);
 
   const mountedRef = useRef(true);
   const pollRef = useRef(null);
@@ -239,22 +233,6 @@ const PaymentScreen = ({ navigation, route }) => {
     if (!payment?.id) return;
     navigation.navigate('Receipt', { kind: 'payment', id: payment.id, view: 'client' });
   };
-
-  // Retour du formulaire Stripe / Vanila Pay sur le WEB (?paid=1&payment_id=..) :
-  // on vérifie tout de suite le paiement et on nettoie l'adresse.
-  useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-    try {
-      const q = new URLSearchParams(window.location.search || '');
-      const pid = Number(q.get('payment_id'));
-      if (q.get('paid') && pid) {
-        checkOnce(pid);
-        window.history.replaceState({}, '', window.location.pathname);
-      }
-    } catch (e) {
-      /* adresse illisible : on ignore */
-    }
-  }, [checkOnce]);
 
   const goBooking = () => navigation.navigate('BookingDetail', { bookingId });
 
@@ -440,6 +418,28 @@ const PaymentScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           )}
 
+          {isCash && !payment.client_sent_at ? (
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: '#1F6B45' }]}
+              disabled={notifying}
+              onPress={async () => {
+                setNotifying(true);
+                const res = await paymentService.clientSent(payment.id);
+                setNotifying(false);
+                if (res.success) setPayment(res.data);
+                else setError(res.error || 'Impossible de prévenir le thérapeute.');
+              }}
+            >
+              {notifying ? <ActivityIndicator color="#fff" /> : <Ionicons name="paper-plane-outline" size={18} color="#fff" />}
+              <Text style={styles.primaryBtnText}>J’ai remis les espèces — prévenir le thérapeute</Text>
+            </TouchableOpacity>
+          ) : null}
+          {isCash && payment.client_sent_at ? (
+            <Text style={[styles.muted, { color: '#1F6B45', textAlign: 'center' }]}>
+              ✓ Votre thérapeute a été prévenu. Le paiement sera validé dès qu’il confirmera la réception.
+            </Text>
+          ) : null}
+
           {isCash ? (
             <TouchableOpacity style={styles.primaryBtn} onPress={goBooking}>
               <Text style={styles.primaryBtnText}>Retour à la réservation</Text>
@@ -514,31 +514,17 @@ const PaymentScreen = ({ navigation, route }) => {
           <View style={{ marginTop: 6 }}>
             <Text style={[styles.section, { color: theme.text }]}>Numéro {option.label}</Text>
             <TextInput
-              value={formatMgPhone(phone)}
+              value={phone}
               onChangeText={(t) => setPhone(onlyDigits(t).slice(0, 10))}
               placeholder="034 12 345 67"
               placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
-              maxLength={13}
+              maxLength={10}
               style={[styles.input, card, { color: theme.text }]}
             />
             <Text style={[styles.muted, { color: theme.textSecondary }]}>
               Vous recevrez une demande de confirmation sur ce numéro.
             </Text>
-          </View>
-        ) : null}
-
-        {option?.method === 'card' ? (
-          <View style={[styles.cardInfo, card]}>
-            <Ionicons name="lock-closed-outline" size={20} color={PRIMARY} />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.optionLabel, { color: theme.text }]}>Formulaire sécurisé Stripe</Text>
-              <Text style={[styles.muted, { color: theme.textSecondary }]}>
-                En appuyant sur « Payer », le formulaire de carte s’ouvre automatiquement : numéro
-                formaté en direct (0000 0000 0000 0000), date MM/AA et code CVC. Votre carte n’est
-                jamais enregistrée dans l’application.
-              </Text>
-            </View>
           </View>
         ) : null}
 
@@ -562,11 +548,7 @@ const PaymentScreen = ({ navigation, route }) => {
             <>
               <Ionicons name="lock-closed" size={17} color="#fff" />
               <Text style={styles.primaryBtnText}>
-                {option?.method === 'cash'
-                  ? 'Confirmer — payer en espèces'
-                  : option?.method === 'card'
-                  ? `Payer ${formatAr(amount)} par carte`
-                  : `Payer ${formatAr(amount)}`}
+                {option?.method === 'cash' ? 'Confirmer — payer en espèces' : `Payer ${formatAr(amount)}`}
               </Text>
             </>
           )}
@@ -643,7 +625,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   noticeText: { flex: 1, fontSize: 12.5, color: '#92400E' },
-  cardInfo: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', borderWidth: 1, borderRadius: 14, padding: 14, marginTop: 12 },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',

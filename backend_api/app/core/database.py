@@ -20,10 +20,19 @@ class Geometry:
         pass
 
 # Configuration ny moteur
+# ⏱️ Heures : TOUTES les dates sont stockées en UTC. Sans cela, `server_default=func.now()`
+# (created_at des paiements, retraits, notifications...) utiliserait le fuseau du serveur
+# PostgreSQL et se mélangerait avec `datetime.utcnow()` -> heures décalées dans l'app.
+# L'application convertit ensuite en heure de Madagascar (UTC+3) à l'affichage.
+_connect_args = {}
+if str(settings.DATABASE_URL).startswith("postgresql"):
+    _connect_args = {"options": "-c timezone=UTC"}
+
 engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
     echo=settings.DEBUG if hasattr(settings, 'DEBUG') else False,
+    connect_args=_connect_args,
 )
 
 # Métadonnées

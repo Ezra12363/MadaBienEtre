@@ -21,6 +21,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 
 import { useFocusEffect } from '@react-navigation/native';
@@ -28,9 +29,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import Header from '../../components/common/Header';
 import { BarChart, HBars, StackedShare, StatTile, dayLabel, monthLabel } from '../../components/charts/SimpleCharts';
-import FilterBar, { EMPTY_FILTER } from '../../components/payment/FilterBar';
-import { formatAr, formatShort, inPeriod } from '../../components/payment/paymentUtils';
-import usePaymentLayout from '../../hooks/usePaymentLayout';
+import FilterBar, { EMPTY_FILTERS } from '../../components/payment/FilterBar';
+import { formatAr, formatDateTime, formatShort, inRange } from '../../components/payment/paymentUtils';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import { colors } from '../../theme';
@@ -78,17 +78,46 @@ const COMMISSION_MODES = [
   { id: 'cash', label: 'Espèces à l’admin', icon: 'cash-outline' },
 ];
 
-const norm = (v) => String(v ?? '').toLowerCase();
-const matchQ = (q, ...fields) => {
-  const needle = norm(q).trim();
-  if (!needle) return true;
-  return fields.some((f) => norm(f).includes(needle));
+const TX_TYPE_OPTIONS = [
+  { id: 'all', label: 'Tout' },
+  { id: 'payment', label: 'Paiements reçus' },
+  { id: 'commission', label: 'Commissions' },
+  { id: 'withdrawal', label: 'Retraits' },
+  { id: 'refund', label: 'Remboursements' },
+];
+const WD_STATUS_OPTIONS = [
+  { id: 'all', label: 'Tous' },
+  { id: 'pending', label: 'En attente' },
+  { id: 'processing', label: 'En traitement' },
+  { id: 'completed', label: 'Payés' },
+  { id: 'failed', label: 'Refusés' },
+  { id: 'cancelled', label: 'Annulés' },
+];
+const CM_STATUS_OPTIONS = [
+  { id: 'all', label: 'Tous' },
+  { id: 'pending', label: 'En attente' },
+  { id: 'completed', label: 'Validés' },
+  { id: 'rejected', label: 'Refusés' },
+];
+const WD_METHOD_OPTIONS = [
+  { id: 'all', label: 'Tous' },
+  { id: 'mobile_money', label: 'Mobile Money' },
+  { id: 'bank_transfer', label: 'Banque' },
+  { id: 'cash', label: 'Espèces' },
+];
+const CM_METHOD_OPTIONS = [{ id: 'all', label: 'Tous' }, ...COMMISSION_MODES.map((m) => ({ id: m.id, label: m.label }))];
+
+const matchText = (q, ...parts) => {
+  const s = String(q || '').trim().toLowerCase();
+  return !s || parts.some((p) => String(p ?? '').toLowerCase().includes(s));
 };
 
 const EarningsScreen = ({ navigation, route }) => {
   const { colors: theme } = useTheme();
-  const { isWide, columns, pad } = usePaymentLayout();
-  const tileBasis = `${Math.floor(100 / columns) - 2}%`;
+  const { width } = useWindowDimensions();
+  const wide = width >= 900;      // web / tablette : pleine largeur, 2 colonnes
+  const cols = width >= 1400 ? 3 : wide ? 2 : 1;
+  const cellW = cols === 1 ? '100%' : cols === 2 ? '49.2%' : '32.5%';
 
   const [wallet, setWallet] = useState(null);
   const [stats, setStats] = useState(null);
@@ -97,15 +126,7 @@ const EarningsScreen = ({ navigation, route }) => {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [busyId, setBusyId] = useState(null);
-  const [tab, setTab] = useState(route?.params?.tab || 'overview'); // overview | gains | retraits | commission
-  const [gainsF, setGainsF] = useState(EMPTY_FILTER);
-  const [wF, setWF] = useState(EMPTY_FILTER);
-  const [cF, setCF] = useState(EMPTY_FILTER);
-
-  // Ouverture directe d'un onglet depuis une notification (retrait accepté / payé...)
-  useEffect(() => {
-    if (route?.params?.tab) setTab(route.params.tab);
-  }, [route?.params?.tab, route?.params?.ts]);
+  const [tab, setTab] = useState('overview'); // overview | gains | retraits | commission
   const [range, setRange] = useState('month'); // day | month
 
   // modal paiement de commission
@@ -113,6 +134,23 @@ const EarningsScreen = ({ navigation, route }) => {
   const [cm, setCm] = useState({ amount: '', method: 'wallet', provider: 'mvola', phone: '', ref: '' });
   const [cmBusy, setCmBusy] = useState(false);
   const [cmError, setCmError] = useState('');
+
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+
+  // Arrivée depuis une notification (retrait accepté / payé, commission) : bon onglet tout de suite
+  const routeTab = route?.params?.tab;
+  const routeTs = route?.params?.ts;
+  useEffect(() => {
+    if (routeTab && ['overview', 'gains', 'retraits', 'commission'].includes(routeTab)) {
+      setTab(routeTab);
+      setFilters(EMPTY_FILTERS);
+    }
+  }, [routeTab, routeTs]);
+
+  const changeTab = (id) => {
+    setTab(id);
+    setFilters(EMPTY_FILTERS);
+  };
 
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -189,6 +227,7 @@ const EarningsScreen = ({ navigation, route }) => {
     if (!res.success) return setCmError(res.error);
     setCmOpen(false);
     setCm({ amount: '', method: 'wallet', provider: 'mvola', phone: '', ref: '' });
+    if (res.data?.wallet_after) setWallet((prev) => ({ ...(prev || {}), ...res.data.wallet_after }));
     setNotice(
       res.data?.status === 'completed'
         ? 'Commission réglée depuis votre wallet.'
@@ -241,32 +280,30 @@ const EarningsScreen = ({ navigation, route }) => {
     color: METHOD_COLORS[i % METHOD_COLORS.length],
   }));
 
-  // ----- filtrage -----
-  const TX_TYPES = [['payment', 'Gains'], ['commission', 'Commission'], ['withdrawal', 'Retraits'], ['refund', 'Remboursements']];
-  const txList = (w.transactions || []).filter(
+  const txs = (w.transactions || []).filter(
     (t) =>
-      (gainsF.status === 'all' || t.type === gainsF.status) &&
-      inPeriod(t.created_at, gainsF.period) &&
-      matchQ(gainsF.q, t.description, t.type, t.amount)
+      (filters.status === 'all' || t.type === filters.status) &&
+      inRange(t.created_at, filters.range) &&
+      matchText(filters.q, t.description, t.type, t.amount)
   );
-  const wList = (w.withdrawals || []).filter(
+  const wds = (w.withdrawals || []).filter(
     (r) =>
-      (wF.status === 'all' || r.status === wF.status) &&
-      (wF.method === 'all' || r.method === wF.method) &&
-      inPeriod(r.created_at, wF.period) &&
-      matchQ(wF.q, r.reference, r.phone_number, r.bank_name, r.amount, r.account_holder)
+      (filters.status === 'all' || r.status === filters.status) &&
+      (filters.method === 'all' || r.method === filters.method) &&
+      inRange(r.created_at, filters.range) &&
+      matchText(filters.q, r.amount, r.reference, r.phone_number, r.bank_name, r.id)
   );
-  const cList = (w.commission_payments || []).filter(
+  const cms = (w.commission_payments || []).filter(
     (c) =>
-      (cF.status === 'all' || c.status === cF.status) &&
-      (cF.method === 'all' || c.method === cF.method) &&
-      inPeriod(c.created_at, cF.period) &&
-      matchQ(cF.q, c.reference, c.transfer_reference, c.phone_number, c.amount)
+      (filters.status === 'all' || c.status === filters.status) &&
+      (filters.method === 'all' || c.method === filters.method) &&
+      inRange(c.created_at, filters.range) &&
+      matchText(filters.q, c.amount, c.transfer_reference, c.id)
   );
 
   const Tab = ({ id, label }) => (
     <TouchableOpacity
-      onPress={() => setTab(id)}
+      onPress={() => changeTab(id)}
       style={[styles.tab, tab === id && { backgroundColor: PRIMARY }]}
       activeOpacity={0.8}
     >
@@ -278,7 +315,7 @@ const EarningsScreen = ({ navigation, route }) => {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Header title="Mes gains" showBack />
       <ScrollView
-        contentContainerStyle={[styles.scroll, { padding: pad, paddingBottom: 48 }]}
+        contentContainerStyle={styles.scroll}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PRIMARY} />}
       >
         {error ? (
@@ -313,7 +350,7 @@ const EarningsScreen = ({ navigation, route }) => {
         </View>
 
         {due > 0 ? (
-          <TouchableOpacity style={styles.dueBox} onPress={() => setTab('commission')} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.dueBox} onPress={() => changeTab('commission')} activeOpacity={0.85}>
             <Ionicons name="alert-circle-outline" size={20} color="#9A6A12" />
             <Text style={styles.dueText}>
               Commission à payer à l’administrateur : {formatAr(due)} (paiements reçus en espèces)
@@ -333,13 +370,13 @@ const EarningsScreen = ({ navigation, route }) => {
         {tab === 'overview' ? (
           <>
             <View style={styles.tiles}>
-              <StatTile basis={tileBasis} label="Gains nets (total)" value={formatAr(s.net_total)} bg={theme.surface} textColor={theme.text} />
-              <StatTile basis={tileBasis} label="Commission payée" value={formatAr(s.commission_total)} color="#B8924A" bg={theme.surface} textColor={theme.text} />
-              <StatTile basis={tileBasis} label="Aujourd’hui" value={formatAr(s.today)} bg={theme.surface} textColor={theme.text} />
-              <StatTile basis={tileBasis} label="7 derniers jours" value={formatAr(s.week)} bg={theme.surface} textColor={theme.text} />
-              <StatTile basis={tileBasis} label="30 derniers jours" value={formatAr(s.month)} bg={theme.surface} textColor={theme.text} />
-              <StatTile basis={tileBasis} label="12 derniers mois" value={formatAr(s.year)} bg={theme.surface} textColor={theme.text} />
-              <StatTile basis={tileBasis} label="Réservations payées" value={`${s.paid_count || 0}`} color="#047857" bg={theme.surface} textColor={theme.text} />
+              <StatTile label="Gains nets (total)" value={formatAr(s.net_total)} bg={theme.surface} textColor={theme.text} />
+              <StatTile label="Commission payée" value={formatAr(s.commission_total)} color="#B8924A" bg={theme.surface} textColor={theme.text} />
+              <StatTile label="Aujourd’hui" value={formatAr(s.today)} bg={theme.surface} textColor={theme.text} />
+              <StatTile label="7 derniers jours" value={formatAr(s.week)} bg={theme.surface} textColor={theme.text} />
+              <StatTile label="30 derniers jours" value={formatAr(s.month)} bg={theme.surface} textColor={theme.text} />
+              <StatTile label="12 derniers mois" value={formatAr(s.year)} bg={theme.surface} textColor={theme.text} />
+              <StatTile label="Réservations payées" value={`${s.paid_count || 0}`} color="#047857" bg={theme.surface} textColor={theme.text} />
               <StatTile
                 label="En attente de paiement"
                 value={`${(s.pending_count || 0) + (s.unpaid_bookings || 0)}`}
@@ -366,14 +403,13 @@ const EarningsScreen = ({ navigation, route }) => {
               <BarChart data={chartData} series={chartSeries} textColor={theme.textSecondary} gridColor={theme.border} barWidth={range === 'day' ? 7 : 12} />
             </View>
 
-            <View style={styles.grid}>
-            <View style={[styles.card, card, isWide && styles.half]}>
+            <View style={[styles.card, card]}>
               <Text style={[styles.cardTitle, txt]}>Gains par mode de paiement</Text>
               <View style={{ height: 10 }} />
               <HBars items={methodItems} textColor={theme.textSecondary} trackColor={theme.border} />
             </View>
 
-            <View style={[styles.card, card, isWide && styles.half]}>
+            <View style={[styles.card, card]}>
               <Text style={[styles.cardTitle, txt]}>Où va chaque paiement client</Text>
               <View style={{ height: 10 }} />
               <StackedShare
@@ -383,7 +419,6 @@ const EarningsScreen = ({ navigation, route }) => {
                   { label: 'Commission', value: s.commission_total, color: '#B8924A' },
                 ]}
               />
-            </View>
             </View>
           </>
         ) : null}
@@ -401,6 +436,11 @@ const EarningsScreen = ({ navigation, route }) => {
                       <Text style={[styles.rowSub, sub]}>
                         {formatAr(p.amount)} · {formatShort(p.created_at)}
                       </Text>
+                      {p.client_sent_at ? (
+                        <Text style={[styles.rowSub, { color: '#B45309' }]}>
+                          Le client dit avoir payé le {formatDateTime(p.client_sent_at)}
+                        </Text>
+                      ) : null}
                     </View>
                     <TouchableOpacity style={styles.smallBtn} disabled={busyId === p.payment_id} onPress={() => confirmCash(p.payment_id)}>
                       {busyId === p.payment_id ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.smallBtnText}>Reçu</Text>}
@@ -409,18 +449,26 @@ const EarningsScreen = ({ navigation, route }) => {
                 ))}
               </View>
             ) : null}
+            <FilterBar
+              value={filters}
+              onChange={setFilters}
+              statusOptions={TX_TYPE_OPTIONS}
+              placeholder="Rechercher une opération…"
+              total={(w.transactions || []).length}
+              shown={txs.length}
+              theme={theme}
+            />
             <View style={[styles.card, card]}>
               <Text style={[styles.cardTitle, txt]}>Historique</Text>
-              <FilterBar value={gainsF} onChange={setGainsF} statuses={TX_TYPES} count={txList.length} placeholder="Rechercher une opération…" />
-              {txList.length === 0 ? <Text style={[styles.empty, sub]}>Aucune opération trouvée.</Text> : null}
-              {txList.map((t) => {
+              {txs.length === 0 ? <Text style={[styles.empty, sub]}>Aucune opération pour ces critères.</Text> : null}
+              {txs.map((t) => {
                 const m = TX_META[t.type] || TX_META.payment;
                 return (
                   <View key={t.id} style={styles.listRow}>
                     <Ionicons name={m.icon} size={22} color={m.color} />
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.rowTitle, txt]} numberOfLines={2}>{t.description || t.type}</Text>
-                      <Text style={[styles.rowSub, sub]}>{formatShort(t.created_at)}</Text>
+                      <Text style={[styles.rowSub, sub]}>{formatDateTime(t.created_at)}</Text>
                     </View>
                     <Text style={[styles.rowAmount, { color: m.color }]}>
                       {m.sign}
@@ -435,21 +483,25 @@ const EarningsScreen = ({ navigation, route }) => {
 
         {/* ================= RETRAITS ================= */}
         {tab === 'retraits' ? (
+          <>
+          <FilterBar
+            value={filters}
+            onChange={setFilters}
+            statusOptions={WD_STATUS_OPTIONS}
+            methodOptions={WD_METHOD_OPTIONS}
+            placeholder="Montant, référence, numéro…"
+            total={(w.withdrawals || []).length}
+            shown={wds.length}
+            theme={theme}
+          />
           <View style={[styles.card, card]}>
             <Text style={[styles.cardTitle, txt]}>Mes demandes de retrait</Text>
-            <FilterBar
-              value={wF}
-              onChange={setWF}
-              count={wList.length}
-              statuses={[['pending', 'En attente'], ['processing', 'Acceptée'], ['completed', 'Payée'], ['failed', 'Refusée'], ['cancelled', 'Annulée']]}
-              methods={[['mobile_money', 'Mobile Money'], ['bank_transfer', 'Banque'], ['cash', 'Espèces']]}
-              placeholder="Rechercher (référence, numéro, montant…)"
-            />
-            {wList.length === 0 ? <Text style={[styles.empty, sub]}>Aucune demande trouvée.</Text> : null}
-            {wList.map((r) => {
+            {wds.length === 0 ? <Text style={[styles.empty, sub]}>Aucune demande de retrait pour ces critères.</Text> : null}
+            <View style={styles.grid}>
+            {wds.map((r) => {
               const st = WITHDRAWAL_STATUS[r.status] || WITHDRAWAL_STATUS.pending;
               return (
-                <View key={r.id} style={styles.wRow}>
+                <View key={r.id} style={[styles.wRow, { width: cellW }]}>
                   <View style={styles.wTop}>
                     <Text style={[styles.rowTitle, txt]}>{formatAr(r.amount)}</Text>
                     <View style={[styles.pill, { backgroundColor: st.bg }]}>
@@ -457,9 +509,11 @@ const EarningsScreen = ({ navigation, route }) => {
                     </View>
                   </View>
                   <Text style={[styles.rowSub, sub]}>
-                    {r.method === 'mobile_money' ? `Mobile Money ${r.phone_number || ''}` : r.method === 'bank_transfer' ? `Banque ${r.bank_name || ''}` : 'Espèces'} ·{' '}
-                    {formatShort(r.created_at)}
+                    {r.method === 'mobile_money' ? `Mobile Money ${r.phone_number || ''}` : r.method === 'bank_transfer' ? `Banque ${r.bank_name || ''}` : 'Espèces'}
                   </Text>
+                  <Text style={[styles.rowSub, sub]}>Demandé le {formatDateTime(r.created_at)}</Text>
+                  {r.processed_at ? <Text style={[styles.rowSub, sub]}>Accepté le {formatDateTime(r.processed_at)}</Text> : null}
+                  {r.completed_at && r.status === 'completed' ? <Text style={[styles.rowSub, sub]}>Payé le {formatDateTime(r.completed_at)}</Text> : null}
                   {r.fee > 0 ? <Text style={[styles.rowSub, sub]}>Frais : {formatAr(r.fee)} · Net versé : {formatAr(r.net_amount)}</Text> : null}
                   {r.reference ? <Text style={[styles.rowSub, sub]}>Réf. {r.reference}</Text> : null}
                   <View style={styles.actions}>
@@ -488,7 +542,9 @@ const EarningsScreen = ({ navigation, route }) => {
                 </View>
               );
             })}
+            </View>
           </View>
+          </>
         ) : null}
 
         {/* ================= COMMISSION ================= */}
@@ -500,8 +556,8 @@ const EarningsScreen = ({ navigation, route }) => {
                 Quand un client vous paie en espèces, vous gardez l’argent mais la commission de la plateforme reste due.
               </Text>
               <View style={styles.tiles}>
-                <StatTile basis={tileBasis} label="À payer" value={formatAr(due)} color="#B45309" bg={theme.surface} textColor={theme.text} />
-                <StatTile basis={tileBasis} label="En vérification" value={formatAr(w.commission_in_review)} color="#1D4ED8" bg={theme.surface} textColor={theme.text} />
+                <StatTile label="À payer" value={formatAr(due)} color="#B45309" bg={theme.surface} textColor={theme.text} />
+                <StatTile label="En vérification" value={formatAr(w.commission_in_review)} color="#1D4ED8" bg={theme.surface} textColor={theme.text} />
               </View>
               <TouchableOpacity
                 style={[styles.primaryBtn, due <= 0 && { opacity: 0.5 }]}
@@ -516,21 +572,24 @@ const EarningsScreen = ({ navigation, route }) => {
                 <Text style={styles.primaryBtnText}>Payer ma commission</Text>
               </TouchableOpacity>
             </View>
+            <FilterBar
+              value={filters}
+              onChange={setFilters}
+              statusOptions={CM_STATUS_OPTIONS}
+              methodOptions={CM_METHOD_OPTIONS}
+              placeholder="Montant, référence…"
+              total={(w.commission_payments || []).length}
+              shown={cms.length}
+              theme={theme}
+            />
             <View style={[styles.card, card]}>
               <Text style={[styles.cardTitle, txt]}>Mes paiements de commission</Text>
-              <FilterBar
-                value={cF}
-                onChange={setCF}
-                count={cList.length}
-                statuses={[['pending', 'En attente'], ['completed', 'Validé'], ['rejected', 'Refusé']]}
-                methods={[['wallet', 'Wallet'], ['mobile_money', 'Mobile Money'], ['bank_transfer', 'Virement'], ['cash', 'Espèces']]}
-                placeholder="Rechercher (référence, numéro, montant…)"
-              />
-              {cList.length === 0 ? <Text style={[styles.empty, sub]}>Aucun paiement trouvé.</Text> : null}
-              {cList.map((c) => {
+              {cms.length === 0 ? <Text style={[styles.empty, sub]}>Aucun paiement de commission pour ces critères.</Text> : null}
+              <View style={styles.grid}>
+              {cms.map((c) => {
                 const st = COMMISSION_STATUS[c.status] || COMMISSION_STATUS.pending;
                 return (
-                  <View key={c.id} style={styles.wRow}>
+                  <View key={c.id} style={[styles.wRow, { width: cellW }]}>
                     <View style={styles.wTop}>
                       <Text style={[styles.rowTitle, txt]}>{formatAr(c.amount)}</Text>
                       <View style={[styles.pill, { backgroundColor: st.bg }]}>
@@ -538,8 +597,10 @@ const EarningsScreen = ({ navigation, route }) => {
                       </View>
                     </View>
                     <Text style={[styles.rowSub, sub]}>
-                      {c.method === 'wallet' ? 'Depuis le wallet' : c.method === 'mobile_money' ? 'Mobile Money' : c.method === 'bank_transfer' ? 'Virement' : 'Espèces'} · {formatShort(c.created_at)}
+                      {c.method === 'wallet' ? 'Depuis le wallet' : c.method === 'mobile_money' ? 'Mobile Money' : c.method === 'bank_transfer' ? 'Virement' : 'Espèces'}
                     </Text>
+                    <Text style={[styles.rowSub, sub]}>Soumis le {formatDateTime(c.created_at)}</Text>
+                    {c.completed_at && c.status === 'completed' ? <Text style={[styles.rowSub, sub]}>Validé le {formatDateTime(c.completed_at)}</Text> : null}
                     {c.notes ? <Text style={[styles.rowSub, sub]}>{c.notes}</Text> : null}
                     {c.receipt_available ? (
                       <View style={styles.actions}>
@@ -560,6 +621,7 @@ const EarningsScreen = ({ navigation, route }) => {
                   </View>
                 );
               })}
+              </View>
             </View>
           </>
         ) : null}
@@ -618,7 +680,15 @@ const EarningsScreen = ({ navigation, route }) => {
                   <Text style={[styles.rowSub, sub]}>Effectuez d’abord le transfert à l’administrateur, puis saisissez la référence reçue. L’admin validera ensuite.</Text>
                 </>
               ) : null}
-              {cm.method === 'wallet' ? <Text style={[styles.rowSub, sub, { marginTop: 8 }]}>Le montant est prélevé sur votre solde disponible ({formatAr(w.available)}) et validé immédiatement.</Text> : null}
+              {cm.method === 'wallet' ? (
+                <View style={styles.afterBox}>
+                  <Text style={[styles.rowSub, sub]}>Solde disponible : {formatAr(w.available)}</Text>
+                  <Text style={[styles.afterText, { color: Number(cm.amount) > (w.available || 0) ? '#B91C1C' : PRIMARY }]}>
+                    Solde après paiement : {formatAr((w.available || 0) - (Number(String(cm.amount).replace(/\s/g, '')) || 0))}
+                  </Text>
+                  <Text style={[styles.rowSub, sub]}>Le montant est prélevé tout de suite sur votre solde et validé immédiatement.</Text>
+                </View>
+              ) : null}
               {cm.method === 'cash' ? <Text style={[styles.rowSub, sub, { marginTop: 8 }]}>Remettez les espèces à l’administrateur : il validera le paiement dans l’application.</Text> : null}
 
               {cmError ? <Text style={styles.cmError}>{cmError}</Text> : null}
@@ -640,9 +710,10 @@ const EarningsScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { gap: 16, width: '100%', alignSelf: 'stretch' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
-  half: { flexGrow: 1, flexBasis: '48%' },
+  scroll: { padding: 16, paddingBottom: 40, gap: 14, width: '100%', alignSelf: 'stretch' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12 },
+  afterBox: { marginTop: 10, gap: 4, backgroundColor: '#F3F8F5', borderRadius: 10, padding: 10 },
+  afterText: { fontSize: 15, fontWeight: '400' },
   errorBox: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#FEE2E2', borderRadius: 12, padding: 12 },
   errorText: { color: '#B91C1C', flex: 1, fontSize: 13, fontWeight: '400' },
   noticeBox: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#D1FAE5', borderRadius: 12, padding: 12 },

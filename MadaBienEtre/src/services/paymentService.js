@@ -111,13 +111,13 @@ class PaymentService {
     return wrap(() => get('/wallet/me'));
   }
 
-  confirmCash(paymentId) {
-    return wrap(() => post(`/payments/${paymentId}/confirm-cash`));
+  /** Le CLIENT prévient le thérapeute qu'il a remis les espèces (le thérapeute doit confirmer). */
+  clientSent(paymentId) {
+    return wrap(() => post(`/payments/${paymentId}/client-sent`));
   }
 
-  /** Le thérapeute confirme avoir bien reçu le paiement du client (le client est notifié). */
-  therapistConfirm(paymentId) {
-    return wrap(() => post(`/payments/${paymentId}/therapist-confirm`));
+  confirmCash(paymentId) {
+    return wrap(() => post(`/payments/${paymentId}/confirm-cash`));
   }
 
   requestWithdrawal(payload) {

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from typing import Optional, List, Tuple
 import calendar
 
@@ -142,3 +142,45 @@ def get_month_name(dt: datetime, lang: str = "fr") -> str:
     else:
         months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
     return months[dt.month - 1]
+
+
+# ---------------------------------------------------------------------------
+# Heure de Madagascar (Indian/Antananarivo = UTC+3 toute l'année, pas d'heure d'été)
+#
+# RÈGLE : la base de données stocke TOUJOURS des datetime « naïfs » en UTC
+# (voir core/database.py : session PostgreSQL forcée en UTC). Pour l'API on renvoie
+# des chaînes ISO terminées par « Z » (iso_utc) afin que l'application sache qu'il
+# s'agit d'UTC et affiche l'heure de Madagascar ; pour les PDF on convertit avec fmt_mada.
+# ---------------------------------------------------------------------------
+MADAGASCAR_TZ = timezone(timedelta(hours=3), name="EAT")
+
+
+def as_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    """datetime naïf (= UTC) ou aware -> datetime aware en UTC."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def iso_utc(dt: Optional[datetime]) -> Optional[str]:
+    """ISO 8601 en UTC avec suffixe Z (ex. 2026-10-20T21:55:00Z) ou None."""
+    d = as_utc(dt)
+    return d.strftime("%Y-%m-%dT%H:%M:%SZ") if d else None
+
+
+def to_mada(dt: Optional[datetime]) -> Optional[datetime]:
+    """datetime naïf (UTC) -> datetime à l'heure de Madagascar (UTC+3)."""
+    d = as_utc(dt)
+    return d.astimezone(MADAGASCAR_TZ) if d else None
+
+
+def fmt_mada(dt: Optional[datetime], fmt: str = "%d/%m/%Y à %H:%M") -> str:
+    """Date/heure lisible à l'heure de Madagascar ; « — » si vide."""
+    d = to_mada(dt)
+    return d.strftime(fmt) if d else "—"
+
+
+def now_mada() -> datetime:
+    return datetime.now(MADAGASCAR_TZ)

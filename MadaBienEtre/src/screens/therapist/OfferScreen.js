@@ -45,6 +45,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import bookingService from '../../services/bookingService';
 import offerService from '../../services/offerService';
+import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
 
 // Position actuelle du thérapeute + distance / ETA vers le client
 import * as Location from 'expo-location';
@@ -1318,6 +1319,16 @@ export default function OfferScreen({ route, navigation }) {
                 label="Durée"
                 value={`${duration} minutes`}
               />
+
+              {/* Paiement : visible dès que la demande est confirmée (statut, date/heure, reçu) */}
+              {['confirmed', 'in_progress', 'completed'].includes(bookingStatus) ? (
+                <BookingPaymentSection
+                  booking={booking}
+                  role="therapist"
+                  navigation={navigation}
+                  defaultOpen={bookingStatus === 'confirmed' || !!route?.params?.openPayment}
+                />
+              ) : null}
 
               {canNegotiate ? (
                 <View style={styles.inlineActionsRow}>

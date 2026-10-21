@@ -1981,6 +1981,7 @@ const BookingDetailScreen = ({
               booking={booking}
               role="client"
               navigation={navigation}
+              defaultOpen={!!route?.params?.openPayment}
             />
           </View>
         </FadeSlideIn>

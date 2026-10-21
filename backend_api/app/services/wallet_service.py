@@ -32,8 +32,9 @@ from ..models.finance import CommissionPayment
 from ..models.payment import Payment, Transaction
 from ..models.therapist import TherapistEarnings, Withdrawal
 from ..models.user import User
+from . import payment_notifications as pn
 from . import platform_settings
-from .notification_service import send_admin_notification, send_notification
+from .notification_service import send_admin_notification, send_notification  # noqa: F401 (compat.)
 
 logger = logging.getLogger(__name__)
 
@@ -188,42 +189,14 @@ def finalize_payment(db: Session, payment_id: int) -> Tuple[Payment, bool]:
 
     # --- notifications (hors transaction ; ne doivent jamais faire échouer) ---
     try:
-        send_notification(
-            user_id=payment.user_id,
-            title="Paiement confirmé ✓",
-            body=f"Votre paiement de {fmt_ar(payment.amount)} est confirmé. "
-            "Votre reçu PDF est disponible.",
-            notification_type="payment_received",
-            data={"payment_id": payment.id, "booking_id": payment.booking_id},
-            booking_id=payment.booking_id,
-        )
-        if therapist:
-            send_notification(
-                user_id=therapist.id,
-                title="Espèces confirmées" if is_cash else "Paiement reçu — à confirmer",
-                body=(
-                    f"Réception de {fmt_ar(payment.amount)} en espèces enregistrée. "
-                    f"Commission à régler à l'administrateur : {fmt_ar(commission)}."
-                    if is_cash
-                    else f"Le client a payé {fmt_ar(payment.amount)} ({fmt_ar(net)} nets ajoutés à votre wallet, "
-                    f"commission {fmt_ar(commission)}). Ouvrez la réservation pour confirmer la réception."
-                ),
-                notification_type="payment_received",
-                data={
-                    "payment_id": payment.id,
-                    "booking_id": payment.booking_id,
-                    **({} if is_cash else {"action": "confirm_payment"}),
-                },
-                booking_id=payment.booking_id,
-                priority="high",
-            )
-        send_admin_notification(
-            "Paiement confirmé",
-            f"{fmt_ar(payment.amount)} — commission {fmt_ar(commission)} "
-            f"(réservation #{payment.booking_id}).",
-            "payment",
-            {"payment_id": payment.id, "booking_id": payment.booking_id},
-            booking_id=payment.booking_id,
+        client = db.query(User).filter(User.id == payment.user_id).first()
+        pn.payment_completed(
+            payment,
+            therapist.id if therapist else None,
+            getattr(client, "fullname", None) or "Le client",
+            net,
+            commission,
+            is_cash,
         )
     except Exception:  # noqa: BLE001
         logger.exception("Notifications de paiement non envoyées")
@@ -297,16 +270,7 @@ def request_withdrawal(db: Session, therapist: User, data: Dict[str, Any]) -> Wi
     db.commit()
     db.refresh(withdrawal)
 
-    try:
-        send_admin_notification(
-            "Demande de retrait",
-            f"{therapist.fullname} demande {fmt_ar(amount)} ({method}).",
-            "payment",
-            {"withdrawal_id": withdrawal.id},
-            priority="high",
-        )
-    except Exception:  # noqa: BLE001
-        logger.exception("Notification admin retrait non envoyée")
+    pn.withdrawal_requested(withdrawal, therapist.fullname)
     return withdrawal
 
 
@@ -315,17 +279,9 @@ def _release_hold(db: Session, withdrawal: Withdrawal) -> None:
     wallet.available_earnings = D(wallet.available_earnings) + D(withdrawal.amount)
 
 
-def _notify_therapist(withdrawal: Withdrawal, title: str, body: str) -> None:
-    try:
-        send_notification(
-            user_id=withdrawal.therapist_id,
-            title=title,
-            body=body,
-            notification_type="payment",
-            data={"withdrawal_id": withdrawal.id},
-        )
-    except Exception:  # noqa: BLE001
-        logger.exception("Notification retrait non envoyée")
+def _notify_therapist(withdrawal: Withdrawal, title: str, body: str, kind: str = "withdrawal_accepted") -> None:
+    """Ouvre la page Gains > Retraits quand le thérapeute touche la notification."""
+    pn.withdrawal_status(withdrawal, kind, title, body)
 
 
 def cancel_withdrawal(db: Session, withdrawal: Withdrawal) -> Withdrawal:
@@ -349,7 +305,8 @@ def approve_withdrawal(db: Session, withdrawal: Withdrawal) -> Withdrawal:
     _notify_therapist(
         withdrawal,
         "Retrait accepté",
-        f"Votre retrait de {fmt_ar(withdrawal.amount)} est en cours de traitement.",
+        f"Votre retrait de {fmt_ar(withdrawal.amount)} est accepté ({pn.now_label()}) et en cours de traitement.",
+        "withdrawal_accepted",
     )
     return withdrawal
 
@@ -382,7 +339,8 @@ def complete_withdrawal(
     _notify_therapist(
         withdrawal,
         "Retrait payé ✓",
-        f"{fmt_ar(withdrawal.amount)} ont été transférés (réf. {ref}).",
+        f"{fmt_ar(withdrawal.amount)} ont été transférés le {pn.now_label()} (réf. {ref}).",
+        "withdrawal_paid",
     )
     return withdrawal
 
@@ -404,6 +362,7 @@ def reject_withdrawal(db: Session, withdrawal: Withdrawal, reason: str = "") -> 
         f"Votre demande de {fmt_ar(withdrawal.amount)} a été refusée"
         + (f" : {reason}" if reason else ".")
         + " Le montant est de nouveau disponible.",
+        "withdrawal_rejected",
     )
     return withdrawal
 
@@ -511,23 +470,7 @@ def pay_commission(db: Session, therapist: User, data: Dict[str, Any]) -> Commis
     db.commit()
     db.refresh(cp)
 
-    try:
-        if cp.status == "pending":
-            send_admin_notification(
-                "Paiement de commission à valider",
-                f"{therapist.fullname} déclare avoir payé {fmt_ar(amount)} de commission "
-                f"({method}, réf. {cp.transfer_reference or '—'}).",
-                "payment",
-                {"commission_payment_id": cp.id},
-                priority="high",
-            )
-        else:
-            send_admin_notification(
-                "Commission réglée", f"{therapist.fullname} : {fmt_ar(amount)} prélevés sur son wallet.",
-                "payment", {"commission_payment_id": cp.id},
-            )
-    except Exception:  # noqa: BLE001
-        logger.exception("Notification commission non envoyée")
+    pn.commission_submitted(cp, therapist.fullname, auto_validated=(cp.status != "pending"))
     return cp
 
 
@@ -545,14 +488,10 @@ def approve_commission(db: Session, cp: CommissionPayment) -> CommissionPayment:
     )
     db.commit()
     db.refresh(cp)
-    try:
-        send_notification(
-            user_id=cp.therapist_id, title="Commission validée ✓",
-            body=f"Votre paiement de {fmt_ar(amount)} est validé. Votre reçu est disponible.",
-            notification_type="payment", data={"commission_payment_id": cp.id},
-        )
-    except Exception:  # noqa: BLE001
-        logger.exception("Notification commission non envoyée")
+    pn.commission_status(
+        cp, "commission_validated", "Commission validée ✓",
+        f"Votre paiement de {fmt_ar(amount)} est validé le {pn.now_label()}. Votre reçu est disponible.",
+    )
     return cp
 
 
@@ -564,13 +503,9 @@ def reject_commission(db: Session, cp: CommissionPayment, reason: str = "") -> C
     cp.notes = f"Refusé : {reason}".strip()
     db.commit()
     db.refresh(cp)
-    try:
-        send_notification(
-            user_id=cp.therapist_id, title="Commission refusée",
-            body=f"Votre paiement de {fmt_ar(cp.amount)} n'a pas pu être validé"
-            + (f" : {reason}" if reason else "."),
-            notification_type="payment", data={"commission_payment_id": cp.id},
-        )
-    except Exception:  # noqa: BLE001
-        logger.exception("Notification commission non envoyée")
+    pn.commission_status(
+        cp, "commission_rejected", "Commission refusée",
+        f"Votre paiement de {fmt_ar(cp.amount)} n'a pas pu être validé"
+        + (f" : {reason}" if reason else "."),
+    )
     return cp

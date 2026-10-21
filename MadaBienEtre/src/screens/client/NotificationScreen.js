@@ -306,11 +306,6 @@ const resolveNotificationAction = (notification) => {
     return 'negotiation';
   }
 
-  // Paiement (confirmé, reçu disponible, réception confirmée...) -> page de la réservation
-  if (category === 'payment' || type.includes('payment') || type.includes('paiement')) {
-    return 'booking';
-  }
-
   if (category === 'booking') {
     return 'booking';
   }
@@ -928,6 +923,25 @@ const NotificationScreen = ({
           getOfferIdFromNotification(
             notification
           );
+
+
+        /* ------------------------------------------------------
+           PAIEMENT (confirmé, en attente, thérapeute prévenu...)
+           -> page BookingDetail de la réservation, bloc paiement ouvert
+        ------------------------------------------------------ */
+        const payData = parseNotificationData(notification) || {};
+        const payKind = String(payData.kind || '').toLowerCase();
+        const payType = String(notification?.type || '').toLowerCase();
+        if (
+          (payKind.startsWith('payment') || payType.includes('payment')) &&
+          (bookingId || payData.booking_id)
+        ) {
+          navigation.navigate('BookingDetail', {
+            bookingId: bookingId || payData.booking_id,
+            openPayment: true,
+          });
+          return;
+        }
 
 
         /* ------------------------------------------------------

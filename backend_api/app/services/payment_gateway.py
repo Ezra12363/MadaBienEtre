@@ -48,38 +48,45 @@ try:  # Stripe est optionnel
 except ImportError:  # pragma: no cover
     stripe = None
     STRIPE_AVAILABLE = False
-    logger.error("Module Python « stripe » absent : exécutez  pip install stripe  puis redémarrez le serveur.")
-
-if STRIPE_AVAILABLE and not settings.STRIPE_SECRET_KEY:
-    logger.warning(
-        "STRIPE_SECRET_KEY introuvable. Mettez-la dans backend_api/.env (PAS dans .env.paiements.EXEMPLE, "
-        "qui n'est qu'un modèle jamais lu) puis redémarrez uvicorn."
-    )
-elif STRIPE_AVAILABLE:
-    logger.info("Stripe configuré (clé %s…).", settings.STRIPE_SECRET_KEY[:8])
-
-
-def _use_stripe_key() -> None:
-    """Réapplique la clé à chaque appel (au cas où elle n'était pas encore chargée à l'import)."""
-    if STRIPE_AVAILABLE and settings.STRIPE_SECRET_KEY:
-        stripe.api_key = settings.STRIPE_SECRET_KEY
-
-
-def stripe_status() -> Dict[str, Any]:
-    """Diagnostic lisible pour l'écran Admin > Paramètres."""
-    if not STRIPE_AVAILABLE:
-        return {"ok": False, "reason": "Module « stripe » non installé (pip install stripe)."}
-    if not settings.STRIPE_SECRET_KEY:
-        return {"ok": False, "reason": "STRIPE_SECRET_KEY absente de backend_api/.env."}
-    if not settings.STRIPE_SECRET_KEY.startswith(("sk_", "rk_")):
-        return {"ok": False, "reason": "STRIPE_SECRET_KEY invalide (doit commencer par sk_test_ ou sk_live_)."}
-    return {"ok": True, "reason": "Stripe prêt (" + settings.STRIPE_SECRET_KEY[:8] + "…)."}
 
 MOBILE_PROVIDERS = ("mvola", "orange_money", "airtel_money")
 
 
 class GatewayError(Exception):
     """Erreur de communication / configuration avec le fournisseur."""
+
+
+# Devises Stripe « zéro décimale » (le montant s'envoie tel quel, sans ×100). MGA en fait partie.
+_ZERO_DECIMAL = {
+    "bif", "clp", "djf", "gnf", "jpy", "kmf", "krw", "mga", "pyg",
+    "rwf", "ugx", "vnd", "vuv", "xaf", "xof", "xpf",
+}
+
+
+def stripe_amount(amount_mga: float):
+    """(devise, montant) à envoyer à Stripe.
+
+    - STRIPE_CURRENCY=mga (défaut) : montant en Ariary tel quel.
+    - autre devise (eur, usd...) : conversion avec STRIPE_MGA_PER_UNIT (ex. 5000 Ar = 1 EUR).
+    """
+    cur = (settings.STRIPE_CURRENCY or "mga").lower()
+    if cur == "mga":
+        return cur, int(round(amount_mga))
+    rate = float(settings.STRIPE_MGA_PER_UNIT or 0)
+    if rate <= 0:
+        raise GatewayError(
+            f"Devise Stripe « {cur} » : renseignez STRIPE_MGA_PER_UNIT dans le .env du backend "
+            "(nombre d'Ariary pour 1 unité de cette devise)."
+        )
+    value = float(amount_mga) / rate
+    units = int(round(value)) if cur in _ZERO_DECIMAL else int(round(value * 100))
+    return cur, max(units, 1)
+
+
+def _with_query(base: str, params: str) -> str:
+    """Ajoute des paramètres à une URL (gère le « ? » déjà présent). Ne pas encoder {CHECKOUT_SESSION_ID}."""
+    base = (base or "").rstrip("/") if "?" not in (base or "") else base
+    return f"{base}{'&' if '?' in base else '?'}{params}"
 
 
 # ------------------------------------------------------------------
@@ -188,62 +195,42 @@ def start_payment(
 
     # ---- Carte : Stripe Checkout hébergé (la carte ne passe JAMAIS par l'app) ---
     if method == "card" and stripe_configured():
-        _use_stripe_key()
         base = return_url or settings.FRONTEND_URL
-        currency = settings.STRIPE_CURRENCY.lower()
-        rate = float(getattr(settings, "STRIPE_MGA_PER_UNIT", 0) or 0)
-
-        def _unit_amount(cur: str, per_unit: float) -> int:
-            if cur != "mga" and per_unit > 0:
-                return int(round(amount / per_unit * 100))  # centimes / cents
-            return amount_int  # MGA = devise sans décimale
-
-        def _create(cur: str, per_unit: float):
-            # Stripe Checkout : page de paiement HÉBERGÉE par Stripe (numéro formaté, MM/AA, CVC,
-            # validation en direct). Le numéro de carte ne transite JAMAIS par notre serveur (PCI-DSS).
-            return stripe.checkout.Session.create(
+        currency, unit_amount = stripe_amount(amount)
+        try:
+            # Stripe Checkout = page de paiement HÉBERGÉE par Stripe : le numéro de carte y est
+            # saisi dans un champ masqué/formaté automatiquement (1234 1234 1234 1234, date, CVC,
+            # détection de la marque). Aucune donnée de carte ne passe par notre application.
+            session = stripe.checkout.Session.create(
                 mode="payment",
                 payment_method_types=["card"],
-                locale="fr",
+                locale=(settings.STRIPE_LOCALE or "auto"),
                 client_reference_id=str(payment_id),
                 customer_email=payer_email or None,
                 line_items=[
                     {
                         "quantity": 1,
                         "price_data": {
-                            "currency": cur,
-                            "unit_amount": _unit_amount(cur, per_unit),
+                            "currency": currency,
+                            "unit_amount": unit_amount,
                             "product_data": {"name": f"Massage — réservation #{booking_id}"},
                         },
                     }
                 ],
                 metadata={"payment_id": str(payment_id), "booking_id": str(booking_id)},
-                payment_intent_data={"metadata": {"payment_id": str(payment_id), "booking_id": str(booking_id)}},
-                success_url=f"{base}?paid=1&payment_id={payment_id}",
-                cancel_url=f"{base}?paid=0&payment_id={payment_id}",
+                payment_intent_data={
+                    "description": f"Mada Bien-être — réservation #{booking_id}",
+                    "metadata": {"payment_id": str(payment_id), "booking_id": str(booking_id)},
+                },
+                success_url=_with_query(
+                    base, f"paid=1&payment_id={payment_id}&booking_id={booking_id}&session_id={{CHECKOUT_SESSION_ID}}"
+                ),
+                cancel_url=_with_query(base, f"paid=0&payment_id={payment_id}&booking_id={booking_id}"),
             )
-
-        try:
-            try:
-                session = _create(currency, rate)
-            except Exception as first_exc:  # noqa: BLE001
-                msg = str(first_exc).lower()
-                fb_cur = (settings.STRIPE_FALLBACK_CURRENCY or "eur").lower()
-                fb_rate = float(settings.STRIPE_FALLBACK_MGA_PER_UNIT or 5000)
-                currency_problem = any(
-                    k in msg for k in ("currency", "devise", "not supported", "minimum", "amount_too_small", "at least")
-                )
-                if currency == "mga" and currency_problem and fb_cur != "mga":
-                    logger.warning("Stripe a refusé MGA (%s) → nouvel essai en %s (1 = %s Ar).", first_exc, fb_cur, fb_rate)
-                    session = _create(fb_cur, fb_rate)
-                else:
-                    raise
         except Exception as exc:  # noqa: BLE001
-            logger.error("Stripe : %s", exc)
-            detail = getattr(exc, "user_message", None) or str(exc)
-            if "invalid api key" in detail.lower() or "authentication" in detail.lower():
-                raise GatewayError("Clé Stripe invalide : vérifiez STRIPE_SECRET_KEY dans backend_api/.env.") from exc
-            raise GatewayError(f"Stripe a refusé la création du paiement : {detail[:160]}") from exc
+            reason = str(getattr(exc, "user_message", None) or exc)
+            logger.error("Stripe : %s", reason)
+            raise GatewayError(f"Stripe a refusé la création du paiement : {reason[:200]}") from exc
         return {
             "transaction_id": session.id,
             "status": "pending",
@@ -302,7 +289,6 @@ def check_payment(payment) -> Dict[str, Any]:
     if payment.provider == "stripe" or tx.startswith("cs_"):
         if not stripe_configured():
             raise GatewayError("Stripe n'est pas configuré.")
-        _use_stripe_key()
         try:
             session = stripe.checkout.Session.retrieve(tx)
         except Exception as exc:  # noqa: BLE001

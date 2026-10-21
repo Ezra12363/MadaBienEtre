@@ -28,8 +28,9 @@ from ..models.booking import Booking
 from ..models.payment import Payment
 from ..models.user import User
 from ..services import payment_gateway as gateway
+from ..services import payment_notifications as pn
 from ..services import platform_settings, receipt_links, receipt_service
-from ..services.mg_time import iso_utc, mg_now, to_mg
+from ..utils.date_utils import fmt_mada, iso_utc
 from ..services import wallet_service as wallet
 from ..services.payment_gateway import GatewayError
 from ..services.wallet_service import WalletError
@@ -136,10 +137,17 @@ def _serialize(payment: Payment, include_split: bool = False) -> Dict[str, Any]:
         "created_at": iso_utc(payment.created_at),
         "completed_at": iso_utc(payment.completed_at),
         "paid_at": iso_utc(payment.completed_at),
+        # Libellés prêts à afficher, TOUJOURS à l'heure de Madagascar (UTC+3)
+        "created_at_label": fmt_mada(payment.created_at) if payment.created_at else None,
+        "paid_at_label": fmt_mada(payment.completed_at) if payment.completed_at else None,
         "receipt_available": payment.status == "completed",
-        "therapist_confirmed": bool(meta.get("therapist_confirmed_at")) or payment.method == "cash",
-        "therapist_confirmed_at": meta.get("therapist_confirmed_at")
-        or (iso_utc(payment.completed_at) if payment.method == "cash" and payment.status == "completed" else None),
+        # Espèces : le client a prévenu le thérapeute -> « en attente de confirmation du thérapeute »
+        "client_sent_at": (payment.payment_data or {}).get("client_sent_at"),
+        "awaiting_confirmation": bool(
+            payment.method == "cash"
+            and payment.status in ("pending", "processing")
+            and (payment.payment_data or {}).get("client_sent_at")
+        ),
     }
     if include_split:
         data.update(
@@ -190,6 +198,7 @@ def _receipt_context(db: Session, payment: Payment) -> Dict[str, Any]:
         "payer_phone": payment.payer_phone,
         "paid_at": paid_at,
         "paid_at_label": receipt_service.fmt_dt(paid_at),
+        "created_at_label": receipt_service.fmt_dt(payment.created_at) if payment.created_at else None,
         "booking_id": payment.booking_id,
         "service_name": service or "Massage",
         "scheduled_label": receipt_service.fmt_dt(scheduled, convert=False) if scheduled else None,
@@ -215,7 +224,10 @@ def _apply_gateway_status(db: Session, payment: Payment, status: str) -> Payment
 # ---------------------------------------------------------------------------
 @router.get("/methods")
 async def get_payment_methods(current_user: User = Depends(get_current_user)):
-    return gateway.available_methods()
+    data = gateway.available_methods()
+    # La clé PUBLIABLE (pk_...) peut être exposée ; la clé SECRÈTE (sk_...) ne sort JAMAIS du backend.
+    data["stripe_publishable_key"] = settings.STRIPE_PUBLISHABLE_KEY or None
+    return data
 
 
 @router.get("/quote/{booking_id}")
@@ -372,6 +384,14 @@ async def initiate_payment(
     db.commit()
     db.refresh(payment)
 
+    # Notifications : thérapeute (espèces à confirmer) + admin (nouveau paiement)
+    pn.payment_initiated(
+        payment,
+        booking.therapist_id,
+        current_user.fullname or "Le client",
+        receipt_service.method_label(payment.method, payment.provider),
+    )
+
     # Le fournisseur peut déjà avoir répondu « paid »
     if payment.status == "processing":
         try:
@@ -426,6 +446,34 @@ async def cancel_payment(
     if payment.status not in ("pending", "processing"):
         raise HTTPException(400, "Ce paiement ne peut plus être annulé.")
     payment = wallet.mark_payment_failed(db, payment, "cancelled")
+    return _serialize(payment)
+
+
+@router.post("/{payment_id}/client-sent")
+async def client_sent(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Le CLIENT déclare avoir remis l'argent (espèces) -> le thérapeute reçoit « Paiement reçu à confirmer »
+    et l'admin est informé. Le paiement reste « en attente » tant que le thérapeute n'a pas confirmé."""
+    payment = db.query(Payment).filter(Payment.id == payment_id).with_for_update().first()
+    if not payment or payment.user_id != current_user.id:
+        raise HTTPException(404, "Paiement introuvable.")
+    if payment.method != "cash":
+        raise HTTPException(400, "Seul un paiement en espèces peut être signalé ainsi.")
+    if payment.status not in ("pending", "processing"):
+        raise HTTPException(400, "Ce paiement est déjà clôturé.")
+
+    data = dict(payment.payment_data or {})
+    first_time = not data.get("client_sent_at")
+    if first_time:
+        data["client_sent_at"] = iso_utc(datetime.utcnow())
+        payment.payment_data = data
+        db.commit()
+        db.refresh(payment)
+        booking = db.query(Booking).filter(Booking.id == payment.booking_id).first()
+        pn.client_sent_cash(payment, getattr(booking, "therapist_id", None), current_user.fullname or "Le client")
     return _serialize(payment)
 
 
@@ -560,44 +608,6 @@ def _load_receivable(db: Session, payment_id: int, user: User) -> Payment:
     if payment.status != "completed":
         raise HTTPException(400, "Le reçu n'est disponible qu'après confirmation du paiement.")
     return payment
-
-
-@router.post("/{payment_id}/therapist-confirm")
-async def therapist_confirm_payment(
-    payment_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Le thérapeute confirme avoir bien reçu le paiement du client (Mobile Money / carte).
-    Le client est notifié. N'a aucun effet sur le wallet (déjà crédité par la passerelle)."""
-    from ..services.notification_service import send_notification
-
-    payment = db.query(Payment).filter(Payment.id == payment_id).first()
-    if not payment:
-        raise HTTPException(404, "Paiement introuvable.")
-    booking = db.query(Booking).filter(Booking.id == payment.booking_id).first()
-    if not booking or booking.therapist_id != current_user.id:
-        raise HTTPException(403, "Seul le thérapeute de cette réservation peut confirmer.")
-    if payment.status != "completed":
-        raise HTTPException(400, "Le paiement n'est pas encore confirmé par la passerelle.")
-    meta = dict(payment.payment_metadata or {})
-    if not meta.get("therapist_confirmed_at"):
-        meta["therapist_confirmed_at"] = iso_utc(datetime.utcnow())
-        payment.payment_metadata = meta
-        db.commit()
-        db.refresh(payment)
-        try:
-            send_notification(
-                user_id=payment.user_id,
-                title="Réception confirmée ✓",
-                body=f"Votre thérapeute a confirmé avoir reçu votre paiement de {int(payment.amount):,} Ar.".replace(",", " "),
-                notification_type="payment_received",
-                data={"payment_id": payment.id, "booking_id": payment.booking_id},
-                booking_id=payment.booking_id,
-            )
-        except Exception:  # noqa: BLE001
-            logger.exception("Notification de confirmation non envoyée")
-    return _serialize(payment, include_split=True)
 
 
 def _links(request: Request, payment_id: int, user_id: int, view: str, ttl: int = 900) -> Dict[str, str]:
@@ -812,7 +822,7 @@ async def admin_list_payments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin),
     status: Optional[str] = None,
-    limit: int = Query(100, le=500),
+    limit: int = Query(300, le=1000),
 ):
     q = db.query(Payment)
     if status and status != "all":
@@ -825,7 +835,7 @@ def _month_key(d: Optional[datetime]) -> str:
 
 
 def _last_months(n: int = 12):
-    now = mg_now().replace(day=1)
+    now = datetime.utcnow().replace(day=1)
     keys = []
     y, m = now.year, now.month
     for _ in range(n):
@@ -855,7 +865,7 @@ async def admin_stats(
         key = p.provider or p.method
         by_method[key] = by_method.get(key, 0) + float(p.amount or 0)
 
-    today = mg_now().date()
+    today = datetime.utcnow().date()
     days = [(today - timedelta(days=i)) for i in range(29, -1, -1)]
     daily = {d.isoformat(): {"date": d.isoformat(), "gross": 0.0, "commission": 0.0, "count": 0} for d in days}
     months = {k: {"month": k, "gross": 0.0, "commission": 0.0, "net": 0.0, "count": 0} for k in _last_months(12)}
@@ -863,7 +873,7 @@ async def admin_stats(
     for p in completed:
         meta = p.payment_metadata or {}
         comm = float(meta.get("commission_amount", 0) or 0)
-        when = to_mg(p.completed_at or p.created_at)
+        when = p.completed_at or p.created_at
         if when and when.date().isoformat() in daily:
             row = daily[when.date().isoformat()]
             row["gross"] += float(p.amount or 0)
