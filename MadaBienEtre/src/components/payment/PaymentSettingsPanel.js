@@ -107,11 +107,11 @@ export default function PaymentSettingsPanel() {
     </View>
   );
 
-  const Gate = ({ name, ok }) => (
+  const Gate = ({ name, ok, reason }) => (
     <View style={styles.gate}>
       <Ionicons name={ok ? 'checkmark-circle' : 'close-circle'} size={18} color={ok ? '#047857' : '#B91C1C'} />
       <Text style={[styles.gateText, txt]}>
-        {name} : {ok ? 'clé configurée' : 'clé absente (.env du backend)'}
+        {name} : {ok ? 'clé configurée' : (reason || 'clé absente (.env du backend)')}
       </Text>
     </View>
   );
@@ -149,7 +149,7 @@ export default function PaymentSettingsPanel() {
       {field({ label: 'Message en bas du reçu', k: 'receipt_footer', keyboard: 'default' })}
 
       <Text style={[styles.group, { color: GREEN }]}>PASSERELLES</Text>
-      <Gate name="Stripe" ok={g.stripe_configured} />
+      <Gate name="Stripe" ok={g.stripe_configured} reason={g.stripe_reason} />
       <Gate name="Vanila Pay" ok={g.vanila_configured} />
       {g.sandbox ? <Text style={styles.warn}>Mode TEST actif (PAYMENT_SANDBOX=True) : à désactiver en production.</Text> : null}
       <Text style={[styles.help, sub]}>{data?.keys_help}</Text>

@@ -5,7 +5,23 @@ from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 from pydantic import ConfigDict
 
-load_dotenv()
+# --- Chargement des fichiers .env (chemin ABSOLU : ne dépend plus du dossier de lancement) ---
+# Ordre : .env  puis  .env.paiements (si présent). Les valeurs déjà définies dans .env gagnent.
+# NB : « .env.paiements.EXEMPLE » n'est JAMAIS lu (c'est seulement un modèle à copier).
+_BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ENV_FILES = [os.path.join(_BACKEND_DIR, ".env"), os.path.join(_BACKEND_DIR, ".env.paiements")]
+for _f in _ENV_FILES:
+    if os.path.exists(_f):
+        load_dotenv(_f, override=False)
+load_dotenv(override=False)  # .env du dossier courant (compat.)
+
+
+def _clean(name: str, default: str = "") -> str:
+    """Lit une variable, enlève espaces/guillemets et ignore les valeurs d'exemple (XXXX...)."""
+    v = (os.getenv(name, default) or "").strip().strip('"').strip("'").strip()
+    if not v or "XXXX" in v.upper() or v.lower() in ("none", "null", "changeme"):
+        return ""
+    return v
 
 class Settings(BaseSettings):
     BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
@@ -50,20 +66,20 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str = os.getenv("CLOUDINARY_API_SECRET", "")
     
     # Stripe
-    STRIPE_SECRET_KEY: str = os.getenv("STRIPE_SECRET_KEY", "")
-    STRIPE_PUBLISHABLE_KEY: str = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
-    STRIPE_WEBHOOK_SECRET: str = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+    STRIPE_SECRET_KEY: str = _clean("STRIPE_SECRET_KEY")
+    STRIPE_PUBLISHABLE_KEY: str = _clean("STRIPE_PUBLISHABLE_KEY")
+    STRIPE_WEBHOOK_SECRET: str = _clean("STRIPE_WEBHOOK_SECRET")
     
     # Mobile Money
     MOBILE_MONEY_API_KEY: Optional[str] = os.getenv("MOBILE_MONEY_API_KEY")
     MOBILE_MONEY_API_URL: Optional[str] = os.getenv("MOBILE_MONEY_API_URL")
     
     # Vanila Pay
-    VANILA_PAY_API_KEY: Optional[str] = os.getenv("VANILA_PAY_API_KEY")
+    VANILA_PAY_API_KEY: Optional[str] = _clean("VANILA_PAY_API_KEY") or None
     VANILA_PAY_API_URL: str = os.getenv("VANILA_PAY_API_URL", "https://api.vanila-pay.com/v1")
-    VANILA_PAY_MERCHANT_ID: Optional[str] = os.getenv("VANILA_PAY_MERCHANT_ID")
+    VANILA_PAY_MERCHANT_ID: Optional[str] = _clean("VANILA_PAY_MERCHANT_ID") or None
     # Secret de signature des webhooks Vanila Pay (HMAC-SHA256)
-    VANILA_PAY_WEBHOOK_SECRET: str = os.getenv("VANILA_PAY_WEBHOOK_SECRET", "")
+    VANILA_PAY_WEBHOOK_SECRET: str = _clean("VANILA_PAY_WEBHOOK_SECRET")
     # Chemins de l'API Vanila Pay (à adapter à la documentation officielle reçue)
     VANILA_PAY_CREATE_PATH: str = os.getenv("VANILA_PAY_CREATE_PATH", "/payments")
     VANILA_PAY_STATUS_PATH: str = os.getenv("VANILA_PAY_STATUS_PATH", "/payments/{id}")
@@ -74,10 +90,13 @@ class Settings(BaseSettings):
     # Commission Mada Bien-Être (%), utilisée si le thérapeute n'a pas de taux propre
     PLATFORM_COMMISSION_RATE: float = float(os.getenv("PLATFORM_COMMISSION_RATE", "10"))
     # Devise envoyée à Stripe (MGA = zéro décimale ; sinon « eur »...)
-    STRIPE_CURRENCY: str = os.getenv("STRIPE_CURRENCY", "mga")
+    STRIPE_CURRENCY: str = (_clean("STRIPE_CURRENCY", "mga") or "mga")
     # Si votre compte Stripe ne peut pas facturer en MGA : mettez STRIPE_CURRENCY=eur (ou usd)
     # et STRIPE_MGA_PER_UNIT = nombre d'Ariary pour 1 euro (ex. 5000). 0 = pas de conversion.
     STRIPE_MGA_PER_UNIT: float = float(os.getenv("STRIPE_MGA_PER_UNIT", "0") or 0)
+    # Secours automatique : si Stripe refuse l'Ariary (MGA), on réessaie en EUR avec ce taux (Ar pour 1 €)
+    STRIPE_FALLBACK_CURRENCY: str = (_clean("STRIPE_FALLBACK_CURRENCY", "eur") or "eur")
+    STRIPE_FALLBACK_MGA_PER_UNIT: float = float(os.getenv("STRIPE_FALLBACK_MGA_PER_UNIT", "5000") or 5000)
     # Retrait minimum (Ar)
     MIN_WITHDRAWAL_AMOUNT: float = float(os.getenv("MIN_WITHDRAWAL_AMOUNT", "5000"))
     # Acceptation du paiement en espèces
@@ -140,9 +159,27 @@ class Settings(BaseSettings):
     FEATURE_PUSH_NOTIFICATIONS: bool = True
     
     model_config = ConfigDict(
-        env_file=".env",
+        env_file=[p for p in _ENV_FILES if os.path.exists(p)] or ".env",
         case_sensitive=True,
         extra="ignore"
     )
 
 settings = Settings()
+
+
+# Pydantic relit les variables d'environnement brutes : on re-nettoie ici les clés de paiement
+# (espaces, guillemets, valeurs d'exemple « XXXX ») pour qu'un modèle non rempli ne passe jamais pour une vraie clé.
+def _scrub(value):
+    v = (str(value or "")).strip().strip('"').strip("'").strip()
+    if not v or "XXXX" in v.upper() or v.lower() in ("none", "null", "changeme"):
+        return ""
+    return v
+
+
+for _name in (
+    "STRIPE_SECRET_KEY", "STRIPE_PUBLISHABLE_KEY", "STRIPE_WEBHOOK_SECRET",
+    "VANILA_PAY_API_KEY", "VANILA_PAY_MERCHANT_ID", "VANILA_PAY_WEBHOOK_SECRET",
+):
+    _cleaned = _scrub(getattr(settings, _name, ""))
+    setattr(settings, _name, _cleaned if _name.startswith("STRIPE") or _name.endswith("SECRET") else (_cleaned or None))
+settings.STRIPE_CURRENCY = (_scrub(settings.STRIPE_CURRENCY) or "mga").lower()

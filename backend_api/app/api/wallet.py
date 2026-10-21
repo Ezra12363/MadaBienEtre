@@ -740,6 +740,7 @@ async def admin_get_settings(
         "settings": platform_settings.get_config(),
         "gateways": {
             "stripe_configured": gw.stripe_configured(),
+            "stripe_reason": gw.stripe_status()["reason"],
             "vanila_configured": gw.vanila_configured(),
             "sandbox": bool(settings.PAYMENT_SANDBOX),
             "stripe_webhook_url": f"{settings.BASE_URL.rstrip('/')}/payments/webhook/stripe",
