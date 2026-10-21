@@ -19,7 +19,6 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -79,7 +78,6 @@ const getNotificationVisual = (type) => {
   return { icon: 'notifications-outline', color: PRIMARY };
 };
 
-// Écran admin à ouvrir selon le type de notification (routes de AdminNavigator)
 // Catégorie « désactivable » (clé <cat>_enabled du backend) d'un type de notification.
 // null = pas d'interrupteur dédié (utiliser l'interrupteur général).
 const getCategory = (type) => {
@@ -103,6 +101,7 @@ const CATEGORY_LABELS = {
   chat: 'Messages',
 };
 
+// Écran admin à ouvrir selon le type de notification (routes de AdminNavigator)
 const getTargetScreen = (type) => {
   const t = String(type || '').toLowerCase();
 
@@ -135,10 +134,8 @@ const NotificationScreen = ({ navigation }) => {
   // durées (12 sec, 2 min…) avancent en direct.
   const now = useNow(1000);
 
-  // ✅ FIX : le contexte global ne fournit QUE le compteur (unreadCount) et
-  // des actions ; il ne contient PAS la liste des notifications. L'ancien
-  // écran lisait `notifications` du contexte => liste toujours vide.
-  // On charge donc la liste directement depuis l'API (/notifications).
+  // Le contexte global ne fournit QUE le compteur (unreadCount) et
+  // des actions ; la liste est chargée directement depuis l'API.
   const { markAsRead, markAllAsRead, loadUnreadCount } = useNotifications() || {};
 
   const [notifications, setNotifications] = useState([]);
@@ -190,7 +187,6 @@ const NotificationScreen = ({ navigation }) => {
     }
   }, []);
 
-  // Chargement à chaque affichage de l'écran + rafraîchissement automatique
   const loadPreferences = useCallback(async () => {
     try {
       const res = await notificationService.getPreferences();
@@ -202,6 +198,7 @@ const NotificationScreen = ({ navigation }) => {
     }
   }, []);
 
+  // Chargement à chaque affichage de l'écran + rafraîchissement automatique
   useFocusEffect(
     useCallback(() => {
       loadPreferences();
@@ -344,7 +341,7 @@ const NotificationScreen = ({ navigation }) => {
 
     const ok = await confirmAsync(
       `Désactiver « ${label} » ?`,
-      `Vous ne recevrez plus de notifications « ${label} ». Vous pourrez les réactiver depuis le bouton cloche en haut de l'écran.`,
+      `Vous ne recevrez plus de notifications « ${label} ». Vous pourrez les réactiver depuis le bouton cloche en haut de la liste.`,
       'Désactiver',
       { tone: 'warning', cancelLabel: 'Annuler', icon: 'notifications-off-outline' }
     );
@@ -411,52 +408,52 @@ const NotificationScreen = ({ navigation }) => {
           onPress={() => handlePressItem(item)}
           style={styles.itemMain}
         >
-        <View
-          style={[
-            styles.itemIcon,
-            { backgroundColor: `${visual.color}18` },
-          ]}
-        >
-          <Ionicons name={visual.icon} size={20} color={visual.color} />
-        </View>
-
-        <View style={styles.itemContent}>
-          <View style={styles.itemTitleRow}>
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.itemTitle,
-                { color: themeColors.text },
-                isUnread && styles.itemTitleUnread,
-              ]}
-            >
-              {item.title || 'Notification'}
-            </Text>
-
-            {isUnread && <View style={styles.unreadDot} />}
-          </View>
-
-          {item.message || item.body ? (
-            <Text
-              numberOfLines={3}
-              style={[
-                styles.itemMessage,
-                { color: themeColors.textSecondary || '#718078' },
-              ]}
-            >
-              {item.message || item.body}
-            </Text>
-          ) : null}
-
-          <Text
+          <View
             style={[
-              styles.itemTime,
-              { color: themeColors.textSecondary || '#9AA5A0' },
+              styles.itemIcon,
+              { backgroundColor: `${visual.color}18` },
             ]}
           >
-            {formatTimeAgo(getNotificationDate(item), now)}
-          </Text>
-        </View>
+            <Ionicons name={visual.icon} size={20} color={visual.color} />
+          </View>
+
+          <View style={styles.itemContent}>
+            <View style={styles.itemTitleRow}>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.itemTitle,
+                  { color: themeColors.text },
+                  isUnread && styles.itemTitleUnread,
+                ]}
+              >
+                {item.title || 'Notification'}
+              </Text>
+
+              {isUnread && <View style={styles.unreadDot} />}
+            </View>
+
+            {item.message || item.body ? (
+              <Text
+                numberOfLines={3}
+                style={[
+                  styles.itemMessage,
+                  { color: themeColors.textSecondary || '#718078' },
+                ]}
+              >
+                {item.message || item.body}
+              </Text>
+            ) : null}
+
+            <Text
+              style={[
+                styles.itemTime,
+                { color: themeColors.textSecondary || '#9AA5A0' },
+              ]}
+            >
+              {formatTimeAgo(getNotificationDate(item), now)}
+            </Text>
+          </View>
         </TouchableOpacity>
 
         <View style={styles.itemActions}>
@@ -541,37 +538,93 @@ const NotificationScreen = ({ navigation }) => {
   };
 
   /* ==========================================================
-     RENDER
+     BARRE : FILTRES (gauche) + ACTIONS (droite)
+     Les boutons ne sont plus dans le header => plus jamais coupés.
   ========================================================== */
 
-  const renderFilters = () => (
-    <View style={styles.filters}>
-      {[
-        { key: 'all', label: `Toutes (${notifications.length})` },
-        { key: 'unread', label: `Non lues (${unreadCount})` },
-      ].map((f) => {
-        const active = filter === f.key;
-        return (
+  const renderToolbar = () => (
+    <View style={styles.toolbar}>
+      <View style={styles.filters}>
+        {[
+          { key: 'all', label: `Toutes (${notifications.length})` },
+          { key: 'unread', label: `Non lues (${unreadCount})` },
+        ].map((f) => {
+          const active = filter === f.key;
+          return (
+            <TouchableOpacity
+              key={f.key}
+              activeOpacity={0.85}
+              onPress={() => setFilter(f.key)}
+              style={[
+                styles.chip,
+                {
+                  backgroundColor: active ? PRIMARY : themeColors.surface,
+                  borderColor: active ? PRIMARY : themeColors.border || '#E7E9EF',
+                },
+              ]}
+            >
+              <Text
+                numberOfLines={1}
+                style={[styles.chipText, { color: active ? '#FFFFFF' : themeColors.text }]}
+              >
+                {f.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <View style={styles.toolbarActions}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={handleToggleEnabled}
+          style={[
+            styles.actionButton,
+            !enabled && { backgroundColor: `${WARNING}22`, borderColor: `${WARNING}66` },
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel={enabled ? 'Désactiver les notifications' : 'Activer les notifications'}
+        >
+          <Ionicons
+            name={enabled ? 'notifications-outline' : 'notifications-off-outline'}
+            size={18}
+            color={enabled ? PRIMARY : WARNING}
+          />
+        </TouchableOpacity>
+
+        {unreadCount > 0 ? (
           <TouchableOpacity
-            key={f.key}
-            activeOpacity={0.85}
-            onPress={() => setFilter(f.key)}
-            style={[
-              styles.chip,
-              {
-                backgroundColor: active ? PRIMARY : themeColors.surface,
-                borderColor: active ? PRIMARY : themeColors.border || '#E7E9EF',
-              },
-            ]}
+            activeOpacity={0.8}
+            onPress={handleMarkAllAsRead}
+            style={styles.actionButton}
+            accessibilityRole="button"
+            accessibilityLabel="Tout marquer comme lu"
           >
-            <Text style={[styles.chipText, { color: active ? '#FFFFFF' : themeColors.text }]}>
-              {f.label}
-            </Text>
+            <Ionicons name="checkmark-done-outline" size={18} color={PRIMARY} />
           </TouchableOpacity>
-        );
-      })}
+        ) : null}
+
+        {notifications.length > 0 ? (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleDeleteAll}
+            style={[
+              styles.actionButton,
+              { backgroundColor: `${DANGER}12`, borderColor: `${DANGER}44` },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Tout supprimer"
+          >
+            <Ionicons name="trash-outline" size={18} color={DANGER} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
     </View>
   );
+
+  /* ==========================================================
+     RENDER
+  ========================================================== */
 
   return (
     <View
@@ -589,47 +642,6 @@ const NotificationScreen = ({ navigation }) => {
         }
         showBack
         onBackPress={() => navigation.goBack()}
-        rightComponent={
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={handleToggleEnabled}
-              style={styles.markAllButton}
-              accessibilityRole="button"
-              accessibilityLabel={enabled ? 'Désactiver les notifications' : 'Activer les notifications'}
-            >
-              <Ionicons
-                name={enabled ? 'notifications-outline' : 'notifications-off-outline'}
-                size={20}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
-
-            {unreadCount > 0 ? (
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleMarkAllAsRead}
-                style={styles.markAllButton}
-                accessibilityRole="button"
-                accessibilityLabel="Tout marquer comme lu"
-              >
-                <Ionicons name="checkmark-done-outline" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            ) : null}
-
-            {notifications.length > 0 ? (
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleDeleteAll}
-                style={styles.markAllButton}
-                accessibilityRole="button"
-                accessibilityLabel="Tout supprimer"
-              >
-                <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        }
       />
 
       {!enabled && (
@@ -646,14 +658,13 @@ const NotificationScreen = ({ navigation }) => {
       )}
 
       <FlatList
+        style={styles.list}
         data={visibleNotifications}
         // `now` force le rafraîchissement des durées
         extraData={now}
-        keyExtractor={(item, index) =>
-          String(item?.id ?? index)
-        }
+        keyExtractor={(item, index) => String(item?.id ?? index)}
         renderItem={renderItem}
-        ListHeaderComponent={renderFilters}
+        ListHeaderComponent={renderToolbar}
         contentContainerStyle={
           visibleNotifications.length === 0
             ? styles.listContentEmpty
@@ -686,10 +697,100 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  headerActions: {
+  list: {
+    flex: 1,
+  },
+
+  /* ---------- Barre filtres + actions ---------- */
+
+  toolbar: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 8,
+    marginBottom: 12,
+  },
+
+  filters: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    gap: 6,
+  },
+
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+
+  chipText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+
+  toolbarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  actionButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(22,138,85,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(22,138,85,0.28)',
+  },
+
+  /* ---------- Bannière « désactivées » (dans le flux) ---------- */
+
+  disabledBanner: {
+    marginHorizontal: 14,
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: WARNING,
+  },
+
+  disabledBannerText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+
+  /* ---------- Liste ---------- */
+
+  // ✅ Espace réduit entre le header et la liste (avant : 90 / 100)
+  listContent: {
+    paddingTop: 12,
+    paddingHorizontal: 14,
+    paddingBottom: 24,
+  },
+
+  listContentEmpty: {
+    flexGrow: 1,
+    paddingTop: 12,
+    paddingHorizontal: 14,
+  },
+
+  /* ---------- Carte notification ---------- */
+
+  item: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 10,
   },
 
   itemMain: {
@@ -708,90 +809,6 @@ const styles = StyleSheet.create({
 
   iconBtn: {
     padding: 4,
-  },
-
-  disabledBanner: {
-    position: 'absolute',
-    left: 14,
-    right: 14,
-    top: Platform.OS === 'web' ? 76 : 86,
-    zIndex: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    borderRadius: 10,
-    backgroundColor: '#E89B22',
-  },
-
-  disabledBannerText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-
-  filters: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-  },
-
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-
-  chipText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-
-  retryButton: {
-    marginTop: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: PRIMARY,
-  },
-
-  retryText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 13,
-  },
-
-  listContent: {
-    paddingTop: Platform.OS === 'web' ? 90 : 100,
-    paddingHorizontal: 14,
-    paddingBottom: 24,
-  },
-
-  listContentEmpty: {
-    flexGrow: 1,
-    paddingTop: Platform.OS === 'web' ? 90 : 100,
-  },
-
-  markAllButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-
-  item: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 10,
   },
 
   itemIcon: {
@@ -844,6 +861,8 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
   },
 
+  /* ---------- Vide / erreur ---------- */
+
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -864,6 +883,20 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     fontFamily: typography.fontFamily.medium,
+  },
+
+  retryButton: {
+    marginTop: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: PRIMARY,
+  },
+
+  retryText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 13,
   },
 });
 

@@ -1,5 +1,5 @@
 // src/screens/admin/UsersScreen.js
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ import { colors, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
 import AdminUserAddressModal from '../../components/admin/AdminUserAddressModal';
+import { navigateToAdminDetail } from '../../components/admin/AdminDetailKit';
 import useResponsive from '../../hooks/useResponsive';
 import { API_URL } from '../../config/env';
 import { exportToExcel } from '../../utils/exportExcel';
@@ -35,11 +36,10 @@ import { exportToExcel } from '../../utils/exportExcel';
 const IS_WEB = Platform.OS === 'web';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-/* ============================================================
-   CONFIG
-============================================================ */
-
-const ITEMS_PER_PAGE = 10;
+// Sur le web : le texte passe à la ligne au lieu d'être coupé ("...")
+const WEB_WRAP = IS_WEB
+  ? { wordBreak: 'break-word', overflowWrap: 'anywhere' }
+  : null;
 
 /* ============================================================
    MAIN COMPONENT
@@ -55,7 +55,7 @@ const UsersScreen = () => {
   // Les détails s'ouvrent dans une PAGE dédiée (UserDetailScreen),
   // plus dans une modale : la barre de navigation reste affichée.
   const openUserDetails = (item, edit = false) => {
-    navigation.navigate('UserDetail', {
+    navigateToAdminDetail(navigation, 'UserDetail', {
       userId: item.id,
       user: item,
       edit,
@@ -74,7 +74,6 @@ const UsersScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showDeleted, setShowDeleted] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
 
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
@@ -479,13 +478,11 @@ const UsersScreen = () => {
 
   const handleSearch = (text) => {
     setSearchQuery(text);
-    setCurrentPage(1);
     applyFilters(text, selectedFilter);
   };
 
   const handleFilter = (filter) => {
     setSelectedFilter(filter);
-    setCurrentPage(1);
     applyFilters(searchQuery, filter);
   };
 
@@ -497,23 +494,6 @@ const UsersScreen = () => {
     applyFilters(searchQuery, selectedFilter, users);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [users]);
-
-  /* ==========================================================
-     PAGINATION
-  ========================================================== */
-
-  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
-
-  const paginatedUsers = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredUsers.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredUsers, currentPage]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
 
   /* ==========================================================
      GET FULL ADDRESS
@@ -1041,9 +1021,9 @@ const UsersScreen = () => {
       )}
 
       <Text
-        numberOfLines={1}
         style={[
           styles.statusBadgeText,
+          WEB_WRAP,
           {
             color,
           },
@@ -1116,7 +1096,6 @@ const UsersScreen = () => {
               width: Math.max(size * 0.28, 12),
               height: Math.max(size * 0.28, 12),
               borderRadius: Math.max(size * 0.28, 12) / 2,
-              borderColor: themeColors.surface || '#fff',
               right: -Math.max(size * 0.28, 12) * 0.12,
               bottom: -Math.max(size * 0.28, 12) * 0.12,
             },
@@ -1177,9 +1156,9 @@ const UsersScreen = () => {
           <Avatar user={item} size={42} />
           <View style={styles.webUserInfo}>
             <Text
-              numberOfLines={1}
               style={[
                 styles.webName,
+                WEB_WRAP,
                 {
                   color: themeColors.text,
                 },
@@ -1188,9 +1167,9 @@ const UsersScreen = () => {
               {item.fullname || 'Utilisateur'}
             </Text>
             <Text
-              numberOfLines={1}
               style={[
                 styles.webEmail,
+                WEB_WRAP,
                 {
                   color: themeColors.textSecondary,
                 },
@@ -1202,11 +1181,11 @@ const UsersScreen = () => {
         </View>
 
         {/* TELEPHONE */}
-        <View style={styles.webCell}>
+        <View style={[styles.webCell, styles.webCellPhone]}>
           <Text
-            numberOfLines={1}
             style={[
               styles.webCellText,
+              WEB_WRAP,
               {
                 color: themeColors.text,
               },
@@ -1220,9 +1199,9 @@ const UsersScreen = () => {
         <View style={[styles.webCell, styles.webAddressCell]}>
           <Ionicons name="location-outline" size={14} color={colors.primary} />
           <Text
-            numberOfLines={2}
             style={[
               styles.webCellText,
+              WEB_WRAP,
               {
                 color: themeColors.textSecondary,
                 flex: 1,
@@ -1234,7 +1213,7 @@ const UsersScreen = () => {
         </View>
 
         {/* RÔLE */}
-        <View style={styles.webCell}>
+        <View style={[styles.webCell, styles.webCellRole]}>
           <StatusBadge
             label={getRoleLabel(item.role)}
             color={getRoleColor(item.role)}
@@ -1242,7 +1221,7 @@ const UsersScreen = () => {
         </View>
 
         {/* COMPTE */}
-        <View style={styles.webCell}>
+        <View style={[styles.webCell, styles.webCellAccount]}>
           <StatusBadge
             label={getStatusLabel(isActive)}
             color={getStatusColor(isActive)}
@@ -1250,7 +1229,7 @@ const UsersScreen = () => {
         </View>
 
         {/* STATUT EN LIGNE */}
-        <View style={styles.webCell}>
+        <View style={[styles.webCell, styles.webCellStatus]}>
           {isTherapist ? (
             <StatusBadge
               label={isOnline ? 'En ligne' : 'Hors ligne'}
@@ -1266,7 +1245,7 @@ const UsersScreen = () => {
         </View>
 
         {/* CIN */}
-        <View style={styles.webCell}>
+        <View style={[styles.webCell, styles.webCellCin]}>
           <StatusBadge
             label={isTherapist ? (hasCin ? item.cin_number : 'Non renseigné') : 'N/A'}
             color={isTherapist ? (hasCin ? colors.primary : '#E74C3C') : '#999999'}
@@ -1363,26 +1342,34 @@ const UsersScreen = () => {
           styles.mobileCard,
           {
             backgroundColor: themeColors.surface,
+            borderColor: themeColors.border || '#E8E8E8',
             opacity: isDeleted ? 0.6 : 1,
           },
         ]}
       >
         <View style={styles.mobileCardHeader}>
-          <Avatar user={item} size={52} />
+          <Avatar user={item} size={60} />
 
           <View style={styles.mobileCardIdentity}>
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.mobileName,
-                {
-                  color: themeColors.text,
-                },
-              ]}
-            >
-              {item.fullname || 'Utilisateur'}
-              {isDeleted && <Text style={styles.deletedTag}> (Supprimé)</Text>}
-            </Text>
+            <View style={styles.mobileTopRow}>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.mobileName,
+                  {
+                    color: themeColors.text,
+                  },
+                ]}
+              >
+                {item.fullname || 'Utilisateur'}
+                {isDeleted && <Text style={styles.deletedTag}> (Supprimé)</Text>}
+              </Text>
+
+              <StatusBadge
+                label={getRoleLabel(item.role)}
+                color={getRoleColor(item.role)}
+              />
+            </View>
 
             <Text
               numberOfLines={1}
@@ -1396,12 +1383,43 @@ const UsersScreen = () => {
               {item.email || 'Email non renseigné'}
             </Text>
 
-            <View style={styles.mobileStatusLine}>
-              <StatusBadge
-                label={getRoleLabel(item.role)}
-                color={getRoleColor(item.role)}
+            <View style={styles.mobileInfoGrid}>
+              <MobileInfo
+                icon="call-outline"
+                label="Téléphone"
+                value={item.phone || 'N/A'}
+                themeColors={themeColors}
               />
 
+              <MobileInfo
+                icon="location-outline"
+                label="Adresse"
+                value={address}
+                themeColors={themeColors}
+                full
+              />
+
+              <MobileInfo
+                icon="card-outline"
+                label="CIN"
+                showLabel
+                value={isTherapist ? (hasCin ? item.cin_number : 'Non renseigné') : 'N/A'}
+                themeColors={themeColors}
+                valueColor={isTherapist ? (hasCin ? colors.primary : '#E74C3C') : '#999999'}
+              />
+
+              {isTherapist && item.bio && (
+                <MobileInfo
+                  icon="document-text-outline"
+                  label="Biographie"
+                  value={item.bio}
+                  themeColors={themeColors}
+                  lines={2}
+                />
+              )}
+            </View>
+
+            <View style={styles.mobileStatusLine}>
               <StatusBadge
                 label={getStatusLabel(isActive)}
                 color={getStatusColor(isActive)}
@@ -1416,52 +1434,6 @@ const UsersScreen = () => {
               )}
             </View>
           </View>
-
-          <Ionicons name="chevron-forward" size={20} color={themeColors.textSecondary} />
-        </View>
-
-        <View
-          style={[
-            styles.mobileDivider,
-            {
-              backgroundColor: themeColors.border || '#E8E8E8',
-            },
-          ]}
-        />
-
-        <View style={styles.mobileInfoGrid}>
-          <MobileInfo
-            icon="call-outline"
-            label="Téléphone"
-            value={item.phone || 'N/A'}
-            themeColors={themeColors}
-          />
-
-          <MobileInfo
-            icon="card-outline"
-            label="CIN"
-            value={isTherapist ? (hasCin ? item.cin_number : 'Non renseigné') : 'N/A'}
-            themeColors={themeColors}
-            valueColor={isTherapist ? (hasCin ? colors.primary : '#E74C3C') : '#999999'}
-          />
-
-          <MobileInfo
-            icon="location-outline"
-            label="Adresse"
-            value={address}
-            themeColors={themeColors}
-            full
-          />
-
-          {isTherapist && item.bio && (
-            <MobileInfo
-              icon="document-text-outline"
-              label="Biographie"
-              value={item.bio}
-              themeColors={themeColors}
-              full
-            />
-          )}
         </View>
       </TouchableOpacity>
     );
@@ -1471,29 +1443,25 @@ const UsersScreen = () => {
      INFO MOBILE
   ========================================================== */
 
-  const MobileInfo = ({ icon, label, value, themeColors, valueColor, full }) => (
-    <View
-      style={[
-        styles.mobileInfoItem,
-        full && styles.mobileInfoFull,
-      ]}
-    >
-      <View style={styles.mobileInfoLabel}>
-        <Ionicons name={icon} size={15} color={colors.primary} />
-        <Text
-          style={[
-            styles.mobileLabelText,
-            {
-              color: themeColors.textSecondary,
-            },
-          ]}
-        >
-          {label}
-        </Text>
-      </View>
+  const MobileInfo = ({
+    icon,
+    label,
+    value,
+    themeColors,
+    valueColor,
+    full,
+    showLabel,
+    lines,
+  }) => (
+    <View style={styles.mobileInfoRow}>
+      <Ionicons
+        name={icon}
+        size={15}
+        color={themeColors.textSecondary}
+      />
 
       <Text
-        numberOfLines={full ? 3 : 2}
+        numberOfLines={lines || (full ? 2 : 1)}
         style={[
           styles.mobileValueText,
           {
@@ -1501,6 +1469,7 @@ const UsersScreen = () => {
           },
         ]}
       >
+        {showLabel && label ? `${label} : ` : ''}
         {value}
       </Text>
     </View>
@@ -1511,86 +1480,74 @@ const UsersScreen = () => {
   ========================================================== */
 
   const renderWebTable = () => {
+    const sidePadding = Math.max(horizontalPadding || 0, 16);
+    const { height: windowHeight } = Dimensions.get('window');
+
     return (
       <View
         style={[
           styles.webTableWrapper,
           {
             backgroundColor: themeColors.surface,
+            borderColor: themeColors.border || '#EAEAEA',
+            marginHorizontal: sidePadding,
+            ...(IS_WEB ? { maxHeight: Math.max(windowHeight - 300, 320) } : null),
           },
         ]}
       >
-        <View
-          style={[
-            styles.webTableHeader,
-            {
-              backgroundColor: themeColors.surface,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.webHeaderCell,
-              styles.webCellUser,
-            ]}
-          >
-            <Text
-              style={[
-                styles.webHeaderText,
-                {
-                  color: themeColors.textSecondary,
-                },
-              ]}
-            >
-              UTILISATEUR
-            </Text>
-          </View>
-
-          <HeaderCell label="TÉLÉPHONE" themeColors={themeColors} />
-
-          <HeaderCell label="ADRESSE" themeColors={themeColors} />
-
-          <HeaderCell label="RÔLE" themeColors={themeColors} />
-
-          <HeaderCell label="COMPTE" themeColors={themeColors} />
-
-          <HeaderCell label="STATUT" themeColors={themeColors} />
-
-          <HeaderCell label="CIN" themeColors={themeColors} />
-
-          <View
-            style={[
-              styles.webHeaderCell,
-              styles.webActionCell,
-            ]}
-          >
-            <Text
-              style={[
-                styles.webHeaderText,
-                {
-                  color: themeColors.textSecondary,
-                },
-              ]}
-            >
-              ACTIONS
-            </Text>
-          </View>
-        </View>
-
+        {/* Seul le contenu du tableau défile (haut / bas).
+            L'en-tête reste collé en haut (sticky) et parfaitement aligné. */}
         <ScrollView
           style={styles.webTableScroll}
           contentContainerStyle={styles.webTableScrollContent}
           showsVerticalScrollIndicator
+          showsHorizontalScrollIndicator={false}
           nestedScrollEnabled
         >
-          {paginatedUsers.map((item) => (
+          <View
+            style={[
+              styles.webTableHeader,
+              {
+                backgroundColor: themeColors.surface,
+              },
+            ]}
+          >
+            <View style={[styles.webHeaderCell, styles.webCellUser]}>
+              <Text
+                style={[
+                  styles.webHeaderText,
+                  { color: themeColors.textSecondary },
+                ]}
+              >
+                UTILISATEUR
+              </Text>
+            </View>
+
+            <HeaderCell label="TÉLÉPHONE" themeColors={themeColors} style={styles.webCellPhone} />
+            <HeaderCell label="ADRESSE" themeColors={themeColors} style={styles.webAddressCell} />
+            <HeaderCell label="RÔLE" themeColors={themeColors} style={styles.webCellRole} />
+            <HeaderCell label="COMPTE" themeColors={themeColors} style={styles.webCellAccount} />
+            <HeaderCell label="STATUT" themeColors={themeColors} style={styles.webCellStatus} />
+            <HeaderCell label="CIN" themeColors={themeColors} style={styles.webCellCin} />
+
+            <View style={[styles.webHeaderCell, styles.webActionCell]}>
+              <Text
+                style={[
+                  styles.webHeaderText,
+                  { color: themeColors.textSecondary },
+                ]}
+              >
+                ACTIONS
+              </Text>
+            </View>
+          </View>
+
+          {filteredUsers.map((item) => (
             <WebTableRow key={String(item.id)} item={item} />
           ))}
 
           <View style={styles.webBottomSpace} />
         </ScrollView>
-
-        <PaginationBar />
       </View>
     );
   };
@@ -1603,9 +1560,17 @@ const UsersScreen = () => {
     return (
       <FlatList
         data={filteredUsers}
-        renderItem={({ item }) => <MobileCard item={item} />}
+        // MobileCard() appelé comme fonction (sans hooks) : la carte n'est plus
+        // remontée à chaque rendu -> le tap n'est plus perdu sur Android.
+        renderItem={({ item }) => MobileCard({ item })}
         keyExtractor={(item) => String(item.id)}
-        contentContainerStyle={styles.mobileListContent}
+        contentContainerStyle={[
+          styles.mobileListContent,
+          {
+            // ✅ même marge gauche/droite que la barre de recherche
+            paddingHorizontal: IS_WEB ? horizontalPadding : 12,
+          },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1695,8 +1660,8 @@ const UsersScreen = () => {
      HEADER CELL
   ========================================================== */
 
-  const HeaderCell = ({ label, themeColors }) => (
-    <View style={styles.webHeaderCell}>
+  const HeaderCell = ({ label, themeColors, style }) => (
+    <View style={[styles.webHeaderCell, style]}>
       <Text
         style={[
           styles.webHeaderText,
@@ -1709,94 +1674,6 @@ const UsersScreen = () => {
       </Text>
     </View>
   );
-
-  /* ==========================================================
-     PAGINATION BAR (SHARED - WEB TABLE + MOBILE CARDS)
-  ========================================================== */
-
-  const PaginationBar = ({ compact = false }) => {
-    if (filteredUsers.length === 0) {
-      return null;
-    }
-
-    return (
-      <View
-        style={[
-          styles.pagination,
-          compact && styles.paginationMobile,
-          {
-            borderTopColor: themeColors.border || '#EAEAEA',
-            backgroundColor: themeColors.surface,
-          },
-        ]}
-      >
-        <Text
-          numberOfLines={1}
-          style={[
-            styles.paginationInfo,
-            {
-              color: themeColors.textSecondary,
-            },
-          ]}
-        >
-          {filteredUsers.length} utilisateur{filteredUsers.length > 1 ? 's' : ''} • Page{' '}
-          {currentPage}/{totalPages}
-        </Text>
-
-        <View style={styles.paginationControls}>
-          <TouchableOpacity
-            disabled={currentPage === 1}
-            onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
-            style={[
-              styles.paginationButton,
-              {
-                opacity: currentPage === 1 ? 0.4 : 1,
-                backgroundColor: themeColors.background,
-              },
-            ]}
-          >
-            <Ionicons name="chevron-back" size={17} color={themeColors.text} />
-          </TouchableOpacity>
-
-          <View
-            style={[
-              styles.pageNumber,
-              {
-                backgroundColor: colors.primary,
-              },
-            ]}
-          >
-            <Text style={styles.pageNumberText}>{currentPage}</Text>
-          </View>
-
-          <Text
-            style={[
-              styles.pageTotal,
-              {
-                color: themeColors.textSecondary,
-              },
-            ]}
-          >
-            / {totalPages}
-          </Text>
-
-          <TouchableOpacity
-            disabled={currentPage === totalPages}
-            onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-            style={[
-              styles.paginationButton,
-              {
-                opacity: currentPage === totalPages ? 0.4 : 1,
-                backgroundColor: themeColors.background,
-              },
-            ]}
-          >
-            <Ionicons name="chevron-forward" size={17} color={themeColors.text} />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
 
   /* ==========================================================
      TOAST COMPONENT
@@ -2906,7 +2783,9 @@ const styles = StyleSheet.create({
 
   statusBadge: {
     alignSelf: 'flex-start',
+    maxWidth: '100%',
     minHeight: 26,
+    paddingVertical: 3,
     paddingHorizontal: 8,
     borderRadius: 7,
     flexDirection: 'row',
@@ -2916,6 +2795,7 @@ const styles = StyleSheet.create({
   },
 
   statusBadgeText: {
+    flexShrink: 1,
     fontSize: 10,
     fontFamily: typography.fontFamily.medium,
   },
@@ -2947,17 +2827,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     bottom: 0,
-    borderWidth: 2,
-    borderColor: '#fff',
     zIndex: 5,
     elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 2,
   },
 
   /* ============================================================
@@ -2967,7 +2838,10 @@ const styles = StyleSheet.create({
   webTableWrapper: {
     flex: 1,
     minHeight: 0,
-    width: '100%',
+    alignSelf: 'stretch',      // pas de width:100% -> les marges gauche/droite sont respectées
+    marginBottom: 16,
+    borderRadius: 16,
+    borderWidth: 1,
     overflow: 'hidden',
 
     shadowColor: '#000',
@@ -2980,18 +2854,20 @@ const styles = StyleSheet.create({
   },
 
   webTableHeader: {
+    ...(IS_WEB ? { position: 'sticky', top: 0 } : null),
     minHeight: 48,
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#00000008',
+    borderBottomColor: '#00000010',
+    zIndex: 5,
   },
 
   webHeaderCell: {
     flex: 1,
-    minWidth: 80,
+    minWidth: 0,
     paddingHorizontal: 8,
     justifyContent: 'center',
   },
@@ -3018,24 +2894,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#00000006',
   },
 
+  // minWidth: 0 => les colonnes se partagent la largeur disponible
+  // (aucun scroll horizontal) ; le texte passe à la ligne.
   webCell: {
     flex: 1,
-    minWidth: 80,
+    minWidth: 0,
     paddingHorizontal: 8,
     justifyContent: 'center',
   },
 
   webCellUser: {
-    flex: 1.5,
-    minWidth: 200,
+    flex: 2.2,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
   },
+
+  webCellPhone: { flex: 1.2 },
+  webCellRole: { flex: 1 },
+  webCellAccount: { flex: 0.8 },
+  webCellStatus: { flex: 1 },
+  webCellCin: { flex: 1.3 },
 
   webUserInfo: {
     flex: 1,
@@ -3058,16 +2943,16 @@ const styles = StyleSheet.create({
   },
 
   webAddressCell: {
-    flex: 1.2,
-    minWidth: 120,
+    flex: 2,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 5,
   },
 
   webActionCell: {
-    flex: 1.5,
-    minWidth: 180,
+    flex: 1.6,
+    minWidth: 100,
     alignItems: 'center',
   },
 
@@ -3091,106 +2976,51 @@ const styles = StyleSheet.create({
   },
 
   /* ============================================================
-     PAGINATION
-  ============================================================ */
-
-  pagination: {
-    minHeight: 54,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-  },
-
-  paginationMobile: {
-    minHeight: 58,
-    marginTop: 6,
-    marginBottom: 16,
-    borderTopWidth: 1,
-    borderWidth: 1,
-    borderColor: '#00000010',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    flexWrap: 'wrap',
-    rowGap: 10,
-  },
-
-  paginationInfo: {
-    fontSize: 11,
-    flexShrink: 1,
-  },
-
-  paginationControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-
-  paginationButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  pageNumber: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  pageNumberText: {
-    color: '#fff',
-    fontSize: 12,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  pageTotal: {
-    fontSize: 11,
-  },
-
-  /* ============================================================
      MOBILE CARD
   ============================================================ */
 
   mobileListContent: {
     paddingTop: 3,
     paddingBottom: 120,
-    paddingHorizontal: 8,
   },
 
   mobileCard: {
     width: '100%',
-    borderRadius: 18,
+    borderRadius: 16,
+    borderWidth: 1,
     padding: 14,
-    marginBottom: 10,
+    marginBottom: 12,
 
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
 
   mobileCardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
 
   mobileCardIdentity: {
     flex: 1,
-    marginLeft: 11,
+    marginLeft: 12,
     minWidth: 0,
   },
 
+  mobileTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+
   mobileName: {
+    flex: 1,
     fontSize: 15,
     fontFamily: typography.fontFamily.bold,
   },
@@ -3202,75 +3032,54 @@ const styles = StyleSheet.create({
   },
 
   mobileEmail: {
-    fontSize: 11,
+    fontSize: 12,
     marginTop: 2,
   },
 
   mobileStatusLine: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 6,
-    marginTop: 6,
-  },
-
-  mobileDivider: {
-    height: 1,
-    width: '100%',
-    marginVertical: 11,
+    marginTop: 8,
   },
 
   mobileInfoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-
-  mobileInfoItem: {
-    width: '47%',
-    minWidth: 130,
-  },
-
-  mobileInfoFull: {
-    width: '100%',
-  },
-
-  mobileInfoLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    marginTop: 8,
     gap: 5,
   },
 
-  mobileLabelText: {
-    fontSize: 10,
+  mobileInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
   },
 
   mobileValueText: {
-    fontSize: 12,
-    marginTop: 3,
+    flex: 1,
+    fontSize: 12.5,
     lineHeight: 17,
     fontFamily: typography.fontFamily.medium,
   },
 
   mobileCardFooter: {
     marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
     flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 18,
   },
 
   mobileFooterButton: {
-    flex: 1,
-    minWidth: '45%',
-    minHeight: 38,
-    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
+    paddingVertical: 2,
   },
 
   mobileFooterButtonText: {
-    fontSize: 11,
+    fontSize: 12.5,
     fontFamily: typography.fontFamily.semiBold,
   },
 

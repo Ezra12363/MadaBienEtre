@@ -43,9 +43,15 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
+import { navigateToAdminDetail } from '../../components/admin/AdminDetailKit';
 import { API_URL } from '../../config/env';
 
 const IS_WEB = Platform.OS === 'web';
+
+// Sur le web : le texte passe à la ligne au lieu d'être coupé ("...")
+const WEB_WRAP = IS_WEB
+  ? { wordBreak: 'break-word', overflowWrap: 'anywhere' }
+  : null;
 
 /* ============================================================
    CONFIRMATION MODAL
@@ -638,11 +644,6 @@ const ApprovalsScreen = () => {
   const isVerySmallMobile =
     !IS_WEB && windowWidth < 390;
 
-  const isTablet =
-    IS_WEB &&
-    windowWidth >= 700 &&
-    windowWidth < 1100;
-
   /* ==========================================================
      DATA
   ========================================================== */
@@ -730,15 +731,6 @@ const ApprovalsScreen = () => {
 
   const [exportingExcel, setExportingExcel] =
     useState(false);
-
-  /* ==========================================================
-     PAGINATION
-  ========================================================== */
-
-  const [currentPage, setCurrentPage] =
-    useState(1);
-
-  const PAGE_SIZE = 10;
 
   /* ==========================================================
      REJECTION DESCRIPTION
@@ -963,7 +955,6 @@ const ApprovalsScreen = () => {
             : []
         );
 
-        setCurrentPage(1);
       } catch (e) {
         console.error(
           'Erreur chargement approbations:',
@@ -1195,47 +1186,6 @@ const ApprovalsScreen = () => {
     });
 
   /* ==========================================================
-     PAGINATION
-  ========================================================== */
-
-  const totalPages =
-    Math.max(
-      1,
-      Math.ceil(
-        filteredTherapists.length /
-          PAGE_SIZE
-      )
-    );
-
-  const paginatedTherapists =
-    IS_WEB
-      ? filteredTherapists.slice(
-          (currentPage - 1) *
-            PAGE_SIZE,
-          currentPage *
-            PAGE_SIZE
-        )
-      : filteredTherapists;
-
-  useEffect(() => {
-    if (
-      currentPage >
-      totalPages
-    ) {
-      setCurrentPage(
-        totalPages
-      );
-    }
-  }, [
-    currentPage,
-    totalPages,
-  ]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, filter, dateFrom, dateTo]);
-
-  /* ==========================================================
      ✅ EXPORT EXCEL (liste filtrée, y compris le filtre de date)
   ========================================================== */
 
@@ -1432,7 +1382,7 @@ const ApprovalsScreen = () => {
   const openDetails = (
     therapist
   ) => {
-    navigation.navigate('ApprovalDetail', {
+    navigateToAdminDetail(navigation, 'ApprovalDetail', {
       therapistId: therapist.id,
       therapist,
     });
@@ -1601,89 +1551,51 @@ const ApprovalsScreen = () => {
         ?.toUpperCase() ||
       '?';
 
-    const frameSize = size + 6;
+    const radius = size * 0.28;
 
-    if (
-      item?.profile_image
-    ) {
+    // ✅ Plus de cadre / bordure : seule la photo (ou l'initiale) est affichée
+    if (item?.profile_image) {
       return (
-        <View
-          style={[
-            styles.avatarFrame,
-            {
-              width: frameSize,
-              height: frameSize,
-              borderRadius: 15,
-              borderColor:
-                isDark
-                  ? 'rgba(255,255,255,0.14)'
-                  : '#FFFFFF',
-              backgroundColor:
-                isDark
-                  ? 'rgba(255,255,255,0.06)'
-                  : '#F1F5F9',
-            },
-          ]}
-        >
-          <Image
-            source={{
-              uri: item.profile_image,
-            }}
-            style={{
-              width: size,
-              height: size,
-              borderRadius: 12,
-            }}
-          />
-        </View>
+        <Image
+          source={{
+            uri: item.profile_image,
+          }}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: radius,
+            flexShrink: 0,
+          }}
+        />
       );
     }
 
     return (
       <View
         style={[
-          styles.avatarFrame,
+          styles.avatarPlaceholder,
           {
-            width: frameSize,
-            height: frameSize,
-            borderRadius: 15,
-            borderColor:
-              isDark
-                ? 'rgba(255,255,255,0.14)'
-                : '#FFFFFF',
+            width: size,
+            height: size,
+            borderRadius: radius,
             backgroundColor:
-              isDark
-                ? 'rgba(255,255,255,0.06)'
-                : '#F1F5F9',
+              `${colors.primary}16`,
           },
         ]}
       >
-        <View
+        <Text
           style={[
-            styles.avatarPlaceholder,
+            styles.avatarText,
             {
-              width: size,
-              height: size,
-              borderRadius: 12,
-              backgroundColor:
-                `${colors.primary}16`,
+              color:
+                colors.primary,
+              fontSize:
+                size * 0.38,
             },
           ]}
         >
-          <Text
-            style={[
-              styles.avatarText,
-              {
-                color:
-                  colors.primary,
-                fontSize:
-                  size * 0.38,
-              },
-            ]}
-          >
-            {firstLetter}
-          </Text>
-        </View>
+          {firstLetter}
+        </Text>
       </View>
     );
   };
@@ -2083,42 +1995,44 @@ const ApprovalsScreen = () => {
   ========================================================== */
 
   const renderMobileCard =
-    ({ item }) => (
-      <Pressable
-        onPress={() =>
-          openDetails(item)
-        }
-        style={({
-          pressed,
-        }) => [
-          styles.mobileCard,
-          {
-            backgroundColor:
-              themeColors.surface,
-            borderColor:
-              themeColors.border ||
-              'rgba(15,23,42,0.06)',
-            opacity: pressed
-              ? 0.92
-              : 1,
-          },
-        ]}
-      >
-        <Avatar item={item} />
+    ({ item }) => {
+      const requestStatus =
+        getRequestStatus(item);
 
-        <View
-          style={
-            styles.mobileCardContent
+      const hasDocument =
+        !!item.identity_document_url;
+
+      return (
+        <Pressable
+          onPress={() =>
+            openDetails(item)
           }
+          style={({
+            pressed,
+          }) => [
+            styles.mobileCard,
+            {
+              backgroundColor:
+                themeColors.surface,
+              borderColor:
+                themeColors.border ||
+                'rgba(15,23,42,0.06)',
+              opacity: pressed
+                ? 0.92
+                : 1,
+            },
+          ]}
         >
+          <Avatar item={item} size={60} />
+
           <View
             style={
-              styles.mobileCardHeader
+              styles.mobileCardContent
             }
           >
             <View
               style={
-                styles.mobileCardIdentity
+                styles.mobileCardHeader
               }
             >
               <Text
@@ -2135,25 +2049,90 @@ const ApprovalsScreen = () => {
                   'Nom non renseigné'}
               </Text>
 
+              <View
+                style={[
+                  styles.documentBadge,
+                  {
+                    backgroundColor:
+                      requestStatus.background,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={
+                    requestStatus.icon
+                  }
+                  size={14}
+                  color={
+                    requestStatus.color
+                  }
+                />
+
+                <Text
+                  style={[
+                    styles.documentBadgeText,
+                    {
+                      color:
+                        requestStatus.color,
+                    },
+                  ]}
+                >
+                  {requestStatus.label}
+                </Text>
+              </View>
+            </View>
+
+            <Text
+              style={[
+                styles.mobileEmail,
+                {
+                  color:
+                    themeColors.textSecondary,
+                },
+              ]}
+              numberOfLines={1}
+            >
+              {item.email ||
+                'Email non renseigné'}
+            </Text>
+
+            <View
+              style={
+                styles.mobileMetaRow
+              }
+            >
+              <Ionicons
+                name="calendar-outline"
+                size={14}
+                color={
+                  themeColors.textSecondary
+                }
+              />
+
               <Text
                 style={[
-                  styles.mobileEmail,
+                  styles.mobileMeta,
                   {
                     color:
                       themeColors.textSecondary,
                   },
                 ]}
-                numberOfLines={1}
               >
-                {item.email ||
-                  'Email non renseigné'}
+                {formatDate(
+                  item.created_at
+                )}
               </Text>
+            </View>
 
+            <View
+              style={
+                styles.mobileBottomRow
+              }
+            >
               <View
                 style={[
                   styles.idBadge,
                   {
-                    marginTop: 4,
                     backgroundColor:
                       isDark
                         ? 'rgba(255,255,255,0.06)'
@@ -2173,134 +2152,53 @@ const ApprovalsScreen = () => {
                   ID #{item.id ?? '—'}
                 </Text>
               </View>
-            </View>
 
-            <Ionicons
-              name="chevron-forward"
-              size={19}
-              color={
-                themeColors.textSecondary
-              }
-            />
-          </View>
-
-          <View
-            style={
-              styles.mobileMetaRow
-            }
-          >
-            <Ionicons
-              name="calendar-outline"
-              size={14}
-              color={
-                themeColors.textSecondary
-              }
-            />
-
-            <Text
-              style={[
-                styles.mobileMeta,
-                {
-                  color:
-                    themeColors.textSecondary,
-                },
-              ]}
-            >
-              {formatDate(
-                item.created_at
-              )}
-            </Text>
-          </View>
-
-          <View
-            style={
-              styles.mobileBottomRow
-            }
-          >
-            <View
-              style={[
-                styles.documentBadge,
-                {
-                  backgroundColor:
-                    item.identity_document_url
-                      ? '#16A34A14'
-                      : '#DC262614',
-                },
-              ]}
-            >
-              <Ionicons
-                name={
-                  item.identity_document_url
-                    ? 'checkmark-circle-outline'
-                    : 'alert-circle-outline'
-                }
-                size={14}
-                color={
-                  item.identity_document_url
-                    ? '#16A34A'
-                    : '#DC2626'
-                }
-              />
-
-              <Text
+              <View
                 style={[
-                  styles.documentBadgeText,
+                  styles.documentBadge,
                   {
-                    color:
-                      item.identity_document_url
-                        ? '#16A34A'
-                        : '#DC2626',
+                    backgroundColor:
+                      hasDocument
+                        ? '#16A34A14'
+                        : '#DC262614',
                   },
                 ]}
               >
-                {item.identity_document_url
-                  ? 'CIN disponible'
-                  : 'CIN manquante'}
-              </Text>
-            </View>
+                <Ionicons
+                  name={
+                    hasDocument
+                      ? 'checkmark-circle-outline'
+                      : 'alert-circle-outline'
+                  }
+                  size={14}
+                  color={
+                    hasDocument
+                      ? '#16A34A'
+                      : '#DC2626'
+                  }
+                />
 
-            {(() => {
-              const requestStatus =
-                getRequestStatus(item);
-
-              return (
-                <View
+                <Text
                   style={[
-                    styles.documentBadge,
+                    styles.documentBadgeText,
                     {
-                      backgroundColor:
-                        requestStatus.background,
+                      color:
+                        hasDocument
+                          ? '#16A34A'
+                          : '#DC2626',
                     },
                   ]}
                 >
-                  <Ionicons
-                    name={
-                      requestStatus.icon
-                    }
-                    size={14}
-                    color={
-                      requestStatus.color
-                    }
-                  />
-
-                  <Text
-                    style={[
-                      styles.documentBadgeText,
-                      {
-                        color:
-                          requestStatus.color,
-                      },
-                    ]}
-                  >
-                    {requestStatus.label}
-                  </Text>
-                </View>
-              );
-            })()}
+                  {hasDocument
+                    ? 'CIN disponible'
+                    : 'CIN manquante'}
+                </Text>
+              </View>
+            </View>
           </View>
-        </View>
-      </Pressable>
-    );
+        </Pressable>
+      );
+    };
 
   /* ==========================================================
      WEB TABLE ROW
@@ -2379,12 +2277,12 @@ const ApprovalsScreen = () => {
             <Text
               style={[
                 styles.idBadgeText,
+                WEB_WRAP,
                 {
                   color:
                     themeColors.textSecondary,
                 },
               ]}
-              numberOfLines={1}
             >
               #{item.id ?? '—'}
             </Text>
@@ -2413,12 +2311,12 @@ const ApprovalsScreen = () => {
             <Text
               style={[
                 styles.tableName,
+                WEB_WRAP,
                 {
                   color:
                     themeColors.text,
                 },
               ]}
-              numberOfLines={1}
             >
               {item.fullname ||
                 'Nom non renseigné'}
@@ -2427,12 +2325,12 @@ const ApprovalsScreen = () => {
             <Text
               style={[
                 styles.tableEmail,
+                WEB_WRAP,
                 {
                   color:
                     themeColors.textSecondary,
                 },
               ]}
-              numberOfLines={1}
             >
               {item.email ||
                 'Email non renseigné'}
@@ -2449,12 +2347,12 @@ const ApprovalsScreen = () => {
           <Text
             style={[
               styles.tableText,
+              WEB_WRAP,
               {
                 color:
                   themeColors.text,
               },
             ]}
-            numberOfLines={1}
           >
             {item.phone ||
               'Non renseigné'}
@@ -2470,12 +2368,12 @@ const ApprovalsScreen = () => {
           <Text
             style={[
               styles.tableText,
+              WEB_WRAP,
               {
                 color:
                   themeColors.text,
               },
             ]}
-            numberOfLines={1}
           >
             {item.cin_number ||
               'Non renseignée'}
@@ -2535,6 +2433,7 @@ const ApprovalsScreen = () => {
             <Text
               style={[
                 styles.statusText,
+                WEB_WRAP,
                 {
                   color:
                     item.identity_document_url
@@ -2583,6 +2482,7 @@ const ApprovalsScreen = () => {
                 <Text
                   style={[
                     styles.statusText,
+                    WEB_WRAP,
                     {
                       color:
                         requestStatus.color,
@@ -2714,6 +2614,9 @@ const ApprovalsScreen = () => {
       style={[
         styles.tableWrapper,
         {
+          ...(IS_WEB
+            ? { maxHeight: Math.max(windowHeight - 330, 320) }
+            : null),
           backgroundColor:
             themeColors.surface,
           borderColor:
@@ -2722,322 +2625,85 @@ const ApprovalsScreen = () => {
         },
       ]}
     >
+      {/* Seul le contenu du tableau défile (haut / bas).
+          L'en-tête reste collé en haut (sticky) et parfaitement aligné,
+          aucun scroll horizontal : les colonnes s'adaptent à la largeur. */}
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator
+        style={styles.tableVerticalScroll}
+        contentContainerStyle={
+          styles.tableScrollContent
+        }
+        showsVerticalScrollIndicator
+        showsHorizontalScrollIndicator={false}
+        nestedScrollEnabled
       >
         <View
           style={[
-            styles.table,
+            styles.tableHeader,
             {
-              minWidth: Math.max(
-                isTablet ? 1080 : 1340,
-                windowWidth - 48
-              ),
+              backgroundColor:
+                isDark
+                  ? '#111827'
+                  : '#F8FAFC',
+              borderBottomColor:
+                isDark
+                  ? 'rgba(255,255,255,0.06)'
+                  : '#E8EDF3',
             },
           ]}
         >
-          <View
-            style={[
-              styles.tableHeader,
-              {
-                backgroundColor:
-                  isDark
-                    ? '#111827'
-                    : '#F8FAFC',
-                borderBottomColor:
-                  isDark
-                    ? 'rgba(255,255,255,0.06)'
-                    : '#E8EDF3',
-              },
-            ]}
-          >
-            <TableHeader
-              title="#"
-              style={
-                styles.cellIndex
-              }
-            />
-
-            <TableHeader
-              title="ID"
-              style={
-                styles.cellId
-              }
-            />
-
-            <TableHeader
-              title="THÉRAPEUTE"
-              style={
-                styles.cellTherapist
-              }
-            />
-
-            <TableHeader
-              title="TÉLÉPHONE"
-              style={
-                styles.cellPhone
-              }
-            />
-
-            <TableHeader
-              title="CIN"
-              style={
-                styles.cellCIN
-              }
-            />
-
-            <TableHeader
-              title="DEMANDE"
-              style={
-                styles.cellDate
-              }
-            />
-
-            <TableHeader
-              title="DOCUMENT"
-              style={
-                styles.cellDocument
-              }
-            />
-
-            <TableHeader
-              title="STATUT"
-              style={
-                styles.cellStatus
-              }
-            />
-
-            <TableHeader
-              title="ACTIONS"
-              style={
-                styles.cellAction
-              }
-            />
-          </View>
-
-          <ScrollView
-            style={[
-              styles.tableVerticalScroll,
-              {
-                maxHeight:
-                  isTablet
-                    ? windowHeight -
-                      350
-                    : windowHeight -
-                      330,
-              },
-            ]}
-            showsVerticalScrollIndicator
-          >
-            {paginatedTherapists.map(
-              (
-                item,
-                index
-              ) => (
-                <TableRow
-                  key={String(
-                    item.id
-                  )}
-                  item={item}
-                  index={
-                    (currentPage -
-                      1) *
-                      PAGE_SIZE +
-                    index
-                  }
-                />
-              )
-            )}
-
-            {paginatedTherapists.length ===
-              0 && (
-              <View
-                style={
-                  styles.tableEmpty
-                }
-              >
-                <Ionicons
-                  name="search-outline"
-                  size={44}
-                  color={
-                    themeColors.textSecondary
-                  }
-                />
-
-                <Text
-                  style={[
-                    styles.emptyText,
-                    {
-                      color:
-                        themeColors.text,
-                    },
-                  ]}
-                >
-                  Aucune demande trouvée
-                </Text>
-              </View>
-            )}
-          </ScrollView>
+          <TableHeader title="#" style={styles.cellIndex} />
+          <TableHeader title="ID" style={styles.cellId} />
+          <TableHeader title="THÉRAPEUTE" style={styles.cellTherapist} />
+          <TableHeader title="TÉLÉPHONE" style={styles.cellPhone} />
+          <TableHeader title="CIN" style={styles.cellCIN} />
+          <TableHeader title="DEMANDE" style={styles.cellDate} />
+          <TableHeader title="DOCUMENT" style={styles.cellDocument} />
+          <TableHeader title="STATUT" style={styles.cellStatus} />
+          <TableHeader title="ACTIONS" style={styles.cellAction} />
         </View>
+
+        {filteredTherapists.map(
+          (item, index) => (
+            <TableRow
+              key={String(item.id)}
+              item={item}
+              index={index}
+            />
+          )
+        )}
+
+        {filteredTherapists.length ===
+          0 && (
+          <View
+            style={styles.tableEmpty}
+          >
+            <Ionicons
+              name="search-outline"
+              size={44}
+              color={
+                themeColors.textSecondary
+              }
+            />
+
+            <Text
+              style={[
+                styles.emptyText,
+                {
+                  color:
+                    themeColors.text,
+                },
+              ]}
+            >
+              Aucune demande trouvée
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.tableBottomSpace} />
       </ScrollView>
     </View>
   );
-
-  /* ==========================================================
-     PAGINATION
-  ========================================================== */
-
-  const Pagination = () => {
-    if (!IS_WEB) {
-      return null;
-    }
-
-    if (
-      filteredTherapists.length <=
-      PAGE_SIZE
-    ) {
-      return null;
-    }
-
-    return (
-      <View
-        style={[
-          styles.pagination,
-          {
-            borderTopColor:
-              themeColors.border ||
-              'rgba(15,23,42,0.06)',
-          },
-        ]}
-      >
-        <Text
-          style={[
-            styles.paginationInfo,
-            {
-              color:
-                themeColors.textSecondary,
-            },
-          ]}
-        >
-          {filteredTherapists.length}{' '}
-          demande(s)
-        </Text>
-
-        <View
-          style={
-            styles.paginationButtons
-          }
-        >
-          <TouchableOpacity
-            disabled={
-              currentPage <= 1
-            }
-            onPress={() =>
-              setCurrentPage(
-                (page) =>
-                  Math.max(
-                    1,
-                    page - 1
-                  )
-              )
-            }
-            style={[
-              styles.pageButton,
-              {
-                opacity:
-                  currentPage <= 1
-                    ? 0.4
-                    : 1,
-                backgroundColor:
-                  themeColors.surface,
-                borderColor:
-                  themeColors.border ||
-                  'rgba(15,23,42,0.08)',
-              },
-            ]}
-          >
-            <Ionicons
-              name="chevron-back"
-              size={17}
-              color={
-                themeColors.text
-              }
-            />
-          </TouchableOpacity>
-
-          <View
-            style={[
-              styles.pageCurrent,
-              {
-                backgroundColor:
-                  colors.primary,
-              },
-            ]}
-          >
-            <Text
-              style={
-                styles.pageCurrentText
-              }
-            >
-              {currentPage}
-            </Text>
-          </View>
-
-          <Text
-            style={[
-              styles.pageTotal,
-              {
-                color:
-                  themeColors.textSecondary,
-              },
-            ]}
-          >
-            / {totalPages}
-          </Text>
-
-          <TouchableOpacity
-            disabled={
-              currentPage >=
-              totalPages
-            }
-            onPress={() =>
-              setCurrentPage(
-                (page) =>
-                  Math.min(
-                    totalPages,
-                    page + 1
-                  )
-              )
-            }
-            style={[
-              styles.pageButton,
-              {
-                opacity:
-                  currentPage >=
-                  totalPages
-                    ? 0.4
-                    : 1,
-                backgroundColor:
-                  themeColors.surface,
-                borderColor:
-                  themeColors.border ||
-                  'rgba(15,23,42,0.08)',
-              },
-            ]}
-          >
-            <Ionicons
-              name="chevron-forward"
-              size={17}
-              color={
-                themeColors.text
-              }
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
 
   /* ==========================================================
      STABLE CONFIRMATION MODAL INSTANCE
@@ -3314,7 +2980,7 @@ const ApprovalsScreen = () => {
           ) : (
             <FlatList
               data={
-                paginatedTherapists
+                filteredTherapists
               }
               renderItem={
                 renderMobileCard
@@ -3324,7 +2990,7 @@ const ApprovalsScreen = () => {
               }
               contentContainerStyle={[
                 styles.mobileList,
-                paginatedTherapists.length ===
+                filteredTherapists.length ===
                   0 &&
                   styles.mobileListEmpty,
               ]}
@@ -3401,7 +3067,6 @@ const ApprovalsScreen = () => {
           )}
         </View>
 
-        <Pagination />
       </View>
 
 
@@ -3829,50 +3494,46 @@ const styles = StyleSheet.create({
 
   mobileCard: {
     width: '100%',
-    minHeight: 92,
     borderRadius: 16,
     borderWidth: 1,
-    padding: 13,
-    marginBottom: 10,
+    padding: 14,
+    marginBottom: 12,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
 
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 1,
     },
-    shadowOpacity: 0.035,
-    shadowRadius: 7,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
     elevation: 1,
   },
 
   mobileCardContent: {
     flex: 1,
-    marginLeft: 11,
+    marginLeft: 12,
     minWidth: 0,
   },
 
   mobileCardHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  mobileCardIdentity: {
-    flex: 1,
-    minWidth: 0,
-    marginRight: 8,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
   },
 
   mobileName: {
-    fontSize: 14,
+    flex: 1,
+    fontSize: 15,
     fontFamily:
       typography.fontFamily.bold,
   },
 
   mobileEmail: {
     marginTop: 2,
-    fontSize: 11,
+    fontSize: 12,
     fontFamily:
       typography.fontFamily.regular,
   },
@@ -3880,18 +3541,18 @@ const styles = StyleSheet.create({
   mobileMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginTop: 7,
+    gap: 6,
+    marginTop: 8,
   },
 
   mobileMeta: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily:
       typography.fontFamily.regular,
   },
 
   mobileBottomRow: {
-    marginTop: 7,
+    marginTop: 8,
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
@@ -3927,22 +3588,6 @@ const styles = StyleSheet.create({
       typography.fontFamily.semiBold,
   },
 
-  avatarFrame: {
-    alignItems: 'center',
-    justifyContent:
-      'center',
-    flexShrink: 0,
-    borderWidth: 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.14,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-
   avatarPlaceholder: {
     alignItems: 'center',
     justifyContent:
@@ -3961,28 +3606,29 @@ const styles = StyleSheet.create({
 
   tableWrapper: {
     flex: 1,
-    width: '100%',
+    minHeight: 0,
+    alignSelf: 'stretch',
+    marginBottom: 16,
     borderWidth: 1,
     borderRadius: 14,
     overflow: 'hidden',
   },
 
-  table: {
-    width: '100%',
-  },
-
   tableHeader: {
-    height: 52,
+    ...(IS_WEB ? { position: 'sticky', top: 0 } : null),
+    minHeight: 52,
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     borderBottomWidth: 1,
+    zIndex: 5,
   },
 
   tableHeaderCell: {
-    height: '100%',
+    minHeight: 52,
     justifyContent:
       'center',
-    paddingHorizontal: 13,
+    paddingHorizontal: 8,
   },
 
   tableHeaderText: {
@@ -3994,9 +3640,20 @@ const styles = StyleSheet.create({
 
   tableVerticalScroll: {
     flex: 1,
+    minHeight: 0,
+    width: '100%',
+  },
+
+  tableScrollContent: {
+    width: '100%',
+  },
+
+  tableBottomSpace: {
+    height: 24,
   },
 
   tableRow: {
+    width: '100%',
     minHeight: 67,
     flexDirection: 'row',
     alignItems: 'center',
@@ -4007,50 +3664,59 @@ const styles = StyleSheet.create({
     minHeight: 67,
     justifyContent:
       'center',
-    paddingHorizontal: 13,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
 
+  // Colonnes proportionnelles (minWidth: 0) : tout le contenu reste visible
+  // sans scroll horizontal ; le texte long passe à la ligne.
   cellIndex: {
-    width: 44,
+    width: 40,
     alignItems: 'center',
   },
 
   cellId: {
-    width: 84,
+    width: 70,
     alignItems: 'center',
   },
 
   cellTherapist: {
-    flex: 1,
-    minWidth: 260,
+    flex: 2.4,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
   },
 
   cellPhone: {
-    width: 150,
+    flex: 1.3,
+    minWidth: 0,
   },
 
   cellCIN: {
-    width: 155,
+    flex: 1.4,
+    minWidth: 0,
   },
 
   cellDate: {
-    width: 120,
+    flex: 1,
+    minWidth: 0,
   },
 
   cellDocument: {
-    width: 130,
+    flex: 1.1,
+    minWidth: 0,
     alignItems: 'center',
   },
 
   cellStatus: {
-    width: 150,
+    flex: 1.1,
+    minWidth: 0,
     alignItems: 'center',
   },
 
   cellAction: {
-    width: 135,
+    flex: 1.3,
+    minWidth: 110,
     alignItems: 'center',
   },
 
@@ -4080,6 +3746,7 @@ const styles = StyleSheet.create({
   },
 
   statusBadge: {
+    maxWidth: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
@@ -4095,6 +3762,7 @@ const styles = StyleSheet.create({
   },
 
   statusText: {
+    flexShrink: 1,
     fontSize: 9,
     fontFamily:
       typography.fontFamily.semiBold,
@@ -4106,6 +3774,7 @@ const styles = StyleSheet.create({
 
   webActionGroup: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent:
       'center',
@@ -4127,65 +3796,6 @@ const styles = StyleSheet.create({
     justifyContent:
       'center',
     paddingHorizontal: 30,
-  },
-
-  /* ==========================================================
-     PAGINATION
-  ========================================================== */
-
-  pagination: {
-    minHeight: 58,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent:
-      'space-between',
-    borderTopWidth: 1,
-    marginTop: 8,
-  },
-
-  paginationInfo: {
-    fontSize: 11,
-    fontFamily:
-      typography.fontFamily.medium,
-  },
-
-  paginationButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-  },
-
-  pageButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent:
-      'center',
-  },
-
-  pageCurrent: {
-    minWidth: 34,
-    height: 34,
-    paddingHorizontal: 8,
-    borderRadius: 9,
-    alignItems: 'center',
-    justifyContent:
-      'center',
-  },
-
-  pageCurrentText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontFamily:
-      typography.fontFamily.bold,
-  },
-
-  pageTotal: {
-    fontSize: 11,
-    fontFamily:
-      typography.fontFamily.medium,
   },
 
   /* ==========================================================

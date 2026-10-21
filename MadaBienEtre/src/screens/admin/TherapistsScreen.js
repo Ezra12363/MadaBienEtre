@@ -1,4497 +1,4038 @@
-import { 
-  useState, 
-  useCallback, 
-  useMemo, 
-  useEffect, 
-} from 'react'; 
- 
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
-  TextInput, 
-  ActivityIndicator, 
-  RefreshControl, 
-  Alert, 
-  Modal, 
-  ScrollView, 
-  SafeAreaView, 
-  Image, 
-  Platform, 
-  Linking, 
-  KeyboardAvoidingView, 
-} from 'react-native'; 
- 
-import { Ionicons } from '@expo/vector-icons'; 
-import { useFocusEffect, useNavigation } from '@react-navigation/native'; 
-import AsyncStorage from '@react-native-async-storage/async-storage'; 
-import { useTheme } from '../../context/ThemeContext'; 
-import { colors, spacing, typography } from '../../theme'; 
-import Header from '../../components/common/Header'; 
-import adminService from '../../services/adminService'; 
-import AdminUserAddressModal from '../../components/admin/AdminUserAddressModal'; 
-import useResponsive from '../../hooks/useResponsive'; 
-import { API_URL } from '../../config/env'; 
-import { exportToExcel } from '../../utils/exportExcel'; 
- 
-const IS_WEB = Platform.OS === 'web'; 
- 
-/* ============================================================ 
-   CONFIG 
-============================================================ */ 
- 
-const ITEMS_PER_PAGE = 10; 
- 
-/* ============================================================ 
-   ADDRESS UTILITIES 
-============================================================ */ 
- 
-const getFullAddress = (item) => { 
-  if (!item) { 
-    return 'Adresse non renseignée'; 
-  } 
- 
-  if ( 
-    typeof item.address === 'string' && 
-    item.address.trim() 
-  ) { 
-    return item.address.trim(); 
-  } 
- 
-  if ( 
-    item.address && 
-    typeof item.address === 'object' 
-  ) { 
-    const addressObject = item.address; 
- 
-    const parts = [ 
-      addressObject.house_number, 
-      addressObject.number, 
-      addressObject.street_number, 
-      addressObject.street, 
-      addressObject.road, 
-      addressObject.route, 
-      addressObject.neighborhood, 
-      addressObject.quartier, 
-      addressObject.district, 
-      addressObject.commune, 
-      addressObject.city, 
-      addressObject.town, 
-      addressObject.village, 
-      addressObject.region, 
-      addressObject.province, 
-      addressObject.state, 
-      addressObject.postal_code, 
-      addressObject.country, 
-    ]; 
- 
-    const uniqueParts = [ 
-      ...new Set( 
-        parts 
-          .filter(Boolean) 
-          .map((value) => String(value).trim()) 
-          .filter(Boolean) 
-      ), 
-    ]; 
- 
-    if (uniqueParts.length > 0) { 
-      return uniqueParts.join(', '); 
-    } 
-  } 
- 
-  if ( 
-    typeof item.formatted_address === 'string' && 
-    item.formatted_address.trim() 
-  ) { 
-    return item.formatted_address.trim(); 
-  } 
- 
-  const parts = [ 
-    item.house_number, 
-    item.street_number, 
-    item.street, 
-    item.road, 
-    item.route, 
-    item.address_line, 
-    item.address_line1, 
-    item.address_line2, 
-    item.neighborhood, 
-    item.quartier, 
-    item.fokontany, 
-    item.district, 
-    item.commune, 
-    item.city, 
-    item.town, 
-    item.village, 
-    item.region, 
-    item.province, 
-    item.state, 
-    item.postal_code, 
-    item.zip_code, 
-    item.country, 
-  ]; 
- 
-  const uniqueParts = [ 
-    ...new Set( 
-      parts 
-        .filter(Boolean) 
-        .map((value) => String(value).trim()) 
-        .filter(Boolean) 
-    ), 
-  ]; 
- 
-  if (uniqueParts.length > 0) { 
-    return uniqueParts.join(', '); 
-  } 
- 
-  const fallbackParts = [ 
-    item.location_name, 
-    item.location, 
-    item.locality, 
-  ]; 
- 
-  const fallback = fallbackParts 
-    .filter(Boolean) 
-    .map((value) => String(value).trim()) 
-    .filter(Boolean); 
- 
-  if (fallback.length > 0) { 
-    return [...new Set(fallback)].join(', '); 
-  } 
- 
-  return 'Adresse non renseignée'; 
-}; 
- 
-const getLatitude = (item) => { 
-  if (!item) return null; 
- 
-  const value = 
-    item.latitude ?? 
-    item.lat ?? 
-    item.location?.latitude ?? 
-    item.last_location?.latitude ?? 
-    item.last_location?.coordinates?.[1]; 
- 
-  if ( 
-    value === null || 
-    value === undefined || 
-    value === '' 
-  ) { 
-    return null; 
-  } 
- 
-  const number = Number(value); 
- 
-  return Number.isFinite(number) 
-    ? number 
-    : null; 
-}; 
- 
-const getLongitude = (item) => { 
-  if (!item) return null; 
- 
-  const value = 
-    item.longitude ?? 
-    item.lng ?? 
-    item.lon ?? 
-    item.location?.longitude ?? 
-    item.last_location?.longitude ?? 
-    item.last_location?.coordinates?.[0]; 
- 
-  if ( 
-    value === null || 
-    value === undefined || 
-    value === '' 
-  ) { 
-    return null; 
-  } 
- 
-  const number = Number(value); 
- 
-  return Number.isFinite(number) 
-    ? number 
-    : null; 
-}; 
- 
-/* ============================================================ 
-   MAIN COMPONENT 
-============================================================ */ 
- 
+import {
+  useState,
+  useCallback,
+  useEffect,
+} from 'react';
+
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+  ActivityIndicator,
+  RefreshControl,
+  Alert,
+  Modal,
+  ScrollView,
+  SafeAreaView,
+  Image,
+  Platform,
+  Linking,
+  KeyboardAvoidingView,
+} from 'react-native';
+
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTheme } from '../../context/ThemeContext';
+import { colors, spacing, typography } from '../../theme';
+import Header from '../../components/common/Header';
+import adminService from '../../services/adminService';
+import AdminUserAddressModal from '../../components/admin/AdminUserAddressModal';
+import { navigateToAdminDetail } from '../../components/admin/AdminDetailKit';
+import useResponsive from '../../hooks/useResponsive';
+import { API_URL } from '../../config/env';
+import { exportToExcel } from '../../utils/exportExcel';
+
+const IS_WEB = Platform.OS === 'web';
+
+// Sur le web : le texte passe à la ligne au lieu d'être coupé ("...")
+const WEB_WRAP = IS_WEB
+  ? { wordBreak: 'break-word', overflowWrap: 'anywhere' }
+  : null;
+
+/* ============================================================
+   ADDRESS UTILITIES
+============================================================ */
+
+const getFullAddress = (item) => {
+  if (!item) {
+    return 'Adresse non renseignée';
+  }
+
+  if (
+    typeof item.address === 'string' &&
+    item.address.trim()
+  ) {
+    return item.address.trim();
+  }
+
+  if (
+    item.address &&
+    typeof item.address === 'object'
+  ) {
+    const addressObject = item.address;
+
+    const parts = [
+      addressObject.house_number,
+      addressObject.number,
+      addressObject.street_number,
+      addressObject.street,
+      addressObject.road,
+      addressObject.route,
+      addressObject.neighborhood,
+      addressObject.quartier,
+      addressObject.district,
+      addressObject.commune,
+      addressObject.city,
+      addressObject.town,
+      addressObject.village,
+      addressObject.region,
+      addressObject.province,
+      addressObject.state,
+      addressObject.postal_code,
+      addressObject.country,
+    ];
+
+    const uniqueParts = [
+      ...new Set(
+        parts
+          .filter(Boolean)
+          .map((value) => String(value).trim())
+          .filter(Boolean)
+      ),
+    ];
+
+    if (uniqueParts.length > 0) {
+      return uniqueParts.join(', ');
+    }
+  }
+
+  if (
+    typeof item.formatted_address === 'string' &&
+    item.formatted_address.trim()
+  ) {
+    return item.formatted_address.trim();
+  }
+
+  const parts = [
+    item.house_number,
+    item.street_number,
+    item.street,
+    item.road,
+    item.route,
+    item.address_line,
+    item.address_line1,
+    item.address_line2,
+    item.neighborhood,
+    item.quartier,
+    item.fokontany,
+    item.district,
+    item.commune,
+    item.city,
+    item.town,
+    item.village,
+    item.region,
+    item.province,
+    item.state,
+    item.postal_code,
+    item.zip_code,
+    item.country,
+  ];
+
+  const uniqueParts = [
+    ...new Set(
+      parts
+        .filter(Boolean)
+        .map((value) => String(value).trim())
+        .filter(Boolean)
+    ),
+  ];
+
+  if (uniqueParts.length > 0) {
+    return uniqueParts.join(', ');
+  }
+
+  const fallbackParts = [
+    item.location_name,
+    item.location,
+    item.locality,
+  ];
+
+  const fallback = fallbackParts
+    .filter(Boolean)
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+
+  if (fallback.length > 0) {
+    return [...new Set(fallback)].join(', ');
+  }
+
+  return 'Adresse non renseignée';
+};
+
+const getLatitude = (item) => {
+  if (!item) return null;
+
+  const value =
+    item.latitude ??
+    item.lat ??
+    item.location?.latitude ??
+    item.last_location?.latitude ??
+    item.last_location?.coordinates?.[1];
+
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
+    return null;
+  }
+
+  const number = Number(value);
+
+  return Number.isFinite(number)
+    ? number
+    : null;
+};
+
+const getLongitude = (item) => {
+  if (!item) return null;
+
+  const value =
+    item.longitude ??
+    item.lng ??
+    item.lon ??
+    item.location?.longitude ??
+    item.last_location?.longitude ??
+    item.last_location?.coordinates?.[0];
+
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
+    return null;
+  }
+
+  const number = Number(value);
+
+  return Number.isFinite(number)
+    ? number
+    : null;
+};
+
+/* ============================================================
+   MAIN COMPONENT
+============================================================ */
+
 const TherapistsScreen = () => {
-  const navigation = useNavigation(); 
-  const { colors: themeColors } = useTheme(); 
- 
-  const { 
-    isDesktop, 
-    horizontalPadding, 
-  } = useResponsive(); 
- 
-  /* ========================================================== 
-     STATE 
-  ========================================================== */ 
- 
-  const [therapists, setTherapists] = useState([]); 
-  const [filteredTherapists, setFilteredTherapists] = useState([]); 
- 
-  const [loading, setLoading] = useState(true); 
-  const [refreshing, setRefreshing] = useState(false); 
- 
-  const [searchQuery, setSearchQuery] = useState(''); 
-  const [selectedFilter, setSelectedFilter] = useState('all'); 
- 
-  const [currentPage, setCurrentPage] = useState(1); 
- 
-  const [selectedTherapist, setSelectedTherapist] = 
-    useState(null); 
- 
-  const [showModal, setShowModal] = useState(false); 
- 
-  const [loadingCertificate, setLoadingCertificate] = 
-    useState(false); 
- 
-  const [certificateInfo, setCertificateInfo] = 
-    useState(null); 
- 
-  const [error, setError] = useState(null); 
- 
-  const [exportingExcel, setExportingExcel] = useState(false); 
- 
-  const [showAddressModal, setShowAddressModal] = 
-    useState(false); 
- 
-  const [selectedUserForAddress, setSelectedUserForAddress] = 
-    useState(null); 
- 
-  const [confirmModalVisible, setConfirmModalVisible] = 
-    useState(false); 
- 
-  const [confirmModalConfig, setConfirmModalConfig] = 
-    useState({ 
-      title: '', 
-      message: '', 
-      onConfirm: () => {}, 
-      destructive: false, 
-    }); 
- 
-  /* ========================================================== 
-     VISIONNEUSE PLEIN ECRAN - certificat professionnel 
-  ========================================================== */ 
- 
-  const [showImageViewer, setShowImageViewer] = useState(false); 
- 
-  const [viewerImage, setViewerImage] = useState({ 
-    uri: null, 
-    title: '', 
-    fileName: 'document.jpg', 
-  }); 
- 
-  const openImageViewer = (uri, title, fileName) => { 
-    if (!uri) return; 
-    setViewerImage({ uri, title, fileName }); 
-    setShowImageViewer(true); 
-  }; 
- 
-  const closeImageViewer = () => { 
-    setShowImageViewer(false); 
-  }; 
- 
-  /* ========================================================== 
-     TOAST 
-  ========================================================== */ 
- 
-  const [toast, setToast] = useState(null); 
- 
-  const showToast = useCallback( 
-    ( 
-      message, 
-      type = 'success', 
-      duration = 3000 
-    ) => { 
-      setToast({ 
-        id: Date.now(), 
-        message, 
-        type, 
-      }); 
- 
-      setTimeout(() => { 
-        setToast((current) => { 
-          if (!current) return null; 
-          return null; 
-        }); 
-      }, duration); 
-    }, 
-    [] 
-  ); 
- 
-  /* ========================================================== 
-     FILTERS 
-  ========================================================== */ 
- 
-  const filters = [ 
-    { 
-      id: 'all', 
-      label: 'Tous', 
-      icon: 'people-outline', 
-    }, 
-    { 
-      id: 'approved', 
-      label: 'Vérifiés', 
-      icon: 'checkmark-circle-outline', 
-    }, 
-    { 
-      id: 'pending', 
-      label: 'En attente', 
-      icon: 'time-outline', 
-    }, 
-    { 
-      id: 'rejected', 
-      label: 'Rejetés', 
-      icon: 'close-circle-outline', 
-    }, 
-    { 
-      id: 'online', 
-      label: 'En ligne', 
-      icon: 'radio-button-on-outline', 
-    }, 
-  ]; 
- 
-  /* ========================================================== 
-     LOAD 
-  ========================================================== */ 
- 
-  useFocusEffect( 
-    useCallback(() => { 
-      loadTherapists(); 
- 
-      // eslint-disable-next-line react-hooks/exhaustive-deps 
-    }, []) 
-  ); 
- 
-  const loadTherapists = async () => { 
-    setLoading(true); 
-    setError(null); 
- 
-    try { 
-      const params = { 
-        limit: 200, 
-      }; 
- 
-      const data = 
-        await adminService.getTherapists(params); 
- 
-      if (Array.isArray(data)) { 
-        setTherapists(data); 
- 
-        applyFilters( 
-          searchQuery, 
-          selectedFilter, 
-          data 
-        ); 
- 
-        setCurrentPage(1); 
- 
-        if (data.length === 0) { 
-          setError( 
-            'Aucun thérapeute trouvé dans la base de données' 
-          ); 
-        } 
-      } else { 
-        setTherapists([]); 
-        setFilteredTherapists([]); 
-        setError( 
-          'Aucun thérapeute trouvé dans la base de données' 
-        ); 
-      } 
-    } catch (err) { 
-      console.error( 
-        '❌ Error loading therapists:', 
-        err 
-      ); 
- 
-      let errorMessage; 
- 
-      if (err.response) { 
-        const serverError = 
-          err.response.data; 
- 
-        errorMessage = 
-          serverError?.message || 
-          serverError?.detail || 
-          `Erreur ${err.response.status}`; 
-      } else if (err.request) { 
-        errorMessage = 
-          'Impossible de contacter le serveur'; 
-      } else { 
-        errorMessage = 
-          err.message || 
-          'Erreur inconnue'; 
-      } 
- 
-      setError(errorMessage); 
-      setTherapists([]); 
-      setFilteredTherapists([]); 
- 
-      showToast( 
-        errorMessage, 
-        'error' 
-      ); 
-    } finally { 
-      setLoading(false); 
-    } 
-  }; 
- 
-  const onRefresh = async () => { 
-    setRefreshing(true); 
- 
-    await loadTherapists(); 
- 
-    setRefreshing(false); 
-  }; 
- 
-  /* ========================================================== 
-     FILTER 
-  ========================================================== */ 
- 
-  const applyFilters = ( 
-    query, 
-    filter, 
-    sourceData = therapists 
-  ) => { 
-    let result = [...sourceData]; 
- 
-    if ( 
-      query && 
-      query.trim() 
-    ) { 
-      const q = 
-        query 
-          .toLowerCase() 
-          .trim(); 
- 
-      result = result.filter( 
-        (therapist) => { 
-          const address = 
-            getFullAddress( 
-              therapist 
-            ).toLowerCase(); 
- 
-          return ( 
-            therapist.fullname 
-              ?.toLowerCase() 
-              .includes(q) || 
-            therapist.email 
-              ?.toLowerCase() 
-              .includes(q) || 
-            therapist.phone 
-              ?.toLowerCase() 
-              .includes(q) || 
-            therapist.cin_number 
-              ?.toLowerCase() 
-              .includes(q) || 
-            address.includes(q) 
-          ); 
-        } 
-      ); 
-    } 
- 
-    if (filter === 'approved') { 
-      result = result.filter( 
-        (item) => 
-          item.verification_status === 
-          'approved' 
-      ); 
-    } 
- 
-    if (filter === 'pending') { 
-      result = result.filter( 
-        (item) => 
-          item.verification_status === 
-          'pending' 
-      ); 
-    } 
- 
-    if (filter === 'rejected') { 
-      result = result.filter( 
-        (item) => 
-          item.verification_status === 
-          'rejected' 
-      ); 
-    } 
- 
-    if (filter === 'online') { 
-      result = result.filter( 
-        (item) => 
-          item.is_online === true 
-      ); 
-    } 
- 
-    setFilteredTherapists(result); 
-  }; 
- 
-  const handleSearch = (text) => { 
-    setSearchQuery(text); 
-    setCurrentPage(1); 
- 
-    applyFilters( 
-      text, 
-      selectedFilter 
-    ); 
-  }; 
- 
-  const handleFilter = (filter) => { 
-    setSelectedFilter(filter); 
-    setCurrentPage(1); 
- 
-    applyFilters( 
-      searchQuery, 
-      filter 
-    ); 
-  }; 
- 
-  /* ========================================================== 
-     RE-FILTER WHEN DATA CHANGES 
-  ========================================================== */ 
- 
-  useEffect(() => { 
-    applyFilters( 
-      searchQuery, 
-      selectedFilter, 
-      therapists 
-    ); 
- 
-    // eslint-disable-next-line react-hooks/exhaustive-deps 
-  }, [therapists]); 
- 
-  /* ========================================================== 
-     PAGINATION 
-  ========================================================== */ 
- 
-  const totalPages = Math.max( 
-    1, 
-    Math.ceil( 
-      filteredTherapists.length / 
-        ITEMS_PER_PAGE 
-    ) 
-  ); 
- 
-  const paginatedTherapists = 
-    useMemo(() => { 
-      const start = 
-        (currentPage - 1) * 
-        ITEMS_PER_PAGE; 
- 
-      return filteredTherapists.slice( 
-        start, 
-        start + ITEMS_PER_PAGE 
-      ); 
-    }, [ 
-      filteredTherapists, 
-      currentPage, 
-    ]); 
- 
-  useEffect(() => { 
-    if ( 
-      currentPage > 
-      totalPages 
-    ) { 
-      setCurrentPage(totalPages); 
-    } 
-  }, [ 
-    currentPage, 
-    totalPages, 
-  ]); 
- 
-  /* ========================================================== 
-     CERTIFICATE 
-  ========================================================== */ 
- 
-  const loadCertificateInfo = 
-    async (therapistId) => { 
-      setLoadingCertificate(true); 
-      setCertificateInfo(null); 
- 
-      try { 
-        const data = 
-          await adminService.getTherapistCertificateInfo( 
-            therapistId 
-          ); 
- 
-        setCertificateInfo(data); 
-      } catch (err) { 
-        console.error( 
-          '❌ Erreur certificat:', 
-          err 
-        ); 
- 
-        setCertificateInfo(null); 
-      } finally { 
-        setLoadingCertificate(false); 
-      } 
-    }; 
- 
-  /* ========================================================== 
-     OPEN DETAILS 
-  ========================================================== */ 
- 
+  const navigation = useNavigation();
+  const { colors: themeColors } = useTheme();
+
+  const {
+    isDesktop,
+    horizontalPadding,
+  } = useResponsive();
+
+  /* ==========================================================
+     STATE
+  ========================================================== */
+
+  const [therapists, setTherapists] = useState([]);
+  const [filteredTherapists, setFilteredTherapists] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState('all');
+
+  const [selectedTherapist, setSelectedTherapist] =
+    useState(null);
+
+  const [showModal, setShowModal] = useState(false);
+
+  const [loadingCertificate, setLoadingCertificate] =
+    useState(false);
+
+  const [certificateInfo, setCertificateInfo] =
+    useState(null);
+
+  const [error, setError] = useState(null);
+
+  const [exportingExcel, setExportingExcel] = useState(false);
+
+  const [showAddressModal, setShowAddressModal] =
+    useState(false);
+
+  const [selectedUserForAddress, setSelectedUserForAddress] =
+    useState(null);
+
+  const [confirmModalVisible, setConfirmModalVisible] =
+    useState(false);
+
+  const [confirmModalConfig, setConfirmModalConfig] =
+    useState({
+      title: '',
+      message: '',
+      onConfirm: () => {},
+      destructive: false,
+    });
+
+  /* ==========================================================
+     VISIONNEUSE PLEIN ECRAN - certificat professionnel
+  ========================================================== */
+
+  const [showImageViewer, setShowImageViewer] = useState(false);
+
+  const [viewerImage, setViewerImage] = useState({
+    uri: null,
+    title: '',
+    fileName: 'document.jpg',
+  });
+
+  const openImageViewer = (uri, title, fileName) => {
+    if (!uri) return;
+    setViewerImage({ uri, title, fileName });
+    setShowImageViewer(true);
+  };
+
+  const closeImageViewer = () => {
+    setShowImageViewer(false);
+  };
+
+  /* ==========================================================
+     TOAST
+  ========================================================== */
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = useCallback(
+    (
+      message,
+      type = 'success',
+      duration = 3000
+    ) => {
+      setToast({
+        id: Date.now(),
+        message,
+        type,
+      });
+
+      setTimeout(() => {
+        setToast((current) => {
+          if (!current) return null;
+          return null;
+        });
+      }, duration);
+    },
+    []
+  );
+
+  /* ==========================================================
+     FILTERS
+  ========================================================== */
+
+  const filters = [
+    {
+      id: 'all',
+      label: 'Tous',
+      icon: 'people-outline',
+    },
+    {
+      id: 'approved',
+      label: 'Vérifiés',
+      icon: 'checkmark-circle-outline',
+    },
+    {
+      id: 'pending',
+      label: 'En attente',
+      icon: 'time-outline',
+    },
+    {
+      id: 'rejected',
+      label: 'Rejetés',
+      icon: 'close-circle-outline',
+    },
+    {
+      id: 'online',
+      label: 'En ligne',
+      icon: 'radio-button-on-outline',
+    },
+  ];
+
+  /* ==========================================================
+     LOAD
+  ========================================================== */
+
+  useFocusEffect(
+    useCallback(() => {
+      loadTherapists();
+
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+  );
+
+  const loadTherapists = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = {
+        limit: 200,
+      };
+
+      const data =
+        await adminService.getTherapists(params);
+
+      if (Array.isArray(data)) {
+        setTherapists(data);
+
+        applyFilters(
+          searchQuery,
+          selectedFilter,
+          data
+        );
+
+        if (data.length === 0) {
+          setError(
+            'Aucun thérapeute trouvé dans la base de données'
+          );
+        }
+      } else {
+        setTherapists([]);
+        setFilteredTherapists([]);
+        setError(
+          'Aucun thérapeute trouvé dans la base de données'
+        );
+      }
+    } catch (err) {
+      console.error(
+        '❌ Error loading therapists:',
+        err
+      );
+
+      let errorMessage;
+
+      if (err.response) {
+        const serverError =
+          err.response.data;
+
+        errorMessage =
+          serverError?.message ||
+          serverError?.detail ||
+          `Erreur ${err.response.status}`;
+      } else if (err.request) {
+        errorMessage =
+          'Impossible de contacter le serveur';
+      } else {
+        errorMessage =
+          err.message ||
+          'Erreur inconnue';
+      }
+
+      setError(errorMessage);
+      setTherapists([]);
+      setFilteredTherapists([]);
+
+      showToast(
+        errorMessage,
+        'error'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+
+    await loadTherapists();
+
+    setRefreshing(false);
+  };
+
+  /* ==========================================================
+     FILTER
+  ========================================================== */
+
+  const applyFilters = (
+    query,
+    filter,
+    sourceData = therapists
+  ) => {
+    let result = [...sourceData];
+
+    if (
+      query &&
+      query.trim()
+    ) {
+      const q =
+        query
+          .toLowerCase()
+          .trim();
+
+      result = result.filter(
+        (therapist) => {
+          const address =
+            getFullAddress(
+              therapist
+            ).toLowerCase();
+
+          return (
+            therapist.fullname
+              ?.toLowerCase()
+              .includes(q) ||
+            therapist.email
+              ?.toLowerCase()
+              .includes(q) ||
+            therapist.phone
+              ?.toLowerCase()
+              .includes(q) ||
+            therapist.cin_number
+              ?.toLowerCase()
+              .includes(q) ||
+            address.includes(q)
+          );
+        }
+      );
+    }
+
+    if (filter === 'approved') {
+      result = result.filter(
+        (item) =>
+          item.verification_status ===
+          'approved'
+      );
+    }
+
+    if (filter === 'pending') {
+      result = result.filter(
+        (item) =>
+          item.verification_status ===
+          'pending'
+      );
+    }
+
+    if (filter === 'rejected') {
+      result = result.filter(
+        (item) =>
+          item.verification_status ===
+          'rejected'
+      );
+    }
+
+    if (filter === 'online') {
+      result = result.filter(
+        (item) =>
+          item.is_online === true
+      );
+    }
+
+    setFilteredTherapists(result);
+  };
+
+  const handleSearch = (text) => {
+    setSearchQuery(text);
+    applyFilters(
+      text,
+      selectedFilter
+    );
+  };
+
+  const handleFilter = (filter) => {
+    setSelectedFilter(filter);
+    applyFilters(
+      searchQuery,
+      filter
+    );
+  };
+
+  /* ==========================================================
+     RE-FILTER WHEN DATA CHANGES
+  ========================================================== */
+
+  useEffect(() => {
+    applyFilters(
+      searchQuery,
+      selectedFilter,
+      therapists
+    );
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [therapists]);
+
+  /* ==========================================================
+     CERTIFICATE
+  ========================================================== */
+
+  const loadCertificateInfo =
+    async (therapistId) => {
+      setLoadingCertificate(true);
+      setCertificateInfo(null);
+
+      try {
+        const data =
+          await adminService.getTherapistCertificateInfo(
+            therapistId
+          );
+
+        setCertificateInfo(data);
+      } catch (err) {
+        console.error(
+          '❌ Erreur certificat:',
+          err
+        );
+
+        setCertificateInfo(null);
+      } finally {
+        setLoadingCertificate(false);
+      }
+    };
+
+  /* ==========================================================
+     OPEN DETAILS
+  ========================================================== */
+
   // Le détail s'ouvre dans une PAGE dédiée (TherapistDetailScreen),
   // plus dans une modale : la barre de navigation reste affichée.
   const openTherapistDetails = (
     therapist
   ) => {
-    navigation.navigate('TherapistDetail', {
+    navigateToAdminDetail(navigation, 'TherapistDetail', {
       therapistId: therapist.id,
       therapist,
     });
-  }; 
- 
-  /* ========================================================== 
-     DOWNLOAD 
-  ========================================================== */ 
- 
-  // ✅ Récupère le token JWT stocké côté client, quelle que soit la clé 
-  // utilisée par le AuthContext (adapte la liste ci-dessous si besoin). 
-  const getAuthToken = async () => { 
-    const possibleKeys = [ 
-      'authToken', 
-      'token', 
-      'accessToken', 
-      'access_token', 
-      'jwt', 
-      'userToken', 
-    ]; 
- 
-    try { 
-      for (const key of possibleKeys) { 
-        const value = await AsyncStorage.getItem(key); 
- 
-        if (value) { 
-          // Certains projets stockent directement le token, 
-          // d'autres stockent un objet JSON { token: '...' } 
-          try { 
-            const parsed = JSON.parse(value); 
- 
-            if (parsed && typeof parsed === 'object' && parsed.token) { 
-              return parsed.token; 
-            } 
-          } catch { 
-            // value n'est pas du JSON, c'est probablement le token brut 
-          } 
- 
-          return value; 
-        } 
-      } 
-    } catch (err) { 
-      console.warn('Impossible de récupérer le token auth:', err); 
-    } 
- 
-    return null; 
-  }; 
- 
-  const handleDownload = async ( 
-    url, 
-    suggestedFileName = 'document.pdf' 
-  ) => { 
-    if (!url) { 
-      showToast( 
-        'Document indisponible', 
-        'error' 
-      ); 
- 
-      return; 
-    } 
- 
-    try { 
-      const fullUrl = 
-        url.startsWith('http') 
-          ? url 
-          : `${API_URL}${url}`; 
- 
-      if (IS_WEB) { 
-        // ✅ Sur le web, window.open() fait une simple navigation 
-        // du navigateur : aucun header Authorization n'est envoyé, 
-        // donc l'endpoint protégé (admin) le refuse. 
-        // On récupère le token JWT et on télécharge le fichier 
-        // nous-même en blob, puis on force le téléchargement. 
-        const token = await getAuthToken(); 
- 
-        const response = await fetch(fullUrl, { 
-          headers: token 
-            ? { Authorization: `Bearer ${token}` } 
-            : {}, 
-        }); 
- 
-        if (!response.ok) { 
-          if (response.status === 401 || response.status === 403) { 
-            throw new Error( 
-              'Accès refusé : vous devez être connecté en tant qu\'administrateur' 
-            ); 
-          } 
- 
-          throw new Error(`Erreur ${response.status}`); 
-        } 
- 
-        const blob = await response.blob(); 
-        const blobUrl = window.URL.createObjectURL(blob); 
- 
-        // Essaye de récupérer le nom de fichier renvoyé par le serveur 
-        let fileName = suggestedFileName; 
-        const disposition = response.headers.get('content-disposition'); 
- 
-        if (disposition) { 
-          const match = disposition.match(/filename="?([^"]+)"?/); 
- 
-          if (match && match[1]) { 
-            fileName = match[1]; 
-          } 
-        } 
- 
-        const link = document.createElement('a'); 
-        link.href = blobUrl; 
-        link.download = fileName; 
-        document.body.appendChild(link); 
-        link.click(); 
-        document.body.removeChild(link); 
- 
-        window.URL.revokeObjectURL(blobUrl); 
- 
-        showToast( 
-          'Téléchargement démarré', 
-          'success' 
-        ); 
-      } else { 
-        const canOpen = 
-          await Linking.canOpenURL( 
-            fullUrl 
-          ); 
- 
-        if (canOpen) { 
-          await Linking.openURL( 
-            fullUrl 
-          ); 
-        } else { 
-          showToast( 
-            'Impossible d’ouvrir le document', 
-            'error' 
-          ); 
-        } 
-      } 
-    } catch (err) { 
-      console.error( 
-        'Download error:', 
-        err 
-      ); 
- 
-      showToast( 
-        err?.message || 'Échec du téléchargement', 
-        'error' 
-      ); 
-    } 
-  }; 
- 
-  /* ========================================================== 
-     CONFIRM HELPER 
-  ========================================================== */ 
- 
-  const confirmAction = ( 
-    title, 
-    message, 
-    onConfirm, 
-    destructive = false 
-  ) => { 
-    // ✅ react-native-web n'implémente pas Alert.alert : sur le web, 
-    // l'appel ne fait rien et aucune boîte de dialogue n'apparaît. 
-    // On affiche donc une modale personnalisée stylée sur le web, 
-    // et on garde Alert.alert natif sur Android/iOS (déjà fonctionnel). 
-    if (IS_WEB) { 
-      setConfirmModalConfig({ 
-        title, 
-        message, 
-        onConfirm, 
-        destructive, 
-      }); 
- 
-      setConfirmModalVisible(true); 
- 
-      return; 
-    } 
- 
-    Alert.alert( 
-      title, 
-      message, 
-      [ 
-        { 
-          text: 'Annuler', 
-          style: 'cancel', 
-        }, 
-        { 
-          text: 'Confirmer', 
-          style: 
-            destructive 
-              ? 'destructive' 
-              : 'default', 
-          onPress: 
-            onConfirm, 
-        }, 
-      ] 
-    ); 
-  }; 
- 
-  /* ========================================================== 
-     ONLINE STATUS 
-  ========================================================== */ 
- 
-  const toggleOnlineStatus = ( 
-    therapist 
-  ) => { 
-    if (!therapist?.id) return; 
- 
-    const newStatus = 
-      !therapist.is_online; 
- 
-    const statusText = 
-      newStatus 
-        ? 'en ligne' 
-        : 'hors ligne'; 
- 
-    confirmAction( 
-      newStatus 
-        ? 'Mettre en ligne' 
-        : 'Mettre hors ligne', 
-      `Voulez-vous mettre ${ 
-        therapist.fullname || 
-        'ce thérapeute' 
-      } ${statusText} ?`, 
-      async () => { 
-        try { 
-          await adminService.toggleTherapistStatus( 
-            therapist.id, 
-            newStatus 
-          ); 
- 
-          await loadTherapists(); 
- 
-          setSelectedTherapist( 
-            (prev) => 
-              prev 
-                ? { 
-                    ...prev, 
-                    is_online: 
-                      newStatus, 
-                  } 
-                : prev 
-          ); 
- 
-          showToast( 
-            `Thérapeute ${statusText} avec succès`, 
-            'success' 
-          ); 
-        } catch (_err) { 
-          showToast( 
-            `Impossible de modifier le statut`, 
-            'error' 
-          ); 
-        } 
-      } 
-    ); 
-  }; 
- 
-  /* ========================================================== 
-     ACTIVE STATUS 
-  ========================================================== */ 
- 
-  const toggleActiveStatus = ( 
-    therapist 
-  ) => { 
-    if (!therapist?.id) return; 
- 
-    const newStatus = 
-      !therapist.is_active; 
- 
-    const action = 
-      newStatus 
-        ? 'activer' 
-        : 'désactiver'; 
- 
-    confirmAction( 
-      `${ 
-        newStatus 
-          ? 'Activer' 
-          : 'Désactiver' 
-      } le compte`, 
-      `Voulez-vous ${action} le compte de ${ 
-        therapist.fullname || 
-        'ce thérapeute' 
-      } ?`, 
-      async () => { 
-        try { 
-          await adminService.toggleUserStatus( 
-            therapist.id, 
-            newStatus 
-          ); 
- 
-          await loadTherapists(); 
- 
-          setSelectedTherapist( 
-            (prev) => 
-              prev 
-                ? { 
-                    ...prev, 
-                    is_active: 
-                      newStatus, 
-                  } 
-                : prev 
-          ); 
- 
-          showToast( 
-            `Compte ${ 
-              newStatus 
-                ? 'activé' 
-                : 'désactivé' 
-            } avec succès`, 
-            'success' 
-          ); 
-        } catch (_err) { 
-          showToast( 
-            `Impossible de ${action} le compte`, 
-            'error' 
-          ); 
-        } 
-      } 
-    ); 
-  }; 
- 
-  /* ========================================================== 
-     DELETE 
-  ========================================================== */ 
- 
-  const handleDeleteTherapist = ( 
-    therapist 
-  ) => { 
-    if (!therapist?.id) return; 
- 
-    confirmAction( 
-      'Suppression définitive', 
-      `Voulez-vous supprimer définitivement ${ 
-        therapist.fullname || 
-        'ce thérapeute' 
-      } ? Cette action est irréversible.`, 
-      async () => { 
-        try { 
-          await adminService.deleteUser( 
-            therapist.id, 
-            true 
-          ); 
- 
-          setShowModal(false); 
-          setSelectedTherapist(null); 
- 
-          await loadTherapists(); 
- 
-          showToast( 
-            'Thérapeute supprimé définitivement', 
-            'success' 
-          ); 
-        } catch (_err) { 
-          showToast( 
-            'Impossible de supprimer le thérapeute', 
-            'error' 
-          ); 
-        } 
-      }, 
-      true 
-    ); 
-  }; 
- 
-  /* ========================================================== 
-     STATUS 
-  ========================================================== */ 
- 
-  const getStatusColor = ( 
-    status 
-  ) => { 
-    const map = { 
-      approved: '#27AE60', 
-      pending: '#F5A623', 
-      rejected: '#E74C3C', 
-    }; 
- 
-    return ( 
-      map[status] || 
-      '#999999' 
-    ); 
-  }; 
- 
-  const getStatusLabel = ( 
-    status 
-  ) => { 
-    const map = { 
-      approved: 'Vérifié', 
-      pending: 'En attente', 
-      rejected: 'Rejeté', 
-    }; 
- 
-    return ( 
-      map[status] || 
-      'Non défini' 
-    ); 
-  }; 
- 
-  const getActiveStatusColor = ( 
-    active 
-  ) => 
-    active 
-      ? '#27AE60' 
-      : '#E74C3C'; 
- 
-  const getActiveStatusLabel = ( 
-    active 
-  ) => 
-    active 
-      ? 'Actif' 
-      : 'Inactif'; 
- 
-  const formatDate = ( 
-    dateString 
-  ) => { 
-    if (!dateString) { 
-      return 'N/A'; 
-    } 
- 
-    try { 
-      const date = 
-        new Date(dateString); 
- 
-      return `${date.getFullYear()}-${String( 
-        date.getMonth() + 1 
-      ).padStart(2, '0')}-${String( 
-        date.getDate() 
-      ).padStart(2, '0')}`; 
-    } catch { 
-      return dateString; 
-    } 
-  }; 
- 
-  /* ========================================================== 
-     EXPORT EXCEL — liste filtrée (web + android) 
-  ========================================================== */ 
- 
-  const handleExportExcel = async () => { 
-    if (!filteredTherapists || filteredTherapists.length === 0) { 
-      showToast('Aucun thérapeute à exporter', 'error'); 
-      return; 
-    } 
- 
-    setExportingExcel(true); 
- 
-    try { 
-      await exportToExcel({ 
-        data: filteredTherapists, 
-        fileName: `therapeutes_${new Date() 
-          .toISOString() 
-          .slice(0, 10)}`, 
-        sheetName: 'Thérapeutes', 
-        columns: [ 
-          { header: 'ID', accessor: (t) => t.id }, 
-          { header: 'Nom complet', accessor: (t) => t.fullname || '' }, 
-          { header: 'Email', accessor: (t) => t.email || '' }, 
-          { header: 'Téléphone', accessor: (t) => t.phone || '' }, 
-          { header: 'CIN', accessor: (t) => t.cin_number || '' }, 
-          { header: 'Adresse', accessor: (t) => getFullAddress(t) }, 
-          { 
-            header: 'Prix (Ar)', 
-            accessor: (t) => Number(t.base_price || 0), 
-          }, 
-          { 
-            header: 'Vérification', 
-            accessor: (t) => getStatusLabel(t.verification_status), 
-          }, 
-          { 
-            header: 'Compte', 
-            accessor: (t) => getActiveStatusLabel(t.is_active), 
-          }, 
-          { 
-            header: 'En ligne', 
-            accessor: (t) => (t.is_online ? 'En ligne' : 'Hors ligne'), 
-          }, 
-          { 
-            header: 'Date création', 
-            accessor: (t) => formatDate(t.created_at), 
-          }, 
-        ], 
-      }); 
- 
-      showToast('Export Excel réussi', 'success'); 
-    } catch (err) { 
-      console.error('Export Excel error:', err); 
-      showToast(err?.message || "Échec de l'export Excel", 'error'); 
-    } finally { 
-      setExportingExcel(false); 
-    } 
-  }; 
- 
-  /* ========================================================== 
-     AVATAR 
-  ========================================================== */ 
- 
-  const Avatar = ({ 
-    therapist, 
-    size = 44, 
-  }) => { 
-    const initials = 
-      therapist?.fullname 
-        ?.charAt(0) 
-        ?.toUpperCase() || 
-      '?'; 
- 
-    return ( 
-      <View 
-        style={[ 
-          styles.avatarWrapper, 
-          { 
-            width: size, 
-            height: size, 
-            borderRadius: 
-              size * 0.28, 
-          }, 
-        ]} 
-      > 
-        {therapist?.profile_image ? ( 
-          <Image 
-            source={{ 
-              uri: therapist.profile_image, 
-            }} 
-            style={{ 
-              width: size, 
-              height: size, 
-              borderRadius: 
-                size * 0.28, 
-            }} 
-          /> 
-        ) : ( 
-          <View 
-            style={[ 
-              styles.avatarFallback, 
-              { 
-                width: size, 
-                height: size, 
-                borderRadius: 
-                  size * 0.28, 
-                backgroundColor: 
-                  colors.primary + 
-                  '18', 
-              }, 
-            ]} 
-          > 
-            <Text 
-              style={[ 
-                styles.avatarText, 
-                { 
-                  color: 
-                    colors.primary, 
-                  fontSize: 
-                    size * 0.4, 
-                }, 
-              ]} 
-            > 
-              {initials} 
-            </Text> 
-          </View> 
-        )} 
- 
-        <View 
-          style={[ 
-            styles.avatarOnline, 
-            { 
-              backgroundColor: 
-                therapist?.is_online 
-                  ? '#27AE60' 
-                  : '#999999', 
-              width: 
-                Math.max(size * 0.28, 12), 
-              height: 
-                Math.max(size * 0.28, 12), 
-              borderRadius: 
-                Math.max(size * 0.28, 12) / 2, 
-              borderColor: 
-                themeColors.surface || '#fff', 
-              right: 
-                -Math.max(size * 0.28, 12) * 0.12, 
-              bottom: 
-                -Math.max(size * 0.28, 12) * 0.12, 
-            }, 
-          ]} 
-        /> 
-      </View> 
-    ); 
-  }; 
- 
-  /* ========================================================== 
-     STATUS BADGE 
-  ========================================================== */ 
- 
-  const StatusBadge = ({ 
-    label, 
-    color, 
-    dot = false, 
-  }) => ( 
-    <View 
-      style={[ 
-        styles.statusBadge, 
-        { 
-          backgroundColor: 
-            color + '14', 
-        }, 
-      ]} 
-    > 
-      {dot && ( 
-        <View 
-          style={[ 
-            styles.statusBadgeDot, 
-            { 
-              backgroundColor: 
-                color, 
-            }, 
-          ]} 
-        /> 
-      )} 
- 
-      <Text 
-        numberOfLines={1} 
-        style={[ 
-          styles.statusBadgeText, 
-          { 
-            color, 
-          }, 
-        ]} 
-      > 
-        {label} 
-      </Text> 
-    </View> 
-  ); 
- 
-  /* ========================================================== 
-     WEB TABLE ROW 
-  ========================================================== */ 
- 
-  const WebTableRow = ({ 
-    item, 
-  }) => { 
-    const [hovered, setHovered] = 
-      useState(false); 
- 
-    const address = 
-      getFullAddress(item); 
- 
-    return ( 
-      <TouchableOpacity 
-        activeOpacity={0.85} 
-        onPress={() => 
-          openTherapistDetails(item) 
-        } 
-        {...(IS_WEB 
-          ? { 
-              onMouseEnter: () => 
-                setHovered(true), 
-              onMouseLeave: () => 
-                setHovered(false), 
-            } 
-          : {})} 
-        style={[ 
-          styles.webTableRow, 
-          { 
-            backgroundColor: 
-              hovered 
-                ? themeColors.background 
-                : themeColors.surface, 
-          }, 
-        ]} 
-      > 
-        {/* THERAPEUTE */} 
-        <View 
-          style={[ 
-            styles.webCell, 
-            styles.webCellTherapist, 
-          ]} 
-        > 
-          <Avatar 
-            therapist={item} 
-            size={42} 
-          /> 
- 
-          <View 
-            style={ 
-              styles.webTherapistInfo 
-            } 
-          > 
-            <Text 
-              numberOfLines={1} 
-              style={[ 
-                styles.webName, 
-                { 
-                  color: 
-                    themeColors.text, 
-                }, 
-              ]} 
-            > 
-              {item.fullname || 
-                'Thérapeute'} 
-            </Text> 
- 
-            <Text 
-              numberOfLines={1} 
-              style={[ 
-                styles.webEmail, 
-                { 
-                  color: 
-                    themeColors 
-                      .textSecondary, 
-                }, 
-              ]} 
-            > 
-              {item.email || 
-                'Email non renseigné'} 
-            </Text> 
-          </View> 
-        </View> 
- 
-        {/* TELEPHONE */} 
-        <View 
-          style={styles.webCell} 
-        > 
-          <Text 
-            numberOfLines={1} 
-            style={[ 
-              styles.webCellText, 
-              { 
-                color: 
-                  themeColors.text, 
-              }, 
-            ]} 
-          > 
-            {item.phone || 
-              'N/A'} 
-          </Text> 
-        </View> 
- 
-        {/* CIN */} 
-        <View 
-          style={styles.webCell} 
-        > 
-          <Text 
-            numberOfLines={1} 
-            style={[ 
-              styles.webCellText, 
-              { 
-                color: 
-                  item.cin_number 
-                    ? themeColors.text 
-                    : '#E74C3C', 
-              }, 
-            ]} 
-          > 
-            {item.cin_number || 
-              'Non renseigné'} 
-          </Text> 
-        </View> 
- 
-        {/* ADRESSE */} 
-        <View 
-          style={[ 
-            styles.webCell, 
-            styles.webAddressCell, 
-          ]} 
-        > 
-          <Ionicons 
-            name="location-outline" 
-            size={16} 
-            color={colors.primary} 
-          /> 
- 
-          <Text 
-            numberOfLines={2} 
-            style={[ 
-              styles.webCellText, 
-              { 
-                color: 
-                  themeColors 
-                    .textSecondary, 
-              }, 
-            ]} 
-          > 
-            {address} 
-          </Text> 
-        </View> 
- 
-        {/* VERIFICATION */} 
-        <View 
-          style={styles.webCell} 
-        > 
-          <StatusBadge 
-            label={getStatusLabel( 
-              item.verification_status 
-            )} 
-            color={getStatusColor( 
-              item.verification_status 
-            )} 
-          /> 
-        </View> 
- 
-        {/* ACTIF */} 
-        <View 
-          style={styles.webCell} 
-        > 
-          <StatusBadge 
-            label={getActiveStatusLabel( 
-              item.is_active 
-            )} 
-            color={getActiveStatusColor( 
-              item.is_active 
-            )} 
-          /> 
-        </View> 
- 
-        {/* ONLINE */} 
-        <View 
-          style={styles.webCell} 
-        > 
-          <StatusBadge 
-            label={ 
-              item.is_online 
-                ? 'En ligne' 
-                : 'Hors ligne' 
-            } 
-            color={ 
-              item.is_online 
-                ? '#27AE60' 
-                : '#999999' 
-            } 
-            dot 
-          /> 
-        </View> 
- 
-        {/* PRIX */} 
-        <View 
-          style={styles.webCell} 
-        > 
-          <Text 
-            style={[ 
-              styles.webPrice, 
-              { 
-                color: 
-                  colors.primary, 
-              }, 
-            ]} 
-          > 
-            {Number( 
-              item.base_price || 0 
-            ).toLocaleString()}{' '} 
-            Ar 
-          </Text> 
-        </View> 
- 
-        {/* ACTION */} 
-        <View 
-          style={[ 
-            styles.webCell, 
-            styles.webActionCell, 
-          ]} 
-        > 
-          <TouchableOpacity 
-            style={[ 
-              styles.webIconButton, 
-              { 
-                backgroundColor: 
-                  colors.primary + 
-                  '12', 
-              }, 
-            ]} 
-            onPress={(e) => { 
-              e?.stopPropagation?.(); 
-              openTherapistDetails( 
-                item 
-              ); 
-            }} 
-          > 
-            <Ionicons 
-              name="eye-outline" 
-              size={16} 
-              color={ 
-                colors.primary 
-              } 
-            /> 
-          </TouchableOpacity> 
- 
-          <TouchableOpacity 
-            style={[ 
-              styles.webIconButton, 
-              { 
-                backgroundColor: 
-                  getActiveStatusColor( 
-                    item.is_active 
-                  ) + '12', 
-              }, 
-            ]} 
-            onPress={(e) => { 
-              e?.stopPropagation?.(); 
-              toggleActiveStatus(item); 
-            }} 
-          > 
-            <Ionicons 
-              name={ 
-                item.is_active 
-                  ? 'person-remove-outline' 
-                  : 'person-add-outline' 
-              } 
-              size={16} 
-              color={getActiveStatusColor( 
-                item.is_active 
-              )} 
-            /> 
-          </TouchableOpacity> 
- 
-          <TouchableOpacity 
-            style={[ 
-              styles.webIconButton, 
-              { 
-                backgroundColor: '#E74C3C12', 
-              }, 
-            ]} 
-            onPress={(e) => { 
-              e?.stopPropagation?.(); 
-              handleDeleteTherapist(item); 
-            }} 
-          > 
-            <Ionicons 
-              name="trash-outline" 
-              size={16} 
-              color="#E74C3C" 
-            /> 
-          </TouchableOpacity> 
-        </View> 
-      </TouchableOpacity> 
-    ); 
-  }; 
- 
-  /* ========================================================== 
-     MOBILE CARD - FULL SCREEN 
-  ========================================================== */ 
- 
-  const MobileCard = ({ 
-    item, 
-  }) => { 
-    const address = 
-      getFullAddress(item); 
- 
-    return ( 
-      <TouchableOpacity 
-        activeOpacity={0.92} 
-        onPress={() => 
-          openTherapistDetails(item) 
-        } 
-        style={[ 
-          styles.mobileCard, 
-          { 
-            backgroundColor: 
-              themeColors.surface, 
-          }, 
-        ]} 
-      > 
-        <View 
-          style={ 
-            styles.mobileCardHeader 
-          } 
-        > 
-          <Avatar 
-            therapist={item} 
-            size={52} 
-          /> 
- 
-          <View 
-            style={ 
-              styles.mobileCardIdentity 
-            } 
-          > 
-            <Text 
-              numberOfLines={1} 
-              style={[ 
-                styles.mobileName, 
-                { 
-                  color: 
-                    themeColors.text, 
-                }, 
-              ]} 
-            > 
-              {item.fullname || 
-                'Thérapeute'} 
-            </Text> 
- 
-            <Text 
-              numberOfLines={1} 
-              style={[ 
-                styles.mobileEmail, 
-                { 
-                  color: 
-                    themeColors 
-                      .textSecondary, 
-                }, 
-              ]} 
-            > 
-              {item.email || 
-                'Email non renseigné'} 
-            </Text> 
- 
-            <View 
-              style={ 
-                styles.mobileStatusLine 
-              } 
-            > 
-              <StatusBadge 
-                label={getStatusLabel( 
-                  item.verification_status 
-                )} 
-                color={getStatusColor( 
-                  item.verification_status 
-                )} 
-              /> 
- 
-              <StatusBadge 
-                label={ 
-                  item.is_online 
-                    ? 'En ligne' 
-                    : 'Hors ligne' 
-                } 
-                color={ 
-                  item.is_online 
-                    ? '#27AE60' 
-                    : '#999999' 
-                } 
-                dot 
-              /> 
-            </View> 
-          </View> 
- 
-          <Ionicons 
-            name="chevron-forward" 
-            size={20} 
-            color={ 
-              themeColors 
-                .textSecondary 
-            } 
-          /> 
-        </View> 
- 
-        <View 
-          style={[ 
-            styles.mobileDivider, 
-            { 
-              backgroundColor: 
-                themeColors.border || 
-                '#E8E8E8', 
-            }, 
-          ]} 
-        /> 
- 
-        <View 
-          style={ 
-            styles.mobileInfoGrid 
-          } 
-        > 
-          <MobileInfo 
-            icon="call-outline" 
-            label="Téléphone" 
-            value={ 
-              item.phone || 'N/A' 
-            } 
-            themeColors={ 
-              themeColors 
-            } 
-          /> 
- 
-          <MobileInfo 
-            icon="cash-outline" 
-            label="Prix" 
-            value={`${Number( 
-              item.base_price || 0 
-            ).toLocaleString()} Ar`} 
-            themeColors={ 
-              themeColors 
-            } 
-            valueColor={ 
-              colors.primary 
-            } 
-          /> 
- 
-          <MobileInfo 
-            icon="location-outline" 
-            label="Adresse" 
-            value={address} 
-            themeColors={ 
-              themeColors 
-            } 
-            full 
-          /> 
- 
-          <MobileInfo 
-            icon="card-outline" 
-            label="CIN" 
-            value={ 
-              item.cin_number || 
-              'Non renseigné' 
-            } 
-            themeColors={ 
-              themeColors 
-            } 
-          /> 
-        </View> 
- 
-        <View 
-          style={ 
-            styles.mobileCardFooter 
-          } 
-        > 
-          <TouchableOpacity 
-            style={[ 
-              styles.mobileFooterButton, 
-              { 
-                backgroundColor: 
-                  colors.primary + 
-                  '12', 
-              }, 
-            ]} 
-            onPress={() => { 
-              setSelectedUserForAddress( 
-                item 
-              ); 
- 
-              setShowAddressModal( 
-                true 
-              ); 
-            }} 
-          > 
-            <Ionicons 
-              name="map-outline" 
-              size={16} 
-              color={ 
-                colors.primary 
-              } 
-            /> 
- 
-            <Text 
-              style={[ 
-                styles.mobileFooterButtonText, 
-                { 
-                  color: 
-                    colors.primary, 
-                }, 
-              ]} 
-            > 
-              Carte 
-            </Text> 
-          </TouchableOpacity> 
- 
-          <TouchableOpacity 
-            style={[ 
-              styles.mobileFooterButton, 
-              { 
-                backgroundColor: 
-                  getActiveStatusColor( 
-                    item.is_active 
-                  ) + '12', 
-              }, 
-            ]} 
-            onPress={() => 
-              toggleActiveStatus( 
-                item 
-              ) 
-            } 
-          > 
-            <Ionicons 
-              name={ 
-                item.is_active 
-                  ? 'person-remove-outline' 
-                  : 'person-add-outline' 
-              } 
-              size={16} 
-              color={getActiveStatusColor( 
-                item.is_active 
-              )} 
-            /> 
- 
-            <Text 
-              style={[ 
-                styles.mobileFooterButtonText, 
-                { 
-                  color: 
-                    getActiveStatusColor( 
-                      item.is_active 
-                    ), 
-                }, 
-              ]} 
-            > 
-              {item.is_active 
-                ? 'Désactiver' 
-                : 'Activer'} 
-            </Text> 
-          </TouchableOpacity> 
-        </View> 
-      </TouchableOpacity> 
-    ); 
-  }; 
- 
-  /* ========================================================== 
-     WEB TABLE 
-  ========================================================== */ 
- 
-  const renderWebTable = () => { 
-    return ( 
-      <View 
-        style={[ 
-          styles.webTableWrapper, 
-          { 
-            backgroundColor: 
-              themeColors.surface, 
-          }, 
-        ]} 
-      > 
-        {/* HEADER */} 
-        <View 
-          style={[ 
-            styles.webTableHeader, 
-            { 
-              backgroundColor: 
-                themeColors.surface, 
-            }, 
-          ]} 
-        > 
-          <View 
-            style={[ 
-              styles.webHeaderCell, 
-              styles.webCellTherapist, 
-            ]} 
-          > 
-            <Text 
-              style={[ 
-                styles.webHeaderText, 
-                { 
-                  color: 
-                    themeColors 
-                      .textSecondary, 
-                }, 
-              ]} 
-            > 
-              THÉRAPEUTE 
-            </Text> 
-          </View> 
- 
-          <HeaderCell 
-            label="TÉLÉPHONE" 
-            themeColors={ 
-              themeColors 
-            } 
-          /> 
- 
-          <HeaderCell 
-            label="CIN" 
-            themeColors={ 
-              themeColors 
-            } 
-          /> 
- 
-          <View 
-            style={[ 
-              styles.webHeaderCell, 
-              styles.webAddressCell, 
-            ]} 
-          > 
-            <Text 
-              style={[ 
-                styles.webHeaderText, 
-                { 
-                  color: 
-                    themeColors 
-                      .textSecondary, 
-                }, 
-              ]} 
-            > 
-              ADRESSE 
-            </Text> 
-          </View> 
- 
-          <HeaderCell 
-            label="VÉRIFICATION" 
-            themeColors={ 
-              themeColors 
-            } 
-          /> 
- 
-          <HeaderCell 
-            label="COMPTE" 
-            themeColors={ 
-              themeColors 
-            } 
-          /> 
- 
-          <HeaderCell 
-            label="STATUT" 
-            themeColors={ 
-              themeColors 
-            } 
-          /> 
- 
-          <HeaderCell 
-            label="PRIX" 
-            themeColors={ 
-              themeColors 
-            } 
-          /> 
- 
-          <View 
-            style={[ 
-              styles.webHeaderCell, 
-              styles.webActionCell, 
-            ]} 
-          > 
-            <Text 
-              style={[ 
-                styles.webHeaderText, 
-                { 
-                  color: 
-                    themeColors 
-                      .textSecondary, 
-                }, 
-              ]} 
-            > 
-              ACTION 
-            </Text> 
-          </View> 
-        </View> 
- 
-        {/* SCROLL AREA */} 
-        <ScrollView 
-          style={ 
-            styles.webTableScroll 
-          } 
-          contentContainerStyle={ 
-            styles.webTableScrollContent 
-          } 
-          showsVerticalScrollIndicator 
-          nestedScrollEnabled 
-        > 
-          {paginatedTherapists.map( 
-            (item) => ( 
-              <WebTableRow 
-                key={String(item.id)} 
-                item={item} 
-              /> 
-            ) 
-          )} 
- 
-          <View 
-            style={ 
-              styles.webBottomSpace 
-            } 
-          /> 
-        </ScrollView> 
- 
-        {/* PAGINATION */} 
-        <PaginationBar /> 
-      </View> 
-    ); 
-  }; 
- 
-  /* ========================================================== 
-     MOBILE LIST - FULL SCREEN 
-  ========================================================== */ 
- 
-  const renderMobileList = () => { 
-    return ( 
-      <FlatList 
-        data={ 
-          filteredTherapists 
-        } 
-        renderItem={({ 
-          item, 
-        }) => ( 
-          <MobileCard 
-            item={item} 
-          /> 
-        )} 
-        keyExtractor={( 
-          item 
-        ) => 
-          String(item.id) 
-        } 
-        contentContainerStyle={ 
-          styles.mobileListContent 
-        } 
-        refreshControl={ 
-          <RefreshControl 
-            refreshing={ 
-              refreshing 
-            } 
-            onRefresh={ 
-              onRefresh 
-            } 
-            colors={[ 
-              colors.primary, 
-            ]} 
-            tintColor={ 
-              colors.primary 
-            } 
-          /> 
-        } 
-        showsVerticalScrollIndicator={ 
-          false 
-        } 
-        nestedScrollEnabled 
-      /> 
-    ); 
-  }; 
- 
-  /* ========================================================== 
-     INFO MOBILE 
-  ========================================================== */ 
- 
-  const MobileInfo = ({ 
-    icon, 
-    label, 
-    value, 
-    themeColors, 
-    valueColor, 
-    full, 
-  }) => ( 
-    <View 
-      style={[ 
-        styles.mobileInfoItem, 
-        full && 
-          styles.mobileInfoFull, 
-      ]} 
-    > 
-      <View 
-        style={ 
-          styles.mobileInfoLabel 
-        } 
-      > 
-        <Ionicons 
-          name={icon} 
-          size={15} 
-          color={ 
-            colors.primary 
-          } 
-        /> 
- 
-        <Text 
-          style={[ 
-            styles.mobileLabelText, 
-            { 
-              color: 
-                themeColors 
-                  .textSecondary, 
-            }, 
-          ]} 
-        > 
-          {label} 
-        </Text> 
-      </View> 
- 
-      <Text 
-        numberOfLines={ 
-          full ? 3 : 2 
-        } 
-        style={[ 
-          styles.mobileValueText, 
-          { 
-            color: 
-              valueColor || 
-              themeColors.text, 
-          }, 
-        ]} 
-      > 
-        {value} 
-      </Text> 
-    </View> 
-  ); 
- 
-  /* ========================================================== 
-     HEADER CELL 
-  ========================================================== */ 
- 
-  const HeaderCell = ({ 
-    label, 
-    themeColors, 
-  }) => ( 
-    <View 
-      style={styles.webHeaderCell} 
-    > 
-      <Text 
-        style={[ 
-          styles.webHeaderText, 
-          { 
-            color: 
-              themeColors 
-                .textSecondary, 
-          }, 
-        ]} 
-      > 
-        {label} 
-      </Text> 
-    </View> 
-  ); 
- 
-  /* ========================================================== 
-     PAGINATION BAR (SHARED - WEB TABLE + MOBILE CARDS) 
-  ========================================================== */ 
- 
-  const PaginationBar = ({ 
-    compact = false, 
-  }) => { 
-    if (filteredTherapists.length === 0) { 
-      return null; 
-    } 
- 
-    return ( 
-      <View 
-        style={[ 
-          styles.pagination, 
-          compact && 
-            styles.paginationMobile, 
-          { 
-            borderTopColor: 
-              themeColors.border || 
-              '#EAEAEA', 
-            backgroundColor: 
-              themeColors.surface, 
-          }, 
-        ]} 
-      > 
-        <Text 
-          numberOfLines={1} 
-          style={[ 
-            styles.paginationInfo, 
-            { 
-              color: 
-                themeColors 
-                  .textSecondary, 
-            }, 
-          ]} 
-        > 
-          {filteredTherapists.length} 
-          {' '} 
-          thérapeute 
-          {filteredTherapists.length > 1 
-            ? 's' 
-            : ''} 
-          {' • Page '} 
-          {currentPage} 
-          {'/'} 
-          {totalPages} 
-        </Text> 
- 
-        <View 
-          style={ 
-            styles.paginationControls 
-          } 
-        > 
-          <TouchableOpacity 
-            disabled={ 
-              currentPage === 1 
-            } 
-            onPress={() => 
-              setCurrentPage( 
-                (page) => 
-                  Math.max( 
-                    1, 
-                    page - 1 
-                  ) 
-              ) 
-            } 
-            style={[ 
-              styles.paginationButton, 
-              { 
-                opacity: 
-                  currentPage === 
-                  1 
-                    ? 0.4 
-                    : 1, 
-                backgroundColor: 
-                  themeColors.background, 
-              }, 
-            ]} 
-          > 
-            <Ionicons 
-              name="chevron-back" 
-              size={17} 
-              color={ 
-                themeColors.text 
-              } 
-            /> 
-          </TouchableOpacity> 
- 
-          <View 
-            style={[ 
-              styles.pageNumber, 
-              { 
-                backgroundColor: 
-                  colors.primary, 
-              }, 
-            ]} 
-          > 
-            <Text 
-              style={ 
-                styles.pageNumberText 
-              } 
-            > 
-              {currentPage} 
-            </Text> 
-          </View> 
- 
-          <Text 
-            style={[ 
-              styles.pageTotal, 
-              { 
-                color: 
-                  themeColors 
-                    .textSecondary, 
-              }, 
-            ]} 
-          > 
-            / {totalPages} 
-          </Text> 
- 
-          <TouchableOpacity 
-            disabled={ 
-              currentPage === 
-              totalPages 
-            } 
-            onPress={() => 
-              setCurrentPage( 
-                (page) => 
-                  Math.min( 
-                    totalPages, 
-                    page + 1 
-                  ) 
-              ) 
-            } 
-            style={[ 
-              styles.paginationButton, 
-              { 
-                opacity: 
-                  currentPage === 
-                  totalPages 
-                    ? 0.4 
-                    : 1, 
-                backgroundColor: 
-                  themeColors.background, 
-              }, 
-            ]} 
-          > 
-            <Ionicons 
-              name="chevron-forward" 
-              size={17} 
-              color={ 
-                themeColors.text 
-              } 
-            /> 
-          </TouchableOpacity> 
-        </View> 
-      </View> 
-    ); 
-  }; 
- 
-  /* ========================================================== 
-     TOAST COMPONENT 
-  ========================================================== */ 
- 
-  const Toast = () => { 
-    if (!toast) return null; 
- 
-    const isError = 
-      toast.type === 'error'; 
- 
-    const isWarning = 
-      toast.type === 'warning'; 
- 
-    const toastColor = isError 
-      ? '#E74C3C' 
-      : isWarning 
-      ? '#F5A623' 
-      : '#27AE60'; 
- 
-    const iconName = isError 
-      ? 'close-circle' 
-      : isWarning 
-      ? 'warning' 
-      : 'checkmark-circle'; 
- 
-    return ( 
-      <View 
-        pointerEvents="none" 
-        style={[ 
-          styles.toastPosition, 
-        ]} 
-      > 
-        <View 
-          style={[ 
-            styles.toast, 
-            { 
-              backgroundColor: 
-                themeColors.surface, 
-              borderLeftColor: 
-                toastColor, 
-            }, 
-          ]} 
-        > 
-          <View 
-            style={[ 
-              styles.toastIcon, 
-              { 
-                backgroundColor: 
-                  toastColor + 
-                  '15', 
-              }, 
-            ]} 
-          > 
-            <Ionicons 
-              name={iconName} 
-              size={20} 
-              color={toastColor} 
-            /> 
-          </View> 
- 
-          <Text 
-            numberOfLines={3} 
-            style={[ 
-              styles.toastText, 
-              { 
-                color: 
-                  themeColors.text, 
-              }, 
-            ]} 
-          > 
-            {toast.message} 
-          </Text> 
-        </View> 
-      </View> 
-    ); 
-  }; 
- 
-  /* ========================================================== 
-     VISIONNEUSE PLEIN ECRAN - certificat professionnel 
-     Affiche l'image en grand (remplit la modale) et permet 
-     de la telecharger directement. 
-  ========================================================== */ 
- 
-  const ImageViewerModal = () => ( 
-    <Modal 
-      visible={showImageViewer} 
-      transparent 
-      animationType="fade" 
-      onRequestClose={closeImageViewer} 
-    > 
-      <View style={styles.viewerOverlay}> 
-        <View 
-          style={[ 
-            styles.viewerContainer, 
-            { 
-              backgroundColor: themeColors.surface, 
-            }, 
-          ]} 
-        > 
-          <View style={styles.viewerHeader}> 
-            <Text 
-              style={[ 
-                styles.viewerTitle, 
-                { color: themeColors.text }, 
-              ]} 
-              numberOfLines={1} 
-            > 
-              {viewerImage.title || 
-                'Document'} 
-            </Text> 
- 
-            <TouchableOpacity 
-              onPress={closeImageViewer} 
-              style={styles.viewerCloseButton} 
-              activeOpacity={0.8} 
-            > 
-              <Ionicons 
-                name="close" 
-                size={20} 
-                color={themeColors.text} 
-              /> 
-            </TouchableOpacity> 
-          </View> 
- 
-          <View style={styles.viewerImageWrapper}> 
-            {viewerImage.uri && 
-            viewerImage.uri.toLowerCase().endsWith('.pdf') ? ( 
-              <View style={styles.viewerPdfBox}> 
-                <Ionicons 
-                  name="document-text-outline" 
-                  size={64} 
-                  color={colors.primary} 
-                /> 
- 
-                <Text 
-                  style={[ 
-                    styles.viewerPdfText, 
-                    { color: themeColors.textSecondary }, 
-                  ]} 
-                > 
-                  Ce document est un PDF. Utilisez le bouton 
-                  ci-dessous pour le télécharger et l'ouvrir. 
-                </Text> 
-              </View> 
-            ) : ( 
-              <Image 
-                source={{ uri: viewerImage.uri }} 
-                style={styles.viewerImage} 
-                resizeMode="contain" 
-              /> 
-            )} 
-          </View> 
- 
-          <TouchableOpacity 
-            onPress={() => 
-              handleDownload(viewerImage.uri, viewerImage.fileName) 
-            } 
-            style={styles.viewerDownloadButton} 
-            activeOpacity={0.85} 
-          > 
-            <Ionicons 
-              name="download-outline" 
-              size={18} 
-              color="#fff" 
-            /> 
- 
-            <Text style={styles.viewerDownloadButtonText}> 
-              Télécharger 
-            </Text> 
-          </TouchableOpacity> 
-        </View> 
-      </View> 
-    </Modal> 
-  ); 
- 
-  /* ========================================================== 
-     CONFIRM MODAL (WEB) 
-  ========================================================== */ 
- 
-  const closeConfirmModal = () => { 
-    setConfirmModalVisible(false); 
-  }; 
- 
-  const handleConfirmModalConfirm = () => { 
-    setConfirmModalVisible(false); 
-    confirmModalConfig.onConfirm(); 
-  }; 
- 
-  const ConfirmModal = () => ( 
-    <Modal 
-      visible={confirmModalVisible} 
-      transparent 
-      animationType="fade" 
-      onRequestClose={closeConfirmModal} 
-    > 
-      <View style={styles.confirmOverlay}> 
-        <View 
-          style={[ 
-            styles.confirmBox, 
-            { 
-              backgroundColor: 
-                themeColors.surface, 
-            }, 
-          ]} 
-        > 
-          <View 
-            style={[ 
-              styles.confirmIconWrap, 
-              { 
-                backgroundColor: 
-                  confirmModalConfig.destructive 
-                    ? '#E74C3C15' 
-                    : colors.primary + '15', 
-              }, 
-            ]} 
-          > 
-            <Ionicons 
-              name={ 
-                confirmModalConfig.destructive 
-                  ? 'trash-outline' 
-                  : 'help-circle-outline' 
-              } 
-              size={26} 
-              color={ 
-                confirmModalConfig.destructive 
-                  ? '#E74C3C' 
-                  : colors.primary 
-              } 
-            /> 
-          </View> 
- 
-          <Text 
-            style={[ 
-              styles.confirmTitle, 
-              { 
-                color: themeColors.text, 
-              }, 
-            ]} 
-          > 
-            {confirmModalConfig.title} 
-          </Text> 
- 
-          <Text 
-            style={[ 
-              styles.confirmMessage, 
-              { 
-                color: 
-                  themeColors.textSecondary, 
-              }, 
-            ]} 
-          > 
-            {confirmModalConfig.message} 
-          </Text> 
- 
-          <View style={styles.confirmActions}> 
-            <TouchableOpacity 
-              onPress={closeConfirmModal} 
-              style={[ 
-                styles.confirmButton, 
-                { 
-                  backgroundColor: 
-                    themeColors.background, 
-                }, 
-              ]} 
-            > 
-              <Text 
-                style={[ 
-                  styles.confirmButtonText, 
-                  { 
-                    color: themeColors.text, 
-                  }, 
-                ]} 
-              > 
-                Annuler 
-              </Text> 
-            </TouchableOpacity> 
- 
-            <TouchableOpacity 
-              onPress={handleConfirmModalConfirm} 
-              style={[ 
-                styles.confirmButton, 
-                { 
-                  backgroundColor: 
-                    confirmModalConfig.destructive 
-                      ? '#E74C3C' 
-                      : colors.primary, 
-                }, 
-              ]} 
-            > 
-              <Text style={styles.confirmButtonTextWhite}> 
-                Confirmer 
-              </Text> 
-            </TouchableOpacity> 
-          </View> 
-        </View> 
-      </View> 
-    </Modal> 
-  ); 
- 
-  /* ========================================================== 
-     MODAL CLOSE 
-  ========================================================== */ 
- 
-  const closeModal = () => { 
-    setShowModal(false); 
-    setSelectedTherapist(null); 
-    setCertificateInfo(null); 
-  }; 
- 
-  /* ========================================================== 
-     RENDER 
-  ========================================================== */ 
- 
-  return ( 
-    <SafeAreaView 
-      style={[ 
-        styles.safeArea, 
-        { 
-          backgroundColor: 
-            themeColors.background, 
-        }, 
-      ]} 
-    > 
-      <View 
-        style={[ 
-          styles.container, 
-          { 
-            backgroundColor: 
-              themeColors.background, 
-          }, 
-        ]} 
-      > 
-        <Header 
-          title="Thérapeutes" 
-          showBack 
-        /> 
- 
-        {/* ====================================================== 
-            MAIN CONTENT 
-        ====================================================== */} 
- 
-        <View 
-          style={[ 
-            styles.mainContent, 
-            { 
-              paddingHorizontal: 0, 
-            }, 
-          ]} 
-        > 
-          {/* TOP BAR */} 
-          <View 
-            style={[ 
-              styles.topBar, 
-              { 
-                paddingHorizontal: 
-                  IS_WEB 
-                    ? horizontalPadding 
-                    : 12, 
-              }, 
-            ]} 
-          > 
-            <View 
-              style={ 
-                styles.titleBlock 
-              } 
-            > 
-              <Text 
-                style={[ 
-                  styles.pageTitle, 
-                  { 
-                    color: 
-                      themeColors.text, 
-                  }, 
-                ]} 
-              > 
-                Gestion des thérapeutes 
-              </Text> 
- 
-              <Text 
-                style={[ 
-                  styles.pageSubtitle, 
-                  { 
-                    color: 
-                      themeColors 
-                        .textSecondary, 
-                  }, 
-                ]} 
-              > 
-                {filteredTherapists.length}{' '} 
-                thérapeute 
-                {filteredTherapists.length > 
-                1 
-                  ? 's' 
-                  : ''}{' '} 
-                affiché 
-                {filteredTherapists.length > 
-                1 
-                  ? 's' 
-                  : ''} 
-              </Text> 
-            </View> 
- 
-            <View 
-              style={{ 
-                flexDirection: 'row', 
-                alignItems: 'center', 
-                gap: 8, 
-              }} 
-            > 
-              <TouchableOpacity 
-                onPress={handleExportExcel} 
-                disabled={exportingExcel} 
-                style={[ 
-                  styles.refreshButton, 
-                  { 
-                    backgroundColor: '#1D6F42', 
-                    opacity: exportingExcel ? 0.6 : 1, 
-                  }, 
-                ]} 
-              > 
-                {exportingExcel ? ( 
-                  <ActivityIndicator 
-                    size="small" 
-                    color="#fff" 
-                  /> 
-                ) : ( 
-                  <Ionicons 
-                    name="download-outline" 
-                    size={19} 
-                    color="#fff" 
-                  /> 
-                )} 
- 
-                {IS_WEB && ( 
-                  <Text 
-                    style={[ 
-                      styles.refreshText, 
-                      { color: '#fff' }, 
-                    ]} 
-                  > 
-                    {exportingExcel ? 'Export...' : 'Excel'} 
-                  </Text> 
-                )} 
-              </TouchableOpacity> 
- 
-              <TouchableOpacity 
-                onPress={onRefresh} 
-                style={[ 
-                  styles.refreshButton, 
-                  { 
-                    backgroundColor: 
-                      themeColors.surface, 
-                  }, 
-                ]} 
-              > 
-                <Ionicons 
-                  name="refresh-outline" 
-                  size={19} 
-                  color={ 
-                    colors.primary 
-                  } 
-                /> 
- 
-                {IS_WEB && ( 
-                  <Text 
-                    style={[ 
-                      styles.refreshText, 
-                      { 
-                        color: 
-                          colors.primary, 
-                      }, 
-                    ]} 
-                  > 
-                    Actualiser 
-                  </Text> 
-                )} 
-              </TouchableOpacity> 
-            </View> 
-          </View> 
- 
-          {/* SEARCH */} 
-          <View 
-            style={[ 
-              styles.searchContainer, 
-              { 
-                paddingHorizontal: 
-                  IS_WEB 
-                    ? horizontalPadding 
-                    : 12, 
-              }, 
-            ]} 
-          > 
-            <View 
-              style={[ 
-                styles.searchBar, 
-                { 
-                  backgroundColor: 
-                    themeColors.surface, 
-                }, 
-              ]} 
-            > 
-              <Ionicons 
-                name="search-outline" 
-                size={20} 
-                color={ 
-                  themeColors 
-                    .textSecondary 
-                } 
-              /> 
- 
-              <TextInput 
-                style={[ 
-                  styles.searchInput, 
-                  { 
-                    color: 
-                      themeColors.text, 
-                  }, 
-                ]} 
-                placeholder="Rechercher par nom, email, téléphone, CIN ou adresse..." 
-                placeholderTextColor={ 
-                  themeColors 
-                    .textSecondary 
-                } 
-                value={ 
-                  searchQuery 
-                } 
-                onChangeText={ 
-                  handleSearch 
-                } 
-              /> 
- 
-              {searchQuery.length > 
-                0 && ( 
-                <TouchableOpacity 
-                  onPress={() => 
-                    handleSearch( 
-                      '' 
-                    ) 
-                  } 
-                > 
-                  <Ionicons 
-                    name="close-circle" 
-                    size={20} 
-                    color={ 
-                      themeColors 
-                        .textSecondary 
-                    } 
-                  /> 
-                </TouchableOpacity> 
-              )} 
-            </View> 
-          </View> 
- 
-          {/* FILTERS */} 
-          <View 
-            style={[ 
-              styles.filtersContainer, 
-              { 
-                paddingHorizontal: 
-                  IS_WEB 
-                    ? horizontalPadding 
-                    : 12, 
-              }, 
-            ]} 
-          > 
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={ 
-                false 
-              } 
-              contentContainerStyle={ 
-                styles.filterScrollContent 
-              } 
-            > 
-              {filters.map( 
-                (filter) => { 
-                  const active = 
-                    selectedFilter === 
-                    filter.id; 
- 
-                  return ( 
-                    <TouchableOpacity 
-                      key={ 
-                        filter.id 
-                      } 
-                      onPress={() => 
-                        handleFilter( 
-                          filter.id 
-                        ) 
-                      } 
-                      style={[ 
-                        styles.filterButton, 
-                        { 
-                          backgroundColor: 
-                            active 
-                              ? colors.primary 
-                              : themeColors.surface, 
-                        }, 
-                      ]} 
-                    > 
-                      <Ionicons 
-                        name={ 
-                          filter.icon 
-                        } 
-                        size={15} 
-                        color={ 
-                          active 
-                            ? '#fff' 
-                            : themeColors.text 
-                        } 
-                      /> 
- 
-                      <Text 
-                        style={[ 
-                          styles.filterText, 
-                          { 
-                            color: 
-                              active 
-                                ? '#fff' 
-                                : themeColors.text, 
-                          }, 
-                        ]} 
-                      > 
-                        { 
-                          filter.label 
-                        } 
-                      </Text> 
-                    </TouchableOpacity> 
-                  ); 
-                } 
-              )} 
-            </ScrollView> 
-          </View> 
- 
-          {/* ERROR */} 
-          {error && ( 
-            <View 
-              style={[ 
-                styles.errorBanner, 
-                { 
-                  marginHorizontal: 
-                    IS_WEB 
-                      ? horizontalPadding 
-                      : 12, 
-                  backgroundColor: 
-                    '#E74C3C10', 
-                  borderColor: 
-                    '#E74C3C40', 
-                }, 
-              ]} 
-            > 
-              <Ionicons 
-                name="alert-circle-outline" 
-                size={19} 
-                color="#E74C3C" 
-              /> 
- 
-              <Text 
-                style={ 
-                  styles.errorText 
-                } 
-              > 
-                {error} 
-              </Text> 
- 
-              <TouchableOpacity 
-                onPress={() => { 
-                  setError(null); 
-                  loadTherapists(); 
-                }} 
-              > 
-                <Ionicons 
-                  name="refresh-outline" 
-                  size={18} 
-                  color="#E74C3C" 
-                /> 
-              </TouchableOpacity> 
-            </View> 
-          )} 
- 
-          {/* CONTENT */} 
-          {loading ? ( 
-            <View 
-              style={ 
-                styles.loadingContainer 
-              } 
-            > 
-              <ActivityIndicator 
-                size="large" 
-                color={ 
-                  colors.primary 
-                } 
-              /> 
- 
-              <Text 
-                style={[ 
-                  styles.loadingText, 
-                  { 
-                    color: 
-                      themeColors 
-                        .textSecondary, 
-                  }, 
-                ]} 
-              > 
-                Chargement des thérapeutes... 
-              </Text> 
-            </View> 
-          ) : filteredTherapists.length === 
-            0 ? ( 
-            <View 
-              style={ 
-                styles.emptyState 
-              } 
-            > 
-              <View 
-                style={[ 
-                  styles.emptyIcon, 
-                  { 
-                    backgroundColor: 
-                      colors.primary + 
-                      '12', 
-                  }, 
-                ]} 
-              > 
-                <Ionicons 
-                  name="fitness-outline" 
-                  size={48} 
-                  color={ 
-                    colors.primary 
-                  } 
-                /> 
-              </View> 
- 
-              <Text 
-                style={[ 
-                  styles.emptyStateTitle, 
-                  { 
-                    color: 
-                      themeColors.text, 
-                  }, 
-                ]} 
-              > 
-                Aucun thérapeute 
-              </Text> 
- 
-              <Text 
-                style={[ 
-                  styles.emptyStateText, 
-                  { 
-                    color: 
-                      themeColors 
-                        .textSecondary, 
-                  }, 
-                ]} 
-              > 
-                {searchQuery 
-                  ? 'Aucun résultat pour cette recherche.' 
-                  : 'Aucun thérapeute trouvé.'} 
-              </Text> 
-            </View> 
-          ) : isDesktop ? ( 
-            renderWebTable() 
-          ) : ( 
-            renderMobileList() 
-          )} 
-        </View> 
- 
- 
-        {/* ====================================================== 
-            ADDRESS MODAL 
-        ====================================================== */} 
- 
-        <AdminUserAddressModal 
-          visible={ 
-            showAddressModal 
-          } 
-          userId={ 
-            selectedUserForAddress?.id 
-          } 
-          userName={ 
-            selectedUserForAddress?.fullname 
-          } 
-          onClose={() => { 
-            setShowAddressModal( 
-              false 
-            ); 
- 
-            setSelectedUserForAddress( 
-              null 
-            ); 
-          }} 
-          onSaved={async ( 
-            updatedData 
-          ) => { 
-            if ( 
-              selectedTherapist && 
-              updatedData?.id === 
-                selectedTherapist.id 
-            ) { 
-              setSelectedTherapist( 
-                (prev) => ({ 
-                  ...prev, 
-                  ...updatedData, 
-                }) 
-              ); 
-            } 
- 
-            await loadTherapists(); 
- 
-            setShowAddressModal( 
-              false 
-            ); 
- 
-            setSelectedUserForAddress( 
-              null 
-            ); 
- 
-            showToast( 
-              'Adresse mise à jour avec succès', 
-              'success' 
-            ); 
-          }} 
-        /> 
- 
-        {/* ====================================================== 
-            TOAST 
-        ====================================================== */} 
- 
-        <Toast /> 
- 
-        {/* ====================================================== 
-            CONFIRM MODAL (WEB) 
-        ====================================================== */} 
- 
-        <ConfirmModal /> 
+  };
 
-        <ImageViewerModal /> 
-      </View> 
-    </SafeAreaView> 
-  ); 
-}; 
- 
-/* ================================================================ 
-   SECTION TITLE 
-================================================================ */ 
- 
-const SectionTitle = ({ 
-  title, 
-  themeColors, 
-}) => ( 
-  <Text 
-    style={[ 
-      styles.sectionTitle, 
-      { 
-        color: 
-          themeColors.text, 
-      }, 
-    ]} 
-  > 
-    {title} 
-  </Text> 
-); 
- 
-/* ================================================================ 
-   INFO ROW 
-================================================================ */ 
- 
-const InfoRow = ({ 
-  label, 
-  value, 
-  valueColor, 
-  themeColors, 
-}) => ( 
-  <View 
-    style={[ 
-      styles.modalInfoRow, 
-      { 
-        borderBottomColor: 
-          themeColors.border || 
-          '#EAEAEA', 
-      }, 
-    ]} 
-  > 
-    <Text 
-      style={[ 
-        styles.modalInfoLabel, 
-        { 
-          color: 
-            themeColors 
-              .textSecondary, 
-        }, 
-      ]} 
-    > 
-      {label} 
-    </Text> 
- 
-    <Text 
-      style={[ 
-        styles.modalInfoValue, 
-        { 
-          color: 
-            valueColor || 
-            themeColors.text, 
-        }, 
-      ]} 
-    > 
-      {value} 
-    </Text> 
-  </View> 
-); 
- 
-/* ================================================================ 
-   STYLES 
-================================================================ */ 
- 
-const styles = StyleSheet.create({ 
-  safeArea: { 
-    flex: 1, 
-  }, 
- 
-  container: { 
-    flex: 1, 
-    minHeight: 0, 
-  }, 
- 
-  mainContent: { 
-    flex: 1, 
-    minHeight: 0, 
-  }, 
- 
-  /* ============================================================ 
-     TOP BAR 
-  ============================================================ */ 
- 
-  topBar: { 
-    width: '100%', 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 
-      'space-between', 
-    paddingTop: 14, 
-    paddingBottom: 10, 
-  }, 
- 
-  titleBlock: { 
-    flex: 1, 
-  }, 
- 
-  pageTitle: { 
-    fontSize: 20, 
-    fontFamily: 
-      typography.fontFamily.bold, 
-  }, 
- 
-  pageSubtitle: { 
-    fontSize: 12, 
-    marginTop: 3, 
-    fontFamily: 
-      typography.fontFamily.regular, 
-  }, 
- 
-  refreshButton: { 
-    minHeight: 40, 
-    paddingHorizontal: 12, 
-    borderRadius: 10, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 6, 
-  }, 
- 
-  refreshText: { 
-    fontSize: 12, 
-    fontFamily: 
-      typography.fontFamily.semiBold, 
-  }, 
- 
-  /* ============================================================ 
-     SEARCH 
-  ============================================================ */ 
- 
-  searchContainer: { 
-    width: '100%', 
-    paddingBottom: 8, 
-  }, 
- 
-  searchBar: { 
-    minHeight: 46, 
-    borderRadius: 12, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingHorizontal: 14, 
-    gap: 9, 
- 
-    shadowColor: '#000', 
-    shadowOffset: { 
-      width: 0, 
-      height: 1, 
-    }, 
-    shadowOpacity: 0.04, 
-    shadowRadius: 3, 
-    elevation: 1, 
-  }, 
- 
-  searchInput: { 
-    flex: 1, 
-    minHeight: 42, 
-    fontSize: 13, 
-    fontFamily: 
-      typography.fontFamily.regular, 
-  }, 
- 
-  /* ============================================================ 
-     FILTERS 
-  ============================================================ */ 
- 
-  filtersContainer: { 
-    paddingBottom: 10, 
-  }, 
- 
-  filterScrollContent: { 
-    paddingVertical: 2, 
-    gap: 7, 
-  }, 
- 
-  filterButton: { 
-    minHeight: 36, 
-    paddingHorizontal: 13, 
-    borderRadius: 20, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 6, 
-  }, 
- 
-  filterText: { 
-    fontSize: 12, 
-    fontFamily: 
-      typography.fontFamily.medium, 
-  }, 
- 
-  /* ============================================================ 
-     ERROR 
-  ============================================================ */ 
- 
-  errorBanner: { 
-    minHeight: 42, 
-    borderRadius: 10, 
-    borderWidth: 1, 
-    paddingHorizontal: 12, 
-    marginBottom: 8, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 8, 
-  }, 
- 
-  errorText: { 
-    flex: 1, 
-    color: '#E74C3C', 
-    fontSize: 12, 
-    fontFamily: 
-      typography.fontFamily.medium, 
-  }, 
- 
-  /* ============================================================ 
-     LOADING 
-  ============================================================ */ 
- 
-  loadingContainer: { 
-    flex: 1, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    minHeight: 300, 
-  }, 
- 
-  loadingText: { 
-    marginTop: 10, 
-    fontSize: 13, 
-    fontFamily: 
-      typography.fontFamily.regular, 
-  }, 
- 
-  /* ============================================================ 
-     EMPTY 
-  ============================================================ */ 
- 
-  emptyState: { 
-    flex: 1, 
-    minHeight: 300, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    paddingHorizontal: 30, 
-  }, 
- 
-  emptyIcon: { 
-    width: 86, 
-    height: 86, 
-    borderRadius: 43, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-  }, 
- 
-  emptyStateTitle: { 
-    marginTop: 14, 
-    fontSize: 17, 
-    fontFamily: 
-      typography.fontFamily.bold, 
-  }, 
- 
-  emptyStateText: { 
-    marginTop: 5, 
-    fontSize: 13, 
-    textAlign: 'center', 
-  }, 
- 
-  /* ============================================================ 
-     WEB TABLE 
-  ============================================================ */ 
- 
-  webTableWrapper: { 
-    flex: 1, 
-    minHeight: 0, 
-    width: '100%', 
-    overflow: 'hidden', 
- 
-    shadowColor: '#000', 
-    shadowOffset: { 
-      width: 0, 
-      height: 1, 
-    }, 
-    shadowOpacity: 0.03, 
-    shadowRadius: 4, 
-  }, 
- 
-  webTableHeader: { 
-    minHeight: 48, 
-    width: '100%', 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingHorizontal: 8, 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#00000008', 
-  }, 
- 
-  webHeaderCell: { 
-    flex: 1, 
-    minWidth: 90, 
-    paddingHorizontal: 8, 
-    justifyContent: 'center', 
-  }, 
- 
-  webHeaderText: { 
-    fontSize: 10, 
-    fontFamily: 
-      typography.fontFamily.bold, 
-    letterSpacing: 0.5, 
-  }, 
- 
-  webTableScroll: { 
-    flex: 1, 
-    minHeight: 0, 
-    width: '100%', 
-  }, 
- 
-  webTableScrollContent: { 
-    width: '100%', 
-  }, 
- 
-  webTableRow: { 
-    width: '100%', 
-    minHeight: 70, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingHorizontal: 8, 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#00000006', 
-  }, 
- 
-  webCell: { 
-    flex: 1, 
-    minWidth: 90, 
-    paddingHorizontal: 8, 
-    justifyContent: 'center', 
-  }, 
- 
-  webCellTherapist: { 
-    flex: 1.45, 
-    minWidth: 180, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 9, 
-  }, 
- 
-  webTherapistInfo: { 
-    flex: 1, 
-    minWidth: 0, 
-  }, 
- 
-  webName: { 
-    fontSize: 13, 
-    fontFamily: 
-      typography.fontFamily.semiBold, 
-  }, 
- 
-  webEmail: { 
-    marginTop: 3, 
-    fontSize: 10, 
-  }, 
- 
-  webCellText: { 
-    fontSize: 11, 
-    lineHeight: 16, 
-  }, 
- 
-  webAddressCell: { 
-    flex: 1.35, 
-    minWidth: 150, 
-    flexDirection: 'row', 
-    alignItems: 'flex-start', 
-    gap: 5, 
-  }, 
- 
-  webPrice: { 
-    fontSize: 12, 
-    fontFamily: 
-      typography.fontFamily.bold, 
-  }, 
- 
-  webActionCell: { 
-    flex: 0.95, 
-    minWidth: 118, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 6, 
-  }, 
- 
-  webIconButton: { 
-    width: 32, 
-    height: 32, 
-    borderRadius: 8, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-  }, 
- 
-  webBottomSpace: { 
-    height: 24, 
-  }, 
- 
-  /* ============================================================ 
-     STATUS BADGE 
-  ============================================================ */ 
- 
-  statusBadge: { 
-    alignSelf: 'flex-start', 
-    minHeight: 26, 
-    paddingHorizontal: 8, 
-    borderRadius: 7, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 5, 
-    justifyContent: 'center', 
-  }, 
- 
-  statusBadgeText: { 
-    fontSize: 10, 
-    fontFamily: 
-      typography.fontFamily.medium, 
-  }, 
- 
-  statusBadgeDot: { 
-    width: 6, 
-    height: 6, 
-    borderRadius: 3, 
-  }, 
- 
-  /* ============================================================ 
-     PAGINATION 
-  ============================================================ */ 
- 
-  pagination: { 
-    minHeight: 54, 
-    paddingHorizontal: 12, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 
-      'space-between', 
-    borderTopWidth: 1, 
-  }, 
- 
-  paginationMobile: { 
-    minHeight: 58, 
-    marginTop: 6, 
-    marginBottom: 16, 
-    borderTopWidth: 1, 
-    borderWidth: 1, 
-    borderColor: '#00000010', 
-    borderRadius: 14, 
-    paddingHorizontal: 14, 
-    flexWrap: 'wrap', 
-    rowGap: 10, 
-  }, 
- 
-  paginationInfo: { 
-    fontSize: 11, 
-    flexShrink: 1, 
-  }, 
- 
-  paginationControls: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 7, 
-  }, 
- 
-  paginationButton: { 
-    width: 34, 
-    height: 34, 
-    borderRadius: 8, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-  }, 
- 
-  pageNumber: { 
-    width: 34, 
-    height: 34, 
-    borderRadius: 8, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-  }, 
- 
-  pageNumberText: { 
-    color: '#fff', 
-    fontSize: 12, 
-    fontFamily: 
-      typography.fontFamily.bold, 
-  }, 
- 
-  pageTotal: { 
-    fontSize: 11, 
-  }, 
- 
-  /* ============================================================ 
-     MOBILE CARD - FULL SCREEN 
-  ============================================================ */ 
- 
-  mobileListContent: { 
-    paddingTop: 3, 
-    paddingBottom: 120, 
-    paddingHorizontal: 8, 
-  }, 
- 
-  mobileCard: { 
-    width: '100%', 
-    borderRadius: 18, 
-    padding: 14, 
-    marginBottom: 10, 
- 
-    shadowColor: '#000', 
-    shadowOffset: { 
-      width: 0, 
-      height: 2, 
-    }, 
-    shadowOpacity: 0.05, 
-    shadowRadius: 5, 
-    elevation: 2, 
-  }, 
- 
-  mobileCardHeader: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-  }, 
- 
-  mobileCardIdentity: { 
-    flex: 1, 
-    marginLeft: 11, 
-    minWidth: 0, 
-  }, 
- 
-  mobileName: { 
-    fontSize: 15, 
-    fontFamily: 
-      typography.fontFamily.bold, 
-  }, 
- 
-  mobileEmail: { 
-    fontSize: 11, 
-    marginTop: 2, 
-  }, 
- 
-  mobileStatusLine: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: 6, 
-    marginTop: 6, 
-  }, 
- 
-  mobileDivider: { 
-    height: 1, 
-    width: '100%', 
-    marginVertical: 11, 
-  }, 
- 
-  mobileInfoGrid: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: 10, 
-  }, 
- 
-  mobileInfoItem: { 
-    width: '47%', 
-    minWidth: 130, 
-  }, 
- 
-  mobileInfoFull: { 
-    width: '100%', 
-  }, 
- 
-  mobileInfoLabel: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 5, 
-  }, 
- 
-  mobileLabelText: { 
-    fontSize: 10, 
-  }, 
- 
-  mobileValueText: { 
-    fontSize: 12, 
-    marginTop: 3, 
-    lineHeight: 17, 
-    fontFamily: 
-      typography.fontFamily.medium, 
-  }, 
- 
-  mobileCardFooter: { 
-    marginTop: 12, 
-    flexDirection: 'row', 
-    gap: 8, 
-  }, 
- 
-  mobileFooterButton: { 
-    flex: 1, 
-    minHeight: 38, 
-    borderRadius: 10, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 6, 
-  }, 
- 
-  mobileFooterButtonText: { 
-    fontSize: 11, 
-    fontFamily: 
-      typography.fontFamily.semiBold, 
-  }, 
- 
-  /* ============================================================ 
-     AVATAR 
-  ============================================================ */ 
- 
-  avatarWrapper: { 
-    position: 'relative', 
-  }, 
- 
-  avatarFallback: { 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-  }, 
- 
-  avatarText: { 
-    fontFamily: 
-      typography.fontFamily.bold, 
-  }, 
- 
-  avatarOnline: { 
-    position: 'absolute', 
-    right: 0, 
-    bottom: 0, 
-    borderWidth: 2, 
-    borderColor: '#fff', 
-    zIndex: 5, 
-    elevation: 5, 
-    shadowColor: '#000', 
-    shadowOffset: { 
-      width: 0, 
-      height: 1, 
-    }, 
-    shadowOpacity: 0.18, 
-    shadowRadius: 2, 
-  }, 
- 
-  /* ============================================================ 
-     MODAL - FIXED FOR ANDROID 
-  ============================================================ */ 
- 
-  modalOverlay: { 
-    flex: 1, 
-    backgroundColor: 
-      'rgba(0,0,0,0.48)', 
-    justifyContent: 'flex-end', 
-    alignItems: 'center', 
-  }, 
- 
-  modalOverlayWeb: { 
-    justifyContent: 'center', 
-    padding: 24, 
-  }, 
- 
-  modalContainer: { 
-    width: '100%', 
-    maxHeight: '92%', 
-    borderTopLeftRadius: 24, 
-    borderTopRightRadius: 24, 
-    borderRadius: 0, 
-    overflow: 'hidden', 
-  }, 
- 
-  modalContainerMobile: { 
-    maxHeight: '100%', 
-    borderTopLeftRadius: 24, 
-    borderTopRightRadius: 24, 
-    borderBottomLeftRadius: 0, 
-    borderBottomRightRadius: 0, 
-    width: '100%', 
-  }, 
- 
-  modalWebContainer: { 
-    maxHeight: '94%', 
-    borderRadius: 22, 
-  }, 
- 
-  modalHeader: { 
-    minHeight: 70, 
-    paddingHorizontal: 20, 
-    paddingTop: 16, 
-    paddingBottom: 12, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 
-      'space-between', 
-    borderBottomWidth: 1, 
-    borderBottomColor: 'rgba(0,0,0,0.05)', 
-  }, 
- 
-  modalTitle: { 
-    fontSize: 18, 
-    fontFamily: 
-      typography.fontFamily.bold, 
-  }, 
- 
-  modalSubtitle: { 
-    fontSize: 11, 
-    marginTop: 3, 
-  }, 
- 
-  modalCloseButton: { 
-    width: 38, 
-    height: 38, 
-    borderRadius: 12, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-  }, 
- 
-  modalScrollContent: { 
-    paddingHorizontal: 20, 
-    paddingBottom: 30, 
-  }, 
- 
-  /* ============================================================ 
-     PROFILE 
-  ============================================================ */ 
- 
-  profileHeader: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingVertical: 8, 
-    marginBottom: 10, 
-  }, 
- 
-  profileHeaderInfo: { 
-    flex: 1, 
-    marginLeft: 14, 
-  }, 
- 
-  modalName: { 
-    fontSize: 18, 
-    fontFamily: 
-      typography.fontFamily.bold, 
-  }, 
- 
-  modalEmail: { 
-    fontSize: 12, 
-    marginTop: 3, 
-  }, 
- 
-  profileBadges: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', 
-    gap: 6, 
-    marginTop: 7, 
-  }, 
- 
-  /* ============================================================ 
-     SECTION 
-  ============================================================ */ 
- 
-  sectionTitle: { 
-    fontSize: 14, 
-    fontFamily: 
-      typography.fontFamily.bold, 
-    marginTop: 13, 
-    marginBottom: 8, 
-  }, 
- 
-  infoGrid: { 
-    width: '100%', 
-  }, 
- 
-  modalInfoRow: { 
-    minHeight: 42, 
-    paddingVertical: 9, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 
-      'space-between', 
-    borderBottomWidth: 1, 
-  }, 
- 
-  modalInfoLabel: { 
-    flex: 1, 
-    fontSize: 12, 
-    fontFamily: 
-      typography.fontFamily.medium, 
-  }, 
- 
-  modalInfoValue: { 
-    flex: 1.4, 
-    textAlign: 'right', 
-    fontSize: 12, 
-    fontFamily: 
-      typography.fontFamily.medium, 
-  }, 
- 
-  /* ============================================================ 
-     SWITCH 
-  ============================================================ */ 
- 
-  switchBox: { 
-    marginTop: 12, 
-    padding: 12, 
-    borderRadius: 14, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 
-      'space-between', 
-  }, 
- 
-  switchTitle: { 
-    fontSize: 12, 
-    fontFamily: 
-      typography.fontFamily.semiBold, 
-  }, 
- 
-  switchSubtitle: { 
-    fontSize: 10, 
-    marginTop: 2, 
-  }, 
- 
-  switchRight: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 6, 
-  }, 
- 
-  switchStatus: { 
-    fontSize: 10, 
-    fontFamily: 
-      typography.fontFamily.semiBold, 
-  }, 
- 
-  /* ============================================================ 
-     ADDRESS 
-  ============================================================ */ 
- 
-  addressBox: { 
-    borderWidth: 1, 
-    borderRadius: 16, 
-    padding: 14, 
-  }, 
- 
-  addressBoxHeader: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-  }, 
- 
-  addressIcon: { 
-    width: 42, 
-    height: 42, 
-    borderRadius: 13, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-  }, 
- 
-  addressBoxTitleContainer: { 
-    flex: 1, 
-    marginLeft: 10, 
-  }, 
- 
-  addressBoxTitle: { 
-    fontSize: 13, 
-    fontFamily: 
-      typography.fontFamily.bold, 
-  }, 
- 
-  addressBoxSubtitle: { 
-    fontSize: 10, 
-    marginTop: 2, 
-  }, 
- 
-  fullAddressText: { 
-    fontSize: 13, 
-    lineHeight: 20, 
-    marginTop: 13, 
-    fontFamily: 
-      typography.fontFamily.medium, 
-  }, 
- 
-  coordinatesContainer: { 
-    marginTop: 9, 
-    paddingTop: 9, 
-    borderTopWidth: 1, 
-    borderTopColor: 
-      '#00000010', 
-    gap: 3, 
-  }, 
- 
-  coordinateText: { 
-    fontSize: 10, 
-  }, 
- 
-  modalAddressButton: { 
-    marginTop: 12, 
-    minHeight: 42, 
-    borderRadius: 10, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 7, 
-  }, 
- 
-  modalAddressButtonText: { 
-    color: '#fff', 
-    fontSize: 11, 
-    fontFamily: 
-      typography.fontFamily.semiBold, 
-  }, 
- 
-  /* ============================================================ 
-     DOCUMENT 
-  ============================================================ */ 
- 
-  documentSection: { 
-    borderWidth: 1, 
-    borderColor: '#00000010', 
-    borderRadius: 16, 
-    padding: 14, 
-  }, 
- 
-  documentNumberRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 8, 
-    marginBottom: 10, 
-  }, 
- 
-  documentNumber: { 
-    fontSize: 13, 
-    fontFamily: 
-      typography.fontFamily.semiBold, 
-  }, 
- 
-  cinImageWrapper: { 
-    width: '100%', 
-    height: 220, 
-    borderRadius: 12, 
-    overflow: 'hidden', 
-    marginBottom: 10, 
-  }, 
+  /* ==========================================================
+     DOWNLOAD
+  ========================================================== */
 
-  cinImage: { 
-    width: '100%', 
-    height: 220, 
-    borderRadius: 12, 
-    backgroundColor: '#F5F5F5', 
-  }, 
+  // ✅ Récupère le token JWT stocké côté client, quelle que soit la clé
+  // utilisée par le AuthContext (adapte la liste ci-dessous si besoin).
+  const getAuthToken = async () => {
+    const possibleKeys = [
+      'authToken',
+      'token',
+      'accessToken',
+      'access_token',
+      'jwt',
+      'userToken',
+    ];
 
-  docZoomBadge: { 
-    position: 'absolute', 
-    top: 8, 
-    right: 8, 
-    width: 26, 
-    height: 26, 
-    borderRadius: 13, 
-    backgroundColor: 'rgba(15,23,42,0.55)', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-  }, 
+    try {
+      for (const key of possibleKeys) {
+        const value = await AsyncStorage.getItem(key);
 
-  downloadButton: { 
-    width: '100%', 
-    minHeight: 52, 
-    borderRadius: 13, 
-    paddingHorizontal: 16, 
-    backgroundColor: 
-      colors.primary, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 9, 
-    marginTop: 4, 
+        if (value) {
+          // Certains projets stockent directement le token,
+          // d'autres stockent un objet JSON { token: '...' }
+          try {
+            const parsed = JSON.parse(value);
 
-    shadowColor: colors.primary, 
-    shadowOffset: { 
-      width: 0, 
-      height: 4, 
-    }, 
-    shadowOpacity: 0.28, 
-    shadowRadius: 9, 
-    elevation: 4, 
-  }, 
+            if (parsed && typeof parsed === 'object' && parsed.token) {
+              return parsed.token;
+            }
+          } catch {
+            // value n'est pas du JSON, c'est probablement le token brut
+          }
 
-  downloadButtonText: { 
-    color: '#fff', 
-    fontSize: 14, 
-    letterSpacing: 0.2, 
-    fontFamily: 
-      typography.fontFamily.bold, 
-  }, 
- 
-  noDocumentBox: { 
-    minHeight: 45, 
-    borderRadius: 10, 
-    padding: 10, 
-    backgroundColor: 
-      '#E74C3C10', 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 8, 
-  }, 
- 
-  noDocumentText: { 
-    flex: 1, 
-    color: '#E74C3C', 
-    fontSize: 11, 
-  }, 
- 
-  noCertificateText: { 
-    flex: 1, 
-    fontSize: 11, 
-  }, 
- 
-  certificateLoading: { 
-    minHeight: 50, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 8, 
-  }, 
- 
-  certificateLoadingText: { 
-    fontSize: 11, 
-  }, 
- 
-  /* ============================================================ 
-     BIO 
-  ============================================================ */ 
- 
-  bioBox: { 
-    padding: 13, 
-    borderRadius: 14, 
-    backgroundColor: 
-      '#00000005', 
-  }, 
- 
-  bioText: { 
-    fontSize: 12, 
-    lineHeight: 19, 
-  }, 
- 
-  /* ============================================================ 
-     ACTIONS 
-  ============================================================ */ 
- 
-  modalActions: { 
-    marginTop: 16, 
-    paddingTop: 5, 
-    flexDirection: 'row', 
-    gap: 9, 
-  }, 
- 
-  modalAction: { 
-    flex: 1, 
-    minHeight: 44, 
-    borderRadius: 11, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 7, 
-  }, 
- 
-  modalActionText: { 
-    color: '#fff', 
-    fontSize: 12, 
-    fontFamily: 
-      typography.fontFamily.semiBold, 
-  }, 
- 
-  /* ============================================================ 
-     TOAST 
-  ============================================================ */ 
- 
-  toastPosition: { 
-    position: 'absolute', 
-    top: IS_WEB ? 70 : 62, 
-    left: 0, 
-    right: 0, 
-    zIndex: 99999, 
-    elevation: 99999, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    pointerEvents: 'none', 
-  }, 
- 
-  toast: { 
-    minHeight: 52, 
-    maxWidth: IS_WEB 
-      ? 520 
-      : '88%', 
-    minWidth: IS_WEB 
-      ? 300 
-      : undefined, 
- 
-    paddingVertical: 8, 
-    paddingHorizontal: 12, 
- 
-    borderRadius: 13, 
-    borderLeftWidth: 4, 
- 
-    flexDirection: 'row', 
-    alignItems: 'center', 
- 
-    shadowColor: '#000', 
-    shadowOffset: { 
-      width: 0, 
-      height: 5, 
-    }, 
-    shadowOpacity: 0.14, 
-    shadowRadius: 12, 
-    elevation: 10, 
-  }, 
- 
-  toastIcon: { 
-    width: 34, 
-    height: 34, 
-    borderRadius: 10, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-  }, 
- 
-  toastText: { 
-    flex: 1, 
-    marginLeft: 9, 
-    fontSize: 12, 
-    lineHeight: 17, 
-    fontFamily: 
-      typography.fontFamily.medium, 
-  }, 
- 
-  /* ============================================================ 
-     CONFIRM MODAL (WEB) 
-  ============================================================ */ 
- 
-  confirmOverlay: { 
-    flex: 1, 
-    backgroundColor: 'rgba(0,0,0,0.5)', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    padding: 20, 
-  }, 
- 
-  confirmBox: { 
-    width: '100%', 
-    maxWidth: 380, 
-    borderRadius: 18, 
-    padding: 24, 
-    alignItems: 'center', 
- 
-    shadowColor: '#000', 
-    shadowOffset: { 
-      width: 0, 
-      height: 8, 
-    }, 
-    shadowOpacity: 0.2, 
-    shadowRadius: 20, 
-    elevation: 10, 
-  }, 
- 
-  confirmIconWrap: { 
-    width: 54, 
-    height: 54, 
-    borderRadius: 27, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    marginBottom: 14, 
-  }, 
- 
-  confirmTitle: { 
-    fontSize: 16, 
-    fontFamily: 
-      typography.fontFamily.bold, 
-    textAlign: 'center', 
-  }, 
- 
-  confirmMessage: { 
-    fontSize: 13, 
-    lineHeight: 19, 
-    textAlign: 'center', 
-    marginTop: 8, 
-    marginBottom: 20, 
-  }, 
- 
-  confirmActions: { 
-    flexDirection: 'row', 
-    width: '100%', 
-    gap: 10, 
-  }, 
- 
-  confirmButton: { 
-    flex: 1, 
-    minHeight: 44, 
-    borderRadius: 11, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-  }, 
- 
-  confirmButtonText: { 
-    fontSize: 13, 
-    fontFamily: 
-      typography.fontFamily.semiBold, 
-  }, 
- 
-  confirmButtonTextWhite: { 
-    fontSize: 13, 
-    fontFamily: 
-      typography.fontFamily.semiBold, 
-    color: '#fff', 
-  }, 
- 
-  /* ================================================================ 
-     CERTIFICAT PROFESSIONNEL (televerse par le therapeute) 
-  ================================================================ */ 
- 
-  certProPreview: { 
-    width: '100%', 
-    height: 220, 
-    borderRadius: 12, 
-    overflow: 'hidden', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    backgroundColor: '#F5F5F5', 
-    marginBottom: 10, 
-  }, 
- 
-  certProImage: { 
-    width: '100%', 
-    height: '100%', 
-  }, 
- 
-  certProPdfBox: { 
-    width: '100%', 
-    height: '100%', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 8, 
-    paddingHorizontal: 16, 
-  }, 
- 
-  certProPdfText: { 
-    fontSize: 11, 
-    textAlign: 'center', 
-    fontFamily: typography.fontFamily.medium, 
-  }, 
- 
-  certProZoomBadge: { 
-    position: 'absolute', 
-    top: 8, 
-    right: 8, 
-    width: 26, 
-    height: 26, 
-    borderRadius: 13, 
-    backgroundColor: 'rgba(15,23,42,0.55)', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-  }, 
- 
-  /* ================================================================ 
-     VISIONNEUSE PLEIN ECRAN 
-  ================================================================ */ 
- 
-  viewerOverlay: { 
-    flex: 1, 
-    backgroundColor: 'rgba(8,10,20,0.92)', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    padding: IS_WEB ? 24 : 10, 
-  }, 
- 
-  viewerContainer: { 
-    width: IS_WEB ? 'min(720px, 94vw)' : '100%', 
-    height: IS_WEB ? 'min(88vh, 800px)' : '92%', 
-    borderRadius: 16, 
-    overflow: 'hidden', 
-    padding: 12, 
-  }, 
- 
-  viewerHeader: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    marginBottom: 8, 
-  }, 
- 
-  viewerTitle: { 
-    flex: 1, 
-    fontSize: 14, 
-    fontFamily: typography.fontFamily.semiBold, 
-    marginRight: 8, 
-  }, 
- 
-  viewerCloseButton: { 
-    width: 32, 
-    height: 32, 
-    borderRadius: 16, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    backgroundColor: 'rgba(148,163,184,0.18)', 
-  }, 
- 
-  viewerImageWrapper: { 
-    flex: 1, 
-    borderRadius: 12, 
-    backgroundColor: '#0B0F19', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    overflow: 'hidden', 
-    marginBottom: 12, 
-  }, 
- 
-  viewerImage: { 
-    width: '100%', 
-    height: '100%', 
-  }, 
- 
-  viewerPdfBox: { 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 12, 
-    paddingHorizontal: 24, 
-  }, 
- 
-  viewerPdfText: { 
-    fontSize: 13, 
-    textAlign: 'center', 
-    lineHeight: 19, 
-    fontFamily: typography.fontFamily.medium, 
-  }, 
- 
-  viewerDownloadButton: { 
-    minHeight: 46, 
-    borderRadius: 12, 
-    backgroundColor: colors.primary, 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: 8, 
-  }, 
- 
-  viewerDownloadButtonText: { 
-    color: '#fff', 
-    fontSize: 14, 
-    fontFamily: typography.fontFamily.semiBold, 
-  }, 
-}); 
- 
+          return value;
+        }
+      }
+    } catch (err) {
+      console.warn('Impossible de récupérer le token auth:', err);
+    }
+
+    return null;
+  };
+
+  const handleDownload = async (
+    url,
+    suggestedFileName = 'document.pdf'
+  ) => {
+    if (!url) {
+      showToast(
+        'Document indisponible',
+        'error'
+      );
+
+      return;
+    }
+
+    try {
+      const fullUrl =
+        url.startsWith('http')
+          ? url
+          : `${API_URL}${url}`;
+
+      if (IS_WEB) {
+        // ✅ Sur le web, window.open() fait une simple navigation
+        // du navigateur : aucun header Authorization n'est envoyé,
+        // donc l'endpoint protégé (admin) le refuse.
+        // On récupère le token JWT et on télécharge le fichier
+        // nous-même en blob, puis on force le téléchargement.
+        const token = await getAuthToken();
+
+        const response = await fetch(fullUrl, {
+          headers: token
+            ? { Authorization: `Bearer ${token}` }
+            : {},
+        });
+
+        if (!response.ok) {
+          if (response.status === 401 || response.status === 403) {
+            throw new Error(
+              'Accès refusé : vous devez être connecté en tant qu\'administrateur'
+            );
+          }
+
+          throw new Error(`Erreur ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+
+        // Essaye de récupérer le nom de fichier renvoyé par le serveur
+        let fileName = suggestedFileName;
+        const disposition = response.headers.get('content-disposition');
+
+        if (disposition) {
+          const match = disposition.match(/filename="?([^"]+)"?/);
+
+          if (match && match[1]) {
+            fileName = match[1];
+          }
+        }
+
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        window.URL.revokeObjectURL(blobUrl);
+
+        showToast(
+          'Téléchargement démarré',
+          'success'
+        );
+      } else {
+        const canOpen =
+          await Linking.canOpenURL(
+            fullUrl
+          );
+
+        if (canOpen) {
+          await Linking.openURL(
+            fullUrl
+          );
+        } else {
+          showToast(
+            'Impossible d’ouvrir le document',
+            'error'
+          );
+        }
+      }
+    } catch (err) {
+      console.error(
+        'Download error:',
+        err
+      );
+
+      showToast(
+        err?.message || 'Échec du téléchargement',
+        'error'
+      );
+    }
+  };
+
+  /* ==========================================================
+     CONFIRM HELPER
+  ========================================================== */
+
+  const confirmAction = (
+    title,
+    message,
+    onConfirm,
+    destructive = false
+  ) => {
+    // ✅ react-native-web n'implémente pas Alert.alert : sur le web,
+    // l'appel ne fait rien et aucune boîte de dialogue n'apparaît.
+    // On affiche donc une modale personnalisée stylée sur le web,
+    // et on garde Alert.alert natif sur Android/iOS (déjà fonctionnel).
+    if (IS_WEB) {
+      setConfirmModalConfig({
+        title,
+        message,
+        onConfirm,
+        destructive,
+      });
+
+      setConfirmModalVisible(true);
+
+      return;
+    }
+
+    Alert.alert(
+      title,
+      message,
+      [
+        {
+          text: 'Annuler',
+          style: 'cancel',
+        },
+        {
+          text: 'Confirmer',
+          style:
+            destructive
+              ? 'destructive'
+              : 'default',
+          onPress:
+            onConfirm,
+        },
+      ]
+    );
+  };
+
+  /* ==========================================================
+     ONLINE STATUS
+  ========================================================== */
+
+  const toggleOnlineStatus = (
+    therapist
+  ) => {
+    if (!therapist?.id) return;
+
+    const newStatus =
+      !therapist.is_online;
+
+    const statusText =
+      newStatus
+        ? 'en ligne'
+        : 'hors ligne';
+
+    confirmAction(
+      newStatus
+        ? 'Mettre en ligne'
+        : 'Mettre hors ligne',
+      `Voulez-vous mettre ${
+        therapist.fullname ||
+        'ce thérapeute'
+      } ${statusText} ?`,
+      async () => {
+        try {
+          await adminService.toggleTherapistStatus(
+            therapist.id,
+            newStatus
+          );
+
+          await loadTherapists();
+
+          setSelectedTherapist(
+            (prev) =>
+              prev
+                ? {
+                    ...prev,
+                    is_online:
+                      newStatus,
+                  }
+                : prev
+          );
+
+          showToast(
+            `Thérapeute ${statusText} avec succès`,
+            'success'
+          );
+        } catch (_err) {
+          showToast(
+            `Impossible de modifier le statut`,
+            'error'
+          );
+        }
+      }
+    );
+  };
+
+  /* ==========================================================
+     ACTIVE STATUS
+  ========================================================== */
+
+  const toggleActiveStatus = (
+    therapist
+  ) => {
+    if (!therapist?.id) return;
+
+    const newStatus =
+      !therapist.is_active;
+
+    const action =
+      newStatus
+        ? 'activer'
+        : 'désactiver';
+
+    confirmAction(
+      `${
+        newStatus
+          ? 'Activer'
+          : 'Désactiver'
+      } le compte`,
+      `Voulez-vous ${action} le compte de ${
+        therapist.fullname ||
+        'ce thérapeute'
+      } ?`,
+      async () => {
+        try {
+          await adminService.toggleUserStatus(
+            therapist.id,
+            newStatus
+          );
+
+          await loadTherapists();
+
+          setSelectedTherapist(
+            (prev) =>
+              prev
+                ? {
+                    ...prev,
+                    is_active:
+                      newStatus,
+                  }
+                : prev
+          );
+
+          showToast(
+            `Compte ${
+              newStatus
+                ? 'activé'
+                : 'désactivé'
+            } avec succès`,
+            'success'
+          );
+        } catch (_err) {
+          showToast(
+            `Impossible de ${action} le compte`,
+            'error'
+          );
+        }
+      }
+    );
+  };
+
+  /* ==========================================================
+     DELETE
+  ========================================================== */
+
+  const handleDeleteTherapist = (
+    therapist
+  ) => {
+    if (!therapist?.id) return;
+
+    confirmAction(
+      'Suppression définitive',
+      `Voulez-vous supprimer définitivement ${
+        therapist.fullname ||
+        'ce thérapeute'
+      } ? Cette action est irréversible.`,
+      async () => {
+        try {
+          await adminService.deleteUser(
+            therapist.id,
+            true
+          );
+
+          setShowModal(false);
+          setSelectedTherapist(null);
+
+          await loadTherapists();
+
+          showToast(
+            'Thérapeute supprimé définitivement',
+            'success'
+          );
+        } catch (_err) {
+          showToast(
+            'Impossible de supprimer le thérapeute',
+            'error'
+          );
+        }
+      },
+      true
+    );
+  };
+
+  /* ==========================================================
+     STATUS
+  ========================================================== */
+
+  const getStatusColor = (
+    status
+  ) => {
+    const map = {
+      approved: '#27AE60',
+      pending: '#F5A623',
+      rejected: '#E74C3C',
+    };
+
+    return (
+      map[status] ||
+      '#999999'
+    );
+  };
+
+  const getStatusLabel = (
+    status
+  ) => {
+    const map = {
+      approved: 'Vérifié',
+      pending: 'En attente',
+      rejected: 'Rejeté',
+    };
+
+    return (
+      map[status] ||
+      'Non défini'
+    );
+  };
+
+  const getActiveStatusColor = (
+    active
+  ) =>
+    active
+      ? '#27AE60'
+      : '#E74C3C';
+
+  const getActiveStatusLabel = (
+    active
+  ) =>
+    active
+      ? 'Actif'
+      : 'Inactif';
+
+  const formatDate = (
+    dateString
+  ) => {
+    if (!dateString) {
+      return 'N/A';
+    }
+
+    try {
+      const date =
+        new Date(dateString);
+
+      return `${date.getFullYear()}-${String(
+        date.getMonth() + 1
+      ).padStart(2, '0')}-${String(
+        date.getDate()
+      ).padStart(2, '0')}`;
+    } catch {
+      return dateString;
+    }
+  };
+
+  /* ==========================================================
+     EXPORT EXCEL — liste filtrée (web + android)
+  ========================================================== */
+
+  const handleExportExcel = async () => {
+    if (!filteredTherapists || filteredTherapists.length === 0) {
+      showToast('Aucun thérapeute à exporter', 'error');
+      return;
+    }
+
+    setExportingExcel(true);
+
+    try {
+      await exportToExcel({
+        data: filteredTherapists,
+        fileName: `therapeutes_${new Date()
+          .toISOString()
+          .slice(0, 10)}`,
+        sheetName: 'Thérapeutes',
+        columns: [
+          { header: 'ID', accessor: (t) => t.id },
+          { header: 'Nom complet', accessor: (t) => t.fullname || '' },
+          { header: 'Email', accessor: (t) => t.email || '' },
+          { header: 'Téléphone', accessor: (t) => t.phone || '' },
+          { header: 'CIN', accessor: (t) => t.cin_number || '' },
+          { header: 'Adresse', accessor: (t) => getFullAddress(t) },
+          {
+            header: 'Prix (Ar)',
+            accessor: (t) => Number(t.base_price || 0),
+          },
+          {
+            header: 'Vérification',
+            accessor: (t) => getStatusLabel(t.verification_status),
+          },
+          {
+            header: 'Compte',
+            accessor: (t) => getActiveStatusLabel(t.is_active),
+          },
+          {
+            header: 'En ligne',
+            accessor: (t) => (t.is_online ? 'En ligne' : 'Hors ligne'),
+          },
+          {
+            header: 'Date création',
+            accessor: (t) => formatDate(t.created_at),
+          },
+        ],
+      });
+
+      showToast('Export Excel réussi', 'success');
+    } catch (err) {
+      console.error('Export Excel error:', err);
+      showToast(err?.message || "Échec de l'export Excel", 'error');
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  /* ==========================================================
+     AVATAR
+  ========================================================== */
+
+  const Avatar = ({
+    therapist,
+    size = 44,
+  }) => {
+    const initials =
+      therapist?.fullname
+        ?.charAt(0)
+        ?.toUpperCase() ||
+      '?';
+
+    return (
+      <View
+        style={[
+          styles.avatarWrapper,
+          {
+            width: size,
+            height: size,
+            borderRadius:
+              size * 0.28,
+          },
+        ]}
+      >
+        {therapist?.profile_image ? (
+          <Image
+            source={{
+              uri: therapist.profile_image,
+            }}
+            style={{
+              width: size,
+              height: size,
+              borderRadius:
+                size * 0.28,
+            }}
+          />
+        ) : (
+          <View
+            style={[
+              styles.avatarFallback,
+              {
+                width: size,
+                height: size,
+                borderRadius:
+                  size * 0.28,
+                backgroundColor:
+                  colors.primary +
+                  '18',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.avatarText,
+                {
+                  color:
+                    colors.primary,
+                  fontSize:
+                    size * 0.4,
+                },
+              ]}
+            >
+              {initials}
+            </Text>
+          </View>
+        )}
+
+        <View
+          style={[
+            styles.avatarOnline,
+            {
+              backgroundColor:
+                therapist?.is_online
+                  ? '#27AE60'
+                  : '#999999',
+              width:
+                Math.max(size * 0.28, 12),
+              height:
+                Math.max(size * 0.28, 12),
+              borderRadius:
+                Math.max(size * 0.28, 12) / 2,
+              right:
+                -Math.max(size * 0.28, 12) * 0.12,
+              bottom:
+                -Math.max(size * 0.28, 12) * 0.12,
+            },
+          ]}
+        />
+      </View>
+    );
+  };
+
+  /* ==========================================================
+     STATUS BADGE
+  ========================================================== */
+
+  const StatusBadge = ({
+    label,
+    color,
+    dot = false,
+  }) => (
+    <View
+      style={[
+        styles.statusBadge,
+        {
+          backgroundColor:
+            color + '14',
+        },
+      ]}
+    >
+      {dot && (
+        <View
+          style={[
+            styles.statusBadgeDot,
+            {
+              backgroundColor:
+                color,
+            },
+          ]}
+        />
+      )}
+
+      <Text
+        style={[
+          styles.statusBadgeText,
+          WEB_WRAP,
+          {
+            color,
+          },
+        ]}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+
+  /* ==========================================================
+     WEB TABLE ROW
+  ========================================================== */
+
+  const WebTableRow = ({
+    item,
+  }) => {
+    const [hovered, setHovered] =
+      useState(false);
+
+    const address =
+      getFullAddress(item);
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() =>
+          openTherapistDetails(item)
+        }
+        {...(IS_WEB
+          ? {
+              onMouseEnter: () =>
+                setHovered(true),
+              onMouseLeave: () =>
+                setHovered(false),
+            }
+          : {})}
+        style={[
+          styles.webTableRow,
+          {
+            backgroundColor:
+              hovered
+                ? themeColors.background
+                : themeColors.surface,
+          },
+        ]}
+      >
+        {/* THERAPEUTE */}
+        <View
+          style={[
+            styles.webCell,
+            styles.webCellTherapist,
+          ]}
+        >
+          <Avatar
+            therapist={item}
+            size={42}
+          />
+
+          <View
+            style={
+              styles.webTherapistInfo
+            }
+          >
+            <Text
+              style={[
+                styles.webName,
+                WEB_WRAP,
+                {
+                  color:
+                    themeColors.text,
+                },
+              ]}
+            >
+              {item.fullname ||
+                'Thérapeute'}
+            </Text>
+
+            <Text
+              style={[
+                styles.webEmail,
+                WEB_WRAP,
+                {
+                  color:
+                    themeColors
+                      .textSecondary,
+                },
+              ]}
+            >
+              {item.email ||
+                'Email non renseigné'}
+            </Text>
+          </View>
+        </View>
+
+        {/* TELEPHONE */}
+        <View
+          style={[styles.webCell, styles.webCellPhone]}
+        >
+          <Text
+            style={[
+              styles.webCellText,
+              WEB_WRAP,
+              {
+                color:
+                  themeColors.text,
+              },
+            ]}
+          >
+            {item.phone ||
+              'N/A'}
+          </Text>
+        </View>
+
+        {/* CIN */}
+        <View
+          style={[styles.webCell, styles.webCellCin]}
+        >
+          <Text
+            style={[
+              styles.webCellText,
+              WEB_WRAP,
+              {
+                color:
+                  item.cin_number
+                    ? themeColors.text
+                    : '#E74C3C',
+              },
+            ]}
+          >
+            {item.cin_number ||
+              'Non renseigné'}
+          </Text>
+        </View>
+
+        {/* ADRESSE */}
+        <View
+          style={[
+            styles.webCell,
+            styles.webAddressCell,
+          ]}
+        >
+          <Ionicons
+            name="location-outline"
+            size={16}
+            color={colors.primary}
+          />
+
+          <Text
+            style={[
+              styles.webCellText,
+              WEB_WRAP,
+              {
+                flex: 1,
+                color:
+                  themeColors
+                    .textSecondary,
+              },
+            ]}
+          >
+            {address}
+          </Text>
+        </View>
+
+        {/* VERIFICATION */}
+        <View
+          style={[styles.webCell, styles.webCellVerif]}
+        >
+          <StatusBadge
+            label={getStatusLabel(
+              item.verification_status
+            )}
+            color={getStatusColor(
+              item.verification_status
+            )}
+          />
+        </View>
+
+        {/* ACTIF */}
+        <View
+          style={[styles.webCell, styles.webCellAccount]}
+        >
+          <StatusBadge
+            label={getActiveStatusLabel(
+              item.is_active
+            )}
+            color={getActiveStatusColor(
+              item.is_active
+            )}
+          />
+        </View>
+
+        {/* ONLINE */}
+        <View
+          style={[styles.webCell, styles.webCellStatus]}
+        >
+          <StatusBadge
+            label={
+              item.is_online
+                ? 'En ligne'
+                : 'Hors ligne'
+            }
+            color={
+              item.is_online
+                ? '#27AE60'
+                : '#999999'
+            }
+            dot
+          />
+        </View>
+
+        {/* PRIX */}
+        <View
+          style={[styles.webCell, styles.webCellPrice]}
+        >
+          <Text
+            style={[
+              styles.webPrice,
+              {
+                color:
+                  colors.primary,
+              },
+            ]}
+          >
+            {Number(
+              item.base_price || 0
+            ).toLocaleString()}{' '}
+            Ar
+          </Text>
+        </View>
+
+        {/* ACTION */}
+        <View
+          style={[
+            styles.webCell,
+            styles.webActionCell,
+          ]}
+        >
+          <TouchableOpacity
+            style={[
+              styles.webIconButton,
+              {
+                backgroundColor:
+                  colors.primary +
+                  '12',
+              },
+            ]}
+            onPress={(e) => {
+              e?.stopPropagation?.();
+              openTherapistDetails(
+                item
+              );
+            }}
+          >
+            <Ionicons
+              name="eye-outline"
+              size={16}
+              color={
+                colors.primary
+              }
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.webIconButton,
+              {
+                backgroundColor:
+                  getActiveStatusColor(
+                    item.is_active
+                  ) + '12',
+              },
+            ]}
+            onPress={(e) => {
+              e?.stopPropagation?.();
+              toggleActiveStatus(item);
+            }}
+          >
+            <Ionicons
+              name={
+                item.is_active
+                  ? 'person-remove-outline'
+                  : 'person-add-outline'
+              }
+              size={16}
+              color={getActiveStatusColor(
+                item.is_active
+              )}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.webIconButton,
+              {
+                backgroundColor: '#E74C3C12',
+              },
+            ]}
+            onPress={(e) => {
+              e?.stopPropagation?.();
+              handleDeleteTherapist(item);
+            }}
+          >
+            <Ionicons
+              name="trash-outline"
+              size={16}
+              color="#E74C3C"
+            />
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  /* ==========================================================
+     MOBILE CARD - FULL SCREEN
+  ========================================================== */
+
+  const MobileCard = ({ item }) => {
+    const address = getFullAddress(item);
+    const isOnline = !!item.is_online;
+    const price = `${Number(item.base_price || 0).toLocaleString()} Ar`;
+
+    return (
+      <TouchableOpacity
+        activeOpacity={0.92}
+        onPress={() => openTherapistDetails(item)}
+        style={[
+          styles.mobileCard,
+          {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.border || '#E8E8E8',
+          },
+        ]}
+      >
+        <View style={styles.mobileCardHeader}>
+          <Avatar therapist={item} size={60} />
+
+          <View style={styles.mobileCardIdentity}>
+            <View style={styles.mobileTopRow}>
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.mobileName,
+                  {
+                    color: themeColors.text,
+                  },
+                ]}
+              >
+                {item.fullname || 'Thérapeute'}
+              </Text>
+
+              <StatusBadge
+                label={getStatusLabel(item.verification_status)}
+                color={getStatusColor(item.verification_status)}
+              />
+            </View>
+
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.mobileEmail,
+                {
+                  color: themeColors.textSecondary,
+                },
+              ]}
+            >
+              {item.email || 'Email non renseigné'}
+            </Text>
+
+            <View style={styles.mobileInfoGrid}>
+              <MobileInfo
+                icon="call-outline"
+                label="Téléphone"
+                value={item.phone || 'N/A'}
+                themeColors={themeColors}
+              />
+
+              <MobileInfo
+                icon="location-outline"
+                label="Adresse"
+                value={address}
+                themeColors={themeColors}
+                full
+              />
+
+              <MobileInfo
+                icon="card-outline"
+                label="CIN"
+                showLabel
+                value={item.cin_number || 'Non renseigné'}
+                themeColors={themeColors}
+              />
+            </View>
+
+            <View style={styles.mobileBottomRow}>
+              <StatusBadge
+                label={isOnline ? 'En ligne' : 'Hors ligne'}
+                color={isOnline ? '#27AE60' : '#999999'}
+                dot
+              />
+
+              <Text
+                style={[
+                  styles.mobilePrice,
+                  {
+                    color: colors.primary,
+                  },
+                ]}
+              >
+                {price}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.mobileCardFooter,
+            {
+              borderTopColor: themeColors.border || '#E8E8E8',
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={styles.mobileFooterButton}
+            onPress={() => {
+              setSelectedUserForAddress(item);
+              setShowAddressModal(true);
+            }}
+          >
+            <Ionicons name="map-outline" size={16} color={colors.primary} />
+
+            <Text
+              style={[
+                styles.mobileFooterButtonText,
+                {
+                  color: colors.primary,
+                },
+              ]}
+            >
+              Carte
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.mobileFooterButton}
+            onPress={() => toggleActiveStatus(item)}
+          >
+            <Ionicons
+              name={item.is_active ? 'person-remove-outline' : 'person-add-outline'}
+              size={16}
+              color={getActiveStatusColor(item.is_active)}
+            />
+
+            <Text
+              style={[
+                styles.mobileFooterButtonText,
+                {
+                  color: getActiveStatusColor(item.is_active),
+                },
+              ]}
+            >
+              {item.is_active ? 'Désactiver' : 'Activer'}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.mobileFooterSpacer} />
+
+          <TouchableOpacity
+            style={styles.mobileFooterButton}
+            onPress={() => openTherapistDetails(item)}
+          >
+            <Ionicons
+              name="ellipsis-horizontal"
+              size={16}
+              color={themeColors.textSecondary}
+            />
+
+            <Text
+              style={[
+                styles.mobileFooterButtonText,
+                {
+                  color: themeColors.textSecondary,
+                },
+              ]}
+            >
+              Plus
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  /* ==========================================================
+     WEB TABLE
+  ========================================================== */
+
+  const renderWebTable = () => {
+    const sidePadding = Math.max(horizontalPadding || 0, 16);
+    const windowHeight = IS_WEB && typeof window !== 'undefined' ? window.innerHeight : 800;
+
+    return (
+      <View
+        style={[
+          styles.webTableWrapper,
+          {
+            backgroundColor: themeColors.surface,
+            borderColor: themeColors.border || '#EAEAEA',
+            marginHorizontal: sidePadding,
+            ...(IS_WEB ? { maxHeight: Math.max(windowHeight - 300, 320) } : null),
+          },
+        ]}
+      >
+        {/* Seul le contenu du tableau défile (haut / bas).
+            L'en-tête reste collé en haut (sticky) et parfaitement aligné. */}
+        <ScrollView
+          style={styles.webTableScroll}
+          contentContainerStyle={styles.webTableScrollContent}
+          showsVerticalScrollIndicator
+          showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled
+        >
+          <View
+            style={[
+              styles.webTableHeader,
+              { backgroundColor: themeColors.surface },
+            ]}
+          >
+            <View style={[styles.webHeaderCell, styles.webCellTherapist]}>
+              <Text
+                style={[
+                  styles.webHeaderText,
+                  { color: themeColors.textSecondary },
+                ]}
+              >
+                THÉRAPEUTE
+              </Text>
+            </View>
+
+            <HeaderCell label="TÉLÉPHONE" themeColors={themeColors} style={styles.webCellPhone} />
+            <HeaderCell label="CIN" themeColors={themeColors} style={styles.webCellCin} />
+            <HeaderCell label="ADRESSE" themeColors={themeColors} style={styles.webAddressCell} />
+            <HeaderCell label="VÉRIFICATION" themeColors={themeColors} style={styles.webCellVerif} />
+            <HeaderCell label="COMPTE" themeColors={themeColors} style={styles.webCellAccount} />
+            <HeaderCell label="STATUT" themeColors={themeColors} style={styles.webCellStatus} />
+            <HeaderCell label="PRIX" themeColors={themeColors} style={styles.webCellPrice} />
+
+            <View style={[styles.webHeaderCell, styles.webActionCell]}>
+              <Text
+                style={[
+                  styles.webHeaderText,
+                  { color: themeColors.textSecondary },
+                ]}
+              >
+                ACTION
+              </Text>
+            </View>
+          </View>
+
+          {filteredTherapists.map((item) => (
+            <WebTableRow key={String(item.id)} item={item} />
+          ))}
+
+          <View style={styles.webBottomSpace} />
+        </ScrollView>
+      </View>
+    );
+  };
+
+  /* ==========================================================
+     MOBILE LIST - FULL SCREEN
+  ========================================================== */
+
+  const renderMobileList = () => {
+    return (
+      <FlatList
+        data={
+          filteredTherapists
+        }
+        renderItem={({ item }) => MobileCard({ item })}
+        keyExtractor={(
+          item
+        ) =>
+          String(item.id)
+        }
+        contentContainerStyle={[
+          styles.mobileListContent,
+          {
+            // ✅ même marge gauche/droite que la barre de recherche
+            paddingHorizontal: IS_WEB ? horizontalPadding : 12,
+          },
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={
+              refreshing
+            }
+            onRefresh={
+              onRefresh
+            }
+            colors={[
+              colors.primary,
+            ]}
+            tintColor={
+              colors.primary
+            }
+          />
+        }
+        showsVerticalScrollIndicator={
+          false
+        }
+        nestedScrollEnabled
+      />
+    );
+  };
+
+  /* ==========================================================
+     INFO MOBILE
+  ========================================================== */
+
+  const MobileInfo = ({
+    icon,
+    label,
+    value,
+    themeColors,
+    valueColor,
+    full,
+    showLabel,
+    lines,
+  }) => (
+    <View style={styles.mobileInfoRow}>
+      <Ionicons
+        name={icon}
+        size={15}
+        color={themeColors.textSecondary}
+      />
+
+      <Text
+        numberOfLines={lines || (full ? 2 : 1)}
+        style={[
+          styles.mobileValueText,
+          {
+            color: valueColor || themeColors.text,
+          },
+        ]}
+      >
+        {showLabel && label ? `${label} : ` : ''}
+        {value}
+      </Text>
+    </View>
+  );
+
+  /* ==========================================================
+     HEADER CELL
+  ========================================================== */
+
+  const HeaderCell = ({
+    label,
+    themeColors,
+    style,
+  }) => (
+    <View
+      style={[styles.webHeaderCell, style]}
+    >
+      <Text
+        style={[
+          styles.webHeaderText,
+          {
+            color:
+              themeColors
+                .textSecondary,
+          },
+        ]}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+
+  /* ==========================================================
+     TOAST COMPONENT
+  ========================================================== */
+
+  const Toast = () => {
+    if (!toast) return null;
+
+    const isError =
+      toast.type === 'error';
+
+    const isWarning =
+      toast.type === 'warning';
+
+    const toastColor = isError
+      ? '#E74C3C'
+      : isWarning
+      ? '#F5A623'
+      : '#27AE60';
+
+    const iconName = isError
+      ? 'close-circle'
+      : isWarning
+      ? 'warning'
+      : 'checkmark-circle';
+
+    return (
+      <View
+        pointerEvents="none"
+        style={[
+          styles.toastPosition,
+        ]}
+      >
+        <View
+          style={[
+            styles.toast,
+            {
+              backgroundColor:
+                themeColors.surface,
+              borderLeftColor:
+                toastColor,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.toastIcon,
+              {
+                backgroundColor:
+                  toastColor +
+                  '15',
+              },
+            ]}
+          >
+            <Ionicons
+              name={iconName}
+              size={20}
+              color={toastColor}
+            />
+          </View>
+
+          <Text
+            numberOfLines={3}
+            style={[
+              styles.toastText,
+              {
+                color:
+                  themeColors.text,
+              },
+            ]}
+          >
+            {toast.message}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  /* ==========================================================
+     VISIONNEUSE PLEIN ECRAN - certificat professionnel
+     Affiche l'image en grand (remplit la modale) et permet
+     de la telecharger directement.
+  ========================================================== */
+
+  const ImageViewerModal = () => (
+    <Modal
+      visible={showImageViewer}
+      transparent
+      animationType="fade"
+      onRequestClose={closeImageViewer}
+    >
+      <View style={styles.viewerOverlay}>
+        <View
+          style={[
+            styles.viewerContainer,
+            {
+              backgroundColor: themeColors.surface,
+            },
+          ]}
+        >
+          <View style={styles.viewerHeader}>
+            <Text
+              style={[
+                styles.viewerTitle,
+                { color: themeColors.text },
+              ]}
+              numberOfLines={1}
+            >
+              {viewerImage.title ||
+                'Document'}
+            </Text>
+
+            <TouchableOpacity
+              onPress={closeImageViewer}
+              style={styles.viewerCloseButton}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="close"
+                size={20}
+                color={themeColors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.viewerImageWrapper}>
+            {viewerImage.uri &&
+            viewerImage.uri.toLowerCase().endsWith('.pdf') ? (
+              <View style={styles.viewerPdfBox}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={64}
+                  color={colors.primary}
+                />
+
+                <Text
+                  style={[
+                    styles.viewerPdfText,
+                    { color: themeColors.textSecondary },
+                  ]}
+                >
+                  Ce document est un PDF. Utilisez le bouton
+                  ci-dessous pour le télécharger et l'ouvrir.
+                </Text>
+              </View>
+            ) : (
+              <Image
+                source={{ uri: viewerImage.uri }}
+                style={styles.viewerImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+
+          <TouchableOpacity
+            onPress={() =>
+              handleDownload(viewerImage.uri, viewerImage.fileName)
+            }
+            style={styles.viewerDownloadButton}
+            activeOpacity={0.85}
+          >
+            <Ionicons
+              name="download-outline"
+              size={18}
+              color="#fff"
+            />
+
+            <Text style={styles.viewerDownloadButtonText}>
+              Télécharger
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  /* ==========================================================
+     CONFIRM MODAL (WEB)
+  ========================================================== */
+
+  const closeConfirmModal = () => {
+    setConfirmModalVisible(false);
+  };
+
+  const handleConfirmModalConfirm = () => {
+    setConfirmModalVisible(false);
+    confirmModalConfig.onConfirm();
+  };
+
+  const ConfirmModal = () => (
+    <Modal
+      visible={confirmModalVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={closeConfirmModal}
+    >
+      <View style={styles.confirmOverlay}>
+        <View
+          style={[
+            styles.confirmBox,
+            {
+              backgroundColor:
+                themeColors.surface,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.confirmIconWrap,
+              {
+                backgroundColor:
+                  confirmModalConfig.destructive
+                    ? '#E74C3C15'
+                    : colors.primary + '15',
+              },
+            ]}
+          >
+            <Ionicons
+              name={
+                confirmModalConfig.destructive
+                  ? 'trash-outline'
+                  : 'help-circle-outline'
+              }
+              size={26}
+              color={
+                confirmModalConfig.destructive
+                  ? '#E74C3C'
+                  : colors.primary
+              }
+            />
+          </View>
+
+          <Text
+            style={[
+              styles.confirmTitle,
+              {
+                color: themeColors.text,
+              },
+            ]}
+          >
+            {confirmModalConfig.title}
+          </Text>
+
+          <Text
+            style={[
+              styles.confirmMessage,
+              {
+                color:
+                  themeColors.textSecondary,
+              },
+            ]}
+          >
+            {confirmModalConfig.message}
+          </Text>
+
+          <View style={styles.confirmActions}>
+            <TouchableOpacity
+              onPress={closeConfirmModal}
+              style={[
+                styles.confirmButton,
+                {
+                  backgroundColor:
+                    themeColors.background,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.confirmButtonText,
+                  {
+                    color: themeColors.text,
+                  },
+                ]}
+              >
+                Annuler
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleConfirmModalConfirm}
+              style={[
+                styles.confirmButton,
+                {
+                  backgroundColor:
+                    confirmModalConfig.destructive
+                      ? '#E74C3C'
+                      : colors.primary,
+                },
+              ]}
+            >
+              <Text style={styles.confirmButtonTextWhite}>
+                Confirmer
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  /* ==========================================================
+     MODAL CLOSE
+  ========================================================== */
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedTherapist(null);
+    setCertificateInfo(null);
+  };
+
+  /* ==========================================================
+     RENDER
+  ========================================================== */
+
+  return (
+    <SafeAreaView
+      style={[
+        styles.safeArea,
+        {
+          backgroundColor:
+            themeColors.background,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.container,
+          {
+            backgroundColor:
+              themeColors.background,
+          },
+        ]}
+      >
+        <Header
+          title="Thérapeutes"
+          showBack
+        />
+
+        {/* ======================================================
+            MAIN CONTENT
+        ====================================================== */}
+
+        <View
+          style={[
+            styles.mainContent,
+            {
+              paddingHorizontal: 0,
+            },
+          ]}
+        >
+          {/* TOP BAR */}
+          <View
+            style={[
+              styles.topBar,
+              {
+                paddingHorizontal:
+                  IS_WEB
+                    ? horizontalPadding
+                    : 12,
+              },
+            ]}
+          >
+            <View
+              style={
+                styles.titleBlock
+              }
+            >
+              <Text
+                style={[
+                  styles.pageTitle,
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+              >
+                Gestion des thérapeutes
+              </Text>
+
+              <Text
+                style={[
+                  styles.pageSubtitle,
+                  {
+                    color:
+                      themeColors
+                        .textSecondary,
+                  },
+                ]}
+              >
+                {filteredTherapists.length}{' '}
+                thérapeute
+                {filteredTherapists.length >
+                1
+                  ? 's'
+                  : ''}{' '}
+                affiché
+                {filteredTherapists.length >
+                1
+                  ? 's'
+                  : ''}
+              </Text>
+            </View>
+
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <TouchableOpacity
+                onPress={handleExportExcel}
+                disabled={exportingExcel}
+                style={[
+                  styles.refreshButton,
+                  {
+                    backgroundColor: '#1D6F42',
+                    opacity: exportingExcel ? 0.6 : 1,
+                  },
+                ]}
+              >
+                {exportingExcel ? (
+                  <ActivityIndicator
+                    size="small"
+                    color="#fff"
+                  />
+                ) : (
+                  <Ionicons
+                    name="download-outline"
+                    size={19}
+                    color="#fff"
+                  />
+                )}
+
+                {IS_WEB && (
+                  <Text
+                    style={[
+                      styles.refreshText,
+                      { color: '#fff' },
+                    ]}
+                  >
+                    {exportingExcel ? 'Export...' : 'Excel'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={onRefresh}
+                style={[
+                  styles.refreshButton,
+                  {
+                    backgroundColor:
+                      themeColors.surface,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="refresh-outline"
+                  size={19}
+                  color={
+                    colors.primary
+                  }
+                />
+
+                {IS_WEB && (
+                  <Text
+                    style={[
+                      styles.refreshText,
+                      {
+                        color:
+                          colors.primary,
+                      },
+                    ]}
+                  >
+                    Actualiser
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* SEARCH */}
+          <View
+            style={[
+              styles.searchContainer,
+              {
+                paddingHorizontal:
+                  IS_WEB
+                    ? horizontalPadding
+                    : 12,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.searchBar,
+                {
+                  backgroundColor:
+                    themeColors.surface,
+                },
+              ]}
+            >
+              <Ionicons
+                name="search-outline"
+                size={20}
+                color={
+                  themeColors
+                    .textSecondary
+                }
+              />
+
+              <TextInput
+                style={[
+                  styles.searchInput,
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+                placeholder="Rechercher par nom, email, téléphone, CIN ou adresse..."
+                placeholderTextColor={
+                  themeColors
+                    .textSecondary
+                }
+                value={
+                  searchQuery
+                }
+                onChangeText={
+                  handleSearch
+                }
+              />
+
+              {searchQuery.length >
+                0 && (
+                <TouchableOpacity
+                  onPress={() =>
+                    handleSearch(
+                      ''
+                    )
+                  }
+                >
+                  <Ionicons
+                    name="close-circle"
+                    size={20}
+                    color={
+                      themeColors
+                        .textSecondary
+                    }
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* FILTERS */}
+          <View
+            style={[
+              styles.filtersContainer,
+              {
+                paddingHorizontal:
+                  IS_WEB
+                    ? horizontalPadding
+                    : 12,
+              },
+            ]}
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={
+                false
+              }
+              contentContainerStyle={
+                styles.filterScrollContent
+              }
+            >
+              {filters.map(
+                (filter) => {
+                  const active =
+                    selectedFilter ===
+                    filter.id;
+
+                  return (
+                    <TouchableOpacity
+                      key={
+                        filter.id
+                      }
+                      onPress={() =>
+                        handleFilter(
+                          filter.id
+                        )
+                      }
+                      style={[
+                        styles.filterButton,
+                        {
+                          backgroundColor:
+                            active
+                              ? colors.primary
+                              : themeColors.surface,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={
+                          filter.icon
+                        }
+                        size={15}
+                        color={
+                          active
+                            ? '#fff'
+                            : themeColors.text
+                        }
+                      />
+
+                      <Text
+                        style={[
+                          styles.filterText,
+                          {
+                            color:
+                              active
+                                ? '#fff'
+                                : themeColors.text,
+                          },
+                        ]}
+                      >
+                        {
+                          filter.label
+                        }
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                }
+              )}
+            </ScrollView>
+          </View>
+
+          {/* ERROR */}
+          {error && (
+            <View
+              style={[
+                styles.errorBanner,
+                {
+                  marginHorizontal:
+                    IS_WEB
+                      ? horizontalPadding
+                      : 12,
+                  backgroundColor:
+                    '#E74C3C10',
+                  borderColor:
+                    '#E74C3C40',
+                },
+              ]}
+            >
+              <Ionicons
+                name="alert-circle-outline"
+                size={19}
+                color="#E74C3C"
+              />
+
+              <Text
+                style={
+                  styles.errorText
+                }
+              >
+                {error}
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setError(null);
+                  loadTherapists();
+                }}
+              >
+                <Ionicons
+                  name="refresh-outline"
+                  size={18}
+                  color="#E74C3C"
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* CONTENT */}
+          {loading ? (
+            <View
+              style={
+                styles.loadingContainer
+              }
+            >
+              <ActivityIndicator
+                size="large"
+                color={
+                  colors.primary
+                }
+              />
+
+              <Text
+                style={[
+                  styles.loadingText,
+                  {
+                    color:
+                      themeColors
+                        .textSecondary,
+                  },
+                ]}
+              >
+                Chargement des thérapeutes...
+              </Text>
+            </View>
+          ) : filteredTherapists.length ===
+            0 ? (
+            <View
+              style={
+                styles.emptyState
+              }
+            >
+              <View
+                style={[
+                  styles.emptyIcon,
+                  {
+                    backgroundColor:
+                      colors.primary +
+                      '12',
+                  },
+                ]}
+              >
+                <Ionicons
+                  name="fitness-outline"
+                  size={48}
+                  color={
+                    colors.primary
+                  }
+                />
+              </View>
+
+              <Text
+                style={[
+                  styles.emptyStateTitle,
+                  {
+                    color:
+                      themeColors.text,
+                  },
+                ]}
+              >
+                Aucun thérapeute
+              </Text>
+
+              <Text
+                style={[
+                  styles.emptyStateText,
+                  {
+                    color:
+                      themeColors
+                        .textSecondary,
+                  },
+                ]}
+              >
+                {searchQuery
+                  ? 'Aucun résultat pour cette recherche.'
+                  : 'Aucun thérapeute trouvé.'}
+              </Text>
+            </View>
+          ) : isDesktop ? (
+            renderWebTable()
+          ) : (
+            renderMobileList()
+          )}
+        </View>
+
+
+        {/* ======================================================
+            ADDRESS MODAL
+        ====================================================== */}
+
+        <AdminUserAddressModal
+          visible={
+            showAddressModal
+          }
+          userId={
+            selectedUserForAddress?.id
+          }
+          userName={
+            selectedUserForAddress?.fullname
+          }
+          onClose={() => {
+            setShowAddressModal(
+              false
+            );
+
+            setSelectedUserForAddress(
+              null
+            );
+          }}
+          onSaved={async (
+            updatedData
+          ) => {
+            if (
+              selectedTherapist &&
+              updatedData?.id ===
+                selectedTherapist.id
+            ) {
+              setSelectedTherapist(
+                (prev) => ({
+                  ...prev,
+                  ...updatedData,
+                })
+              );
+            }
+
+            await loadTherapists();
+
+            setShowAddressModal(
+              false
+            );
+
+            setSelectedUserForAddress(
+              null
+            );
+
+            showToast(
+              'Adresse mise à jour avec succès',
+              'success'
+            );
+          }}
+        />
+
+        {/* ======================================================
+            TOAST
+        ====================================================== */}
+
+        <Toast />
+
+        {/* ======================================================
+            CONFIRM MODAL (WEB)
+        ====================================================== */}
+
+        <ConfirmModal />
+
+        <ImageViewerModal />
+      </View>
+    </SafeAreaView>
+  );
+};
+
+/* ================================================================
+   SECTION TITLE
+================================================================ */
+
+const SectionTitle = ({
+  title,
+  themeColors,
+}) => (
+  <Text
+    style={[
+      styles.sectionTitle,
+      {
+        color:
+          themeColors.text,
+      },
+    ]}
+  >
+    {title}
+  </Text>
+);
+
+/* ================================================================
+   INFO ROW
+================================================================ */
+
+const InfoRow = ({
+  label,
+  value,
+  valueColor,
+  themeColors,
+}) => (
+  <View
+    style={[
+      styles.modalInfoRow,
+      {
+        borderBottomColor:
+          themeColors.border ||
+          '#EAEAEA',
+      },
+    ]}
+  >
+    <Text
+      style={[
+        styles.modalInfoLabel,
+        {
+          color:
+            themeColors
+              .textSecondary,
+        },
+      ]}
+    >
+      {label}
+    </Text>
+
+    <Text
+      style={[
+        styles.modalInfoValue,
+        {
+          color:
+            valueColor ||
+            themeColors.text,
+        },
+      ]}
+    >
+      {value}
+    </Text>
+  </View>
+);
+
+/* ================================================================
+   STYLES
+================================================================ */
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+
+  container: {
+    flex: 1,
+    minHeight: 0,
+  },
+
+  mainContent: {
+    flex: 1,
+    minHeight: 0,
+  },
+
+  /* ============================================================
+     TOP BAR
+  ============================================================ */
+
+  topBar: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent:
+      'space-between',
+    paddingTop: 14,
+    paddingBottom: 10,
+  },
+
+  titleBlock: {
+    flex: 1,
+  },
+
+  pageTitle: {
+    fontSize: 20,
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  pageSubtitle: {
+    fontSize: 12,
+    marginTop: 3,
+    fontFamily:
+      typography.fontFamily.regular,
+  },
+
+  refreshButton: {
+    minHeight: 40,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+
+  refreshText: {
+    fontSize: 12,
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  /* ============================================================
+     SEARCH
+  ============================================================ */
+
+  searchContainer: {
+    width: '100%',
+    paddingBottom: 8,
+  },
+
+  searchBar: {
+    minHeight: 46,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    gap: 9,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+
+  searchInput: {
+    flex: 1,
+    minHeight: 42,
+    fontSize: 13,
+    fontFamily:
+      typography.fontFamily.regular,
+  },
+
+  /* ============================================================
+     FILTERS
+  ============================================================ */
+
+  filtersContainer: {
+    paddingBottom: 10,
+  },
+
+  filterScrollContent: {
+    paddingVertical: 2,
+    gap: 7,
+  },
+
+  filterButton: {
+    minHeight: 36,
+    paddingHorizontal: 13,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  filterText: {
+    fontSize: 12,
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  /* ============================================================
+     ERROR
+  ============================================================ */
+
+  errorBanner: {
+    minHeight: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  errorText: {
+    flex: 1,
+    color: '#E74C3C',
+    fontSize: 12,
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  /* ============================================================
+     LOADING
+  ============================================================ */
+
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 300,
+  },
+
+  loadingText: {
+    marginTop: 10,
+    fontSize: 13,
+    fontFamily:
+      typography.fontFamily.regular,
+  },
+
+  /* ============================================================
+     EMPTY
+  ============================================================ */
+
+  emptyState: {
+    flex: 1,
+    minHeight: 300,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+  },
+
+  emptyIcon: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  emptyStateTitle: {
+    marginTop: 14,
+    fontSize: 17,
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  emptyStateText: {
+    marginTop: 5,
+    fontSize: 13,
+    textAlign: 'center',
+  },
+
+  /* ============================================================
+     WEB TABLE
+  ============================================================ */
+
+  webTableWrapper: {
+    flex: 1,
+    minHeight: 0,
+    alignSelf: 'stretch',      // pas de width:100% -> marges gauche/droite respectées
+    marginBottom: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+  },
+
+  webTableHeader: {
+    ...(IS_WEB ? { position: 'sticky', top: 0 } : null),
+    minHeight: 48,
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#00000010',
+    zIndex: 5,
+  },
+
+  webHeaderCell: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+  },
+
+  webHeaderText: {
+    fontSize: 10,
+    fontFamily:
+      typography.fontFamily.bold,
+    letterSpacing: 0.5,
+  },
+
+  webTableScroll: {
+    flex: 1,
+    minHeight: 0,
+    width: '100%',
+  },
+
+  webTableScrollContent: {
+    width: '100%',
+  },
+
+  webTableRow: {
+    width: '100%',
+    minHeight: 70,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#00000006',
+  },
+
+  // minWidth: 0 => les colonnes se partagent la largeur disponible
+  // (aucun scroll horizontal) ; le texte passe à la ligne.
+  webCell: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+  },
+
+  webCellTherapist: {
+    flex: 2.2,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+
+  webCellPhone: { flex: 1.2 },
+  webCellCin: { flex: 1.3 },
+  webCellVerif: { flex: 1.1 },
+  webCellAccount: { flex: 0.8 },
+  webCellStatus: { flex: 1 },
+  webCellPrice: { flex: 1 },
+
+  webTherapistInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  webName: {
+    fontSize: 13,
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  webEmail: {
+    marginTop: 3,
+    fontSize: 10,
+  },
+
+  webCellText: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+
+  webAddressCell: {
+    flex: 2,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 5,
+  },
+
+  webPrice: {
+    fontSize: 12,
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  webActionCell: {
+    flex: 1.2,
+    minWidth: 100,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+
+  webIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  webBottomSpace: {
+    height: 24,
+  },
+
+  /* ============================================================
+     STATUS BADGE
+  ============================================================ */
+
+  statusBadge: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    minHeight: 26,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    justifyContent: 'center',
+  },
+
+  statusBadgeText: {
+    flexShrink: 1,
+    fontSize: 10,
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  statusBadgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+
+  /* ============================================================
+     MOBILE CARD - FULL SCREEN
+  ============================================================ */
+
+  mobileListContent: {
+    paddingTop: 3,
+    paddingBottom: 120,
+  },
+
+  mobileCard: {
+    width: '100%',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 12,
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+
+  mobileCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+
+  mobileCardIdentity: {
+    flex: 1,
+    marginLeft: 12,
+    minWidth: 0,
+  },
+
+  mobileTopRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+
+  mobileName: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  mobileEmail: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+
+  mobileStatusLine: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+
+  mobileInfoGrid: {
+    marginTop: 8,
+    gap: 5,
+  },
+
+  mobileInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+
+  mobileValueText: {
+    flex: 1,
+    fontSize: 12.5,
+    lineHeight: 17,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  mobileCardFooter: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+  },
+
+  mobileFooterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 2,
+  },
+
+  mobileFooterButtonText: {
+    fontSize: 12.5,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+
+  mobileFooterSpacer: {
+    flex: 1,
+  },
+
+  mobileBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 8,
+  },
+
+  mobilePrice: {
+    fontSize: 16,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  /* ============================================================
+     AVATAR
+  ============================================================ */
+
+  avatarWrapper: {
+    position: 'relative',
+  },
+
+  avatarFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  avatarText: {
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  avatarOnline: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    zIndex: 5,
+    elevation: 5,
+  },
+
+  /* ============================================================
+     MODAL - FIXED FOR ANDROID
+  ============================================================ */
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor:
+      'rgba(0,0,0,0.48)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+
+  modalOverlayWeb: {
+    justifyContent: 'center',
+    padding: 24,
+  },
+
+  modalContainer: {
+    width: '100%',
+    maxHeight: '92%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderRadius: 0,
+    overflow: 'hidden',
+  },
+
+  modalContainerMobile: {
+    maxHeight: '100%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    width: '100%',
+  },
+
+  modalWebContainer: {
+    maxHeight: '94%',
+    borderRadius: 22,
+  },
+
+  modalHeader: {
+    minHeight: 70,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent:
+      'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+
+  modalTitle: {
+    fontSize: 18,
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  modalSubtitle: {
+    fontSize: 11,
+    marginTop: 3,
+  },
+
+  modalCloseButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  modalScrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 30,
+  },
+
+  /* ============================================================
+     PROFILE
+  ============================================================ */
+
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+
+  profileHeaderInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
+
+  modalName: {
+    fontSize: 18,
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  modalEmail: {
+    fontSize: 12,
+    marginTop: 3,
+  },
+
+  profileBadges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 7,
+  },
+
+  /* ============================================================
+     SECTION
+  ============================================================ */
+
+  sectionTitle: {
+    fontSize: 14,
+    fontFamily:
+      typography.fontFamily.bold,
+    marginTop: 13,
+    marginBottom: 8,
+  },
+
+  infoGrid: {
+    width: '100%',
+  },
+
+  modalInfoRow: {
+    minHeight: 42,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent:
+      'space-between',
+    borderBottomWidth: 1,
+  },
+
+  modalInfoLabel: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  modalInfoValue: {
+    flex: 1.4,
+    textAlign: 'right',
+    fontSize: 12,
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  /* ============================================================
+     SWITCH
+  ============================================================ */
+
+  switchBox: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent:
+      'space-between',
+  },
+
+  switchTitle: {
+    fontSize: 12,
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  switchSubtitle: {
+    fontSize: 10,
+    marginTop: 2,
+  },
+
+  switchRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+
+  switchStatus: {
+    fontSize: 10,
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  /* ============================================================
+     ADDRESS
+  ============================================================ */
+
+  addressBox: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+  },
+
+  addressBoxHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  addressIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  addressBoxTitleContainer: {
+    flex: 1,
+    marginLeft: 10,
+  },
+
+  addressBoxTitle: {
+    fontSize: 13,
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  addressBoxSubtitle: {
+    fontSize: 10,
+    marginTop: 2,
+  },
+
+  fullAddressText: {
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 13,
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  coordinatesContainer: {
+    marginTop: 9,
+    paddingTop: 9,
+    borderTopWidth: 1,
+    borderTopColor:
+      '#00000010',
+    gap: 3,
+  },
+
+  coordinateText: {
+    fontSize: 10,
+  },
+
+  modalAddressButton: {
+    marginTop: 12,
+    minHeight: 42,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+
+  modalAddressButtonText: {
+    color: '#fff',
+    fontSize: 11,
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  /* ============================================================
+     DOCUMENT
+  ============================================================ */
+
+  documentSection: {
+    borderWidth: 1,
+    borderColor: '#00000010',
+    borderRadius: 16,
+    padding: 14,
+  },
+
+  documentNumberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+
+  documentNumber: {
+    fontSize: 13,
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  cinImageWrapper: {
+    width: '100%',
+    height: 220,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+
+  cinImage: {
+    width: '100%',
+    height: 220,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+  },
+
+  docZoomBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(15,23,42,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  downloadButton: {
+    width: '100%',
+    minHeight: 52,
+    borderRadius: 13,
+    paddingHorizontal: 16,
+    backgroundColor:
+      colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    marginTop: 4,
+
+    shadowColor: colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.28,
+    shadowRadius: 9,
+    elevation: 4,
+  },
+
+  downloadButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    letterSpacing: 0.2,
+    fontFamily:
+      typography.fontFamily.bold,
+  },
+
+  noDocumentBox: {
+    minHeight: 45,
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor:
+      '#E74C3C10',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  noDocumentText: {
+    flex: 1,
+    color: '#E74C3C',
+    fontSize: 11,
+  },
+
+  noCertificateText: {
+    flex: 1,
+    fontSize: 11,
+  },
+
+  certificateLoading: {
+    minHeight: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+
+  certificateLoadingText: {
+    fontSize: 11,
+  },
+
+  /* ============================================================
+     BIO
+  ============================================================ */
+
+  bioBox: {
+    padding: 13,
+    borderRadius: 14,
+    backgroundColor:
+      '#00000005',
+  },
+
+  bioText: {
+    fontSize: 12,
+    lineHeight: 19,
+  },
+
+  /* ============================================================
+     ACTIONS
+  ============================================================ */
+
+  modalActions: {
+    marginTop: 16,
+    paddingTop: 5,
+    flexDirection: 'row',
+    gap: 9,
+  },
+
+  modalAction: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+
+  modalActionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  /* ============================================================
+     TOAST
+  ============================================================ */
+
+  toastPosition: {
+    position: 'absolute',
+    top: IS_WEB ? 70 : 62,
+    left: 0,
+    right: 0,
+    zIndex: 99999,
+    elevation: 99999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
+  },
+
+  toast: {
+    minHeight: 52,
+    maxWidth: IS_WEB
+      ? 520
+      : '88%',
+    minWidth: IS_WEB
+      ? 300
+      : undefined,
+
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+
+    borderRadius: 13,
+    borderLeftWidth: 4,
+
+    flexDirection: 'row',
+    alignItems: 'center',
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowOpacity: 0.14,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+
+  toastIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  toastText: {
+    flex: 1,
+    marginLeft: 9,
+    fontSize: 12,
+    lineHeight: 17,
+    fontFamily:
+      typography.fontFamily.medium,
+  },
+
+  /* ============================================================
+     CONFIRM MODAL (WEB)
+  ============================================================ */
+
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+
+  confirmBox: {
+    width: '100%',
+    maxWidth: 380,
+    borderRadius: 18,
+    padding: 24,
+    alignItems: 'center',
+
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+
+  confirmIconWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+
+  confirmTitle: {
+    fontSize: 16,
+    fontFamily:
+      typography.fontFamily.bold,
+    textAlign: 'center',
+  },
+
+  confirmMessage: {
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 20,
+  },
+
+  confirmActions: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 10,
+  },
+
+  confirmButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  confirmButtonText: {
+    fontSize: 13,
+    fontFamily:
+      typography.fontFamily.semiBold,
+  },
+
+  confirmButtonTextWhite: {
+    fontSize: 13,
+    fontFamily:
+      typography.fontFamily.semiBold,
+    color: '#fff',
+  },
+
+  /* ================================================================
+     CERTIFICAT PROFESSIONNEL (televerse par le therapeute)
+  ================================================================ */
+
+  certProPreview: {
+    width: '100%',
+    height: 220,
+    borderRadius: 12,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F5F5',
+    marginBottom: 10,
+  },
+
+  certProImage: {
+    width: '100%',
+    height: '100%',
+  },
+
+  certProPdfBox: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+  },
+
+  certProPdfText: {
+    fontSize: 11,
+    textAlign: 'center',
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  certProZoomBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(15,23,42,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  /* ================================================================
+     VISIONNEUSE PLEIN ECRAN
+  ================================================================ */
+
+  viewerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(8,10,20,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: IS_WEB ? 24 : 10,
+  },
+
+  viewerContainer: {
+    width: IS_WEB ? 'min(720px, 94vw)' : '100%',
+    height: IS_WEB ? 'min(88vh, 800px)' : '92%',
+    borderRadius: 16,
+    overflow: 'hidden',
+    padding: 12,
+  },
+
+  viewerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+
+  viewerTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: typography.fontFamily.semiBold,
+    marginRight: 8,
+  },
+
+  viewerCloseButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(148,163,184,0.18)',
+  },
+
+  viewerImageWrapper: {
+    flex: 1,
+    borderRadius: 12,
+    backgroundColor: '#0B0F19',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+
+  viewerImage: {
+    width: '100%',
+    height: '100%',
+  },
+
+  viewerPdfBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 24,
+  },
+
+  viewerPdfText: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 19,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  viewerDownloadButton: {
+    minHeight: 46,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+
+  viewerDownloadButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+});
+
 export default TherapistsScreen;

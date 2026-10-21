@@ -404,6 +404,61 @@ export const downloadAdminDocument = async (
 };
 
 /* ============================================================
+   NAVIGATION VERS UNE PAGE DE DÉTAILS
+   - utilise le navigateur courant s'il connaît la route ;
+   - sinon remonte les navigateurs parents ;
+   - sinon passe par l'onglet concerné (navigation imbriquée).
+   Évite qu'un tap sur une carte « ne fasse rien » sur Android quand la
+   route n'est pas enregistrée dans la pile actuelle.
+============================================================ */
+
+const DETAIL_TAB = {
+  UserDetail: 'Utilisateurs',
+  TherapistDetail: 'Gestion',
+  ApprovalDetail: 'Gestion',
+};
+
+const knowsRoute = (nav, routeName) => {
+  try {
+    const names = nav?.getState?.()?.routeNames;
+    return Array.isArray(names) && names.includes(routeName);
+  } catch {
+    return false;
+  }
+};
+
+export const navigateToAdminDetail = (navigation, routeName, params) => {
+  try {
+    let nav = navigation;
+
+    for (let i = 0; nav && i < 5; i += 1) {
+      if (knowsRoute(nav, routeName)) {
+        nav.navigate(routeName, params);
+        return true;
+      }
+      nav = nav.getParent?.();
+    }
+
+    // Repli : navigation imbriquée via l'onglet qui contient la pile.
+    const tabName = DETAIL_TAB[routeName];
+    let root = navigation;
+    while (root?.getParent?.()) root = root.getParent();
+
+    if (tabName && root?.navigate) {
+      root.navigate(tabName, { screen: routeName, params });
+      return true;
+    }
+
+    // Dernier recours : laisser React Navigation tenter.
+    navigation.navigate(routeName, params);
+    return true;
+  } catch (error) {
+    console.warn('Navigation vers la page de détails impossible:', error);
+    return false;
+  }
+};
+
+/* ============================================================
    LAYOUT RESPONSIVE
 ============================================================ */
 
