@@ -1348,6 +1348,26 @@ const NotificationScreen = ({
 
 
         /* ------------------------------------------------------
+           RETRAIT / COMMISSION (accepté, payé, refusé, validé...)
+           -> directement la page « Gains », onglet concerné.
+        ------------------------------------------------------ */
+        {
+          const nd = getNotificationData(notification) || {};
+          const raw = `${notification?.type || ''} ${notification?.title || ''}`.toLowerCase();
+          const isCommission =
+            nd.commission_payment_id || (!bookingId && raw.includes('commission'));
+          const isWithdrawal =
+            nd.withdrawal_id || (!bookingId && (raw.includes('retrait') || raw.includes('withdraw')));
+          if (isCommission || isWithdrawal) {
+            navigation.navigate('Gains', {
+              screen: 'EarningsScreen',
+              params: { tab: isCommission ? 'commission' : 'retraits', ts: Date.now() },
+            });
+            return;
+          }
+        }
+
+        /* ------------------------------------------------------
            NEGOTIATION
         ------------------------------------------------------ */
 

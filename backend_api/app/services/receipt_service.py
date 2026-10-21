@@ -25,6 +25,7 @@ from reportlab.pdfgen import canvas
 
 from ..core.config import settings
 from . import platform_settings
+from .mg_time import fmt_mg
 
 # ----------------------------- thème ---------------------------------------
 GREEN = HexColor("#1F6B45")
@@ -65,8 +66,12 @@ def ar(value: Any) -> str:
     return f"{n:,}".replace(",", " ") + " Ar"
 
 
-def fmt_dt(value: Optional[datetime]) -> str:
-    return value.strftime("%d/%m/%Y à %H:%M") if value else "—"
+def fmt_dt(value: Optional[datetime], convert: bool = True) -> str:
+    """Date + heure de MADAGASCAR (UTC+3). convert=False : date déjà saisie en heure locale
+    (ex. date de la séance choisie par le client)."""
+    if not value:
+        return "—"
+    return fmt_mg(value) if convert else value.strftime("%d/%m/%Y à %H:%M")
 
 
 def method_label(method: Optional[str], provider: Optional[str] = None) -> str:
@@ -177,7 +182,7 @@ def build_document_pdf(
     c.setFont(FONT, 8)
     c.setFillColor(HexColor("#CFE5D8"))
     c.drawRightString(PAGE_W - m, H - 18.5 * mm, f"N° {receipt_no}")
-    c.drawRightString(PAGE_W - m, H - 23.5 * mm, f"Émis le {fmt_dt(issued_at or datetime.utcnow())}")
+    c.drawRightString(PAGE_W - m, H - 23.5 * mm, f"Émis le {fmt_dt(issued_at or datetime.utcnow())} (heure de Madagascar)")
 
     # statut + montant
     y = H - head_h - 10 * mm

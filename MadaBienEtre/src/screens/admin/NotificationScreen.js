@@ -268,7 +268,25 @@ const NotificationScreen = ({ navigation }) => {
     const target = item?.targetScreen || getTargetScreen(item?.type);
     if (target) {
       try {
-        navigation.navigate(target, item?.targetParams);
+        let params = item?.targetParams;
+        if (target === 'Payments' && !params) {
+          // Ouvre directement l'onglet concerné de la page Paiements
+          // (paiement client / demande de retrait / paiement de commission).
+          let d = item?.data;
+          if (typeof d === 'string') {
+            try {
+              d = JSON.parse(d);
+            } catch (e) {
+              d = {};
+            }
+          }
+          d = d || {};
+          params = {
+            tab: d.commission_payment_id ? 'commissions' : d.withdrawal_id ? 'withdrawals' : 'payments',
+            ts: Date.now(),
+          };
+        }
+        navigation.navigate(target, params);
       } catch (e) {
         console.warn('Navigation impossible :', e?.message || e);
       }

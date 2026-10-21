@@ -28,7 +28,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 import Header from '../../components/common/Header';
 import { BarChart, HBars, StackedShare, StatTile, dayLabel, monthLabel } from '../../components/charts/SimpleCharts';
-import { formatAr, formatShort } from '../../components/payment/paymentUtils';
+import FilterBar, { EMPTY_FILTER } from '../../components/payment/FilterBar';
+import { formatAr, formatShort, inPeriod } from '../../components/payment/paymentUtils';
+import usePaymentLayout from '../../hooks/usePaymentLayout';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import { colors } from '../../theme';
@@ -76,8 +78,17 @@ const COMMISSION_MODES = [
   { id: 'cash', label: 'Espèces à l’admin', icon: 'cash-outline' },
 ];
 
-const EarningsScreen = ({ navigation }) => {
+const norm = (v) => String(v ?? '').toLowerCase();
+const matchQ = (q, ...fields) => {
+  const needle = norm(q).trim();
+  if (!needle) return true;
+  return fields.some((f) => norm(f).includes(needle));
+};
+
+const EarningsScreen = ({ navigation, route }) => {
   const { colors: theme } = useTheme();
+  const { isWide, columns, pad } = usePaymentLayout();
+  const tileBasis = `${Math.floor(100 / columns) - 2}%`;
 
   const [wallet, setWallet] = useState(null);
   const [stats, setStats] = useState(null);
@@ -86,7 +97,15 @@ const EarningsScreen = ({ navigation }) => {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [busyId, setBusyId] = useState(null);
-  const [tab, setTab] = useState('overview'); // overview | gains | retraits | commission
+  const [tab, setTab] = useState(route?.params?.tab || 'overview'); // overview | gains | retraits | commission
+  const [gainsF, setGainsF] = useState(EMPTY_FILTER);
+  const [wF, setWF] = useState(EMPTY_FILTER);
+  const [cF, setCF] = useState(EMPTY_FILTER);
+
+  // Ouverture directe d'un onglet depuis une notification (retrait accepté / payé...)
+  useEffect(() => {
+    if (route?.params?.tab) setTab(route.params.tab);
+  }, [route?.params?.tab, route?.params?.ts]);
   const [range, setRange] = useState('month'); // day | month
 
   // modal paiement de commission
@@ -222,6 +241,29 @@ const EarningsScreen = ({ navigation }) => {
     color: METHOD_COLORS[i % METHOD_COLORS.length],
   }));
 
+  // ----- filtrage -----
+  const TX_TYPES = [['payment', 'Gains'], ['commission', 'Commission'], ['withdrawal', 'Retraits'], ['refund', 'Remboursements']];
+  const txList = (w.transactions || []).filter(
+    (t) =>
+      (gainsF.status === 'all' || t.type === gainsF.status) &&
+      inPeriod(t.created_at, gainsF.period) &&
+      matchQ(gainsF.q, t.description, t.type, t.amount)
+  );
+  const wList = (w.withdrawals || []).filter(
+    (r) =>
+      (wF.status === 'all' || r.status === wF.status) &&
+      (wF.method === 'all' || r.method === wF.method) &&
+      inPeriod(r.created_at, wF.period) &&
+      matchQ(wF.q, r.reference, r.phone_number, r.bank_name, r.amount, r.account_holder)
+  );
+  const cList = (w.commission_payments || []).filter(
+    (c) =>
+      (cF.status === 'all' || c.status === cF.status) &&
+      (cF.method === 'all' || c.method === cF.method) &&
+      inPeriod(c.created_at, cF.period) &&
+      matchQ(cF.q, c.reference, c.transfer_reference, c.phone_number, c.amount)
+  );
+
   const Tab = ({ id, label }) => (
     <TouchableOpacity
       onPress={() => setTab(id)}
@@ -236,7 +278,7 @@ const EarningsScreen = ({ navigation }) => {
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <Header title="Mes gains" showBack />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { padding: pad, paddingBottom: 48 }]}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={PRIMARY} />}
       >
         {error ? (
@@ -291,13 +333,13 @@ const EarningsScreen = ({ navigation }) => {
         {tab === 'overview' ? (
           <>
             <View style={styles.tiles}>
-              <StatTile label="Gains nets (total)" value={formatAr(s.net_total)} bg={theme.surface} textColor={theme.text} />
-              <StatTile label="Commission payée" value={formatAr(s.commission_total)} color="#B8924A" bg={theme.surface} textColor={theme.text} />
-              <StatTile label="Aujourd’hui" value={formatAr(s.today)} bg={theme.surface} textColor={theme.text} />
-              <StatTile label="7 derniers jours" value={formatAr(s.week)} bg={theme.surface} textColor={theme.text} />
-              <StatTile label="30 derniers jours" value={formatAr(s.month)} bg={theme.surface} textColor={theme.text} />
-              <StatTile label="12 derniers mois" value={formatAr(s.year)} bg={theme.surface} textColor={theme.text} />
-              <StatTile label="Réservations payées" value={`${s.paid_count || 0}`} color="#047857" bg={theme.surface} textColor={theme.text} />
+              <StatTile basis={tileBasis} label="Gains nets (total)" value={formatAr(s.net_total)} bg={theme.surface} textColor={theme.text} />
+              <StatTile basis={tileBasis} label="Commission payée" value={formatAr(s.commission_total)} color="#B8924A" bg={theme.surface} textColor={theme.text} />
+              <StatTile basis={tileBasis} label="Aujourd’hui" value={formatAr(s.today)} bg={theme.surface} textColor={theme.text} />
+              <StatTile basis={tileBasis} label="7 derniers jours" value={formatAr(s.week)} bg={theme.surface} textColor={theme.text} />
+              <StatTile basis={tileBasis} label="30 derniers jours" value={formatAr(s.month)} bg={theme.surface} textColor={theme.text} />
+              <StatTile basis={tileBasis} label="12 derniers mois" value={formatAr(s.year)} bg={theme.surface} textColor={theme.text} />
+              <StatTile basis={tileBasis} label="Réservations payées" value={`${s.paid_count || 0}`} color="#047857" bg={theme.surface} textColor={theme.text} />
               <StatTile
                 label="En attente de paiement"
                 value={`${(s.pending_count || 0) + (s.unpaid_bookings || 0)}`}
@@ -324,13 +366,14 @@ const EarningsScreen = ({ navigation }) => {
               <BarChart data={chartData} series={chartSeries} textColor={theme.textSecondary} gridColor={theme.border} barWidth={range === 'day' ? 7 : 12} />
             </View>
 
-            <View style={[styles.card, card]}>
+            <View style={styles.grid}>
+            <View style={[styles.card, card, isWide && styles.half]}>
               <Text style={[styles.cardTitle, txt]}>Gains par mode de paiement</Text>
               <View style={{ height: 10 }} />
               <HBars items={methodItems} textColor={theme.textSecondary} trackColor={theme.border} />
             </View>
 
-            <View style={[styles.card, card]}>
+            <View style={[styles.card, card, isWide && styles.half]}>
               <Text style={[styles.cardTitle, txt]}>Où va chaque paiement client</Text>
               <View style={{ height: 10 }} />
               <StackedShare
@@ -340,6 +383,7 @@ const EarningsScreen = ({ navigation }) => {
                   { label: 'Commission', value: s.commission_total, color: '#B8924A' },
                 ]}
               />
+            </View>
             </View>
           </>
         ) : null}
@@ -367,8 +411,9 @@ const EarningsScreen = ({ navigation }) => {
             ) : null}
             <View style={[styles.card, card]}>
               <Text style={[styles.cardTitle, txt]}>Historique</Text>
-              {(w.transactions || []).length === 0 ? <Text style={[styles.empty, sub]}>Aucune opération pour le moment.</Text> : null}
-              {(w.transactions || []).map((t) => {
+              <FilterBar value={gainsF} onChange={setGainsF} statuses={TX_TYPES} count={txList.length} placeholder="Rechercher une opération…" />
+              {txList.length === 0 ? <Text style={[styles.empty, sub]}>Aucune opération trouvée.</Text> : null}
+              {txList.map((t) => {
                 const m = TX_META[t.type] || TX_META.payment;
                 return (
                   <View key={t.id} style={styles.listRow}>
@@ -392,8 +437,16 @@ const EarningsScreen = ({ navigation }) => {
         {tab === 'retraits' ? (
           <View style={[styles.card, card]}>
             <Text style={[styles.cardTitle, txt]}>Mes demandes de retrait</Text>
-            {(w.withdrawals || []).length === 0 ? <Text style={[styles.empty, sub]}>Aucune demande de retrait.</Text> : null}
-            {(w.withdrawals || []).map((r) => {
+            <FilterBar
+              value={wF}
+              onChange={setWF}
+              count={wList.length}
+              statuses={[['pending', 'En attente'], ['processing', 'Acceptée'], ['completed', 'Payée'], ['failed', 'Refusée'], ['cancelled', 'Annulée']]}
+              methods={[['mobile_money', 'Mobile Money'], ['bank_transfer', 'Banque'], ['cash', 'Espèces']]}
+              placeholder="Rechercher (référence, numéro, montant…)"
+            />
+            {wList.length === 0 ? <Text style={[styles.empty, sub]}>Aucune demande trouvée.</Text> : null}
+            {wList.map((r) => {
               const st = WITHDRAWAL_STATUS[r.status] || WITHDRAWAL_STATUS.pending;
               return (
                 <View key={r.id} style={styles.wRow}>
@@ -447,8 +500,8 @@ const EarningsScreen = ({ navigation }) => {
                 Quand un client vous paie en espèces, vous gardez l’argent mais la commission de la plateforme reste due.
               </Text>
               <View style={styles.tiles}>
-                <StatTile label="À payer" value={formatAr(due)} color="#B45309" bg={theme.surface} textColor={theme.text} />
-                <StatTile label="En vérification" value={formatAr(w.commission_in_review)} color="#1D4ED8" bg={theme.surface} textColor={theme.text} />
+                <StatTile basis={tileBasis} label="À payer" value={formatAr(due)} color="#B45309" bg={theme.surface} textColor={theme.text} />
+                <StatTile basis={tileBasis} label="En vérification" value={formatAr(w.commission_in_review)} color="#1D4ED8" bg={theme.surface} textColor={theme.text} />
               </View>
               <TouchableOpacity
                 style={[styles.primaryBtn, due <= 0 && { opacity: 0.5 }]}
@@ -465,8 +518,16 @@ const EarningsScreen = ({ navigation }) => {
             </View>
             <View style={[styles.card, card]}>
               <Text style={[styles.cardTitle, txt]}>Mes paiements de commission</Text>
-              {(w.commission_payments || []).length === 0 ? <Text style={[styles.empty, sub]}>Aucun paiement de commission.</Text> : null}
-              {(w.commission_payments || []).map((c) => {
+              <FilterBar
+                value={cF}
+                onChange={setCF}
+                count={cList.length}
+                statuses={[['pending', 'En attente'], ['completed', 'Validé'], ['rejected', 'Refusé']]}
+                methods={[['wallet', 'Wallet'], ['mobile_money', 'Mobile Money'], ['bank_transfer', 'Virement'], ['cash', 'Espèces']]}
+                placeholder="Rechercher (référence, numéro, montant…)"
+              />
+              {cList.length === 0 ? <Text style={[styles.empty, sub]}>Aucun paiement trouvé.</Text> : null}
+              {cList.map((c) => {
                 const st = COMMISSION_STATUS[c.status] || COMMISSION_STATUS.pending;
                 return (
                   <View key={c.id} style={styles.wRow}>
@@ -579,7 +640,9 @@ const EarningsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { padding: 16, paddingBottom: 40, gap: 14, width: '100%', maxWidth: 900, alignSelf: 'center' },
+  scroll: { gap: 16, width: '100%', alignSelf: 'stretch' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
+  half: { flexGrow: 1, flexBasis: '48%' },
   errorBox: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#FEE2E2', borderRadius: 12, padding: 12 },
   errorText: { color: '#B91C1C', flex: 1, fontSize: 13, fontWeight: '400' },
   noticeBox: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#D1FAE5', borderRadius: 12, padding: 12 },

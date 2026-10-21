@@ -115,6 +115,11 @@ class PaymentService {
     return wrap(() => post(`/payments/${paymentId}/confirm-cash`));
   }
 
+  /** Le thérapeute confirme avoir bien reçu le paiement du client (le client est notifié). */
+  therapistConfirm(paymentId) {
+    return wrap(() => post(`/payments/${paymentId}/therapist-confirm`));
+  }
+
   requestWithdrawal(payload) {
     return wrap(() => post('/wallet/withdrawals', payload));
   }

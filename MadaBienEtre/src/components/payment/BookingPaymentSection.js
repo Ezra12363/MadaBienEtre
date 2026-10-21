@@ -60,6 +60,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
   const payment = hasPreloaded ? preloaded : fetched;
 
   const [open, setOpen] = useState(defaultOpen);
+  const [autoOpened, setAutoOpened] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Rafraîchir quand on revient de l'écran de paiement.
@@ -105,14 +106,35 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
   };
 
   const pending = state === 'pending';
+  const needsConfirm = isTherapist && state === 'paid' && payment?.method !== 'cash' && !payment?.therapist_confirmed;
+
+  const confirmReceipt = async () => {
+    setBusy(true);
+    const res = await paymentService.therapistConfirm(payment.id);
+    setBusy(false);
+    if (!res.success) {
+      Alert.alert('Paiement', res.error || 'Impossible de confirmer.');
+      return;
+    }
+    if (!hasPreloaded) await reload();
+    onChanged?.();
+  };
   const cashWaiting = payment?.method === 'cash' && ['pending', 'processing'].includes(payment?.status);
 
+  useEffect(() => {
+    if (needsConfirm && !autoOpened) {
+      setOpen(true);
+      setAutoOpened(true);
+    }
+  }, [needsConfirm, autoOpened]);
+
   const summary = useMemo(() => {
+    if (state === 'paid' && needsConfirm) return 'Paiement reçu — à confirmer';
     if (state === 'paid') return isTherapist ? 'Le client a payé' : 'Paiement effectué';
     if (state === 'refunded') return 'Paiement remboursé';
     if (payment?.status === 'processing') return 'Paiement en cours de vérification';
     return isTherapist ? 'Le client n’a pas encore payé' : 'Paiement à effectuer';
-  }, [state, payment, isTherapist]);
+  }, [state, payment, isTherapist, needsConfirm]);
 
   if (!booking || !payable) return null;
 
@@ -129,6 +151,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
           </View>
         </View>
         <View style={styles.headRight}>
+          {amount > 0 ? <Text style={[styles.headAmount, { color: tc.text }]}>{formatAr(amount)}</Text> : null}
           <PaymentStatusBadge state={state} />
           <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={tc.textSecondary} />
         </View>
@@ -144,6 +167,21 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
               <Line tc={tc} label={`Commission (${payment.commission_rate ?? '—'} %)`} value={formatAr(payment.commission_amount)} />
               <Line tc={tc} label="Votre part nette" value={formatAr(payment.net_amount)} />
             </>
+          ) : null}
+
+          {state === 'paid' && payment?.method !== 'cash' ? (
+            <Line
+              tc={tc}
+              label="Réception par le thérapeute"
+              value={payment?.therapist_confirmed ? `Confirmée le ${formatDateTime(payment.therapist_confirmed_at)}` : 'En attente de confirmation'}
+            />
+          ) : null}
+
+          {needsConfirm ? (
+            <TouchableOpacity style={[styles.primary, { backgroundColor: '#B8924A' }]} onPress={confirmReceipt} disabled={busy} activeOpacity={0.85}>
+              {busy ? <ActivityIndicator color="#fff" /> : <Ionicons name="shield-checkmark-outline" size={18} color="#fff" />}
+              <Text style={styles.primaryText}>Confirmer la réception du paiement</Text>
+            </TouchableOpacity>
           ) : null}
 
           {/* ----- Actions ----- */}
@@ -195,6 +233,7 @@ const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, gap: 8 },
   headLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
   headRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  headAmount: { fontSize: 13, fontWeight: '400' },
   title: { fontSize: 14, fontWeight: '400' },
   sub: { fontSize: 12, marginTop: 1, fontWeight: '400' },
   body: { borderTopWidth: 1, paddingHorizontal: 12, paddingBottom: 12, paddingTop: 6 },

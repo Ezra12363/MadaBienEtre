@@ -28,6 +28,7 @@ from ..models.payment import Payment, Transaction
 from ..models.therapist import TherapistEarnings, Withdrawal
 from ..models.user import User
 from ..services import platform_settings, receipt_links, receipt_service
+from ..services.mg_time import iso_utc, mg_now, to_mg
 from ..services import wallet_service as ws
 from ..services.wallet_service import WalletError
 
@@ -79,9 +80,9 @@ def _w(w: Withdrawal, therapist_name: Optional[str] = None) -> Dict[str, Any]:
         "reference": w.reference,
         "notes": w.notes,
         "receipt_available": w.status == "completed",
-        "created_at": w.created_at.isoformat() if w.created_at else None,
-        "processed_at": w.processed_at.isoformat() if w.processed_at else None,
-        "completed_at": w.completed_at.isoformat() if w.completed_at else None,
+        "created_at": iso_utc(w.created_at),
+        "processed_at": iso_utc(w.processed_at),
+        "completed_at": iso_utc(w.completed_at),
     }
 
 
@@ -94,7 +95,7 @@ def _t(t: Transaction) -> Dict[str, Any]:
         "description": t.description,
         "reference_id": t.reference_id,
         "reference_type": t.reference_type,
-        "created_at": t.created_at.isoformat() if t.created_at else None,
+        "created_at": iso_utc(t.created_at),
     }
 
 
@@ -151,7 +152,7 @@ async def my_wallet(
                 "payment_id": p.id,
                 "booking_id": p.booking_id,
                 "amount": float(p.amount or 0),
-                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "created_at": iso_utc(p.created_at),
             }
             for p in cash_pending
         ],
@@ -358,8 +359,8 @@ def _cp(c: CommissionPayment, therapist_name: Optional[str] = None) -> Dict[str,
         "reference": c.reference,
         "notes": c.notes,
         "receipt_available": c.status == "completed",
-        "created_at": c.created_at.isoformat() if c.created_at else None,
-        "completed_at": c.completed_at.isoformat() if c.completed_at else None,
+        "created_at": iso_utc(c.created_at),
+        "completed_at": iso_utc(c.completed_at),
     }
 
 
@@ -427,7 +428,7 @@ async def pay_my_commission(
 
 # ---------------- Thérapeute : statistiques + graphiques ----------------
 def _fill_series(payments, withdrawals, days: int = 30, months: int = 12):
-    today = datetime.utcnow().date()
+    today = mg_now().date()
     daily = {
         (today - timedelta(days=i)).isoformat(): {"date": (today - timedelta(days=i)).isoformat(),
                                                   "gross": 0.0, "net": 0.0, "commission": 0.0, "count": 0}
@@ -439,7 +440,7 @@ def _fill_series(payments, withdrawals, days: int = 30, months: int = 12):
                for k in _last_months(months)}
     for p in payments:
         meta = p.payment_metadata or {}
-        when = p.completed_at or p.created_at
+        when = to_mg(p.completed_at or p.created_at)
         g, n, c = float(p.amount or 0), float(meta.get("net_amount", 0) or 0), float(meta.get("commission_amount", 0) or 0)
         if when and when.date().isoformat() in daily:
             d = daily[when.date().isoformat()]
@@ -449,7 +450,7 @@ def _fill_series(payments, withdrawals, days: int = 30, months: int = 12):
             m = monthly[mk]
             m["gross"] += g; m["net"] += n; m["commission"] += c; m["count"] += 1
     for w in withdrawals:
-        mk = _month_key(w.completed_at or w.created_at)
+        mk = _month_key(to_mg(w.completed_at or w.created_at))
         if mk in monthly and w.status == "completed":
             monthly[mk]["withdrawn"] += float(w.amount or 0)
     return list(daily.values()), list(monthly.values())
@@ -629,13 +630,13 @@ async def verify_wallet_receipt(reference: str, db: Session = Depends(get_db)):
         ok = w.status == "completed"
         return {"valid": ok, "type": "withdrawal", "reference": reference,
                 "amount": float(w.net_amount) if ok else None, "currency": "MGA" if ok else None,
-                "paid_at": w.completed_at.isoformat() if ok and w.completed_at else None,
+                "paid_at": iso_utc(w.completed_at) if ok else None,
                 "issuer": platform_settings.get_config()["company_name"]}
     c = db.query(CommissionPayment).filter(CommissionPayment.reference == reference).first()
     ok = bool(c and c.status == "completed")
     return {"valid": ok, "type": "commission", "reference": reference,
             "amount": float(c.amount) if ok else None, "currency": "MGA" if ok else None,
-            "paid_at": c.completed_at.isoformat() if ok and c.completed_at else None,
+            "paid_at": iso_utc(c.completed_at) if ok else None,
             "issuer": platform_settings.get_config()["company_name"]}
 
 

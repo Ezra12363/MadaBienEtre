@@ -163,24 +163,37 @@ def start_payment(
     # ---- Carte : Stripe Checkout hébergé (la carte ne passe JAMAIS par l'app) ---
     if method == "card" and stripe_configured():
         base = return_url or settings.FRONTEND_URL
+        currency = settings.STRIPE_CURRENCY.lower()
+        rate = float(getattr(settings, "STRIPE_MGA_PER_UNIT", 0) or 0)
+        if currency != "mga" and rate > 0:
+            unit_amount = int(round(amount / rate * 100))  # centimes / cents
+        else:
+            unit_amount = amount_int  # MGA = devise sans décimale
         try:
+            # Stripe Checkout : page de paiement HÉBERGÉE par Stripe. Le formulaire carte
+            # (numéro formaté automatiquement 0000 0000 0000 0000, date MM/AA, CVC, validation
+            # en direct) est géré par Stripe : le numéro de carte ne transite JAMAIS par
+            # notre serveur ni par l'application (conformité PCI-DSS).
             session = stripe.checkout.Session.create(
                 mode="payment",
+                payment_method_types=["card"],
+                locale="fr",
                 client_reference_id=str(payment_id),
                 customer_email=payer_email or None,
                 line_items=[
                     {
                         "quantity": 1,
                         "price_data": {
-                            "currency": settings.STRIPE_CURRENCY.lower(),
-                            "unit_amount": amount_int,
+                            "currency": currency,
+                            "unit_amount": unit_amount,
                             "product_data": {"name": f"Massage — réservation #{booking_id}"},
                         },
                     }
                 ],
                 metadata={"payment_id": str(payment_id), "booking_id": str(booking_id)},
-                success_url=f"{base}?paid=1",
-                cancel_url=f"{base}?paid=0",
+                payment_intent_data={"metadata": {"payment_id": str(payment_id), "booking_id": str(booking_id)}},
+                success_url=f"{base}?paid=1&payment_id={payment_id}",
+                cancel_url=f"{base}?paid=0&payment_id={payment_id}",
             )
         except Exception as exc:  # noqa: BLE001
             logger.error("Stripe : %s", exc)

@@ -29,6 +29,7 @@ from ..models.payment import Payment
 from ..models.user import User
 from ..services import payment_gateway as gateway
 from ..services import platform_settings, receipt_links, receipt_service
+from ..services.mg_time import iso_utc, mg_now, to_mg
 from ..services import wallet_service as wallet
 from ..services.payment_gateway import GatewayError
 from ..services.wallet_service import WalletError
@@ -132,10 +133,13 @@ def _serialize(payment: Payment, include_split: bool = False) -> Dict[str, Any]:
         "payer_name": payment.payer_name,
         "payer_phone": payment.payer_phone,
         "receipt_no": f"MBE-{payment.id:06d}",
-        "created_at": payment.created_at.isoformat() if payment.created_at else None,
-        "completed_at": payment.completed_at.isoformat() if payment.completed_at else None,
-        "paid_at": payment.completed_at.isoformat() if payment.completed_at else None,
+        "created_at": iso_utc(payment.created_at),
+        "completed_at": iso_utc(payment.completed_at),
+        "paid_at": iso_utc(payment.completed_at),
         "receipt_available": payment.status == "completed",
+        "therapist_confirmed": bool(meta.get("therapist_confirmed_at")) or payment.method == "cash",
+        "therapist_confirmed_at": meta.get("therapist_confirmed_at")
+        or (iso_utc(payment.completed_at) if payment.method == "cash" and payment.status == "completed" else None),
     }
     if include_split:
         data.update(
@@ -188,7 +192,7 @@ def _receipt_context(db: Session, payment: Payment) -> Dict[str, Any]:
         "paid_at_label": receipt_service.fmt_dt(paid_at),
         "booking_id": payment.booking_id,
         "service_name": service or "Massage",
-        "scheduled_label": receipt_service.fmt_dt(scheduled) if scheduled else None,
+        "scheduled_label": receipt_service.fmt_dt(scheduled, convert=False) if scheduled else None,
         "client_name": getattr(client, "fullname", "") or "—",
         "therapist_name": getattr(therapist, "fullname", "") or "—",
         "commission_rate": meta.get("commission_rate"),
@@ -558,6 +562,44 @@ def _load_receivable(db: Session, payment_id: int, user: User) -> Payment:
     return payment
 
 
+@router.post("/{payment_id}/therapist-confirm")
+async def therapist_confirm_payment(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Le thérapeute confirme avoir bien reçu le paiement du client (Mobile Money / carte).
+    Le client est notifié. N'a aucun effet sur le wallet (déjà crédité par la passerelle)."""
+    from ..services.notification_service import send_notification
+
+    payment = db.query(Payment).filter(Payment.id == payment_id).first()
+    if not payment:
+        raise HTTPException(404, "Paiement introuvable.")
+    booking = db.query(Booking).filter(Booking.id == payment.booking_id).first()
+    if not booking or booking.therapist_id != current_user.id:
+        raise HTTPException(403, "Seul le thérapeute de cette réservation peut confirmer.")
+    if payment.status != "completed":
+        raise HTTPException(400, "Le paiement n'est pas encore confirmé par la passerelle.")
+    meta = dict(payment.payment_metadata or {})
+    if not meta.get("therapist_confirmed_at"):
+        meta["therapist_confirmed_at"] = iso_utc(datetime.utcnow())
+        payment.payment_metadata = meta
+        db.commit()
+        db.refresh(payment)
+        try:
+            send_notification(
+                user_id=payment.user_id,
+                title="Réception confirmée ✓",
+                body=f"Votre thérapeute a confirmé avoir reçu votre paiement de {int(payment.amount):,} Ar.".replace(",", " "),
+                notification_type="payment_received",
+                data={"payment_id": payment.id, "booking_id": payment.booking_id},
+                booking_id=payment.booking_id,
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Notification de confirmation non envoyée")
+    return _serialize(payment, include_split=True)
+
+
 def _links(request: Request, payment_id: int, user_id: int, view: str, ttl: int = 900) -> Dict[str, str]:
     base = receipt_links.base_from_request(request)
     token = receipt_links.sign("pay", payment_id, user_id, ttl, view)
@@ -676,7 +718,7 @@ async def verify_receipt(transaction_id: str, db: Session = Depends(get_db)):
         "transaction_id": transaction_id,
         "amount": float(payment.amount) if valid else None,
         "currency": "MGA" if valid else None,
-        "paid_at": payment.completed_at.isoformat() if valid and payment.completed_at else None,
+        "paid_at": iso_utc(payment.completed_at) if valid else None,
         "issuer": cfg.get("company_name") or "Mada Bien-Être",
     }
 
@@ -783,7 +825,7 @@ def _month_key(d: Optional[datetime]) -> str:
 
 
 def _last_months(n: int = 12):
-    now = datetime.utcnow().replace(day=1)
+    now = mg_now().replace(day=1)
     keys = []
     y, m = now.year, now.month
     for _ in range(n):
@@ -813,7 +855,7 @@ async def admin_stats(
         key = p.provider or p.method
         by_method[key] = by_method.get(key, 0) + float(p.amount or 0)
 
-    today = datetime.utcnow().date()
+    today = mg_now().date()
     days = [(today - timedelta(days=i)) for i in range(29, -1, -1)]
     daily = {d.isoformat(): {"date": d.isoformat(), "gross": 0.0, "commission": 0.0, "count": 0} for d in days}
     months = {k: {"month": k, "gross": 0.0, "commission": 0.0, "net": 0.0, "count": 0} for k in _last_months(12)}
@@ -821,7 +863,7 @@ async def admin_stats(
     for p in completed:
         meta = p.payment_metadata or {}
         comm = float(meta.get("commission_amount", 0) or 0)
-        when = p.completed_at or p.created_at
+        when = to_mg(p.completed_at or p.created_at)
         if when and when.date().isoformat() in daily:
             row = daily[when.date().isoformat()]
             row["gross"] += float(p.amount or 0)

@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     PLATFORM_COMMISSION_RATE: float = float(os.getenv("PLATFORM_COMMISSION_RATE", "10"))
     # Devise envoyée à Stripe (MGA = zéro décimale ; sinon « eur »...)
     STRIPE_CURRENCY: str = os.getenv("STRIPE_CURRENCY", "mga")
+    # Si votre compte Stripe ne peut pas facturer en MGA : mettez STRIPE_CURRENCY=eur (ou usd)
+    # et STRIPE_MGA_PER_UNIT = nombre d'Ariary pour 1 euro (ex. 5000). 0 = pas de conversion.
+    STRIPE_MGA_PER_UNIT: float = float(os.getenv("STRIPE_MGA_PER_UNIT", "0") or 0)
     # Retrait minimum (Ar)
     MIN_WITHDRAWAL_AMOUNT: float = float(os.getenv("MIN_WITHDRAWAL_AMOUNT", "5000"))
     # Acceptation du paiement en espèces

@@ -138,9 +138,9 @@ export function StackedShare({ items = [], textColor = '#777' }) {
 }
 
 /** Tuile chiffre clé */
-export function StatTile({ label, value, color = '#1F6B45', icon, bg = '#fff', textColor = '#222', sub }) {
+export function StatTile({ label, value, color = '#1F6B45', icon, bg = '#fff', textColor = '#222', sub, basis = '45%' }) {
   return (
-    <View style={[styles.tile, { backgroundColor: bg }]}>
+    <View style={[styles.tile, { backgroundColor: bg, flexBasis: basis }]}>
       <Text style={[styles.tileLabel, { color: textColor, opacity: 0.65 }]}>{label}</Text>
       <Text style={[styles.tileValue, { color }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
       {sub ? <Text style={[styles.tileLabel, { color: textColor, opacity: 0.55 }]}>{sub}</Text> : null}

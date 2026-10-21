@@ -306,6 +306,11 @@ const resolveNotificationAction = (notification) => {
     return 'negotiation';
   }
 
+  // Paiement (confirmé, reçu disponible, réception confirmée...) -> page de la réservation
+  if (category === 'payment' || type.includes('payment') || type.includes('paiement')) {
+    return 'booking';
+  }
+
   if (category === 'booking') {
     return 'booking';
   }

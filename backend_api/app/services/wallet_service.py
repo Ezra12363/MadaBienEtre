@@ -200,16 +200,22 @@ def finalize_payment(db: Session, payment_id: int) -> Tuple[Payment, bool]:
         if therapist:
             send_notification(
                 user_id=therapist.id,
-                title="Paiement reçu",
+                title="Espèces confirmées" if is_cash else "Paiement reçu — à confirmer",
                 body=(
-                    f"{fmt_ar(net)} nets (espèces : à encaisser auprès du client)"
+                    f"Réception de {fmt_ar(payment.amount)} en espèces enregistrée. "
+                    f"Commission à régler à l'administrateur : {fmt_ar(commission)}."
                     if is_cash
-                    else f"{fmt_ar(net)} ajoutés à votre wallet "
-                    f"(commission {fmt_ar(commission)})."
+                    else f"Le client a payé {fmt_ar(payment.amount)} ({fmt_ar(net)} nets ajoutés à votre wallet, "
+                    f"commission {fmt_ar(commission)}). Ouvrez la réservation pour confirmer la réception."
                 ),
                 notification_type="payment_received",
-                data={"payment_id": payment.id, "booking_id": payment.booking_id},
+                data={
+                    "payment_id": payment.id,
+                    "booking_id": payment.booking_id,
+                    **({} if is_cash else {"action": "confirm_payment"}),
+                },
                 booking_id=payment.booking_id,
+                priority="high",
             )
         send_admin_notification(
             "Paiement confirmé",
