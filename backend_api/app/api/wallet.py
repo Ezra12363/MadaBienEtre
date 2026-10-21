@@ -14,7 +14,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -508,76 +508,117 @@ async def my_stats(
 
 
 # ---------------- Reçus : retraits & commissions ----------------
-def _can_see_withdrawal(user: User, w: Withdrawal) -> bool:
-    return str(getattr(user, "role", "")).upper() == "ADMIN" or w.therapist_id == user.id
+# kind : "wd" = retrait, "cm" = paiement de commission
+def _is_admin(user: User) -> bool:
+    return str(getattr(user, "role", "")).upper() == "ADMIN"
+
+
+def _load_doc(db: Session, kind: str, obj_id: int, user: User):
+    """Retourne (doc, nom_fichier) ou lève 404/400. Contrôle l'accès."""
+    th_of = lambda tid: db.query(User).filter(User.id == tid).first()  # noqa: E731
+    if kind == "wd":
+        w = db.query(Withdrawal).filter(Withdrawal.id == obj_id).first()
+        if not w or not (_is_admin(user) or w.therapist_id == user.id):
+            raise HTTPException(404, "Demande introuvable.")
+        if w.status != "completed":
+            raise HTTPException(400, "Le reçu n'est disponible qu'une fois le retrait payé.")
+        th = th_of(w.therapist_id)
+        doc = receipt_service.withdrawal_doc(w, getattr(th, "fullname", "") or "", getattr(th, "phone", "") or "")
+        return doc, f"recu-retrait-{w.reference or w.id}.pdf"
+    c = db.query(CommissionPayment).filter(CommissionPayment.id == obj_id).first()
+    if not c or not (_is_admin(user) or c.therapist_id == user.id):
+        raise HTTPException(404, "Paiement introuvable.")
+    if c.status != "completed":
+        raise HTTPException(400, "Le reçu n'est disponible qu'une fois la commission validée.")
+    th = th_of(c.therapist_id)
+    return receipt_service.commission_doc(c, getattr(th, "fullname", "") or ""), f"recu-commission-{c.reference or c.id}.pdf"
+
+
+def _wallet_links(request: Request, kind: str, obj_id: int, user_id: int) -> Dict[str, str]:
+    base = receipt_links.base_from_request(request)
+    token = receipt_links.sign(kind, obj_id, user_id, 900)
+    path = f"/wallet/receipt-file/{kind}/{obj_id}"
+    return {
+        "qr_url": receipt_links.url(f"{path}/qr.png", token, base),
+        "barcode_url": receipt_links.url(f"{path}/barcode.png", token, base),
+        "pdf_url": receipt_links.url(f"{path}/receipt.pdf", token, base),
+        "download_url": receipt_links.url(f"{path}/receipt.pdf", token, base, download=1),
+    }
+
+
+def _receipt_data_for(kind: str, obj_id: int, request: Request, db: Session, user: User) -> Dict[str, Any]:
+    doc, name = _load_doc(db, kind, obj_id, user)
+    out = receipt_service.doc_json(doc)
+    out.update(_wallet_links(request, kind, obj_id, user.id))
+    out["pdf_name"] = name
+    return out
+
+
+@router.get("/withdrawals/{withdrawal_id}/receipt-data")
+async def withdrawal_receipt_data(
+    withdrawal_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    return _receipt_data_for("wd", withdrawal_id, request, db, current_user)
+
+
+@router.get("/commissions/{cp_id}/receipt-data")
+async def commission_receipt_data(
+    cp_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+):
+    return _receipt_data_for("cm", cp_id, request, db, current_user)
 
 
 @router.get("/withdrawals/{withdrawal_id}/receipt-link")
 async def withdrawal_receipt_link(
-    withdrawal_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    withdrawal_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    w = db.query(Withdrawal).filter(Withdrawal.id == withdrawal_id).first()
-    if not w or not _can_see_withdrawal(current_user, w):
-        raise HTTPException(404, "Demande introuvable.")
-    if w.status != "completed":
-        raise HTTPException(400, "Le reçu n'est disponible qu'une fois le retrait payé.")
-    token = receipt_links.sign("wd", w.id, current_user.id)
-    path = f"/wallet/withdrawals/{w.id}/receipt.pdf"
-    return {"url": receipt_links.url(path, token), "download_url": receipt_links.url(path, token, download=1)}
-
-
-@router.get("/withdrawals/{withdrawal_id}/receipt.pdf")
-async def withdrawal_receipt_pdf(
-    withdrawal_id: int, token: str = Query(...), download: int = 0, db: Session = Depends(get_db)
-):
-    checked = receipt_links.check(token, "wd", withdrawal_id)
-    if checked is None:
-        raise HTTPException(401, "Lien expiré ou invalide.")
-    user = db.query(User).filter(User.id == checked[0]).first()
-    w = db.query(Withdrawal).filter(Withdrawal.id == withdrawal_id).first()
-    if not user or not w or not _can_see_withdrawal(user, w) or w.status != "completed":
-        raise HTTPException(404, "Reçu indisponible.")
-    th = db.query(User).filter(User.id == w.therapist_id).first()
-    pdf = receipt_service.withdrawal_receipt_pdf(w, getattr(th, "fullname", "") or "", getattr(th, "phone", "") or "")
-    disp = "attachment" if download else "inline"
-    return Response(pdf, media_type="application/pdf",
-                    headers={"Content-Disposition": f'{disp}; filename="recu-retrait-{w.reference or w.id}.pdf"'})
+    _load_doc(db, "wd", withdrawal_id, current_user)
+    links = _wallet_links(request, "wd", withdrawal_id, current_user.id)
+    return {"url": links["pdf_url"], "download_url": links["download_url"]}
 
 
 @router.get("/commissions/{cp_id}/receipt-link")
 async def commission_receipt_link(
-    cp_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    cp_id: int, request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    c = db.query(CommissionPayment).filter(CommissionPayment.id == cp_id).first()
-    admin = str(getattr(current_user, "role", "")).upper() == "ADMIN"
-    if not c or not (admin or c.therapist_id == current_user.id):
-        raise HTTPException(404, "Paiement introuvable.")
-    if c.status != "completed":
-        raise HTTPException(400, "Le reçu n'est disponible qu'une fois la commission validée.")
-    token = receipt_links.sign("cm", c.id, current_user.id)
-    path = f"/wallet/commissions/{c.id}/receipt.pdf"
-    return {"url": receipt_links.url(path, token), "download_url": receipt_links.url(path, token, download=1)}
+    _load_doc(db, "cm", cp_id, current_user)
+    links = _wallet_links(request, "cm", cp_id, current_user.id)
+    return {"url": links["pdf_url"], "download_url": links["download_url"]}
 
 
-@router.get("/commissions/{cp_id}/receipt.pdf")
-async def commission_receipt_pdf(
-    cp_id: int, token: str = Query(...), download: int = 0, db: Session = Depends(get_db)
+@router.get("/receipt-file/{kind}/{obj_id}/{filename}")
+async def receipt_file(
+    kind: str, obj_id: int, filename: str, token: str = Query(...), download: int = 0, db: Session = Depends(get_db)
 ):
-    checked = receipt_links.check(token, "cm", cp_id)
+    """PDF / QR / code-barres d'un reçu de retrait ou de commission (lien signé)."""
+    if kind not in ("wd", "cm") or filename not in ("receipt.pdf", "qr.png", "barcode.png"):
+        raise HTTPException(404, "Fichier introuvable.")
+    checked = receipt_links.check(token, kind, obj_id)
     if checked is None:
         raise HTTPException(401, "Lien expiré ou invalide.")
     user = db.query(User).filter(User.id == checked[0]).first()
-    c = db.query(CommissionPayment).filter(CommissionPayment.id == cp_id).first()
-    admin = str(getattr(user, "role", "")).upper() == "ADMIN"
-    if not user or not c or c.status != "completed" or not (admin or c.therapist_id == user.id):
-        raise HTTPException(404, "Reçu indisponible.")
-    th = db.query(User).filter(User.id == c.therapist_id).first()
-    pdf = receipt_service.commission_receipt_pdf(c, getattr(th, "fullname", "") or "")
-    disp = "attachment" if download else "inline"
-    return Response(pdf, media_type="application/pdf",
-                    headers={"Content-Disposition": f'{disp}; filename="recu-commission-{c.reference or c.id}.pdf"'})
+    if not user:
+        raise HTTPException(401, "Lien invalide.")
+    doc, name = _load_doc(db, kind, obj_id, user)
+    if filename == "receipt.pdf":
+        disp = "attachment" if download else "inline"
+        return Response(
+            receipt_service.render_doc(doc),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'{disp}; filename="{name}"',
+                "Cache-Control": "no-store",
+                "Access-Control-Expose-Headers": "Content-Disposition",
+            },
+        )
+    png = (
+        receipt_service.qr_png(doc["verify_url"])
+        if filename == "qr.png"
+        else receipt_service.barcode_png(doc["barcode_data"])
+    )
+    if png is None:
+        raise HTTPException(404, "Image indisponible (pip install qrcode pillow).")
+    return Response(png, media_type="image/png", headers={"Cache-Control": "private, max-age=600"})
 
 
 @router.get("/receipt/verify/{reference}")

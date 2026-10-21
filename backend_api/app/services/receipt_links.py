@@ -35,6 +35,14 @@ def check(token: str, kind: str, obj_id: int) -> Optional[Tuple[int, str]]:
         return None
 
 
-def url(path: str, token: str, **extra) -> str:
+def base_from_request(request) -> str:
+    """URL publique telle que vue par l'application (évite le piège « localhost »
+    quand BASE_URL n'est pas réglé) ; respecte un éventuel reverse-proxy."""
+    proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.netloc
+    return f"{proto}://{host}"
+
+
+def url(path: str, token: str, base: Optional[str] = None, **extra) -> str:
     qs = "&".join([f"token={token}"] + [f"{k}={v}" for k, v in extra.items()])
-    return f"{settings.BASE_URL.rstrip('/')}{path}?{qs}"
+    return f"{(base or settings.BASE_URL).rstrip('/')}{path}?{qs}"

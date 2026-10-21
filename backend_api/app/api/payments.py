@@ -558,58 +558,66 @@ def _load_receivable(db: Session, payment_id: int, user: User) -> Payment:
     return payment
 
 
+def _links(request: Request, payment_id: int, user_id: int, view: str, ttl: int = 900) -> Dict[str, str]:
+    base = receipt_links.base_from_request(request)
+    token = receipt_links.sign("pay", payment_id, user_id, ttl, view)
+    path = f"/payments/{payment_id}"
+    return {
+        "qr_url": receipt_links.url(f"{path}/qr.png", token, base),
+        "barcode_url": receipt_links.url(f"{path}/barcode.png", token, base),
+        "pdf_url": receipt_links.url(f"{path}/receipt.pdf", token, base),
+        "download_url": receipt_links.url(f"{path}/receipt.pdf", token, base, download=1),
+    }
+
+
 @router.get("/{payment_id}/receipt-link")
 async def receipt_link(
     payment_id: int,
+    request: Request,
     view: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Lien temporaire (10 min) : ouvrir / télécharger le PDF."""
+    """Lien temporaire (15 min) : ouvrir / télécharger le PDF."""
     payment = _load_receivable(db, payment_id, current_user)
-    v = _viewer_view(current_user, view)
-    token = receipt_links.sign("pay", payment.id, current_user.id, 600, v)
-    path = f"/payments/{payment.id}/receipt.pdf"
-    return {
-        "url": receipt_links.url(path, token),
-        "download_url": receipt_links.url(path, token, download=1),
-        "expires_in": 600,
-    }
+    links = _links(request, payment.id, current_user.id, _viewer_view(current_user, view))
+    return {"url": links["pdf_url"], "download_url": links["download_url"], "expires_in": 900}
 
 
 @router.get("/{payment_id}/receipt-data")
 async def receipt_data(
     payment_id: int,
+    request: Request,
     view: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Toutes les infos du reçu pour l'afficher DANS l'application."""
+    """Tout le reçu pour l'afficher dans l'application (écran « Reçu »)."""
     payment = _load_receivable(db, payment_id, current_user)
     v = _viewer_view(current_user, view)
-    ctx = _receipt_context(db, payment)
-    token = receipt_links.sign("pay", payment.id, current_user.id, 900, v)
-    path = f"/payments/{payment.id}"
-    out = {k: val for k, val in ctx.items() if k != "paid_at"}
-    out["paid_at"] = ctx["paid_at"].isoformat() if ctx["paid_at"] else None
+    doc = receipt_service.payment_doc(_receipt_context(db, payment), v)
+    out = receipt_service.doc_json(doc)
+    out.update(_links(request, payment.id, current_user.id, v))
+    out["payment_id"] = payment.id
     out["view"] = v
-    if v == "client":
-        for k in ("commission_rate", "commission_amount", "net_amount", "settlement"):
-            out.pop(k, None)
-    out["qr_url"] = receipt_links.url(f"{path}/qr.png", token)
-    out["pdf_url"] = receipt_links.url(f"{path}/receipt.pdf", token)
-    out["download_url"] = receipt_links.url(f"{path}/receipt.pdf", token, download=1)
-    out["verify_url"] = receipt_service.verification_url("payment", ctx["transaction_id"])
+    out["pdf_name"] = f"recu-{doc['receipt_no']}.pdf"
     return out
 
 
-@router.get("/{payment_id}/receipt.pdf")
-async def receipt_pdf(
-    payment_id: int,
-    token: str = Query(...),
-    download: int = 0,
-    db: Session = Depends(get_db),
-):
+def _pdf_response(pdf: bytes, name: str, download: int) -> Response:
+    disposition = "attachment" if download else "inline"
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'{disposition}; filename="{name}"',
+            "Cache-Control": "no-store",
+            "Access-Control-Expose-Headers": "Content-Disposition",
+        },
+    )
+
+
+def _completed_payment_for_token(db: Session, payment_id: int, token: str):
     checked = receipt_links.check(token, "pay", payment_id)
     if checked is None:
         raise HTTPException(401, "Lien expiré ou invalide.")
@@ -621,32 +629,40 @@ async def receipt_pdf(
     user = db.query(User).filter(User.id == uid).first()
     if not user or not _can_access(user, payment, booking):
         raise HTTPException(403, "Accès refusé.")
-    pdf = receipt_service.payment_receipt_pdf(_receipt_context(db, payment), view if view != "auto" else _viewer_view(user, None))
-    disposition = "attachment" if download else "inline"
-    return Response(
-        content=pdf,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'{disposition}; filename="recu-MBE-{payment.id:06d}.pdf"'},
-    )
+    return payment, user, view
+
+
+@router.get("/{payment_id}/receipt.pdf")
+async def receipt_pdf(
+    payment_id: int,
+    token: str = Query(...),
+    download: int = 0,
+    db: Session = Depends(get_db),
+):
+    payment, user, view = _completed_payment_for_token(db, payment_id, token)
+    v = view if view != "auto" else _viewer_view(user, None)
+    pdf = receipt_service.payment_receipt_pdf(_receipt_context(db, payment), v)
+    return _pdf_response(pdf, f"recu-MBE-{payment.id:06d}.pdf", download)
 
 
 @router.get("/{payment_id}/qr.png")
-async def receipt_qr(
-    payment_id: int,
-    token: str = Query(...),
-    db: Session = Depends(get_db),
-):
-    if receipt_links.check(token, "pay", payment_id) is None:
-        raise HTTPException(401, "Lien expiré ou invalide.")
-    payment = db.query(Payment).filter(Payment.id == payment_id).first()
-    if not payment or payment.status != "completed":
-        raise HTTPException(404, "Reçu indisponible.")
+async def receipt_qr(payment_id: int, token: str = Query(...), db: Session = Depends(get_db)):
+    payment, _u, _v = _completed_payment_for_token(db, payment_id, token)
     png = receipt_service.qr_png(
         receipt_service.verification_url("payment", payment.transaction_id or f"PAY-{payment.id}")
     )
     if png is None:
         raise HTTPException(404, "QR indisponible (pip install qrcode pillow).")
-    return Response(content=png, media_type="image/png")
+    return Response(content=png, media_type="image/png", headers={"Cache-Control": "private, max-age=600"})
+
+
+@router.get("/{payment_id}/barcode.png")
+async def receipt_barcode(payment_id: int, token: str = Query(...), db: Session = Depends(get_db)):
+    payment, _u, _v = _completed_payment_for_token(db, payment_id, token)
+    png = receipt_service.barcode_png(payment.transaction_id or f"PAY-{payment.id}")
+    if png is None:
+        raise HTTPException(404, "Code-barres indisponible (pip install pillow reportlab).")
+    return Response(content=png, media_type="image/png", headers={"Cache-Control": "private, max-age=600"})
 
 
 @router.get("/receipt/verify/{transaction_id}")

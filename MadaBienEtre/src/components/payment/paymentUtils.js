@@ -33,7 +33,7 @@ export const PAY_STATE = {
 /** payment (API) ou null -> 'paid' | 'pending' | 'refunded' */
 export const stateOf = (payment) => payment?.ui_state || 'pending';
 
-const PAYABLE = ['confirmed', 'accepted', 'in_progress', 'completed'];
+const PAYABLE = ['confirmed', 'in_progress', 'completed'];
 
 /** La réservation est-elle arrivée au stade « prix confirmé / paiement possible » ? */
 export const isPayableBooking = (booking) => {

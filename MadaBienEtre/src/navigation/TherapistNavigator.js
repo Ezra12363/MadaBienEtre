@@ -84,6 +84,8 @@ import AIAssistantScreen from '../screens/therapist/AIAssistantScreen';
 // NAVIGATORS
 // ============================================================
 
+import ReceiptScreen from '../screens/shared/ReceiptScreen';
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -246,6 +248,7 @@ const DashboardStack = () => {
         component={NegotiationScreen}
       />
 
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };
@@ -318,6 +321,7 @@ const RequestsStack = () => {
         component={NegotiationScreen}
       />
 
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };
@@ -377,6 +381,7 @@ const CalendarStack = () => {
         component={NegotiationScreen}
       />
 
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };
@@ -413,6 +418,7 @@ const EarningsStack = () => {
         component={WithdrawScreen}
       />
 
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };
@@ -464,6 +470,7 @@ const ProfileStack = () => {
         component={ReviewsScreen}
       />
 
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };
@@ -947,6 +954,7 @@ const TherapistNavigator = () => {
         name="TherapistSOS"
         component={SOSScreen}
       />
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };

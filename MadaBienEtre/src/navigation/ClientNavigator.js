@@ -59,6 +59,8 @@ import TherapistPublicationsScreen from '../screens/client/TherapistPublications
 // NAVIGATORS
 // ============================================================
 
+import ReceiptScreen from '../screens/shared/ReceiptScreen';
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
@@ -241,6 +243,7 @@ const HomeStack = () => {
         name="ChatDetail"
         component={ChatScreen}
       />
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };
@@ -319,6 +322,7 @@ const BookingStack = () => {
         'BookingDetail', 'Chat', 'Payment', 'Rating', 'Tracking',
         'Notifications', 'History', 'Negotiation', 'Offers',
       ])}
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };
@@ -351,6 +355,7 @@ const ChatStack = () => {
           (avec la barre de navigation) quand on les ouvre depuis la discussion
           — ex. « Suivre le thérapeute en route ». */}
       {renderCommonScreens(['Notifications'])}
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };
@@ -407,6 +412,7 @@ const ProfileStack = () => {
       {renderCommonScreens([
         'Notifications', 'BookingDetail', 'History', 'Payment', 'Rating',
       ])}
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };
@@ -485,6 +491,7 @@ const HistoryStack = () => {
         'BookingDetail', 'Chat', 'Payment', 'Rating', 'Tracking',
         'Notifications', 'Negotiation', 'Offers',
       ])}
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };

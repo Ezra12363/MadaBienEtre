@@ -14,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import PaymentStatusBadge from './PaymentStatusBadge';
-import ReceiptModal from './ReceiptModal';
 import { formatAr, formatDateTime, isPayableBooking, stateOf, useBookingPayment } from './paymentUtils';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -61,7 +60,6 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
   const payment = hasPreloaded ? preloaded : fetched;
 
   const [open, setOpen] = useState(defaultOpen);
-  const [receiptOpen, setReceiptOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Rafraîchir quand on revient de l'écran de paiement.
@@ -150,7 +148,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
 
           {/* ----- Actions ----- */}
           {state === 'paid' ? (
-            <TouchableOpacity style={styles.primary} onPress={() => setReceiptOpen(true)} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.primary} onPress={() => navigation?.navigate?.('Receipt', { kind: 'payment', id: payment.id, view })} activeOpacity={0.85}>
               <Ionicons name="receipt-outline" size={18} color="#fff" />
               <Text style={styles.primaryText}>{isTherapist ? 'Voir le reçu du client' : 'Voir le reçu'}</Text>
             </TouchableOpacity>
@@ -188,7 +186,6 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
         </View>
       ) : null}
 
-      <ReceiptModal visible={receiptOpen} paymentId={payment?.id} view={view} onClose={() => setReceiptOpen(false)} />
     </View>
   );
 }

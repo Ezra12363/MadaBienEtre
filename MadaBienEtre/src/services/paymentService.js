@@ -93,7 +93,10 @@ class PaymentService {
     if (!url) return false;
     try {
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.open(url, '_blank');
+        // Après un « await », les navigateurs bloquent souvent window.open :
+        // on bascule alors sur la même fenêtre (le fournisseur nous ramène ensuite sur l'app).
+        const w = window.open(url, '_blank');
+        if (!w) window.location.assign(url);
       } else {
         await Linking.openURL(url);
       }
@@ -163,28 +166,52 @@ class PaymentService {
   }
 
   // ---------- Reçus ----------
-  /** Toutes les infos du reçu (affichage dans l'app + QR). view: client | therapist (admin) */
-  getReceiptData(paymentId, view) {
-    return wrap(() => get(`/payments/${paymentId}/receipt-data`, view ? { view } : {}));
+  /**
+   * Toutes les infos d'un reçu pour l'écran « Reçu » (sections, QR, code-barres, liens PDF).
+   * kind : 'payment' | 'withdrawal' | 'commission'
+   */
+  getReceiptData(kind, id, view) {
+    const path =
+      kind === 'withdrawal'
+        ? `/wallet/withdrawals/${id}/receipt-data`
+        : kind === 'commission'
+        ? `/wallet/commissions/${id}/receipt-data`
+        : `/payments/${id}/receipt-data`;
+    return wrap(() => get(path, view && kind === 'payment' ? { view } : {}));
   }
 
   /**
-   * Télécharge (ou ouvre) un PDF à partir d'une route « receipt-link ».
-   * Web : le navigateur télécharge. Android / iOS : fichier enregistré puis
-   * feuille de partage (Enregistrer dans Fichiers, WhatsApp, e-mail...).
+   * Télécharge un PDF à partir de son URL signée.
+   *  - Web : fetch -> Blob -> clic sur un lien « download » (aucun blocage de pop-up) ;
+   *          repli : ouverture dans un nouvel onglet.
+   *  - Android / iOS : fichier enregistré dans le cache puis feuille de partage
+   *          (Enregistrer dans Fichiers, WhatsApp, e-mail...) ; repli : navigateur.
    */
-  async downloadPdf(linkPath, filename = 'recu.pdf', params = {}) {
-    const res = await wrap(() => get(linkPath, params));
-    if (!res.success) return res;
-    const { download_url: downloadUrl, url } = res.data || {};
-    if (!downloadUrl && !url) return { success: false, error: 'Lien du reçu introuvable.' };
+  async savePdfFromUrl(downloadUrl, filename = 'recu.pdf') {
+    if (!downloadUrl) return { success: false, error: 'Lien du reçu introuvable.' };
     try {
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.open(downloadUrl || url, '_blank');
-        return { success: true };
+      if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
+        try {
+          const resp = await fetch(downloadUrl);
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          const blob = await resp.blob();
+          const objectUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = objectUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => window.URL.revokeObjectURL(objectUrl), 4000);
+          return { success: true };
+        } catch (e) {
+          window.open(downloadUrl, '_blank');
+          return { success: true };
+        }
       }
-      let FileSystem;
-      let Sharing;
+
+      let FileSystem = null;
+      let Sharing = null;
       try {
         try {
           FileSystem = require('expo-file-system/legacy');
@@ -193,27 +220,37 @@ class PaymentService {
         }
         Sharing = require('expo-sharing');
       } catch (e) {
-        await Linking.openURL(url || downloadUrl);
+        FileSystem = null;
+      }
+      if (!FileSystem || !FileSystem.downloadAsync) {
+        await Linking.openURL(downloadUrl.replace('&download=1', ''));
         return { success: true };
       }
       const target = `${FileSystem.cacheDirectory}${filename}`;
-      const dl = await FileSystem.downloadAsync(downloadUrl || url, target);
-      if (dl?.status && dl.status >= 400) {
-        return { success: false, error: 'Le téléchargement du reçu a échoué.' };
+      const dl = await FileSystem.downloadAsync(downloadUrl, target);
+      if (!dl || (dl.status && dl.status >= 400)) {
+        return { success: false, error: 'Le téléchargement du reçu a échoué. Réessayez.' };
       }
-      if (await Sharing.isAvailableAsync()) {
+      if (Sharing && (await Sharing.isAvailableAsync())) {
         await Sharing.shareAsync(dl.uri, {
           mimeType: 'application/pdf',
           UTI: 'com.adobe.pdf',
           dialogTitle: 'Enregistrer / partager le reçu',
         });
       } else {
-        await Linking.openURL(url || downloadUrl);
+        await Linking.openURL(downloadUrl.replace('&download=1', ''));
       }
       return { success: true };
     } catch (error) {
-      return { success: false, error: "Impossible de télécharger le reçu." };
+      return { success: false, error: 'Impossible de télécharger le reçu.' };
     }
+  }
+
+  /** Raccourci : demande un lien frais puis télécharge. */
+  async downloadPdf(linkPath, filename = 'recu.pdf', params = {}) {
+    const res = await wrap(() => get(linkPath, params));
+    if (!res.success) return res;
+    return this.savePdfFromUrl(res.data?.download_url || res.data?.url, filename);
   }
 
   downloadPaymentReceipt(paymentId, view) {

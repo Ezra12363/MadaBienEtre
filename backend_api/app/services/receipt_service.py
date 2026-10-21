@@ -266,9 +266,39 @@ def build_document_pdf(
 
 
 # ---------------------------------------------------------------------------
-# Constructeurs de contenu
+# Images (affichage dans l'application) : QR code et code-barres Code128 en PNG
 # ---------------------------------------------------------------------------
-def payment_receipt_pdf(ctx: Dict[str, Any], view: str) -> bytes:
+def barcode_png(data: str, module: int = 3, height: int = 110) -> Optional[bytes]:
+    """Code-barres Code128 en PNG (noir sur blanc, zone de silence incluse)."""
+    try:
+        from PIL import Image, ImageDraw
+
+        bar = code128.Code128(str(data), barWidth=1, quiet=False)
+        bar.validate()
+        bar.encode()
+        bar.decompose()
+        # reportlab : MAJUSCULE = barre, minuscule = espace ; A=1, B=2, C=3, D=4 modules
+        symbols = [(ch.isupper(), ord(ch.upper()) - 64) for ch in bar.decomposed]
+        quiet = 10 * module
+        total = sum(w for _b, w in symbols) * module + 2 * quiet
+        img = Image.new("RGB", (total, height), "white")
+        draw = ImageDraw.Draw(img)
+        x = quiet
+        for is_bar, w in symbols:
+            if is_bar:
+                draw.rectangle([x, 0, x + w * module - 1, height], fill="#154A31")
+            x += w * module
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Documents : un seul « modèle » sert au PDF ET à l'écran de l'application
+# ---------------------------------------------------------------------------
+def payment_doc(ctx: Dict[str, Any], view: str) -> Dict[str, Any]:
     """ctx : voir payments._receipt_context().  view = client | therapist | admin"""
     sections: List[Section] = [
         (
@@ -303,21 +333,22 @@ def payment_receipt_pdf(ctx: Dict[str, Any], view: str) -> bytes:
                 ],
             )
         )
-    return build_document_pdf(
-        doc_title="Reçu de paiement",
-        receipt_no=ctx["receipt_no"],
-        status_label=ctx["status_label"],
-        status_ok=ctx["status"] == "completed",
-        amount=ctx["amount"],
-        amount_caption="Montant payé",
-        sections=sections,
-        qr_data=verification_url("payment", ctx["transaction_id"]),
-        barcode_data=ctx["transaction_id"],
-        issued_at=ctx.get("paid_at"),
-    )
+    return {
+        "kind": "payment",
+        "doc_title": "Reçu de paiement",
+        "receipt_no": ctx["receipt_no"],
+        "status_label": ctx["status_label"],
+        "status_ok": ctx["status"] == "completed",
+        "amount": ctx["amount"],
+        "amount_caption": "Montant payé",
+        "sections": sections,
+        "verify_url": verification_url("payment", ctx["transaction_id"]),
+        "barcode_data": ctx["transaction_id"],
+        "issued_at": ctx.get("paid_at"),
+    }
 
 
-def withdrawal_receipt_pdf(w: Any, therapist_name: str, therapist_phone: str = "") -> bytes:
+def withdrawal_doc(w: Any, therapist_name: str, therapist_phone: str = "") -> Dict[str, Any]:
     done = w.status == "completed"
     dest = (
         f"{method_label(w.provider or 'mobile_money')} · {w.phone_number}"
@@ -351,21 +382,22 @@ def withdrawal_receipt_pdf(w: Any, therapist_name: str, therapist_phone: str = "
         ("Bénéficiaire", [("Thérapeute", therapist_name), ("Téléphone", therapist_phone)]),
     ]
     ref = w.reference or f"WD-{w.id}"
-    return build_document_pdf(
-        doc_title="Reçu de retrait",
-        receipt_no=ref,
-        status_label="Payé" if done else str(w.status),
-        status_ok=done,
-        amount=w.net_amount,
-        amount_caption="Montant versé",
-        sections=sections,
-        qr_data=verification_url("wallet", ref),
-        barcode_data=ref,
-        issued_at=w.completed_at or w.created_at,
-    )
+    return {
+        "kind": "withdrawal",
+        "doc_title": "Reçu de retrait",
+        "receipt_no": ref,
+        "status_label": "Payé" if done else str(w.status),
+        "status_ok": done,
+        "amount": w.net_amount,
+        "amount_caption": "Montant versé",
+        "sections": sections,
+        "verify_url": verification_url("wallet", ref),
+        "barcode_data": ref,
+        "issued_at": w.completed_at or w.created_at,
+    }
 
 
-def commission_receipt_pdf(cp: Any, therapist_name: str) -> bytes:
+def commission_doc(cp: Any, therapist_name: str) -> Dict[str, Any]:
     done = cp.status == "completed"
     sections: List[Section] = [
         (
@@ -382,15 +414,66 @@ def commission_receipt_pdf(cp: Any, therapist_name: str) -> bytes:
         ("Thérapeute", [("Nom", therapist_name)]),
     ]
     ref = cp.reference or f"CM-{cp.id}"
+    return {
+        "kind": "commission",
+        "doc_title": "Reçu de commission",
+        "receipt_no": ref,
+        "status_label": "Validé" if done else "En attente",
+        "status_ok": done,
+        "amount": cp.amount,
+        "amount_caption": "Commission réglée",
+        "sections": sections,
+        "verify_url": verification_url("wallet", ref),
+        "barcode_data": ref,
+        "issued_at": cp.completed_at or cp.created_at,
+    }
+
+
+def render_doc(doc: Dict[str, Any]) -> bytes:
     return build_document_pdf(
-        doc_title="Reçu de commission",
-        receipt_no=ref,
-        status_label="Validé" if done else "En attente",
-        status_ok=done,
-        amount=cp.amount,
-        amount_caption="Commission réglée",
-        sections=sections,
-        qr_data=verification_url("wallet", ref),
-        barcode_data=ref,
-        issued_at=cp.completed_at or cp.created_at,
+        doc_title=doc["doc_title"],
+        receipt_no=doc["receipt_no"],
+        status_label=doc["status_label"],
+        status_ok=doc["status_ok"],
+        amount=doc["amount"],
+        amount_caption=doc["amount_caption"],
+        sections=doc["sections"],
+        qr_data=doc["verify_url"],
+        barcode_data=doc["barcode_data"],
+        issued_at=doc.get("issued_at"),
     )
+
+
+def doc_json(doc: Dict[str, Any]) -> Dict[str, Any]:
+    """Version JSON pour l'écran « Reçu » de l'application."""
+    cfg = platform_settings.get_config()
+    return {
+        "kind": doc["kind"],
+        "company": cfg.get("company_name") or "Mada Bien-Être",
+        "doc_title": doc["doc_title"],
+        "receipt_no": doc["receipt_no"],
+        "status_label": doc["status_label"],
+        "status_ok": doc["status_ok"],
+        "amount": float(doc["amount"] or 0),
+        "amount_caption": doc["amount_caption"],
+        "sections": [
+            {"title": t, "rows": [[k, v] for k, v in rows if v not in (None, "")]} for t, rows in doc["sections"]
+        ],
+        "barcode_data": doc["barcode_data"],
+        "verify_url": doc["verify_url"],
+        "issued_at": doc["issued_at"].isoformat() if doc.get("issued_at") else None,
+        "footer": cfg.get("receipt_footer") or "",
+    }
+
+
+# Compatibilité
+def payment_receipt_pdf(ctx: Dict[str, Any], view: str) -> bytes:
+    return render_doc(payment_doc(ctx, view))
+
+
+def withdrawal_receipt_pdf(w: Any, therapist_name: str, therapist_phone: str = "") -> bytes:
+    return render_doc(withdrawal_doc(w, therapist_name, therapist_phone))
+
+
+def commission_receipt_pdf(cp: Any, therapist_name: str) -> bytes:
+    return render_doc(commission_doc(cp, therapist_name))

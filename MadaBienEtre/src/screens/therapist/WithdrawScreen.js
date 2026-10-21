@@ -1,519 +1,303 @@
 // src/screens/therapist/WithdrawScreen.js
-import { useState, useRef, useEffect } from 'react';
+//
+// Demande de retrait du thérapeute -> envoyée à l'admin.
+//   - le solde vient du wallet RÉEL (GET /wallet/me), plus aucune valeur fictive ;
+//   - frais de retrait, minimum et modes autorisés viennent des paramètres de l'admin ;
+//   - Mobile Money : opérateur + numéro ; banque : nom, n° de compte, titulaire ;
+//   - la demande apparaît tout de suite dans « Mes gains > Retraits » (statut En attente) ;
+//     l'admin l'accepte puis la paie ; un reçu PDF (QR + code-barres) est alors disponible.
+import { useCallback, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
   ActivityIndicator,
-  Alert,
-  Animated,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as Animatable from 'react-native-animatable';
-import { useTheme } from '../../context/ThemeContext';
-import { useAuth } from '../../context/AuthContext';
-import { colors, spacing, typography } from '../../theme';
+
 import Header from '../../components/common/Header';
-import axios from 'axios';
-import { API_URL } from '../../config';
+import { formatAr } from '../../components/payment/paymentUtils';
+import { useTheme } from '../../context/ThemeContext';
+import paymentService from '../../services/paymentService';
+
+const GREEN = '#1F6B45';
+
+const METHODS = [
+  { id: 'mobile_money', flag: 'withdraw_mobile_money_enabled', label: 'Mobile Money', icon: 'phone-portrait-outline' },
+  { id: 'bank_transfer', flag: 'withdraw_bank_enabled', label: 'Virement bancaire', icon: 'business-outline' },
+  { id: 'cash', flag: 'withdraw_cash_enabled', label: 'Espèces (remise en main propre)', icon: 'cash-outline' },
+];
+const PROVIDERS = [
+  { id: 'mvola', label: 'MVola' },
+  { id: 'orange_money', label: 'Orange Money' },
+  { id: 'airtel_money', label: 'Airtel Money' },
+];
 
 const WithdrawScreen = ({ navigation }) => {
-  const { colors: themeColors, isDark: _isDark } = useTheme();
-  const { token } = useAuth();
-  
+  const { colors: theme } = useTheme();
+
+  const [wallet, setWallet] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState(null);
+  const [provider, setProvider] = useState('mvola');
+  const [phone, setPhone] = useState('');
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [availableBalance, setAvailableBalance] = useState(330000);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(null);
 
-  const methods = [
-    { id: 'bank_transfer', label: 'Virement bancaire', icon: 'business-outline' },
-    { id: 'mobile_money', label: 'Mobile Money', icon: 'phone-portrait-outline' },
-    { id: 'cash', label: 'Espèces', icon: 'cash-outline' },
-  ];
-
-  useEffect(() => {
-    loadBalance();
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- effet de montage unique ; `loadBalance` est recréée à chaque render
-  }, [fadeAnim]);
-
-  const loadBalance = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/therapists/earnings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setAvailableBalance(response.data.available || 0);
-    } catch (error) {
-      console.error('Error loading balance:', error);
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await paymentService.getMyWallet();
+    if (res.success) {
+      setWallet(res.data);
+      setError('');
+    } else {
+      setError(res.error || 'Impossible de charger votre solde.');
     }
+    setLoading(false);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  const available = Number(wallet?.available || 0);
+  const minWithdrawal = Number(wallet?.min_withdrawal || 0);
+  const feePercent = Number(wallet?.withdrawal_fee_percent || 0);
+  const cfg = wallet?.payment_config || {};
+  const allowed = METHODS.filter((m) => cfg[m.flag] !== false);
+
+  const value = Number(String(amount).replace(/[^0-9.]/g, '')) || 0;
+  const fee = Math.round((value * feePercent) / 100);
+  const net = Math.max(value - fee, 0);
+
+  const validate = () => {
+    if (!value || value <= 0) return 'Saisissez un montant valide.';
+    if (value < minWithdrawal) return `Retrait minimum : ${formatAr(minWithdrawal)}.`;
+    if (value > available) return `Solde insuffisant (disponible : ${formatAr(available)}).`;
+    if (!method) return 'Choisissez un mode de retrait.';
+    if (method === 'mobile_money' && String(phone).replace(/\D/g, '').length < 9) {
+      return 'Saisissez le numéro Mobile Money qui recevra l’argent.';
+    }
+    if (method === 'bank_transfer' && (!bankName.trim() || !accountNumber.trim() || !accountHolder.trim())) {
+      return 'Remplissez tous les champs bancaires.';
+    }
+    return '';
   };
 
-  const handleWithdraw = async () => {
-    if (!amount || parseFloat(amount) <= 0) {
-      Alert.alert('Erreur', 'Veuillez saisir un montant valide');
+  const submit = async () => {
+    const problem = validate();
+    if (problem) {
+      setError(problem);
       return;
     }
-
-    if (parseFloat(amount) > availableBalance) {
-      Alert.alert('Erreur', 'Solde insuffisant');
+    setError('');
+    setSubmitting(true);
+    const payload = { amount: value, method };
+    if (method === 'mobile_money') {
+      payload.provider = provider;
+      payload.phone_number = phone.trim();
+    }
+    if (method === 'bank_transfer') {
+      payload.bank_name = bankName.trim();
+      payload.account_number = accountNumber.trim();
+      payload.account_holder = accountHolder.trim();
+    }
+    const res = await paymentService.requestWithdrawal(payload);
+    setSubmitting(false);
+    if (!res.success) {
+      setError(res.error || 'La demande a échoué. Réessayez.');
       return;
     }
-
-    if (!method) {
-      Alert.alert('Erreur', 'Veuillez sélectionner une méthode de retrait');
-      return;
-    }
-
-    if (method === 'bank_transfer' && (!bankName || !accountNumber || !accountHolder)) {
-      Alert.alert('Erreur', 'Veuillez remplir tous les champs bancaires');
-      return;
-    }
-
-    if (method === 'mobile_money' && !phoneNumber) {
-      Alert.alert('Erreur', 'Veuillez saisir votre numéro de téléphone');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const _response = await axios.post(
-        `${API_URL}/withdrawals/create`,
-        {
-          amount: parseFloat(amount),
-          method: method,
-          bank_name: bankName,
-          account_number: accountNumber,
-          account_holder: accountHolder,
-          phone_number: phoneNumber,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      Alert.alert(
-        '✅ Demande de retrait envoyée',
-        'Votre demande sera traitée dans les 24 à 48 heures',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]
-      );
-    } catch (error) {
-      Alert.alert('Erreur', error.response?.data?.detail || 'Impossible d\'effectuer le retrait');
-    } finally {
-      setIsLoading(false);
-    }
+    setDone(res.data);
   };
+
+  const txt = { color: theme.text };
+  const sub = { color: theme.textSecondary };
+  const box = { backgroundColor: theme.surface, borderColor: theme.border || '#E5E7EB' };
+  const input = { color: theme.text, borderColor: theme.border || '#D1D5DB' };
+
+  if (done) {
+    return (
+      <View style={[styles.screen, { backgroundColor: theme.background }]}>
+        <Header title="Retrait d'argent" showBack />
+        <View style={styles.center}>
+          <Ionicons name="checkmark-circle" size={64} color={GREEN} />
+          <Text style={[styles.title, txt]}>Demande envoyée</Text>
+          <Text style={[styles.centerText, sub]}>
+            {formatAr(done.amount)} sont bloqués sur votre wallet. L’administrateur va accepter puis payer votre
+            demande ; vous serez notifié et le reçu PDF sera disponible dans « Mes gains &gt; Retraits ».
+          </Text>
+          <Text style={[styles.centerText, sub]}>Référence : {done.reference}</Text>
+          <TouchableOpacity style={styles.primary} onPress={() => navigation.goBack()}>
+            <Text style={styles.primaryText}>Voir mes retraits</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: themeColors.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={[styles.screen, { backgroundColor: theme.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Header title="Retrait d'argent" showBack />
-
-      <Animated.ScrollView
-        style={[styles.scrollView, { opacity: fadeAnim }]}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Solde disponible */}
-        <Animatable.View animation="fadeInDown" duration={600}>
-          <View style={[styles.balanceCard, { backgroundColor: themeColors.surface }]}>
-            <Text style={[styles.balanceLabel, { color: themeColors.textSecondary }]}>
-              Solde disponible
-            </Text>
-            <Text style={styles.balanceAmount}>
-              {availableBalance.toLocaleString()} Ar
-            </Text>
-            <Text style={[styles.balanceSubtext, { color: themeColors.textSecondary }]}>
-              Montant maximum retirable
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={GREEN} />
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <View style={styles.balance}>
+            <Text style={styles.balanceLabel}>Solde disponible</Text>
+            <Text style={styles.balanceValue}>{formatAr(available)}</Text>
+            <Text style={styles.balanceHint}>
+              Minimum {formatAr(minWithdrawal)}
+              {feePercent > 0 ? ` · frais ${feePercent} %` : ''}
             </Text>
           </View>
-        </Animatable.View>
 
-        {/* Montant */}
-        <Animatable.View animation="fadeInUp" delay={200} duration={600}>
-          <View style={[styles.formCard, { backgroundColor: themeColors.surface }]}>
-            <Text style={[styles.formTitle, { color: themeColors.text }]}>
-              Montant à retirer
-            </Text>
-            <View style={styles.amountInputContainer}>
-              <Text style={styles.amountCurrency}>Ar</Text>
-              <TextInput
-                style={[styles.amountInput, { color: themeColors.text }]}
-                placeholder="0"
-                placeholderTextColor={themeColors.textSecondary}
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="numeric"
-              />
-            </View>
-            <TouchableOpacity
-              style={styles.maxButton}
-              onPress={() => setAmount(availableBalance.toString())}
-            >
-              <Text style={styles.maxButtonText}>Montant maximum</Text>
+          <View style={[styles.card, box]}>
+            <Text style={[styles.label, sub]}>Montant à retirer (Ar)</Text>
+            <TextInput
+              style={[styles.input, input]}
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={setAmount}
+              placeholder="Ex. 50000"
+              placeholderTextColor={theme.placeholder}
+            />
+            <TouchableOpacity onPress={() => setAmount(String(Math.floor(available)))}>
+              <Text style={[styles.link, { color: GREEN }]}>Tout retirer</Text>
             </TouchableOpacity>
+            {value > 0 && feePercent > 0 ? (
+              <Text style={[styles.hint, sub]}>
+                Frais : {formatAr(fee)} · Vous recevrez : {formatAr(net)}
+              </Text>
+            ) : null}
           </View>
-        </Animatable.View>
 
-        {/* Méthodes de retrait */}
-        <Animatable.View animation="fadeInUp" delay={400} duration={600}>
-          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
-            Méthode de retrait
-          </Text>
-          {methods.map((m) => (
-            <TouchableOpacity
-              key={m.id}
-              style={[
-                styles.methodCard,
-                method === m.id && styles.methodCardActive,
-                { backgroundColor: themeColors.surface }
-              ]}
-              onPress={() => setMethod(m.id)}
-            >
-              <View style={styles.methodLeft}>
-                <View style={[styles.methodIcon, { backgroundColor: method === m.id ? colors.primary + '20' : 'transparent' }]}>
-                  <Ionicons name={m.icon} size={24} color={method === m.id ? colors.primary : themeColors.textSecondary} />
+          <View style={[styles.card, box]}>
+            <Text style={[styles.label, sub]}>Mode de retrait</Text>
+            {allowed.length === 0 ? (
+              <Text style={[styles.hint, sub]}>Les retraits sont momentanément désactivés par l’administrateur.</Text>
+            ) : null}
+            {allowed.map((m) => (
+              <TouchableOpacity
+                key={m.id}
+                style={[styles.mode, { borderColor: method === m.id ? GREEN : theme.border || '#D1D5DB' }]}
+                onPress={() => setMethod(m.id)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name={m.icon} size={20} color={method === m.id ? GREEN : theme.textSecondary} />
+                <Text style={[styles.modeText, { color: method === m.id ? GREEN : theme.text }]}>{m.label}</Text>
+                {method === m.id ? <Ionicons name="checkmark-circle" size={18} color={GREEN} /> : null}
+              </TouchableOpacity>
+            ))}
+
+            {method === 'mobile_money' ? (
+              <>
+                <View style={styles.provRow}>
+                  {PROVIDERS.map((p) => (
+                    <TouchableOpacity
+                      key={p.id}
+                      style={[styles.prov, provider === p.id && { backgroundColor: GREEN, borderColor: GREEN }]}
+                      onPress={() => setProvider(p.id)}
+                    >
+                      <Text style={{ color: provider === p.id ? '#fff' : theme.text, fontSize: 13 }}>{p.label}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-                <Text style={[styles.methodLabel, { color: method === m.id ? colors.primary : themeColors.text }]}>
-                  {m.label}
-                </Text>
-              </View>
-              <View style={[styles.methodRadio, method === m.id && styles.methodRadioActive]}>
-                {method === m.id && <View style={styles.methodRadioDot} />}
-              </View>
-            </TouchableOpacity>
-          ))}
-        </Animatable.View>
-
-        {/* Détails selon la méthode */}
-        {method === 'bank_transfer' && (
-          <Animatable.View animation="fadeInUp" delay={600} duration={600}>
-            <View style={[styles.detailsCard, { backgroundColor: themeColors.surface }]}>
-              <Text style={[styles.detailsTitle, { color: themeColors.text }]}>
-                Coordonnées bancaires
-              </Text>
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: themeColors.text }]}>
-                  Nom de la banque
-                </Text>
+                <Text style={[styles.label, sub]}>Numéro qui reçoit l’argent</Text>
                 <TextInput
-                  style={[styles.input, { color: themeColors.text, borderColor: '#E0E0E0' }]}
-                  placeholder="Ex: BNI Madagascar"
-                  placeholderTextColor={themeColors.textSecondary}
-                  value={bankName}
-                  onChangeText={setBankName}
-                />
-              </View>
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: themeColors.text }]}>
-                  Numéro de compte
-                </Text>
-                <TextInput
-                  style={[styles.input, { color: themeColors.text, borderColor: '#E0E0E0' }]}
-                  placeholder="Ex: 1234567890"
-                  placeholderTextColor={themeColors.textSecondary}
-                  value={accountNumber}
-                  onChangeText={setAccountNumber}
-                  keyboardType="numeric"
-                />
-              </View>
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: themeColors.text }]}>
-                  Titulaire du compte
-                </Text>
-                <TextInput
-                  style={[styles.input, { color: themeColors.text, borderColor: '#E0E0E0' }]}
-                  placeholder="Nom complet"
-                  placeholderTextColor={themeColors.textSecondary}
-                  value={accountHolder}
-                  onChangeText={setAccountHolder}
-                />
-              </View>
-            </View>
-          </Animatable.View>
-        )}
-
-        {method === 'mobile_money' && (
-          <Animatable.View animation="fadeInUp" delay={600} duration={600}>
-            <View style={[styles.detailsCard, { backgroundColor: themeColors.surface }]}>
-              <Text style={[styles.detailsTitle, { color: themeColors.text }]}>
-                Numéro Mobile Money
-              </Text>
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: themeColors.text }]}>
-                  Numéro de téléphone
-                </Text>
-                <TextInput
-                  style={[styles.input, { color: themeColors.text, borderColor: '#E0E0E0' }]}
-                  placeholder="Ex: 034 00 000 00"
-                  placeholderTextColor={themeColors.textSecondary}
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
+                  style={[styles.input, input]}
                   keyboardType="phone-pad"
+                  value={phone}
+                  onChangeText={setPhone}
+                  placeholder="034 12 345 67"
+                  placeholderTextColor={theme.placeholder}
                 />
-              </View>
-            </View>
-          </Animatable.View>
-        )}
+              </>
+            ) : null}
 
-        {/* Bouton */}
-        <Animatable.View animation="fadeInUp" delay={800} duration={600}>
-          <TouchableOpacity
-            style={styles.submitButton}
-            onPress={handleWithdraw}
-            disabled={isLoading}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={[colors.primary, colors.primaryLight]}
-              style={styles.submitGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.submitText}>Demander le retrait</Text>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animatable.View>
+            {method === 'bank_transfer' ? (
+              <>
+                <Text style={[styles.label, sub]}>Banque</Text>
+                <TextInput style={[styles.input, input]} value={bankName} onChangeText={setBankName} placeholder="BNI, BOA, BFV..." placeholderTextColor={theme.placeholder} />
+                <Text style={[styles.label, sub]}>Numéro de compte</Text>
+                <TextInput style={[styles.input, input]} value={accountNumber} onChangeText={setAccountNumber} keyboardType="numbers-and-punctuation" placeholderTextColor={theme.placeholder} />
+                <Text style={[styles.label, sub]}>Titulaire du compte</Text>
+                <TextInput style={[styles.input, input]} value={accountHolder} onChangeText={setAccountHolder} placeholderTextColor={theme.placeholder} />
+              </>
+            ) : null}
 
-        {/* Frais */}
-        <Animatable.View animation="fadeInUp" delay={1000} duration={600}>
-          <View style={styles.feesCard}>
-            <Ionicons name="information-circle-outline" size={20} color={themeColors.textSecondary} />
-            <Text style={[styles.feesText, { color: themeColors.textSecondary }]}>
-              Frais de retrait: 0 Ar • Délai: 24-48h
+            {method === 'cash' ? (
+              <Text style={[styles.hint, sub]}>L’administrateur vous remettra l’argent en main propre.</Text>
+            ) : null}
+          </View>
+
+          <View style={styles.notice}>
+            <Ionicons name="information-circle-outline" size={18} color={GREEN} />
+            <Text style={[styles.noticeText, sub]}>
+              Le montant est bloqué dès l’envoi de la demande. S’il est refusé ou annulé, il revient sur votre solde.
             </Text>
           </View>
-        </Animatable.View>
-      </Animated.ScrollView>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          <TouchableOpacity
+            style={[styles.primary, (submitting || allowed.length === 0) && { opacity: 0.6 }]}
+            onPress={submit}
+            disabled={submitting || allowed.length === 0}
+            activeOpacity={0.85}
+          >
+            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Envoyer la demande à l’admin</Text>}
+          </TouchableOpacity>
+        </ScrollView>
+      )}
     </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl,
-  },
-  balanceCard: {
-    borderRadius: 16,
-    padding: spacing.lg,
-    alignItems: 'center',
-    marginBottom: spacing.md,
-    marginTop: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  balanceLabel: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-  },
-  balanceAmount: {
-    fontSize: typography.fontSize.xxxl,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.primary,
-    marginVertical: spacing.xs,
-  },
-  balanceSubtext: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-  },
-  formCard: {
-    borderRadius: 16,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  formTitle: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
-    marginBottom: spacing.md,
-  },
-  amountInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    paddingHorizontal: spacing.md,
-  },
-  amountCurrency: {
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
-    color: colors.textSecondary,
-    marginRight: spacing.sm,
-  },
-  amountInput: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    fontSize: typography.fontSize.xl,
-    fontFamily: typography.fontFamily.bold,
-  },
-  maxButton: {
-    alignSelf: 'flex-end',
-    marginTop: spacing.xs,
-  },
-  maxButtonText: {
-    color: colors.primary,
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
-  },
-  sectionTitle: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
-    marginBottom: spacing.sm,
-  },
-  methodCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: 12,
-    marginBottom: spacing.sm,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  methodCardActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary + '10',
-  },
-  methodLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  methodIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  methodLabel: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.medium,
-  },
-  methodRadio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#ccc',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  methodRadioActive: {
-    borderColor: colors.primary,
-  },
-  methodRadioDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.primary,
-  },
-  detailsCard: {
-    borderRadius: 16,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  detailsTitle: {
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
-    marginBottom: spacing.sm,
-  },
-  inputGroup: {
-    marginBottom: spacing.sm,
-  },
-  inputLabel: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
-    marginBottom: 4,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.regular,
-  },
-  submitButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: spacing.md,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  submitGradient: {
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  submitText: {
-    color: '#fff',
-    fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
-  },
-  feesCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  feesText: {
-    fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.regular,
-  },
+  screen: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
+  centerText: { fontSize: 14, textAlign: 'center', lineHeight: 20, fontWeight: '400' },
+  title: { fontSize: 20, fontWeight: '400' },
+  scroll: { padding: 16, paddingBottom: 40, gap: 14, width: '100%', maxWidth: 560, alignSelf: 'center' },
+  balance: { backgroundColor: GREEN, borderRadius: 18, padding: 18 },
+  balanceLabel: { color: '#CFE5D8', fontSize: 13, fontWeight: '400' },
+  balanceValue: { color: '#fff', fontSize: 30, marginTop: 4, fontWeight: '400' },
+  balanceHint: { color: '#CFE5D8', fontSize: 12, marginTop: 4, fontWeight: '400' },
+  card: { borderWidth: 1, borderRadius: 16, padding: 14 },
+  label: { fontSize: 12, marginTop: 10, marginBottom: 6, fontWeight: '400' },
+  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, fontWeight: '400' },
+  link: { fontSize: 13, marginTop: 8, fontWeight: '400' },
+  hint: { fontSize: 12, marginTop: 8, lineHeight: 17, fontWeight: '400' },
+  mode: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 8 },
+  modeText: { flex: 1, fontSize: 14, fontWeight: '400' },
+  provRow: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' },
+  prov: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: '#CCC' },
+  notice: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', paddingHorizontal: 4 },
+  noticeText: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: '400' },
+  error: { color: '#B91C1C', fontSize: 13, fontWeight: '400' },
+  primary: { backgroundColor: GREEN, borderRadius: 14, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', minWidth: 200, paddingHorizontal: 18 },
+  primaryText: { color: '#fff', fontSize: 15, fontWeight: '400' },
+  ghost: { alignItems: 'center', paddingVertical: 12 },
 });
 
 export default WithdrawScreen;

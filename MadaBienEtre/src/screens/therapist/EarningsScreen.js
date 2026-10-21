@@ -416,14 +416,20 @@ const EarningsScreen = ({ navigation }) => {
                       </TouchableOpacity>
                     ) : null}
                     {r.receipt_available ? (
-                      <TouchableOpacity style={styles.smallBtn} disabled={busyId === `rwd${r.id}`} onPress={() => downloadReceipt('wd', r.id)}>
-                        {busyId === `rwd${r.id}` ? <ActivityIndicator color="#fff" size="small" /> : (
-                          <>
-                            <Ionicons name="download-outline" size={15} color="#fff" />
-                            <Text style={styles.smallBtnText}>Reçu PDF</Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
+                      <>
+                        <TouchableOpacity style={styles.smallBtn} onPress={() => navigation.navigate('Receipt', { kind: 'withdrawal', id: r.id })}>
+                          <Ionicons name="receipt-outline" size={15} color="#fff" />
+                          <Text style={styles.smallBtnText}>Voir le reçu</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.outlineBtnGreen} disabled={busyId === `rwd${r.id}`} onPress={() => downloadReceipt('wd', r.id)}>
+                          {busyId === `rwd${r.id}` ? <ActivityIndicator color={PRIMARY} size="small" /> : (
+                            <>
+                              <Ionicons name="download-outline" size={15} color={PRIMARY} />
+                              <Text style={styles.outlineGreenText}>PDF</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </>
                     ) : null}
                   </View>
                 </View>
@@ -476,11 +482,15 @@ const EarningsScreen = ({ navigation }) => {
                     {c.notes ? <Text style={[styles.rowSub, sub]}>{c.notes}</Text> : null}
                     {c.receipt_available ? (
                       <View style={styles.actions}>
-                        <TouchableOpacity style={styles.smallBtn} disabled={busyId === `rcm${c.id}`} onPress={() => downloadReceipt('cm', c.id)}>
-                          {busyId === `rcm${c.id}` ? <ActivityIndicator color="#fff" size="small" /> : (
+                        <TouchableOpacity style={styles.smallBtn} onPress={() => navigation.navigate('Receipt', { kind: 'commission', id: c.id })}>
+                          <Ionicons name="receipt-outline" size={15} color="#fff" />
+                          <Text style={styles.smallBtnText}>Voir le reçu</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.outlineBtnGreen} disabled={busyId === `rcm${c.id}`} onPress={() => downloadReceipt('cm', c.id)}>
+                          {busyId === `rcm${c.id}` ? <ActivityIndicator color={PRIMARY} size="small" /> : (
                             <>
-                              <Ionicons name="download-outline" size={15} color="#fff" />
-                              <Text style={styles.smallBtnText}>Reçu PDF</Text>
+                              <Ionicons name="download-outline" size={15} color={PRIMARY} />
+                              <Text style={styles.outlineGreenText}>PDF</Text>
                             </>
                           )}
                         </TouchableOpacity>
@@ -606,6 +616,8 @@ const styles = StyleSheet.create({
   smallBtnText: { color: '#fff', fontSize: 13, fontWeight: '400' },
   outlineBtn: { borderWidth: 1, borderColor: '#B91C1C', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
   outlineText: { color: '#B91C1C', fontSize: 13, fontWeight: '400' },
+  outlineBtnGreen: { flexDirection: 'row', gap: 6, alignItems: 'center', borderWidth: 1, borderColor: PRIMARY, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  outlineGreenText: { color: PRIMARY, fontSize: 13, fontWeight: '400' },
   primaryBtn: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: PRIMARY, borderRadius: 12, paddingVertical: 13, marginTop: 12 },
   primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '400' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end', alignItems: 'center' },

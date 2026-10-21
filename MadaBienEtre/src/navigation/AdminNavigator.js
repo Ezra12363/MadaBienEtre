@@ -55,6 +55,9 @@ import AdminNotificationScreen from '../screens/admin/NotificationScreen';
 import UsersScreen from '../screens/admin/UsersScreen';
 import TherapistsScreen from '../screens/admin/TherapistsScreen';
 import ApprovalsScreen from '../screens/admin/ApprovalsScreen';
+import UserDetailScreen from '../screens/admin/UserDetailScreen';
+import TherapistDetailScreen from '../screens/admin/TherapistDetailScreen';
+import ApprovalDetailScreen from '../screens/admin/ApprovalDetailScreen';
 import PaymentsScreen from '../screens/admin/PaymentsScreen';
 import ReviewsScreen from '../screens/admin/ReviewsScreen';
 import SOSAlertsScreen from '../screens/admin/SOSAlertsScreen';
@@ -69,6 +72,8 @@ import MassageTypesScreen from '../screens/admin/MassageTypesScreen';
 // ============================================================
 
 const Tab = createBottomTabNavigator();
+import ReceiptScreen from '../screens/shared/ReceiptScreen';
+
 const Stack = createNativeStackNavigator();
 
 
@@ -182,6 +187,23 @@ const DashboardStack = () => {
         name="Approvals"
         component={ApprovalsScreen}
       />
+
+      {/* Pages de détails (remplacent les anciennes modales « voir ») */}
+      <Stack.Screen
+        name="UserDetail"
+        component={UserDetailScreen}
+      />
+
+      <Stack.Screen
+        name="TherapistDetail"
+        component={TherapistDetailScreen}
+      />
+
+      <Stack.Screen
+        name="ApprovalDetail"
+        component={ApprovalDetailScreen}
+      />
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };
@@ -220,6 +242,23 @@ const UsersStack = () => {
         name="Approvals"
         component={ApprovalsScreen}
       />
+
+      {/* Pages de détails (remplacent les anciennes modales « voir ») */}
+      <Stack.Screen
+        name="UserDetail"
+        component={UserDetailScreen}
+      />
+
+      <Stack.Screen
+        name="TherapistDetail"
+        component={TherapistDetailScreen}
+      />
+
+      <Stack.Screen
+        name="ApprovalDetail"
+        component={ApprovalDetailScreen}
+      />
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };
@@ -259,6 +298,22 @@ const ManagementStack = () => {
         component={ApprovalsScreen}
       />
 
+      {/* Pages de détails (remplacent les anciennes modales « voir ») */}
+      <Stack.Screen
+        name="UserDetail"
+        component={UserDetailScreen}
+      />
+
+      <Stack.Screen
+        name="TherapistDetail"
+        component={TherapistDetailScreen}
+      />
+
+      <Stack.Screen
+        name="ApprovalDetail"
+        component={ApprovalDetailScreen}
+      />
+
       <Stack.Screen
         name="Payments"
         component={PaymentsScreen}
@@ -278,6 +333,7 @@ const ManagementStack = () => {
         name="MassageTypes"
         component={MassageTypesScreen}
       />
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };
@@ -311,6 +367,7 @@ const AnalyticsStack = () => {
         name="AIInsights"
         component={AIInsightsScreen}
       />
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };
@@ -339,6 +396,7 @@ const SettingsStack = () => {
         name="SettingsMain"
         component={SettingsScreen}
       />
+      <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
 };

@@ -125,7 +125,10 @@ const PaymentScreen = ({ navigation, route }) => {
   const isEnabled = useCallback(
     (opt) => {
       if (!methods) return false;
-      if (opt.method === 'mobile_money') return !!methods.mobile_money?.enabled;
+      if (opt.method === 'mobile_money') {
+        const prov = (methods.mobile_money?.providers || []).find((p) => p.id === opt.provider);
+        return !!methods.mobile_money?.enabled && (prov ? prov.enabled !== false : true);
+      }
       if (opt.method === 'card') return !!methods.card?.enabled;
       return !!methods.cash?.enabled;
     },
@@ -224,10 +227,10 @@ const PaymentScreen = ({ navigation, route }) => {
     setTimedOut(false);
   };
 
-  const handleReceipt = async () => {
+  // Le reçu s'ouvre sur une PAGE (header + barre de navigation), pas en modale.
+  const handleReceipt = () => {
     if (!payment?.id) return;
-    const res = await paymentService.openReceipt(payment.id);
-    if (!res.success) setError(res.error);
+    navigation.navigate('Receipt', { kind: 'payment', id: payment.id, view: 'client' });
   };
 
   const goBooking = () => navigation.navigate('BookingDetail', { bookingId });
@@ -352,7 +355,7 @@ const PaymentScreen = ({ navigation, route }) => {
 
           <TouchableOpacity style={styles.primaryBtn} onPress={handleReceipt} activeOpacity={0.85}>
             <Ionicons name="document-text-outline" size={18} color="#fff" />
-            <Text style={styles.primaryBtnText}>Télécharger le reçu (PDF)</Text>
+            <Text style={styles.primaryBtnText}>Voir mon reçu</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.linkBtn} onPress={goBooking}>
             <Text style={[styles.linkText, { color: PRIMARY }]}>Retour à la réservation</Text>

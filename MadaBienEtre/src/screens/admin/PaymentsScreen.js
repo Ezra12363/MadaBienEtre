@@ -26,7 +26,6 @@ import { Ionicons } from '@expo/vector-icons';
 
 import Header from '../../components/common/Header';
 import { BarChart, HBars, StackedShare, StatTile, dayLabel, monthLabel } from '../../components/charts/SimpleCharts';
-import ReceiptModal from '../../components/payment/ReceiptModal';
 import { formatAr, formatShort } from '../../components/payment/paymentUtils';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
@@ -55,7 +54,7 @@ const Pill = ({ s }) => {
   );
 };
 
-const PaymentsScreen = () => {
+const PaymentsScreen = ({ navigation }) => {
   const { colors: theme } = useTheme();
   const [tab, setTab] = useState('overview');
   const [range, setRange] = useState('month');
@@ -75,7 +74,6 @@ const PaymentsScreen = () => {
   const [busy, setBusy] = useState(null);
   const [refs, setRefs] = useState({});
   const [reasons, setReasons] = useState({});
-  const [receipt, setReceipt] = useState(null); // { paymentId, view }
 
   const alive = useRef(true);
   useEffect(() => {
@@ -307,11 +305,11 @@ const PaymentsScreen = () => {
                       Commission {formatAr(p.commission_amount)} ({p.commission_rate}%) · Net thérapeute {formatAr(p.net_amount)}
                     </Text>
                     <View style={styles.actions}>
-                      <TouchableOpacity style={styles.smallBtn} onPress={() => setReceipt({ paymentId: p.id, view: 'client' })}>
+                      <TouchableOpacity style={styles.smallBtn} onPress={() => navigation.navigate('Receipt', { kind: 'payment', id: p.id, view: 'client' })}>
                         <Ionicons name="receipt-outline" size={15} color="#fff" />
                         <Text style={styles.smallBtnText}>Reçu client</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.smallBtn} onPress={() => setReceipt({ paymentId: p.id, view: 'therapist' })}>
+                      <TouchableOpacity style={styles.smallBtn} onPress={() => navigation.navigate('Receipt', { kind: 'payment', id: p.id, view: 'therapist' })}>
                         <Ionicons name="receipt-outline" size={15} color="#fff" />
                         <Text style={styles.smallBtnText}>Reçu thérapeute</Text>
                       </TouchableOpacity>
@@ -395,11 +393,15 @@ const PaymentsScreen = () => {
                   ) : null}
                   {w.receipt_available ? (
                     <View style={styles.actions}>
-                      <TouchableOpacity style={styles.smallBtn} disabled={busy === `rw${w.id}`} onPress={() => receiptPdf(`rw${w.id}`, () => paymentService.downloadWithdrawalReceipt(w.id))}>
-                        {busy === `rw${w.id}` ? <ActivityIndicator color="#fff" size="small" /> : (
+                      <TouchableOpacity style={styles.smallBtn} onPress={() => navigation.navigate('Receipt', { kind: 'withdrawal', id: w.id })}>
+                        <Ionicons name="receipt-outline" size={15} color="#fff" />
+                        <Text style={styles.smallBtnText}>Voir le reçu</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.outlineBtn} disabled={busy === `rw${w.id}`} onPress={() => receiptPdf(`rw${w.id}`, () => paymentService.downloadWithdrawalReceipt(w.id))}>
+                        {busy === `rw${w.id}` ? <ActivityIndicator color={PRIMARY} size="small" /> : (
                           <>
-                            <Ionicons name="download-outline" size={15} color="#fff" />
-                            <Text style={styles.smallBtnText}>Reçu du retrait (PDF)</Text>
+                            <Ionicons name="download-outline" size={15} color={PRIMARY} />
+                            <Text style={[styles.outlineText, { color: PRIMARY }]}>PDF</Text>
                           </>
                         )}
                       </TouchableOpacity>
@@ -440,9 +442,13 @@ const PaymentsScreen = () => {
                   ) : null}
                   {c.receipt_available ? (
                     <View style={styles.actions}>
-                      <TouchableOpacity style={styles.smallBtn} disabled={busy === `rc${c.id}`} onPress={() => receiptPdf(`rc${c.id}`, () => paymentService.downloadCommissionReceipt(c.id))}>
-                        <Ionicons name="download-outline" size={15} color="#fff" />
-                        <Text style={styles.smallBtnText}>Reçu PDF</Text>
+                      <TouchableOpacity style={styles.smallBtn} onPress={() => navigation.navigate('Receipt', { kind: 'commission', id: c.id })}>
+                        <Ionicons name="receipt-outline" size={15} color="#fff" />
+                        <Text style={styles.smallBtnText}>Voir le reçu</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.outlineBtn} disabled={busy === `rc${c.id}`} onPress={() => receiptPdf(`rc${c.id}`, () => paymentService.downloadCommissionReceipt(c.id))}>
+                        <Ionicons name="download-outline" size={15} color={PRIMARY} />
+                        <Text style={[styles.outlineText, { color: PRIMARY }]}>PDF</Text>
                       </TouchableOpacity>
                     </View>
                   ) : null}
@@ -481,7 +487,6 @@ const PaymentsScreen = () => {
         ) : null}
       </ScrollView>
 
-      <ReceiptModal visible={!!receipt} paymentId={receipt?.paymentId} view={receipt?.view} onClose={() => setReceipt(null)} />
     </View>
   );
 };
