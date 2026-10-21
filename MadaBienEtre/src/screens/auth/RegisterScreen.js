@@ -60,6 +60,10 @@ const GREEN = '#2E7D32';
 const GREEN_LIGHT = '#EAF5EC';
 const WHITE = '#FFFFFF';
 
+// Fond unique de tout l'écran (même couleur partout, derrière le formulaire aussi)
+const SCREEN_BG_LIGHT = '#F6F9F6';
+const SCREEN_BG_DARK = '#121212';
+
 const DESKTOP_BREAKPOINT = 1100;
 const TABLET_BREAKPOINT = 700;
 
@@ -432,7 +436,7 @@ const Field = ({
         style={[
           styles.inputWrapper,
           {
-            backgroundColor: isDark ? '#252535' : '#F8FAF8',
+            backgroundColor: isDark ? '#252535' : WHITE,
             borderColor: error
               ? '#EF4444'
               : isDark
@@ -1038,7 +1042,7 @@ const RegisterScreen = ({ navigation }) => {
         isTablet && styles.formCardTablet,
         isSmallPhone && styles.formCardSmall,
         {
-          backgroundColor: isDark ? '#1E1E2E' : WHITE,
+          backgroundColor: 'transparent',
           opacity: fadeAnim,
           transform: [{ translateY: slideAnim }],
         },
@@ -1318,7 +1322,7 @@ const RegisterScreen = ({ navigation }) => {
     <KeyboardAvoidingView
       style={[
         styles.mobileKeyboard,
-        { backgroundColor: isDark ? '#121212' : '#F6F9F6' },
+        { backgroundColor: isDark ? SCREEN_BG_DARK : SCREEN_BG_LIGHT },
       ]}
       behavior={
         Platform.OS === 'ios'
@@ -1349,7 +1353,7 @@ const RegisterScreen = ({ navigation }) => {
           ref={scrollRef}
           style={[
             styles.mobileScrollView,
-            { backgroundColor: isDark ? '#121212' : '#F6F9F6' },
+            { backgroundColor: isDark ? SCREEN_BG_DARK : SCREEN_BG_LIGHT },
           ]}
           contentContainerStyle={[
             styles.mobileScrollContent,
@@ -1396,7 +1400,7 @@ const RegisterScreen = ({ navigation }) => {
     <View
       style={[
         styles.desktopContainer,
-        { backgroundColor: isDark ? '#111111' : WHITE },
+        { backgroundColor: isDark ? SCREEN_BG_DARK : SCREEN_BG_LIGHT },
       ]}
     >
       <View style={styles.desktopBrand}>
@@ -1494,7 +1498,7 @@ const RegisterScreen = ({ navigation }) => {
       <View
         style={[
           styles.desktopRight,
-          { backgroundColor: isDark ? '#121212' : '#F8FAF8' },
+          { backgroundColor: isDark ? SCREEN_BG_DARK : SCREEN_BG_LIGHT },
         ]}
       >
         <ScrollView
@@ -1541,7 +1545,7 @@ const RegisterScreen = ({ navigation }) => {
     <SafeAreaView
       style={[
         styles.safeArea,
-        { backgroundColor: isDark ? '#121212' : WHITE },
+        { backgroundColor: isDark ? SCREEN_BG_DARK : SCREEN_BG_LIGHT },
       ]}
     >
       <StatusBar
