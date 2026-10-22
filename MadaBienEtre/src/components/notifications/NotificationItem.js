@@ -7,7 +7,11 @@ import { colors, spacing, typography } from '../../theme';
 const NotificationItem = ({ notification, onPress, onDelete }) => {
   const { colors: themeColors } = useTheme();
 
-  const getIcon = (type) => {
+  // sos_alert / sos_resolved (backend) -> catégorie « sos »
+  const normalize = (t) => (String(t || '').startsWith('sos') ? 'sos' : t);
+
+  const getIcon = (rawType) => {
+    const type = normalize(rawType);
     const map = {
       booking: 'calendar-outline',
       offer: 'pricetag-outline',
@@ -22,7 +26,8 @@ const NotificationItem = ({ notification, onPress, onDelete }) => {
     return map[type] || 'notifications-outline';
   };
 
-  const getColor = (type) => {
+  const getColor = (rawType) => {
+    const type = normalize(rawType);
     const map = {
       booking: '#4CAF50',
       offer: '#FF6F00',

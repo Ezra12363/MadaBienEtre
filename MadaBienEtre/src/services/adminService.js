@@ -699,7 +699,7 @@ const adminService = {
       if (limit) queryParams.append('limit', limit);
       if (skip) queryParams.append('skip', skip);
 
-      const response = await api.get(`/sos?${queryParams.toString()}`);
+      const response = await api.get(`/sos/?${queryParams.toString()}`);
       return response.data;
     } catch (error) {
       console.error('❌ Error getSOSAlerts:', error);
@@ -711,9 +711,9 @@ const adminService = {
    * Résoudre une alerte SOS
    * @param {number} alertId - ID de l'alerte
    */
-  async resolveSOSAlert(alertId) {
+  async resolveSOSAlert(alertId, notes = '') {
     try {
-      const response = await api.put(`/sos/close/${alertId}`);
+      const response = await api.put(`/sos/close/${alertId}`, { response_notes: notes || null });
       return response.data;
     } catch (error) {
       console.error('❌ Error resolveSOSAlert:', error);

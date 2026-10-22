@@ -61,6 +61,7 @@ import {
 import Header from '../../components/common/Header';
 import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
 import SOSButton from '../../components/sos/SOSButton';
+import SafetyCheckCard from '../../components/sos/SafetyCheckCard';
 
 import bookingService from '../../services/bookingService';
 import therapistService from '../../services/therapistService';
@@ -2496,6 +2497,11 @@ const BookingDetailScreen = ({
                     }
                   />
                 </View>
+
+                <SafetyCheckCard
+                  bookingId={currentBookingId}
+                  role="CLIENT"
+                />
               </>
             )}
 
