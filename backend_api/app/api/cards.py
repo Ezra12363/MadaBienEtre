@@ -62,8 +62,19 @@ async def my_cards(db: Session = Depends(get_db), current_user: User = Depends(g
         "cards": items,
         "sync_error": sync_error,
         "available": cards.is_available(),
+        "publishable_key": settings.STRIPE_PUBLISHABLE_KEY or None,
         "sandbox": bool(settings.PAYMENT_SANDBOX),
     }
+
+
+@router.post("/setup-intent")
+async def setup_intent(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Formulaire de carte intégré à l'application (Stripe Elements / CardField)."""
+    try:
+        return cards.create_setup_intent(db, current_user)
+    except cards.CardError as exc:
+        db.rollback()
+        raise HTTPException(400, str(exc))
 
 
 @router.post("/setup")

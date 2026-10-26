@@ -280,6 +280,34 @@ def start_setup(db: Session, user: User, return_url: Optional[str] = None) -> Di
 
 
 # ---------------------------------------------------------------------------
+# Formulaire INTÉGRÉ (Stripe Elements) : SetupIntent
+# ---------------------------------------------------------------------------
+def create_setup_intent(db: Session, user: User) -> Dict[str, Any]:
+    """Prépare l'enregistrement d'une carte SANS quitter l'application.
+    Le navigateur / le SDK mobile envoie la carte directement à Stripe avec le client_secret retourné ;
+    notre serveur ne voit jamais le numéro."""
+    if settings.PAYMENT_SANDBOX:
+        raise CardError("Mode test : utilisez la carte de démonstration.")
+    if not stripe_configured() or not settings.STRIPE_PUBLISHABLE_KEY:
+        raise CardError("Le paiement par carte n'est pas encore configuré par l'administrateur (clés Stripe).")
+    cid = get_customer_id(db, user)
+    try:
+        intent = stripe.SetupIntent.create(
+            customer=cid,
+            # ⚠️ pas de payment_method_types (refusé par l'API Stripe récente) : on laisse Stripe gérer
+            # les moyens de paiement du Dashboard ; allow_redirects=never = uniquement les cartes.
+            automatic_payment_methods={"enabled": True, "allow_redirects": "never"},
+            usage="off_session",
+            metadata={"user_id": str(user.id), "purpose": "save_card"},
+        )
+    except Exception as exc:  # noqa: BLE001
+        reason = str(getattr(exc, "user_message", None) or exc)
+        logger.error("Stripe SetupIntent : %s", reason)
+        raise CardError(f"Stripe a refusé la préparation du formulaire : {reason[:200]}") from exc
+    return {"client_secret": intent.client_secret, "publishable_key": settings.STRIPE_PUBLISHABLE_KEY}
+
+
+# ---------------------------------------------------------------------------
 # Carte par défaut / suppression
 # ---------------------------------------------------------------------------
 def set_default(db: Session, user: User, card_id: int) -> None:

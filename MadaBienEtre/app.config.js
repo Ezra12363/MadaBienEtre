@@ -1,4 +1,3 @@
-
 // app.config.js
 import appJson from "./app.json";
 
@@ -6,6 +5,9 @@ export default ({ config }) => {
   return {
     ...appJson.expo,
     ...config,
+
+    // Deep link de l'application : sert au retour automatique après la page Stripe (mobile)
+    scheme: appJson.expo.scheme || "madabienetre",
 
     ios: {
       ...appJson.expo.ios,
@@ -32,6 +34,16 @@ export default ({ config }) => {
     plugins: [
       ...(appJson.expo.plugins || []),
       "expo-notifications",
+      // ✅ Stripe : formulaire de carte intégré (CardField) sur Android / iOS
+      // ⚠️ Doit être un tableau AVEC un objet d'options (la forme "chaîne seule" fait planter le plugin :
+      // « Cannot read properties of undefined (reading 'merchantIdentifier') »).
+      [
+        "@stripe/stripe-react-native",
+        {
+          merchantIdentifier: "",
+          enableGooglePay: false,
+        },
+      ],
       [
         "react-native-maps",
         {

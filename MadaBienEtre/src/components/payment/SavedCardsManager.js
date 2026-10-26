@@ -21,7 +21,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import cardService from '../../services/cardService';
+import StripeCardForm, { inlineCardFormSupported } from './StripeCardForm';
 
 const GREEN = '#1F6B45';
 const POLL_MS = 4000;
@@ -69,11 +71,13 @@ export default function SavedCardsManager({
   hideTitle = false,
 }) {
   const { colors: theme } = useTheme();
+  const { user } = useAuth();
   const isSelect = mode === 'select';
 
   const [cards, setCards] = useState([]);
   const [available, setAvailable] = useState(true);
   const [sandbox, setSandbox] = useState(false);
+  const [publishableKey, setPublishableKey] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
@@ -108,6 +112,7 @@ export default function SavedCardsManager({
       setCards(list);
       setAvailable(res.data?.available !== false);
       setSandbox(!!res.data?.sandbox);
+      setPublishableKey(res.data?.publishable_key || null);
       onLoaded?.(list, { available: res.data?.available !== false, sandbox: !!res.data?.sandbox });
 
       // Mode sélection : on choisit automatiquement la carte par défaut.
@@ -189,6 +194,14 @@ export default function SavedCardsManager({
     }
     setWaiting(true);
     startPolling();
+  };
+
+  // Carte enregistrée via le formulaire intégré : on recharge et, au paiement, on la sélectionne.
+  const handleInlineSaved = async () => {
+    const list = await load({ silent: true });
+    if (isSelect && onSelect && list?.length) {
+      onSelect([...list].sort((a, b) => b.id - a.id)[0].id);
+    }
   };
 
   const handleDelete = async (card) => {
@@ -373,7 +386,17 @@ export default function SavedCardsManager({
         </View>
       ) : null}
 
-      {available ? (
+      {available && !sandbox && inlineCardFormSupported(publishableKey) ? (
+        <StripeCardForm
+          publishableKey={publishableKey}
+          holderName={user?.fullname || user?.full_name || user?.name}
+          onSaved={handleInlineSaved}
+          title={cards.length ? 'Ajouter une autre carte' : 'Payer avec une nouvelle carte'}
+          buttonLabel="Enregistrer la carte"
+        />
+      ) : null}
+
+      {available && (sandbox || !inlineCardFormSupported(publishableKey)) ? (
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={handleAdd}

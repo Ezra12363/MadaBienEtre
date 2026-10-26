@@ -53,6 +53,11 @@ class CardService {
     return { success: true, opened: true };
   }
 
+  /** Prépare le formulaire intégré : { client_secret, publishable_key } */
+  setupIntent() {
+    return wrap(() => post('/cards/setup-intent'));
+  }
+
   setDefault(cardId) {
     return wrap(() => put(`/cards/${cardId}/default`));
   }
