@@ -267,12 +267,18 @@ const TherapistPublicationsScreen = ({ navigation }) => {
           text={text}
           textSecondary={textSecondary}
           onOpen={() => openProfile(item)}
+          onOpenReviews={() =>
+            navigation.navigate('TherapistReviews', {
+              therapistId: item.id,
+              therapistName: item.name,
+            })
+          }
           onBook={() => book(item)}
           fill
         />
       </View>
       ),
-    [isDark, surface, border, text, textSecondary, openProfile, book]
+    [isDark, surface, border, text, textSecondary, openProfile, book, navigation]
   );
 
   const chips = [

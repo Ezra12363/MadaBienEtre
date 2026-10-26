@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import AdminTherapistReviewsCard from '../../components/reviews/AdminTherapistReviewsCard';
 
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../theme';
@@ -547,6 +548,10 @@ const UserDetailScreen = ({ navigation, route }) => {
 
       {isTherapist ? (
         <>
+          <DetailCard title="Avis et évaluations" icon="star-outline">
+            <AdminTherapistReviewsCard therapistId={user.id} navigation={navigation} />
+          </DetailCard>
+
           <DetailCard title="Profil thérapeute" icon="fitness-outline">
             <InfoGrid>
               <InfoItem

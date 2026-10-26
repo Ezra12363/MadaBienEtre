@@ -45,6 +45,8 @@ import ChatScreen from '../screens/client/ChatScreen';
 import ConversationsScreen from '../screens/shared/ConversationsScreen';
 import PaymentScreen from '../screens/client/PaymentScreen';
 import RatingScreen from '../screens/client/RatingScreen';
+import MyReviewsScreen from '../screens/client/MyReviewsScreen';
+import TherapistReviewsScreen from '../screens/client/TherapistReviewsScreen';
 import TrackingScreen from '../screens/client/TrackingScreen';
 import SOSScreen from '../screens/client/SOSScreen';
 import HistoryScreen from '../screens/client/HistoryScreen';
@@ -121,6 +123,8 @@ const COMMON_SCREENS = [
   ['Chat', ChatScreen],
   ['Payment', PaymentScreen],
   ['Rating', RatingScreen],
+  ['MyReviews', MyReviewsScreen],
+  ['TherapistReviews', TherapistReviewsScreen],
   ['Tracking', TrackingScreen],
   ['SOS', SOSScreen],
   ['Notifications', NotificationScreen],
@@ -243,6 +247,8 @@ const HomeStack = () => {
         name="ChatDetail"
         component={ChatScreen}
       />
+      <Stack.Screen name="MyReviews" component={MyReviewsScreen} />
+      <Stack.Screen name="TherapistReviews" component={TherapistReviewsScreen} />
       <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );

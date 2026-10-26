@@ -327,9 +327,14 @@ async def admin_statistics(
         Booking.actual_end_time >= start
     ).scalar() or 0
 
-    reviews = db.query(Review).filter(Review.created_at >= start).count()
+    # Les avis masqués par la modération ne comptent pas
+    reviews = db.query(Review).filter(
+        Review.created_at >= start,
+        Review.is_hidden == False  # noqa: E712
+    ).count()
     avg_rating = db.query(func.avg(Review.rating)).filter(
-        Review.created_at >= start
+        Review.created_at >= start,
+        Review.is_hidden == False  # noqa: E712
     ).scalar() or 0
 
     return {

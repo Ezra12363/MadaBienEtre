@@ -570,7 +570,7 @@ const AvailabilityCalendar = ({ item, avail, colors, isDark, onPickSlot }) => {
 };
 
 /* ---------- CARD THÉRAPEUTE (style carte "Réservation") ---------- */
-const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, aiInfo, onPress, onBook }) => {
+const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, aiInfo, onPress, onBook, onOpenReviews }) => {
   const avail = useTherapistAvailability(item);
   const { nextSlot, weekly } = avail;
   const [calOpen, setCalOpen] = useState(false);
@@ -615,12 +615,18 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, ai
                 <Text style={cardStyles.photoInitial}>{item.name?.charAt(0)?.toUpperCase()}</Text>
               </View>
             )}
-            <View style={cardStyles.countBadge}>
+            <TouchableOpacity
+              style={cardStyles.countBadge}
+              activeOpacity={0.7}
+              disabled={!onOpenReviews}
+              onPress={onOpenReviews}
+              accessibilityLabel="Voir les avis"
+            >
               <Ionicons name="chatbubble-ellipses-outline" size={11} color={green} />
               <Text style={cardStyles.countBadgeText}>
                 {item.reviews} avis
               </Text>
-            </View>
+            </TouchableOpacity>
           </View>
 
           {/* ===== DROITE : INFORMATIONS ===== */}
@@ -2049,6 +2055,12 @@ const SearchMassageScreen = ({ navigation, route }) => {
           isSelected={selectedMarker?.id === item.id}
           isRecommended={topAiId !== null && String(item.id) === topAiId}
           aiInfo={aiScores[String(item.id)] || null}
+          onOpenReviews={() =>
+            navigation.navigate("TherapistReviews", {
+              therapistId: item.id,
+              therapistName: item.name,
+            })
+          }
           onPress={() => {
             setSelectedMarker(item);
             showToast(`${item.name} sélectionné(e)`, "info");
@@ -2713,13 +2725,22 @@ const SearchMassageScreen = ({ navigation, route }) => {
                       <Text numberOfLines={1} style={[styles.panelName, { color: themeColors.text }]}>
                         {selectedMarker.name}
                       </Text>
-                      <View style={styles.panelRating}>
+                      <TouchableOpacity
+                        style={styles.panelRating}
+                        activeOpacity={0.7}
+                        onPress={() =>
+                          navigation.navigate("TherapistReviews", {
+                            therapistId: selectedMarker.id,
+                            therapistName: selectedMarker.name,
+                          })
+                        }
+                      >
                         <Ionicons name="star" size={12} color={STAR} />
                         <Text style={styles.panelRatingText}>{selectedMarker.rating}</Text>
                         <Text style={[styles.panelReviews, { color: themeColors.textSecondary }]}>
-                          ({selectedMarker.reviews} avis)
+                          ({selectedMarker.reviews} avis) ›
                         </Text>
-                      </View>
+                      </TouchableOpacity>
                     </View>
 
                     <View style={styles.panelAvailable}>

@@ -54,7 +54,9 @@ async def get_dashboard_stats(
     ).scalar() or 0
     
     # Avis
-    avg_rating = db.query(func.avg(Review.rating)).scalar() or 0
+    avg_rating = db.query(func.avg(Review.rating)).filter(
+        Review.is_hidden == False  # noqa: E712
+    ).scalar() or 0
     
     # SOS
     active_sos = db.query(SOSAlert).filter(SOSAlert.status == "active").count()
@@ -82,7 +84,7 @@ async def get_dashboard_stats(
         },
         "reviews": {
             "average_rating": float(avg_rating),
-            "total": db.query(Review).count()
+            "total": db.query(Review).filter(Review.is_hidden == False).count()  # noqa: E712
         },
         "sos": {
             "active": active_sos

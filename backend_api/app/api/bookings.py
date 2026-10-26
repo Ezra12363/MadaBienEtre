@@ -243,6 +243,22 @@ def booking_response_dict(
         else None
     )
 
+    # ------------------------------------------------------------
+    # AVIS ET ÉVALUATIONS
+    # Chaque réservation expose son avis (s'il existe) afin que les
+    # écrans Historique / Détail / Tableau de bord puissent afficher
+    # « Évaluer » ou la note donnée sans appel supplémentaire.
+    # Un avis MASQUÉ par l'admin n'expose ni note ni commentaire.
+    # ------------------------------------------------------------
+    try:
+        _booking_reviews = list(getattr(booking, "reviews", None) or [])
+    except Exception:
+        _booking_reviews = []
+    _review = _booking_reviews[0] if _booking_reviews else None
+    _review_visible = _review is not None and not bool(
+        getattr(_review, "is_hidden", False)
+    )
+
     return {
         "id": booking.id,
 
@@ -424,6 +440,59 @@ def booking_response_dict(
             massage.name
             if massage
             else None
+        ),
+
+        # ----------------------------------------------------
+        # AVIS ET ÉVALUATIONS
+        # ----------------------------------------------------
+
+        "has_review": _review is not None,
+
+        "review_id": (
+            _review.id if _review is not None else None
+        ),
+
+        "review_rating": (
+            _review.rating if _review_visible else None
+        ),
+
+        "review_comment": (
+            _review.comment if _review_visible else None
+        ),
+
+        "review_response": (
+            _review.response_from_therapist
+            if _review_visible
+            else None
+        ),
+
+        "review_created_at": (
+            _review.created_at
+            if _review is not None
+            else None
+        ),
+
+        "review_hidden": bool(
+            _review is not None
+            and getattr(_review, "is_hidden", False)
+        ),
+
+        "can_review": bool(
+            booking.status == "completed"
+            and booking.therapist_id
+            and _review is None
+        ),
+
+        "therapist_rating": (
+            float(therapist.rating)
+            if therapist and therapist.rating
+            else 0.0
+        ),
+
+        "therapist_total_reviews": (
+            int(therapist.total_reviews or 0)
+            if therapist
+            else 0
         ),
 
         # ----------------------------------------------------

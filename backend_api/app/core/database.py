@@ -57,4 +57,7 @@ def get_db() -> Generator[Session, None, None]:
 def init_database():
     """Mamorona ny tables rehetra"""
     Base.metadata.create_all(bind=engine)
+    # ✅ Avis : ajoute les colonnes de modération si la table existait déjà
+    from .review_migration import ensure_review_schema
+    ensure_review_schema(engine)
     logger.info("Tables créées avec succès ✅")

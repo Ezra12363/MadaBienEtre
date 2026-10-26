@@ -441,6 +441,10 @@ const normalizeBooking = (item, index) => {
     ...booking,
     id: bookingId,
     bookingId,
+    // Avis et évaluations (fournis par le backend)
+    hasReview: !!(booking.has_review ?? booking.hasReview),
+    reviewRating: booking.review_rating ?? null,
+    canReview: !!booking.can_review,
     address,
     scheduledDate,
     scheduledTime,
@@ -1160,7 +1164,7 @@ const Tag = ({ label, themeColors }) => (
   </View>
 );
 
-const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress }) => {
+const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress, onReviewPress }) => {
   const { width } = useWindowDimensions();
   const isWide = width >= 768;
   const statusConfig = getStatusConfig(booking.status);
@@ -1264,6 +1268,47 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress 
               <View style={styles.roleBadge}>
                 <Text style={styles.roleBadgeText}>Thérapeute</Text>
               </View>
+
+              {/* Avis sur ce thérapeute : petit chip dans la carte (séance terminée) */}
+              {onReviewPress &&
+                booking.status === 'completed' &&
+                (booking.canReview || booking.hasReview) && (
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                    onPress={() => onReviewPress(booking)}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      booking.hasReview
+                        ? 'Voir ou modifier mon avis'
+                        : 'Donner un avis sur le thérapeute'
+                    }
+                    style={[
+                      styles.reviewChip,
+                      booking.hasReview
+                        ? styles.reviewChipDone
+                        : styles.reviewChipTodo,
+                    ]}
+                  >
+                    <Ionicons
+                      name={booking.hasReview ? 'star' : 'star-outline'}
+                      size={11}
+                      color="#F5A623"
+                    />
+                    <Text
+                      style={[
+                        styles.reviewChipText,
+                        { color: booking.hasReview ? themeColors.textSecondary : '#8D6E00' },
+                      ]}
+                    >
+                      {booking.hasReview
+                        ? booking.reviewRating
+                          ? `${booking.reviewRating}/5`
+                          : 'Mon avis'
+                        : 'Donner un avis'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
             </View>
           )}
 
@@ -1810,6 +1855,9 @@ const HistoryScreen = ({ navigation }) => {
             onPress={handleBookingPress}
             onMenuPress={handleMenuPress}
             onSharePress={handleSharePress}
+            onReviewPress={(b) =>
+              navigation.navigate('Rating', { bookingId: b.bookingId })
+            }
           />
           {/* Statut du paiement sous le prix : Payer maintenant / Voir le reçu */}
           <BookingPaymentSection
@@ -2265,8 +2313,32 @@ const styles = StyleSheet.create({
   therapistRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: 6,
     marginTop: 8,
+  },
+
+  // Chip « avis » compact, intégré à la ligne du thérapeute
+  reviewChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2.5,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  reviewChipTodo: {
+    backgroundColor: '#FFF8E1',
+    borderColor: '#F5A62355',
+  },
+  reviewChipDone: {
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(0,0,0,0.12)',
+  },
+  reviewChipText: {
+    fontSize: 10.5,
+    fontWeight: '700',
   },
 
   therapistAvatar: {

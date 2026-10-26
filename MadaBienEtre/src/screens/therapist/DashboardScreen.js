@@ -29,6 +29,7 @@ import * as Animatable from 'react-native-animatable';
 
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import reviewService from '../../services/reviewService';
 import AITherapistHomeBlock from '../../components/ai/AITherapistHomeBlock';
 import { useNotifications } from '../../context/NotificationContext';
 
@@ -293,6 +294,33 @@ const DashboardScreen = ({ navigation }) => {
         reviews: 28,
       });
 
+      // ✅ Avis réels : note moyenne + nombre d'avis + dernier avis reçu
+      let realReviewActivity = null;
+      try {
+        if (user?.id) {
+          const [ratingStats, latest] = await Promise.all([
+            reviewService.therapistStats(user.id),
+            reviewService.received({ limit: 1, sort: 'recent' }),
+          ]);
+          setStats((prev) => ({
+            ...prev,
+            rating: Number(ratingStats?.average_rating || 0).toFixed(1),
+            reviews: ratingStats?.total_reviews || 0,
+          }));
+          const last = (latest || [])[0];
+          if (last) {
+            realReviewActivity = {
+              id: `review-${last.id}`,
+              type: 'review',
+              message: `Nouvel avis ${last.rating} étoile${last.rating > 1 ? 's' : ''} de ${last.reviewer_name}`,
+              time: 'Récent',
+            };
+          }
+        }
+      } catch (_reviewError) {
+        // les compteurs d'avis gardent leur valeur par défaut
+      }
+
       setRecentActivities([
         {
           id: 1,
@@ -306,12 +334,9 @@ const DashboardScreen = ({ navigation }) => {
           message: 'Paiement reçu de Jean R. - 45 000 Ar',
           time: '09:15',
         },
-        {
-          id: 3,
-          type: 'review',
-          message: 'Nouvel avis 5 étoiles de Sarah M.',
-          time: 'Hier',
-        },
+        ...(realReviewActivity
+          ? [realReviewActivity]
+          : []),
       ]);
     } catch (error) {
       console.error('Erreur dashboard :', error);
@@ -320,7 +345,7 @@ const DashboardScreen = ({ navigation }) => {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     loadDashboardData();
@@ -1036,7 +1061,11 @@ const DashboardScreen = ({ navigation }) => {
 
                 <View style={styles.welcomeStatDivider} />
 
-                <View style={styles.welcomeStat}>
+                <TouchableOpacity
+                  style={styles.welcomeStat}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('Reviews')}
+                >
                   <View style={styles.ratingValueRow}>
                     <Text style={styles.welcomeStatValue}>
                       {stats.rating}
@@ -1050,9 +1079,9 @@ const DashboardScreen = ({ navigation }) => {
                   </View>
 
                   <Text style={styles.welcomeStatLabel}>
-                    Note moyenne
+                    Note · {stats.reviews} avis
                   </Text>
-                </View>
+                </TouchableOpacity>
               </View>
             </LinearGradient>
           </Animatable.View>

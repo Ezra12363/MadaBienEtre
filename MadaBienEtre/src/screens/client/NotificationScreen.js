@@ -926,6 +926,22 @@ const NotificationScreen = ({
 
 
         /* ------------------------------------------------------
+           AVIS (réponse du thérapeute, avis masqué / supprimé...)
+           -> détail de la réservation (avis affiché), sinon « Mes avis »
+        ------------------------------------------------------ */
+        const reviewType = String(notification?.type || '').toLowerCase();
+        if (reviewType.includes('review')) {
+          const reviewData = parseNotificationData(notification) || {};
+          const reviewBookingId = bookingId || reviewData.booking_id;
+          if (reviewBookingId && !reviewType.includes('moderated')) {
+            navigation.navigate('BookingDetail', { bookingId: reviewBookingId });
+          } else {
+            navigation.navigate('MyReviews');
+          }
+          return;
+        }
+
+        /* ------------------------------------------------------
            PAIEMENT (confirmé, en attente, thérapeute prévenu...)
            -> page BookingDetail de la réservation, bloc paiement ouvert
         ------------------------------------------------------ */

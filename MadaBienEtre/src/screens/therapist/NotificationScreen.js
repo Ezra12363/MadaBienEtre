@@ -1336,6 +1336,18 @@ const NotificationScreen = ({
 
 
         /* ------------------------------------------------------
+           AVIS : nouvel avis / avis modifié -> page « Mes avis »
+        ------------------------------------------------------ */
+        if (String(notification?.type || '').toLowerCase().includes('review')) {
+          try {
+            navigation.navigate('Reviews');
+          } catch (_e) {
+            navigation.navigate('Profil', { screen: 'Reviews' });
+          }
+          return;
+        }
+
+        /* ------------------------------------------------------
            ARGENT : retrait accepté/payé/refusé, commission
            -> page Gains (onglet Retraits / Commission) directement
         ------------------------------------------------------ */

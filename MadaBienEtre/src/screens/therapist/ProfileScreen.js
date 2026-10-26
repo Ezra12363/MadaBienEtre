@@ -580,13 +580,13 @@ const ProfileScreen = ({ navigation }) => {
       },
 
       {
-        id: 'paymentMethods',
-        icon: 'card-outline',
-        label: 'Mode de paiement',
+        id: 'reviews',
+        icon: 'star-outline',
+        label: 'Mes avis',
         description:
-          'Configurer ma carte bancaire (Stripe)',
+          'Notes, commentaires et réponses des clients',
         onPress: () => {
-          navigation.navigate('PaymentMethods');
+          navigation.navigate('Reviews');
         },
       },
 

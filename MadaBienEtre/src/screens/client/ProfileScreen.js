@@ -47,6 +47,7 @@ import useLocationTracking from '../../hooks/useLocationTracking';
 
 import { put } from '../../services/api';
 import api from '../../services/api';
+import reviewService from '../../services/reviewService';
 
 import ClientOnlineStatusCard from '../../components/client/ClientOnlineStatusCard';
 
@@ -190,6 +191,8 @@ const ProfileScreen = ({ navigation }) => {
   // ==========================================================
 
   const [isEditing, setIsEditing] = useState(false);
+  const [givenReviewsCount, setGivenReviewsCount] = useState(0);
+  const [pendingReviewsCount, setPendingReviewsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [forceRefresh, setForceRefresh] = useState(0);
@@ -484,6 +487,36 @@ const ProfileScreen = ({ navigation }) => {
   // MENU ITEMS
   // ==========================================================
 
+  // ==========================================================
+  // AVIS : nombre d'avis donnés + séances à évaluer
+  // ==========================================================
+
+  useEffect(() => {
+    let active = true;
+
+    const loadReviewCounts = async () => {
+      try {
+        const [mine, pending] = await Promise.all([
+          reviewService.mine(),
+          reviewService.pending(),
+        ]);
+        if (!active) return;
+        setGivenReviewsCount((mine || []).length);
+        setPendingReviewsCount((pending || []).length);
+      } catch (_e) {
+        // silencieux : les compteurs restent à leur dernière valeur
+      }
+    };
+
+    loadReviewCounts();
+    const unsubscribe = navigation?.addListener?.('focus', loadReviewCounts);
+
+    return () => {
+      active = false;
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, [navigation]);
+
   const menuItems = useMemo(
     () => [
       {
@@ -501,6 +534,17 @@ const ProfileScreen = ({ navigation }) => {
 
           navigation.navigate('Réservations');
         },
+      },
+
+      {
+        id: 'reviews',
+        icon: 'star-outline',
+        label: 'Mes avis',
+        description:
+          pendingReviewsCount > 0
+            ? `${pendingReviewsCount} séance(s) à évaluer`
+            : 'Mes notes et commentaires',
+        onPress: () => navigation.navigate('MyReviews'),
       },
 
       {
@@ -571,7 +615,7 @@ const ProfileScreen = ({ navigation }) => {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `showToast` est recréée à chaque render ; l'ajouter recalculerait cette liste à chaque fois
-    [navigation]
+    [navigation, pendingReviewsCount]
   );
 
   // ==========================================================
@@ -586,13 +630,8 @@ const ProfileScreen = ({ navigation }) => {
     },
     {
       icon: 'star',
-      label: 'Note',
-      value: user?.rating || 0,
-    },
-    {
-      icon: 'chatbubble-ellipses-outline',
-      label: 'Avis',
-      value: user?.total_reviews || 0,
+      label: 'Avis donnés',
+      value: givenReviewsCount,
     },
   ];
 

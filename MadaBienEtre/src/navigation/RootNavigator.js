@@ -16,6 +16,8 @@ import ChatScreen from '../screens/client/ChatScreen';
 import BookingDetailScreen from '../screens/client/BookingDetailScreen';
 import PaymentScreen from '../screens/client/PaymentScreen';
 import RatingScreen from '../screens/client/RatingScreen';
+import MyReviewsScreen from '../screens/client/MyReviewsScreen';
+import TherapistReviewsScreen from '../screens/client/TherapistReviewsScreen';
 import TrackingScreen from '../screens/client/TrackingScreen';
 
 const Stack = createNativeStackNavigator();
@@ -67,6 +69,8 @@ const RootNavigator = () => {
           <Stack.Screen name="BookingDetail" component={BookingDetailScreen} />
           <Stack.Screen name="Payment" component={PaymentScreen} />
           <Stack.Screen name="Rating" component={RatingScreen} />
+          <Stack.Screen name="MyReviews" component={MyReviewsScreen} />
+          <Stack.Screen name="TherapistReviews" component={TherapistReviewsScreen} />
           <Stack.Screen name="Tracking" component={TrackingScreen} />
         </>
       )}

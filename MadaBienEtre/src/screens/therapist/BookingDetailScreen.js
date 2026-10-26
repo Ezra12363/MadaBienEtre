@@ -40,6 +40,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { useTheme } from '../../context/ThemeContext';
+import BookingReviewSection from '../../components/reviews/BookingReviewSection';
 
 import {
   colors,
@@ -305,32 +306,6 @@ const safeText = (
   }
 
   return String(value);
-};
-
-// ============================================================
-// NOTE / AVIS
-// ============================================================
-
-const ratingText = (value) => {
-  const number = Number(value);
-
-  if (
-    !Number.isFinite(number) ||
-    number <= 0
-  ) {
-    return null;
-  }
-
-  const rounded = Math.min(
-    5,
-    Math.max(0, Math.round(number))
-  );
-
-  const stars =
-    '★★★★★'.slice(0, rounded) +
-    '☆☆☆☆☆'.slice(0, 5 - rounded);
-
-  return `${stars} (${number.toFixed(1)}/5)`;
 };
 
 // ============================================================
@@ -836,15 +811,8 @@ const BookingDetailScreen = ({
   const clientComment =
     booking?.client_comment ??
     booking?.comment ??
-    booking?.review_comment ??
     booking?.special_instructions ??
     null;
-
-  const clientRating = ratingText(
-    booking?.rating ??
-      booking?.client_rating ??
-      booking?.review_rating
-  );
 
   // ==========================================================
   // DONNÉES DU CLIENT
@@ -1605,48 +1573,14 @@ const BookingDetailScreen = ({
               </View>
             )}
 
-            {clientRating && (
-              <View style={styles.infoRow}>
-                <View
-                  style={[
-                    styles.infoIcon,
-                    {
-                      backgroundColor: '#F59E0B15',
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="star-outline"
-                    size={20}
-                    color="#F59E0B"
-                  />
-                </View>
-
-                <View style={styles.infoContent}>
-                  <Text
-                    style={[
-                      styles.infoLabel,
-                      {
-                        color:
-                          themeColors.textSecondary,
-                      },
-                    ]}
-                  >
-                    Avis du client
-                  </Text>
-
-                  <Text
-                    style={[
-                      styles.infoValue,
-                      {
-                        color: themeColors.text,
-                      },
-                    ]}
-                  >
-                    {clientRating}
-                  </Text>
-                </View>
-              </View>
+            {currentStatus === 'completed' && (
+              <BookingReviewSection
+                bookingId={currentBookingId}
+                status={currentStatus}
+                role="therapist"
+                navigation={navigation}
+                style={{ marginBottom: 14 }}
+              />
             )}
 
             <View style={styles.infoRow}>

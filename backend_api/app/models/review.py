@@ -1,6 +1,7 @@
 # app/models/review.py
 from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Boolean, ForeignKey, Index, CheckConstraint, Enum
 from sqlalchemy.sql import func
+from sqlalchemy.sql.expression import false
 from sqlalchemy.orm import relationship
 from ..core.database import Base
 
@@ -36,10 +37,18 @@ class Review(Base):
     is_verified = Column(Boolean, default=False)
     is_flagged = Column(Boolean, default=False)
     flag_reason = Column(Text, nullable=True)
-    
+
+    # Modération admin : un avis masqué n'est plus visible publiquement
+    # et n'entre plus dans le calcul de la note moyenne du thérapeute.
+    is_hidden = Column(Boolean, default=False, nullable=False, server_default=false(), index=True)
+    hidden_reason = Column(Text, nullable=True)
+    hidden_at = Column(TIMESTAMP, nullable=True)
+    moderated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     # Timestamps
     created_at = Column(TIMESTAMP, server_default=func.now())
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    edited_at = Column(TIMESTAMP, nullable=True)  # dernière modification par le client
     therapist_responded_at = Column(TIMESTAMP, nullable=True)
     
     # Relations
@@ -47,6 +56,7 @@ class Review(Base):
     reviewer = relationship("User", foreign_keys=[reviewer_id], back_populates="reviews_given")
     therapist = relationship("User", foreign_keys=[therapist_id], back_populates="reviews_received")
     helpful_votes = relationship("ReviewHelpful", back_populates="review")
+    moderator = relationship("User", foreign_keys=[moderated_by])
     
     __table_args__ = (
         Index('idx_reviews_therapist_id', 'therapist_id'),
@@ -69,7 +79,7 @@ class Review(Base):
     
     @property
     def has_response(self):
-        return self.response_from_therapist is not None
+        return bool(self.response_from_therapist)
     
     def get_average_category_rating(self):
         ratings = [self.professionalism, self.quality, self.punctuality, self.cleanliness]

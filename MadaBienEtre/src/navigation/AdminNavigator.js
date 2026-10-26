@@ -250,6 +250,8 @@ const UsersStack = () => {
       />
 
       {/* Pages de détails (remplacent les anciennes modales « voir ») */}
+      <Stack.Screen name="Reviews" component={ReviewsScreen} />
+
       <Stack.Screen
         name="UserDetail"
         component={UserDetailScreen}

@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import AdminTherapistReviewsCard from '../../components/reviews/AdminTherapistReviewsCard';
 
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../theme';
@@ -397,6 +398,10 @@ const TherapistDetailScreen = ({ navigation, route }) => {
             valueColor={hasCin ? colors.primary : '#E74C3C'}
           />
         </InfoGrid>
+      </DetailCard>
+
+      <DetailCard title="Avis et évaluations" icon="star-outline">
+        <AdminTherapistReviewsCard therapistId={therapist.id} navigation={navigation} />
       </DetailCard>
 
       {therapist.bio ? (

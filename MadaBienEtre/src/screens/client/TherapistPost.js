@@ -297,7 +297,7 @@ const PostMedia = ({ specialties }) => {
 };
 
 /* ---------- Publication d'un thérapeute ---------- */
-export const TherapistPost = ({ post, isDark, surface, border, text, textSecondary, onOpen, onBook, onToast, flush = false, fill = false }) => {
+export const TherapistPost = ({ post, isDark, surface, border, text, textSecondary, onOpen, onBook, onToast, onOpenReviews, flush = false, fill = false }) => {
   const [expanded, setExpanded] = useState(false);
 
   const subtle = isDark ? '#242832' : '#F0F2F5';
@@ -461,14 +461,22 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
 
       {/* ===== COMPTEURS (style réactions Facebook) ===== */}
       <View style={postStyles.counters}>
-        <View style={postStyles.counterLeft}>
+        <TouchableOpacity
+          style={postStyles.counterLeft}
+          activeOpacity={onOpenReviews ? 0.7 : 1}
+          disabled={!onOpenReviews}
+          onPress={onOpenReviews}
+          accessibilityLabel="Voir les avis"
+        >
           <View style={postStyles.starBubble}>
             <Ionicons name="star" size={10} color="#FFFFFF" />
           </View>
           <Text style={[postStyles.counterText, { color: textSecondary }]}>
-            {post.rating.toFixed(1).replace('.', ',')} · {post.reviews} avis
+            {post.reviews > 0
+              ? `${post.rating.toFixed(1).replace('.', ',')} · ${post.reviews} avis`
+              : 'Aucun avis'}
           </Text>
-        </View>
+        </TouchableOpacity>
         {post.price > 0 && (
           <Text style={[postStyles.priceText, { color: PRIMARY }]}>
             dès {fmtAr(post.price)}

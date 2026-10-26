@@ -50,6 +50,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { useTheme } from '../../context/ThemeContext';
+import BookingReviewSection from '../../components/reviews/BookingReviewSection';
+import RatingBadge from '../../components/reviews/RatingBadge';
 import { useAuth } from '../../context/AuthContext';
 
 import {
@@ -61,7 +63,6 @@ import {
 import Header from '../../components/common/Header';
 import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
 import SOSButton from '../../components/sos/SOSButton';
-import SafetyCheckCard from '../../components/sos/SafetyCheckCard';
 
 import bookingService from '../../services/bookingService';
 import therapistService from '../../services/therapistService';
@@ -2124,6 +2125,22 @@ const BookingDetailScreen = ({
                     Thérapeute professionnel
                   </Text>
 
+                  {/* Note moyenne + nombre d'avis (ouvre tous les avis) */}
+                  {!!assignedTherapistId && (
+                    <RatingBadge
+                      rating={booking?.therapist_rating}
+                      count={booking?.therapist_total_reviews}
+                      color={themeColors.textSecondary}
+                      style={{ marginTop: 4 }}
+                      onPress={() =>
+                        navigation.navigate('TherapistReviews', {
+                          therapistId: assignedTherapistId,
+                          therapistName,
+                        })
+                      }
+                    />
+                  )}
+
                   {/* Date d'assignation automatique du thérapeute
                       (posée par le backend dès que l'offre est
                       acceptée). Le statut en ligne/hors ligne est
@@ -2497,40 +2514,17 @@ const BookingDetailScreen = ({
                     }
                   />
                 </View>
-
-                <SafetyCheckCard
-                  bookingId={currentBookingId}
-                  role="CLIENT"
-                />
               </>
             )}
 
             {currentStatus === 'completed' && (
-              <TouchableOpacity
-                style={styles.primaryButton}
-                onPress={() =>
-                  navigation.navigate(
-                    'Rating',
-                    {
-                      bookingId:
-                        currentBookingId,
-                    }
-                  )
-                }
-                activeOpacity={0.85}
-              >
-                <Ionicons
-                  name="star-outline"
-                  size={20}
-                  color="#FFFFFF"
-                />
-
-                <Text
-                  style={styles.primaryButtonText}
-                >
-                  Évaluer le thérapeute
-                </Text>
-              </TouchableOpacity>
+              <BookingReviewSection
+                bookingId={currentBookingId}
+                status={currentStatus}
+                role="client"
+                navigation={navigation}
+                style={{ width: '100%', marginTop: 8 }}
+              />
             )}
 
             {(currentStatus === 'pending' ||
