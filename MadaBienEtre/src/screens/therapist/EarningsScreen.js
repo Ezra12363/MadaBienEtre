@@ -30,6 +30,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Header from '../../components/common/Header';
 import { BarChart, HBars, StackedShare, StatTile, dayLabel, monthLabel } from '../../components/charts/SimpleCharts';
 import FilterBar, { EMPTY_FILTERS } from '../../components/payment/FilterBar';
+import SavedCardsManager from '../../components/payment/SavedCardsManager';
 import { formatAr, formatDateTime, formatShort, inRange } from '../../components/payment/paymentUtils';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
@@ -75,6 +76,7 @@ const COMMISSION_MODES = [
   { id: 'wallet', label: 'Depuis mon wallet', icon: 'wallet-outline' },
   { id: 'mobile_money', label: 'Mobile Money', icon: 'phone-portrait-outline' },
   { id: 'bank_transfer', label: 'Virement bancaire', icon: 'business-outline' },
+  { id: 'card', label: 'Carte bancaire enregistrée', icon: 'card-outline' },
   { id: 'cash', label: 'Espèces à l’admin', icon: 'cash-outline' },
 ];
 
@@ -132,6 +134,7 @@ const EarningsScreen = ({ navigation, route }) => {
   // modal paiement de commission
   const [cmOpen, setCmOpen] = useState(false);
   const [cm, setCm] = useState({ amount: '', method: 'wallet', provider: 'mvola', phone: '', ref: '' });
+  const [cmCardId, setCmCardId] = useState(null);
   const [cmBusy, setCmBusy] = useState(false);
   const [cmError, setCmError] = useState('');
 
@@ -215,13 +218,15 @@ const EarningsScreen = ({ navigation, route }) => {
     setCmError('');
     const amount = Number(String(cm.amount).replace(/\s/g, ''));
     if (!amount || amount <= 0) return setCmError('Entrez un montant valide.');
+    if (cm.method === 'card' && !cmCardId) return setCmError('Choisissez ou ajoutez une carte bancaire.');
     setCmBusy(true);
     const res = await paymentService.payCommission({
       amount,
       method: cm.method,
+      card_id: cm.method === 'card' ? cmCardId : undefined,
       provider: cm.method === 'mobile_money' ? cm.provider : undefined,
       phone_number: cm.method === 'mobile_money' ? cm.phone : undefined,
-      transfer_reference: cm.method === 'wallet' || cm.method === 'cash' ? undefined : cm.ref,
+      transfer_reference: ['wallet', 'cash', 'card'].includes(cm.method) ? undefined : cm.ref,
     });
     setCmBusy(false);
     if (!res.success) return setCmError(res.error);
@@ -687,6 +692,12 @@ const EarningsScreen = ({ navigation, route }) => {
                     Solde après paiement : {formatAr((w.available || 0) - (Number(String(cm.amount).replace(/\s/g, '')) || 0))}
                   </Text>
                   <Text style={[styles.rowSub, sub]}>Le montant est prélevé tout de suite sur votre solde et validé immédiatement.</Text>
+                </View>
+              ) : null}
+              {cm.method === 'card' ? (
+                <View style={{ marginTop: 10 }}>
+                  <SavedCardsManager mode="select" hideTitle selectedId={cmCardId} onSelect={setCmCardId} />
+                  <Text style={[styles.rowSub, sub]}>La carte est débitée tout de suite par Stripe et la commission est validée immédiatement.</Text>
                 </View>
               ) : null}
               {cm.method === 'cash' ? <Text style={[styles.rowSub, sub, { marginTop: 8 }]}>Remettez les espèces à l’administrateur : il validera le paiement dans l’application.</Text> : null}

@@ -313,7 +313,9 @@ def payment_doc(ctx: Dict[str, Any], view: str) -> Dict[str, Any]:
                 ("Paiement initié le", ctx.get("created_at_label")),
                 ("Mode de paiement", ctx["method_label"]),
                 ("Numéro payeur", ctx.get("payer_phone")),
-                ("Transaction", ctx["transaction_id"]),
+                ("Carte bancaire", ctx.get("card_label")),
+                ("Expiration de la carte", ctx.get("card_exp")),
+                ("Transaction", ctx.get("transaction_ref") or ctx["transaction_id"]),
                 ("Statut", ctx["status_label"]),
             ],
         ),
@@ -348,8 +350,8 @@ def payment_doc(ctx: Dict[str, Any], view: str) -> Dict[str, Any]:
         "amount": ctx["amount"],
         "amount_caption": "Montant payé",
         "sections": sections,
-        "verify_url": verification_url("payment", ctx["transaction_id"]),
-        "barcode_data": ctx["transaction_id"],
+        "verify_url": verification_url("payment", ctx.get("transaction_ref") or ctx["transaction_id"]),
+        "barcode_data": ctx.get("transaction_ref") or ctx["transaction_id"],
         "issued_at": ctx.get("paid_at"),
     }
 

@@ -61,6 +61,7 @@ import ApprovalDetailScreen from '../screens/admin/ApprovalDetailScreen';
 import PaymentsScreen from '../screens/admin/PaymentsScreen';
 import ReviewsScreen from '../screens/admin/ReviewsScreen';
 import SOSAlertsScreen from '../screens/admin/SOSAlertsScreen';
+import SOSAlertDetailScreen from '../screens/admin/SOSAlertDetailScreen';
 import AnalyticsScreen from '../screens/admin/AnalyticsScreen';
 import AIInsightsScreen from '../screens/admin/AIInsightsScreen';
 import SettingsScreen from '../screens/admin/SettingsScreen';
@@ -161,6 +162,11 @@ const DashboardStack = () => {
       <Stack.Screen
         name="SOSAlerts"
         component={SOSAlertsScreen}
+      />
+
+      <Stack.Screen
+        name="SOSAlertDetail"
+        component={SOSAlertDetailScreen}
       />
 
       <Stack.Screen
@@ -327,6 +333,11 @@ const ManagementStack = () => {
       <Stack.Screen
         name="SOSAlerts"
         component={SOSAlertsScreen}
+      />
+
+      <Stack.Screen
+        name="SOSAlertDetail"
+        component={SOSAlertDetailScreen}
       />
 
       <Stack.Screen

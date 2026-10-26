@@ -29,9 +29,10 @@ from sqlalchemy.orm import Session
 from ..core.config import settings
 from ..models.booking import Booking
 from ..models.finance import CommissionPayment
-from ..models.payment import Payment, Transaction
+from ..models.payment import Payment, Refund, Transaction
 from ..models.therapist import TherapistEarnings, Withdrawal
 from ..models.user import User
+from . import payment_gateway as gateway
 from . import payment_notifications as pn
 from . import platform_settings
 from .notification_service import send_admin_notification, send_notification  # noqa: F401 (compat.)
@@ -137,9 +138,45 @@ def finalize_payment(db: Session, payment_id: int) -> Tuple[Payment, bool]:
         else None
     )
 
+    # --- Doublon : la réservation est DÉJÀ payée par un autre paiement -> on ne crédite pas deux fois ---
+    other = (
+        db.query(Payment)
+        .filter(
+            Payment.booking_id == payment.booking_id,
+            Payment.id != payment.id,
+            Payment.status == "completed",
+        )
+        .first()
+    )
+    if other is not None:
+        meta = dict(payment.payment_metadata or {})
+        meta.update({"settlement": "duplicate", "duplicate_of": other.id, "net_amount": 0, "commission_amount": 0})
+        payment.payment_metadata = meta
+        payment.status = "completed"
+        payment.completed_at = datetime.utcnow()
+        db.commit()
+        db.refresh(payment)
+        try:
+            client = db.query(User).filter(User.id == payment.user_id).first()
+            pn.payment_anomaly(
+                payment,
+                getattr(client, "fullname", None) or "Le client",
+                "duplicate",
+                f"Le paiement #{other.id} a déjà réglé cette réservation.",
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Alerte doublon non envoyée")
+        return payment, True
+
     rate = commission_rate_for(therapist)
     commission, net = compute_split(payment.amount, rate)
     is_cash = payment.method == "cash"
+    # Carte Stripe : comme les espèces, la commission est DUE par le thérapeute à l'admin.
+    card_due = (
+        payment.method == "card"
+        and str(getattr(settings, "CARD_COMMISSION_MODE", "therapist_pays")).lower() != "deduct"
+    )
+    wallet = None
 
     meta = dict(payment.payment_metadata or {})
     meta.update(
@@ -148,7 +185,7 @@ def finalize_payment(db: Session, payment_id: int) -> Tuple[Payment, bool]:
             "commission_amount": float(commission),
             "net_amount": float(net),
             "gross_amount": float(money(payment.amount)),
-            "settlement": "cash_in_hand" if is_cash else "wallet",
+            "settlement": "cash_in_hand" if is_cash else ("card_commission_due" if card_due else "wallet"),
             "therapist_id": therapist.id if therapist else None,
         }
     )
@@ -168,6 +205,22 @@ def finalize_payment(db: Session, payment_id: int) -> Tuple[Payment, bool]:
             _tx(
                 db, therapist.id, "commission", commission, wallet.available_earnings,
                 f"Commission due (paiement espèces, {rate}%) — réservation #{payment.booking_id}",
+                payment.id, "payment",
+            )
+        elif card_due:
+            # Le client a payé la plateforme par carte : le thérapeute reçoit le MONTANT TOTAL sur son solde
+            # et doit régler la commission à l'admin (Gains > Commissions), comme pour les espèces.
+            gross = money(payment.amount)
+            wallet.available_earnings = D(wallet.available_earnings) + gross
+            wallet.pending_commission = D(wallet.pending_commission) + commission
+            _tx(
+                db, therapist.id, "payment", gross, wallet.available_earnings,
+                f"Paiement par carte reçu — réservation #{payment.booking_id} ({fmt_ar(payment.amount)})",
+                payment.id, "payment",
+            )
+            _tx(
+                db, therapist.id, "commission", commission, wallet.available_earnings,
+                f"Commission due à l'admin (paiement carte, {rate}%) — réservation #{payment.booking_id}",
                 payment.id, "payment",
             )
         else:
@@ -197,6 +250,9 @@ def finalize_payment(db: Session, payment_id: int) -> Tuple[Payment, bool]:
             net,
             commission,
             is_cash,
+            available=wallet.available_earnings if therapist else None,
+            therapist_name=getattr(therapist, "fullname", None),
+            card_due=card_due,
         )
     except Exception:  # noqa: BLE001
         logger.exception("Notifications de paiement non envoyées")
@@ -204,13 +260,128 @@ def finalize_payment(db: Session, payment_id: int) -> Tuple[Payment, bool]:
     return payment, True
 
 
-def mark_payment_failed(db: Session, payment: Payment, status: str = "failed") -> Payment:
+def mark_payment_failed(db: Session, payment: Payment, status: str = "failed", reason: str = "") -> Payment:
     """Échec / annulation : le wallet n'est JAMAIS modifié."""
     if payment.status in ("completed", "refunded"):
         return payment
+    previous = payment.status
     payment.status = status if status in ("failed", "cancelled") else "failed"
     db.commit()
     db.refresh(payment)
+    # L'admin n'est alerté qu'UNE fois, et seulement pour un vrai échec / refus (pas une annulation du client).
+    if payment.status == "failed" and previous != "failed":
+        try:
+            client = db.query(User).filter(User.id == payment.user_id).first()
+            pn.payment_failed(payment, getattr(client, "fullname", None) or "Le client", reason)
+        except Exception:  # noqa: BLE001
+            logger.exception("Alerte d'échec non envoyée")
+    return payment
+
+
+def apply_gateway_result(db: Session, payment: Payment, result: Dict[str, Any]) -> Payment:
+    """Applique la réponse du FOURNISSEUR (check_payment) : confirmé / échoué / annulé / anomalie de montant."""
+    status = result.get("status")
+    if status == "completed":
+        if result.get("card"):  # carte qui a payé -> affichée sur le reçu
+            meta = dict(payment.payment_metadata or {})
+            meta["card"] = result["card"]
+            payment.payment_metadata = meta
+            db.commit()
+            db.refresh(payment)
+        mismatch = result.get("mismatch")
+        if mismatch:
+            meta = dict(payment.payment_metadata or {})
+            if not meta.get("anomaly_notified"):
+                meta["anomaly"] = "amount_mismatch"
+                meta["anomaly_detail"] = mismatch
+                meta["anomaly_notified"] = True
+                payment.payment_metadata = meta
+                db.commit()
+                db.refresh(payment)
+                try:
+                    client = db.query(User).filter(User.id == payment.user_id).first()
+                    pn.payment_anomaly(
+                        payment,
+                        getattr(client, "fullname", None) or "Le client",
+                        "amount_mismatch",
+                        f"montant attendu {mismatch['expected']}, montant encaissé {mismatch['received']}.",
+                    )
+                except Exception:  # noqa: BLE001
+                    logger.exception("Alerte d'anomalie non envoyée")
+            return payment  # on NE valide PAS automatiquement : l'admin tranche
+        payment, _ = finalize_payment(db, payment.id)
+    elif status in ("failed", "cancelled"):
+        payment = mark_payment_failed(db, payment, status, reason=str(result.get("raw") or ""))
+    return payment
+
+
+def refund_payment(db: Session, payment_id: int, reason: str = "") -> Payment:
+    """Rembourse un paiement CONFIRMÉ : argent rendu chez Stripe (carte), wallet du thérapeute corrigé,
+    historique « Refund » créé, client prévenu."""
+    payment = db.query(Payment).filter(Payment.id == payment_id).with_for_update().first()
+    if not payment or payment.status != "completed":
+        raise WalletError("Seul un paiement confirmé peut être remboursé.")
+
+    meta = dict(payment.payment_metadata or {})
+    net = D(meta.get("net_amount"))
+    card_due = meta.get("settlement") == "card_commission_due"
+    debit = D(payment.amount) if card_due else net  # montant réellement crédité sur le solde
+    wallet_row = None
+    if meta.get("settlement") in ("wallet", "card_commission_due") and meta.get("therapist_id"):
+        wallet_row = get_or_create_earnings(db, int(meta["therapist_id"]))
+        if D(wallet_row.available_earnings) < debit:
+            raise WalletError(
+                "Remboursement impossible : le thérapeute a déjà retiré ce montant. Traitez-le manuellement."
+            )
+
+    # 1) l'argent est rendu chez le fournisseur AVANT de toucher à notre base
+    try:
+        provider_refund_id = gateway.refund_stripe(payment)
+    except gateway.GatewayError as exc:
+        raise WalletError(str(exc)) from exc
+
+    # 2) le wallet du thérapeute
+    if wallet_row is not None:
+        wallet_row.available_earnings = D(wallet_row.available_earnings) - debit
+        if card_due:  # la commission non encore réglée n'est plus due
+            wallet_row.pending_commission = max(
+                D(wallet_row.pending_commission) - D(meta.get("commission_amount")), ZERO
+            )
+        wallet_row.total_earnings = D(wallet_row.total_earnings) - net
+        wallet_row.total_commission = D(wallet_row.total_commission) - D(meta.get("commission_amount"))
+
+    # 3) le paiement
+    now = datetime.utcnow()
+    payment.status = "refunded"
+    payment.refunded_at = now
+    meta["refund_reason"] = reason
+    if provider_refund_id:
+        meta["provider_refund_id"] = provider_refund_id
+    req = dict(meta.get("refund_request") or {})
+    if req:
+        req["status"] = "approved"
+        req["processed_at"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        meta["refund_request"] = req
+    payment.payment_metadata = meta
+    db.add(
+        Refund(
+            payment_id=payment.id,
+            amount=payment.amount,
+            fee=ZERO,
+            net_amount=payment.amount,
+            status="completed",
+            reason=reason or None,
+            refund_id=provider_refund_id,
+            processed_at=now,
+            completed_at=now,
+        )
+    )
+    db.commit()
+    db.refresh(payment)
+    try:
+        pn.refund_done(payment)
+    except Exception:  # noqa: BLE001
+        logger.exception("Notification de remboursement non envoyée")
     return payment
 
 
@@ -246,6 +417,7 @@ def request_withdrawal(db: Session, therapist: User, data: Dict[str, Any]) -> Wi
     wallet = get_or_create_earnings(db, therapist.id)
     available = D(wallet.available_earnings)
     if amount > available:
+        pn.insufficient_balance(therapist.fullname, amount, available, "retrait")
         raise WalletError(f"Solde insuffisant (disponible : {fmt_ar(available)}).")
 
     fee = money(amount * D(cfg["withdrawal_fee_percent"]) / Decimal("100"))
@@ -279,9 +451,17 @@ def _release_hold(db: Session, withdrawal: Withdrawal) -> None:
     wallet.available_earnings = D(wallet.available_earnings) + D(withdrawal.amount)
 
 
-def _notify_therapist(withdrawal: Withdrawal, title: str, body: str, kind: str = "withdrawal_accepted") -> None:
-    """Ouvre la page Gains > Retraits quand le thérapeute touche la notification."""
-    pn.withdrawal_status(withdrawal, kind, title, body)
+def _notify_therapist(
+    withdrawal: Withdrawal, title: str, body: str, kind: str = "withdrawal_accepted",
+    therapist_name: Optional[str] = None, reason: str = "",
+) -> None:
+    """Ouvre la page Gains > Retraits quand le thérapeute touche la notification (+ journal côté admin)."""
+    pn.withdrawal_status(withdrawal, kind, title, body, therapist_name=therapist_name, reason=reason)
+
+
+def _therapist_name(db: Session, therapist_id: int) -> Optional[str]:
+    row = db.query(User).filter(User.id == therapist_id).first()
+    return getattr(row, "fullname", None)
 
 
 def cancel_withdrawal(db: Session, withdrawal: Withdrawal) -> Withdrawal:
@@ -292,6 +472,11 @@ def cancel_withdrawal(db: Session, withdrawal: Withdrawal) -> Withdrawal:
     _release_hold(db, withdrawal)
     db.commit()
     db.refresh(withdrawal)
+    try:
+        who = db.query(User).filter(User.id == withdrawal.therapist_id).first()
+        pn.withdrawal_cancelled(withdrawal, getattr(who, "fullname", None) or f"Thérapeute #{withdrawal.therapist_id}")
+    except Exception:  # noqa: BLE001
+        logger.exception("Alerte d'annulation non envoyée")
     return withdrawal
 
 
@@ -341,6 +526,7 @@ def complete_withdrawal(
         "Retrait payé ✓",
         f"{fmt_ar(withdrawal.amount)} ont été transférés le {pn.now_label()} (réf. {ref}).",
         "withdrawal_paid",
+        therapist_name=_therapist_name(db, withdrawal.therapist_id),
     )
     return withdrawal
 
@@ -363,6 +549,8 @@ def reject_withdrawal(db: Session, withdrawal: Withdrawal, reason: str = "") -> 
         + (f" : {reason}" if reason else ".")
         + " Le montant est de nouveau disponible.",
         "withdrawal_rejected",
+        therapist_name=_therapist_name(db, withdrawal.therapist_id),
+        reason=reason,
     )
     return withdrawal
 
@@ -430,7 +618,7 @@ def pay_commission(db: Session, therapist: User, data: Dict[str, Any]) -> Commis
     method = data.get("method")
     if amount <= 0:
         raise WalletError("Montant invalide.")
-    if method not in ("wallet", "mobile_money", "bank_transfer", "cash"):
+    if method not in ("wallet", "mobile_money", "bank_transfer", "cash", "card"):
         raise WalletError("Mode de paiement invalide.")
 
     wallet = get_or_create_earnings(db, therapist.id)
@@ -456,8 +644,29 @@ def pay_commission(db: Session, therapist: User, data: Dict[str, Any]) -> Commis
     db.add(cp)
     db.flush()
 
+    if method == "card":
+        # Carte bancaire ENREGISTRÉE (Profil > Mode de paiement) : débit direct chez Stripe.
+        from . import card_service  # import local : évite un cycle au démarrage
+
+        try:
+            charge = card_service.charge_for_commission(
+                db, therapist, int(data.get("card_id") or 0), float(amount), cp.reference
+            )
+        except card_service.CardError as exc:
+            raise WalletError(str(exc)) from exc
+        wallet.pending_commission = max(D(wallet.pending_commission) - amount, ZERO)
+        cp.status = "completed"
+        cp.provider = "stripe"
+        cp.transfer_reference = charge["id"]
+        cp.processed_at = cp.completed_at = datetime.utcnow()
+        _tx(
+            db, therapist.id, "commission", amount, wallet.available_earnings,
+            f"Commission réglée par carte — réf. {cp.reference}", cp.id, "commission_payment",
+        )
+
     if method == "wallet":
         if D(wallet.available_earnings) < amount:
+            pn.insufficient_balance(therapist.fullname, amount, wallet.available_earnings, "paiement de commission")
             raise WalletError(f"Solde insuffisant (disponible : {fmt_ar(wallet.available_earnings)}).")
         wallet.available_earnings = D(wallet.available_earnings) - amount
         wallet.pending_commission = D(wallet.pending_commission) - amount

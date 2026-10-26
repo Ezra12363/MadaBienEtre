@@ -48,6 +48,7 @@ import OffersScreen from '../screens/therapist/OffersScreen';
 import CalendarScreen from '../screens/therapist/CalendarScreen';
 import EarningsScreen from '../screens/therapist/EarningsScreen';
 import ProfileScreen from '../screens/therapist/ProfileScreen';
+import PaymentMethodsScreen from '../screens/shared/PaymentMethodsScreen';
 
 import OfferScreen from '../screens/therapist/OfferScreen';
 import NegotiationScreen from '../screens/therapist/NegotiationScreen';
@@ -458,6 +459,11 @@ const ProfileStack = () => {
       <Stack.Screen
         name="Earnings"
         component={EarningsScreen}
+      />
+
+      <Stack.Screen
+        name="PaymentMethods"
+        component={PaymentMethodsScreen}
       />
 
       <Stack.Screen

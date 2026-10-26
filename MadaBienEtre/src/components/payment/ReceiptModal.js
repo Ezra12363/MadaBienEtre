@@ -125,7 +125,9 @@ export default function ReceiptModal({ visible, paymentId, view, onClose }) {
                 <Row label="Date et heure" value={data.paid_at_label || formatDateTime(data.paid_at)} />
                 <Row label="Mode de paiement" value={data.method_label} />
                 <Row label="Numéro payeur" value={data.payer_phone} />
-                <Row label="Transaction" value={data.transaction_id} />
+                {data.card_label ? <Row label="Carte bancaire" value={data.card_label} /> : null}
+                {data.card_exp ? <Row label="Expiration" value={data.card_exp} /> : null}
+                <Row label="Transaction" value={data.transaction_ref || data.transaction_id} />
               </Section>
 
               <Section title="Réservation">
@@ -162,7 +164,7 @@ export default function ReceiptModal({ visible, paymentId, view, onClose }) {
                     code-barres de la transaction.
                   </Text>
                   <Text style={styles.qrRef} numberOfLines={1}>
-                    Réf. {data.transaction_id}
+                    Réf. {data.transaction_ref || data.transaction_id}
                   </Text>
                 </View>
               </View>

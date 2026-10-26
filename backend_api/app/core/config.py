@@ -9,6 +9,11 @@ load_dotenv()
 
 class Settings(BaseSettings):
     BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
+    # Page où Stripe renvoie le client après le formulaire (web ET mobile). Vide = page de retour du backend.
+    FRONTEND_URL: str = os.getenv("FRONTEND_URL", "")
+    # Paiement par carte (Stripe) : "therapist_pays" = le thérapeute reçoit le montant total sur son solde et DOIT
+    # régler la commission à l'admin (comme les espèces) ; "deduct" = commission retenue automatiquement.
+    CARD_COMMISSION_MODE: str = os.getenv("CARD_COMMISSION_MODE", "therapist_pays")
     # Application
     APP_NAME: str = "Mada Bien-être API"
     ENVIRONMENT: str = "development"

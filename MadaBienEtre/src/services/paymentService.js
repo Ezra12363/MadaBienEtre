@@ -7,6 +7,7 @@
 // L'application ne fait que parler à notre backend FastAPI.
 import { Linking, Platform } from 'react-native';
 
+import { buildPaymentReturnUrl } from '../utils/paymentReturn';
 import { get, post, put } from './api';
 
 const wrap = async (fn) => {
@@ -39,17 +40,25 @@ class PaymentService {
 
   /**
    * Démarre un paiement. Le montant est calculé PAR LE SERVEUR.
-   * @param {{bookingId:number, method:'mobile_money'|'card'|'cash', provider?:string, phone?:string}} p
+   * @param {{bookingId:number, method:'mobile_money'|'card'|'cash', provider?:string, phone?:string, cardId?:number}} p
    */
-  initiate({ bookingId, method, provider, phone }) {
+  initiate({ bookingId, method, provider, phone, cardId }) {
     return wrap(() =>
       post('/payments/initiate', {
         booking_id: bookingId,
         method,
         provider: provider || undefined,
         phone: phone || undefined,
+        // Carte enregistrée (Profil > Mode de paiement). Absent = formulaire sécurisé Stripe.
+        card_id: cardId || undefined,
+        return_url: method === 'card' ? buildPaymentReturnUrl(bookingId) : undefined,
       })
     );
+  }
+
+  /** Le CLIENT demande le remboursement d'un paiement confirmé (l'admin est notifié). */
+  requestRefund(paymentId, reason) {
+    return wrap(() => post(`/payments/${paymentId}/refund-request`, { reason: reason || undefined }));
   }
 
   /** Le backend interroge le fournisseur ; seul lui peut passer le statut à « completed » */
@@ -284,7 +293,7 @@ class PaymentService {
   }
 
   /** @param {{amount:number, method:'wallet'|'mobile_money'|'bank_transfer'|'cash', provider?:string, phone_number?:string, transfer_reference?:string}} payload */
-  payCommission(payload) {
+  payCommission(payload) { // method 'card' + card_id = carte enregistrée
     return wrap(() => post('/wallet/commissions/pay', payload));
   }
 

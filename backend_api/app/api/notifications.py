@@ -5,13 +5,15 @@ from typing import Optional
 from typing import Any, Dict
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..core.database import get_db
-from ..core.dependencies import get_current_user
+from ..core.dependencies import get_current_admin, get_current_user
 from ..models.notification import Notification, NotificationPreference
 from ..models.user import User
 from ..schemas.notification import NotificationResponse, PushNotificationToken
+from ..services import admin_actions
 from ..services.push_notifications import push_service, is_expo_token
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
@@ -99,6 +101,32 @@ def mark_as_read(
     notification.read_at = datetime.utcnow()
     db.commit()
     return {"success": True, "message": "Notification marked as read"}
+
+
+class AdminActionBody(BaseModel):
+    action: str  # verify | approve | reject | handled
+    reason: Optional[str] = None
+
+
+@router.post("/{notification_id}/admin-action")
+def admin_action(
+    notification_id: int,
+    body: AdminActionBody,
+    current_user: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Vérifier · Approuver · Rejeter · Marquer comme traité — depuis la cloche de l'admin."""
+    notification = db.query(Notification).filter(
+        Notification.id == notification_id,
+        Notification.user_id == current_user.id,
+    ).first()
+    if not notification:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
+    try:
+        return admin_actions.run(db, current_user, notification, body.action, body.reason or "")
+    except admin_actions.AdminActionError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 @router.put("/read-all")

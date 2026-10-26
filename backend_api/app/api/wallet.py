@@ -373,10 +373,11 @@ def _cp(c: CommissionPayment, therapist_name: Optional[str] = None) -> Dict[str,
 
 class CommissionPayBody(BaseModel):
     amount: float = Field(..., gt=0)
-    method: str = Field(..., pattern="^(wallet|mobile_money|bank_transfer|cash)$")
+    method: str = Field(..., pattern="^(wallet|mobile_money|bank_transfer|cash|card)$")
     provider: Optional[str] = Field(None, pattern="^(mvola|orange_money|airtel_money)$")
     phone_number: Optional[str] = None
     transfer_reference: Optional[str] = None
+    card_id: Optional[int] = None  # method « card » : carte enregistrée (Profil > Mode de paiement)
 
 
 class SettingsBody(BaseModel):

@@ -1,6 +1,6 @@
 // src/services/notificationService.js
 
-import { get, put, del } from './api';
+import { get, put, del, post } from './api';
 
 import { Platform, Alert } from 'react-native';
 
@@ -1255,6 +1255,28 @@ class NotificationService {
 
     }
 
+  }
+
+  /**
+   * ADMIN : Vérifier · Approuver · Rejeter · Marquer comme traité (depuis une notification).
+   * @param {number|string} id    notification
+   * @param {'verify'|'approve'|'reject'|'handled'} action
+   * @param {string} [reason]     motif (rejet)
+   * @returns {{success:boolean, message?:string, handled?:boolean, data?:object, error?:string}}
+   */
+  async adminAction(id, action, reason) {
+    try {
+      const response = await post(`/notifications/${id}/admin-action`, {
+        action,
+        reason: reason || undefined,
+      });
+      if (response?.error) {
+        return { success: false, error: response.error.message || "L'action a échoué." };
+      }
+      return { success: true, ...(response.data || {}) };
+    } catch (error) {
+      return { success: false, error: error?.message || "L'action a échoué." };
+    }
   }
 
   /**

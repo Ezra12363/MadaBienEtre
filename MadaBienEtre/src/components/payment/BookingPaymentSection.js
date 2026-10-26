@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, LayoutAnimation, Platform, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import ReasonModal from '../common/ReasonModal';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import PaymentStatusBadge from './PaymentStatusBadge';
@@ -61,6 +62,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
 
   const [open, setOpen] = useState(defaultOpen);
   const [busy, setBusy] = useState(false);
+  const [refundOpen, setRefundOpen] = useState(false);
 
   // Ouvert automatiquement quand on arrive depuis une notification de paiement.
   useEffect(() => {
@@ -121,6 +123,23 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
     onChanged?.();
   };
 
+  // Demande de remboursement (client, paiement confirmé) : l'admin reçoit « Demande de remboursement ».
+  const sendRefundRequest = async (reason) => {
+    setRefundOpen(false);
+    setBusy(true);
+    const res = await paymentService.requestRefund(payment.id, reason);
+    setBusy(false);
+    if (!res.success) {
+      Alert.alert('Remboursement', res.error || 'Impossible d’envoyer la demande.');
+      return;
+    }
+    if (!hasPreloaded) await reload();
+    onChanged?.();
+    Alert.alert('Demande envoyée', 'L’administrateur va examiner votre demande de remboursement.');
+  };
+
+  const refundStatus = payment?.refund_request?.status || null;
+
   const pending = state === 'pending';
   const cashWaiting = payment?.method === 'cash' && ['pending', 'processing'].includes(payment?.status);
 
@@ -174,6 +193,25 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
             </TouchableOpacity>
           ) : null}
 
+          {state === 'paid' && !isTherapist && refundStatus === 'pending' ? (
+            <View style={styles.notice}>
+              <Ionicons name="time-outline" size={18} color="#B45309" />
+              <Text style={styles.noticeText}>Demande de remboursement envoyée : en attente de la décision de l’administrateur.</Text>
+            </View>
+          ) : null}
+          {state === 'paid' && !isTherapist && refundStatus === 'rejected' ? (
+            <Text style={[styles.hint, { color: '#B91C1C' }]}>
+              Votre dernière demande de remboursement a été refusée
+              {payment?.refund_request?.reject_reason ? ` : ${payment.refund_request.reject_reason}` : '.'}
+            </Text>
+          ) : null}
+          {state === 'paid' && !isTherapist && refundStatus !== 'pending' ? (
+            <TouchableOpacity style={[styles.primary, styles.secondary]} onPress={() => setRefundOpen(true)} disabled={busy} activeOpacity={0.85}>
+              {busy ? <ActivityIndicator color={GREEN} /> : <Ionicons name="return-down-back-outline" size={18} color={GREEN} />}
+              <Text style={[styles.primaryText, { color: GREEN }]}>Demander un remboursement</Text>
+            </TouchableOpacity>
+          ) : null}
+
           {pending && !isTherapist ? (
             <TouchableOpacity
               style={styles.primary}
@@ -224,6 +262,16 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
         </View>
       ) : null}
 
+      <ReasonModal
+        visible={refundOpen}
+        title="Demander un remboursement"
+        message={`Indiquez la raison de votre demande (réservation #${booking?.id}). L’administrateur sera prévenu.`}
+        placeholder="Raison du remboursement"
+        confirmLabel="Envoyer la demande"
+        tone="primary"
+        onCancel={() => setRefundOpen(false)}
+        onConfirm={sendRefundRequest}
+      />
     </View>
   );
 }

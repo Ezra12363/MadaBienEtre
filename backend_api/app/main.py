@@ -41,6 +41,7 @@ from .api import (
     certificates,
     client_status,
     chat,
+    cards,  # ✅ cartes bancaires enregistrées (Stripe)
 )
 
 from .api.availability import router as availability_router
@@ -371,6 +372,7 @@ app.include_router(offers.router)
 # ============================================================
 
 app.include_router(payments.router)
+app.include_router(cards.router)
 app.include_router(wallet.router)
 app.include_router(wallet.withdrawals_router)
 app.include_router(reviews.router)

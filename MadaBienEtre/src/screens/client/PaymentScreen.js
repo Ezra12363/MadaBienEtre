@@ -32,6 +32,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import Header from '../../components/common/Header';
+import SavedCardsManager from '../../components/payment/SavedCardsManager';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import { colors } from '../../theme';
@@ -48,7 +49,7 @@ const OPTIONS = [
   { id: 'mvola', label: 'MVola', method: 'mobile_money', provider: 'mvola', icon: '📱', hint: '034 / 038' },
   { id: 'orange_money', label: 'Orange Money', method: 'mobile_money', provider: 'orange_money', icon: '🟠', hint: '032 / 037' },
   { id: 'airtel_money', label: 'Airtel Money', method: 'mobile_money', provider: 'airtel_money', icon: '🔴', hint: '033' },
-  { id: 'card', label: 'Carte bancaire', method: 'card', icon: '💳', hint: 'Formulaire sécurisé Stripe (numéro formaté automatiquement)' },
+  { id: 'card', label: 'Carte bancaire', method: 'card', icon: '💳', hint: 'Votre carte enregistrée (formulaire sécurisé Stripe)' },
   { id: 'cash', label: 'Espèces', method: 'cash', icon: '💵', hint: 'À la fin du massage' },
 ];
 
@@ -63,6 +64,9 @@ const PaymentScreen = ({ navigation, route }) => {
   const [quote, setQuote] = useState(null);
   const [methods, setMethods] = useState(null);
   const [selected, setSelected] = useState(null);
+  // Carte enregistrée choisie : id numérique, 'other' (formulaire Stripe) ou null
+  const [cardId, setCardId] = useState(null);
+  const [cardCount, setCardCount] = useState(0);
   const [phone, setPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -140,7 +144,11 @@ const PaymentScreen = ({ navigation, route }) => {
   const amount = quote?.amount || 0;
   const isMobile = option?.method === 'mobile_money';
   const phoneOk = !isMobile || phone.length === 10;
-  const canSubmit = !!option && isEnabled(option) && phoneOk && !submitting && !!quote?.can_pay;
+  // Carte Stripe : si le client a des cartes enregistrées, il doit en choisir une (ou « une autre carte »).
+  const isStripeCard = option?.method === 'card' && methods?.card?.provider === 'stripe';
+  const cardOk = !isStripeCard || cardCount === 0 || !!cardId;
+  const canSubmit =
+    !!option && isEnabled(option) && phoneOk && cardOk && !submitting && !!quote?.can_pay;
 
   // ---------------------------------------------------------------- sondage
   const stopPolling = () => {
@@ -185,6 +193,22 @@ const PaymentScreen = ({ navigation, route }) => {
     [checkOnce]
   );
 
+  // Retour de la page Stripe : on vérifie tout de suite le paiement (côté serveur) et on suit son statut
+  useEffect(() => {
+    const p = quote?.payment;
+    if (
+      route.params?.fromStripe &&
+      p &&
+      ['processing', 'pending'].includes(p.status) &&
+      p.method !== 'cash'
+    ) {
+      setPayment(p);
+      checkOnce(p.id);
+      startPolling(p.id, false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quote]);
+
   // ------------------------------------------------------------------ payer
   const handlePay = async () => {
     if (!canSubmit) return;
@@ -196,6 +220,7 @@ const PaymentScreen = ({ navigation, route }) => {
       method: option.method,
       provider: option.provider,
       phone: isMobile ? phone : undefined,
+      cardId: isStripeCard && typeof cardId === 'number' ? cardId : undefined,
     });
 
     if (!mountedRef.current) return;
@@ -253,6 +278,9 @@ const PaymentScreen = ({ navigation, route }) => {
         </Text>
       </View>
 
+      <Text style={[styles.section, { color: theme.text }]}>Carte bancaire</Text>
+      <SavedCardsManager mode="manage" hideTitle />
+
       <Text style={[styles.section, { color: theme.text }]}>Modes acceptés</Text>
 
       {OPTIONS.map((opt) => {
@@ -289,8 +317,8 @@ const PaymentScreen = ({ navigation, route }) => {
       <View style={[styles.notice, { backgroundColor: `${PRIMARY}14`, marginTop: 14 }]}>
         <Ionicons name="shield-checkmark" size={18} color={PRIMARY} />
         <Text style={[styles.noticeText, { color: theme.textSecondary }]}>
-          Aucune donnée de carte n'est enregistrée dans l'application : la carte se règle sur la
-          page sécurisée du fournisseur.
+          Votre numéro de carte n'est jamais saisi dans l'application : il est enregistré par Stripe sur sa
+          page sécurisée. Au moment de payer, il suffit de choisir « Carte bancaire ».
         </Text>
       </View>
     </>
@@ -351,7 +379,7 @@ const PaymentScreen = ({ navigation, route }) => {
           <Text style={[styles.title, { color: theme.text }]}>Paiement confirmé</Text>
           <Text style={styles.bigAmount}>{formatAr(payment.amount)}</Text>
           <Text style={[styles.muted, { color: theme.textSecondary }]}>
-            Transaction {payment.transaction_id}
+            Transaction {payment.transaction_ref || payment.transaction_id}
           </Text>
 
           <TouchableOpacity style={styles.primaryBtn} onPress={handleReceipt} activeOpacity={0.85}>
@@ -509,6 +537,20 @@ const PaymentScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           );
         })}
+
+        {isStripeCard ? (
+          <View style={{ marginTop: 6 }}>
+            <Text style={[styles.section, { color: theme.text }]}>Carte à débiter</Text>
+            <SavedCardsManager
+              mode="select"
+              hideTitle
+              allowOther
+              selectedId={cardId}
+              onSelect={setCardId}
+              onLoaded={(list) => setCardCount(list.length)}
+            />
+          </View>
+        ) : null}
 
         {isMobile ? (
           <View style={{ marginTop: 6 }}>

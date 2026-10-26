@@ -17,9 +17,13 @@ export const EMERGENCY_NUMBERS = [
 
 // Raisons proposées avant l'envoi : elles fixent le type + la gravité.
 export const SOS_REASONS = [
-  { key: 'danger', label: 'Danger immédiat', icon: 'flash', alert_type: 'emergency', severity: 'critical' },
-  { key: 'threat', label: 'Menace / agression', icon: 'warning', alert_type: null, severity: 'high' },
-  { key: 'other', label: 'Autre problème', icon: 'help-circle', alert_type: 'other', severity: 'medium' },
+  { key: 'danger', label: 'Danger immédiat', hint: 'Ma vie ou ma sécurité est menacée', icon: 'flash', alert_type: 'emergency', severity: 'critical' },
+  { key: 'medical', label: 'Malaise / urgence médicale', hint: 'Besoin de secours médicaux', icon: 'medkit', alert_type: 'emergency', severity: 'critical' },
+  { key: 'threat', label: 'Menace / agression', hint: 'Violence, menace ou intimidation', icon: 'warning', alert_type: null, severity: 'high' },
+  { key: 'harassment', label: 'Harcèlement / comportement déplacé', hint: 'Gestes, propos ou demandes inappropriés', icon: 'hand-left', alert_type: null, severity: 'high' },
+  { key: 'unsafe', label: 'Lieu ou situation dangereuse', hint: 'Je ne me sens pas en sécurité ici', icon: 'location', alert_type: null, severity: 'medium' },
+  { key: 'other', label: 'Autre problème', hint: 'Un autre souci à signaler à l\'équipe', icon: 'help-circle', alert_type: 'other', severity: 'medium' },
+  { key: 'minor', label: 'Signalement non urgent', hint: 'À traiter sans urgence', icon: 'chatbubble-ellipses', alert_type: 'other', severity: 'low' },
 ];
 
 const fail = (response, fallback) => ({

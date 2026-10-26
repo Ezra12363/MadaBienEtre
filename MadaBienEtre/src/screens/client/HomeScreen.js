@@ -53,6 +53,7 @@ import {
 import { getMassageTypeIconMCI } from '../../constants/massageTypeIcons';
 import ClientOnlineStatusCard from '../../components/client/ClientOnlineStatusCard';
 import AIClientHomeBlock from '../../components/ai/AIClientHomeBlock';
+import usePaymentReturn from '../../hooks/usePaymentReturn';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -504,6 +505,9 @@ const MassageTypeVisual = ({
 ============================================================ */
 
 const HomeScreen = ({ navigation }) => {
+  // Retour automatique de Stripe -> écran Paiement
+  usePaymentReturn(navigation);
+
   const { user } = useAuth();
   const { colors: themeColors, isDark } = useTheme();
   const { unreadCount = 0 } = useNotifications() || {};

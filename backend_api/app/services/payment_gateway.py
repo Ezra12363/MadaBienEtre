@@ -27,6 +27,8 @@ start_payment() et la lecture du statut dans _map_status() sont à ajuster
 selon la documentation officielle remise par Vanila Pay.
 """
 import hashlib
+import re
+from urllib.parse import quote
 import hmac
 import json
 import logging
@@ -94,6 +96,32 @@ def _with_query(base: str, params: str) -> str:
 # ------------------------------------------------------------------
 def vanila_configured() -> bool:
     return bool(settings.VANILA_PAY_API_KEY and settings.VANILA_PAY_MERCHANT_ID)
+
+
+def default_return_url() -> str:
+    """URL de retour après Stripe (web et mobile). Si FRONTEND_URL est vide ou pointe vers l'API elle-même,
+    on utilise la petite page « Terminé, retournez dans l'application » servie par le backend."""
+    base = (getattr(settings, "FRONTEND_URL", "") or "").strip().rstrip("/")
+    api = (getattr(settings, "BASE_URL", "") or "").strip().rstrip("/")
+    if not base or base == api:
+        return f"{api}/cards/return"
+    return base
+
+
+def resolve_return(base: Optional[str]) -> str:
+    """URL de retour après Stripe :
+      - http(s)://...  -> l'application WEB (la page de l'app s'ouvre directement) ;
+      - monappli://... -> deep link MOBILE : passe par la page /cards/return qui rouvre l'application ;
+      - vide / invalide -> page de retour du backend."""
+    base = (base or "").strip()
+    if not base:
+        return default_return_url()
+    if base.lower().startswith(("http://", "https://")):
+        return base
+    if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*://", base) and not base.lower().startswith(("javascript:", "data:")):
+        api = (getattr(settings, "BASE_URL", "") or "").strip().rstrip("/")
+        return f"{api}/cards/return?app={quote(base, safe='')}"
+    return default_return_url()
 
 
 def stripe_configured() -> bool:
@@ -174,6 +202,7 @@ def start_payment(
     payer_name: Optional[str],
     payer_email: Optional[str],
     return_url: Optional[str] = None,
+    saved_card: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Retourne : {transaction_id, status, provider, payment_url?, instructions}
@@ -193,9 +222,49 @@ def start_payment(
             "sandbox": True,
         }
 
+    # ---- Carte ENREGISTRÉE (profil > Mode de paiement) : débit direct chez Stripe ----
+    # saved_card = {"customer": "cus_...", "payment_method": "pm_..."}
+    # Aucun numéro de carte ne transite par l'application ni par notre serveur.
+    if method == "card" and saved_card and stripe_configured():
+        currency, unit_amount = stripe_amount(amount)
+        try:
+            intent = stripe.PaymentIntent.create(
+                amount=unit_amount,
+                currency=currency,
+                customer=saved_card["customer"],
+                payment_method=saved_card["payment_method"],
+                confirm=True,
+                automatic_payment_methods={"enabled": True, "allow_redirects": "never"},
+                description=f"Mada Bien-être — réservation #{booking_id}",
+                receipt_email=payer_email or None,
+                metadata={"payment_id": str(payment_id), "booking_id": str(booking_id)},
+            )
+        except Exception as exc:  # noqa: BLE001
+            reason = str(getattr(exc, "user_message", None) or exc)
+            logger.error("Stripe (carte enregistrée) : %s", reason)
+            raise GatewayError(f"Carte refusée : {reason[:200]}") from exc
+
+        if intent.status == "requires_action":
+            # La banque exige une authentification 3D Secure : impossible sans page Stripe.
+            # On annule cette tentative et on retombe sur la page sécurisée Stripe (ci-dessous).
+            try:
+                stripe.PaymentIntent.cancel(intent.id)
+            except Exception:  # noqa: BLE001
+                pass
+            logger.info("3D Secure requis : bascule sur Stripe Checkout")
+        else:
+            return {
+                "transaction_id": intent.id,
+                "status": "pending",  # confirmé juste après par check_payment() (serveur-à-serveur)
+                "provider": "stripe",
+                "payment_url": None,
+                "instructions": "Paiement par carte en cours de vérification…",
+                "card": {k: v for k, v in saved_card.items() if k not in ("customer", "payment_method")},
+            }
+
     # ---- Carte : Stripe Checkout hébergé (la carte ne passe JAMAIS par l'app) ---
     if method == "card" and stripe_configured():
-        base = return_url or settings.FRONTEND_URL
+        base = resolve_return(return_url)
         currency, unit_amount = stripe_amount(amount)
         try:
             # Stripe Checkout = page de paiement HÉBERGÉE par Stripe : le numéro de carte y est
@@ -203,7 +272,7 @@ def start_payment(
             # détection de la marque). Aucune donnée de carte ne passe par notre application.
             session = stripe.checkout.Session.create(
                 mode="payment",
-                payment_method_types=["card"],
+                # (payment_method_types retiré : refusé par l'API Stripe récente, voir Dashboard)
                 locale=(settings.STRIPE_LOCALE or "auto"),
                 client_reference_id=str(payment_id),
                 customer_email=payer_email or None,
@@ -256,7 +325,7 @@ def start_payment(
             "customer_name": payer_name,
             "customer_email": payer_email,
             "callback_url": f"{settings.BASE_URL}/payments/webhook/vanila-pay",
-            "return_url": return_url or settings.FRONTEND_URL,
+            "return_url": resolve_return(return_url),
         }
         data = _vanila_request("POST", settings.VANILA_PAY_CREATE_PATH, payload)
         tx = str(data.get("id") or data.get("transaction_id") or reference)
@@ -273,6 +342,84 @@ def start_payment(
 
 
 # ------------------------------------------------------------------
+# Contrôle du montant encaissé (anomalie « montant non conforme »)
+# ------------------------------------------------------------------
+def _with_amount_check(payment, result: Dict[str, Any], paid_units, paid_currency) -> Dict[str, Any]:
+    """Compare ce que Stripe a réellement encaissé avec ce que le serveur attendait."""
+    try:
+        if paid_units is None:
+            return result
+        exp_currency, exp_units = stripe_amount(float(payment.amount or 0))
+        got_currency = str(paid_currency or exp_currency).lower()
+        if got_currency != exp_currency or abs(int(paid_units) - int(exp_units)) > 1:
+            result = dict(result)
+            result["mismatch"] = {
+                "expected": f"{exp_units} {exp_currency.upper()}",
+                "received": f"{int(paid_units)} {got_currency.upper()}",
+            }
+    except Exception:  # noqa: BLE001  (ne jamais bloquer la vérification pour ça)
+        logger.exception("Contrôle du montant Stripe impossible")
+    return result
+
+
+_BRANDS = {"visa": "Visa", "mastercard": "Mastercard", "amex": "American Express", "discover": "Discover",
+           "jcb": "JCB", "diners": "Diners Club", "unionpay": "UnionPay"}
+
+
+def _card_info(pm) -> Optional[Dict[str, Any]]:
+    """Marque / 4 derniers chiffres / expiration de la carte qui a payé (jamais le numéro complet)."""
+    try:
+        card = getattr(pm, "card", None)
+        if card is None:
+            return None
+        brand = str(getattr(card, "brand", "") or "").lower()
+        last4 = getattr(card, "last4", None)
+        month, year = getattr(card, "exp_month", None), getattr(card, "exp_year", None)
+        if not last4:
+            return None
+        label = f"{_BRANDS.get(brand, brand.title() or 'Carte')} •••• {last4}"
+        exp = f"{int(month):02d}/{str(year)[-2:]}" if month and year else None
+        return {
+            "brand": brand, "last4": last4, "exp": exp, "label": label,
+            "funding": getattr(card, "funding", None), "country": getattr(card, "country", None),
+        }
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _paid_card(kind: str, tx: str) -> Optional[Dict[str, Any]]:
+    try:
+        if kind == "pi":
+            intent = stripe.PaymentIntent.retrieve(tx, expand=["payment_method"])
+            return _card_info(intent.payment_method)
+        session = stripe.checkout.Session.retrieve(tx, expand=["payment_intent.payment_method"])
+        return _card_info(session.payment_intent.payment_method)
+    except Exception:  # noqa: BLE001
+        logger.warning("Carte du paiement %s illisible", tx)
+        return None
+
+
+def refund_stripe(payment) -> Optional[str]:
+    """Rembourse VRAIMENT l'argent chez Stripe (paiement carte). Retourne l'id du remboursement,
+    ou None si rien à rembourser chez un fournisseur (espèces, mode test...)."""
+    tx = payment.transaction_id or ""
+    if tx.startswith(("SBX-", "CASH-")) or not (payment.provider == "stripe" or tx.startswith(("cs_", "pi_"))):
+        return None
+    if not stripe_configured():
+        raise GatewayError("Stripe n'est pas configuré : remboursement automatique impossible.")
+    try:
+        intent_id = tx
+        if tx.startswith("cs_"):
+            intent_id = stripe.checkout.Session.retrieve(tx).payment_intent
+        refund = stripe.Refund.create(payment_intent=intent_id)
+        return refund.id
+    except Exception as exc:  # noqa: BLE001
+        reason = str(getattr(exc, "user_message", None) or exc)
+        logger.error("Remboursement Stripe : %s", reason)
+        raise GatewayError(f"Remboursement Stripe refusé : {reason[:200]}") from exc
+
+
+# ------------------------------------------------------------------
 # Vérification serveur-à-serveur
 # ------------------------------------------------------------------
 def check_payment(payment) -> Dict[str, Any]:
@@ -286,6 +433,25 @@ def check_payment(payment) -> Dict[str, Any]:
         done = (datetime.utcnow() - created).total_seconds() >= 6
         return {"status": "completed" if done else "pending", "raw": "sandbox"}
 
+    if tx.startswith("pi_"):
+        # Paiement direct avec une carte enregistrée (PaymentIntent)
+        if not stripe_configured():
+            raise GatewayError("Stripe n'est pas configuré.")
+        try:
+            intent = stripe.PaymentIntent.retrieve(tx)
+        except Exception as exc:  # noqa: BLE001
+            raise GatewayError("Vérification Stripe impossible.") from exc
+        if intent.status == "succeeded":
+            return _with_amount_check(
+                payment,
+                {"status": "completed", "raw": intent.status, "card": _paid_card("pi", tx)},
+                intent.amount,
+                intent.currency,
+            )
+        if intent.status in ("canceled", "requires_payment_method"):
+            return {"status": "failed", "raw": intent.status}
+        return {"status": "pending", "raw": intent.status}
+
     if payment.provider == "stripe" or tx.startswith("cs_"):
         if not stripe_configured():
             raise GatewayError("Stripe n'est pas configuré.")
@@ -294,7 +460,12 @@ def check_payment(payment) -> Dict[str, Any]:
         except Exception as exc:  # noqa: BLE001
             raise GatewayError("Vérification Stripe impossible.") from exc
         if session.payment_status == "paid":
-            return {"status": "completed", "raw": session.payment_status}
+            return _with_amount_check(
+                payment,
+                {"status": "completed", "raw": session.payment_status, "card": _paid_card("session", tx)},
+                getattr(session, "amount_total", None),
+                getattr(session, "currency", None),
+            )
         if session.status == "expired":
             return {"status": "failed", "raw": "expired"}
         return {"status": "pending", "raw": session.payment_status}

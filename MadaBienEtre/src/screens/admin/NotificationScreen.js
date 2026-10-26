@@ -28,6 +28,7 @@ import { useNotifications } from '../../context/NotificationContext';
 
 import Header from '../../components/common/Header';
 import ChatConfirmHost from '../../components/chat/ChatConfirmHost';
+import ReasonModal from '../../components/common/ReasonModal';
 import notificationService from '../../services/notificationService';
 import { confirmAsync } from '../../utils/chatImage';
 import { notifyInfo } from '../../utils/chatUi';
@@ -113,6 +114,37 @@ const getTargetScreen = (type) => {
   return null;
 };
 
+// `data` d'une notification (objet ou chaîne JSON)
+const parseData = (item) => {
+  let d = item?.data;
+  if (typeof d === 'string') {
+    try {
+      d = JSON.parse(d);
+    } catch (e) {
+      d = {};
+    }
+  }
+  return d || {};
+};
+
+// Badge affiché sur les notifications d'argent : Information / À vérifier / À valider / Succès / Échec / Anomalie
+const BADGE_STYLES = {
+  Information: { bg: '#E6F0FB', fg: '#1D5FA8' },
+  'À vérifier': { bg: '#FEF3C7', fg: '#92400E' },
+  'À valider': { bg: '#FEF3C7', fg: '#92400E' },
+  Succès: { bg: '#E4F4EA', fg: '#17623B' },
+  Échec: { bg: '#FDE7E8', fg: '#B4232A' },
+  Anomalie: { bg: '#FDE7E8', fg: '#B4232A' },
+};
+
+// Actions ADMIN possibles depuis une notification (exécutées par le backend)
+const ACTION_DEFAULTS = {
+  verify: { label: 'Vérifier', icon: 'search-outline', color: INFO },
+  approve: { label: 'Approuver', icon: 'checkmark-circle-outline', color: PRIMARY },
+  reject: { label: 'Rejeter', icon: 'close-circle-outline', color: DANGER },
+  handled: { label: 'Marquer comme traité', icon: 'checkmark-done-outline', color: '#6B7280' },
+};
+
 // Le backend renvoie `created_at` (snake_case, UTC sans "Z").
 const getNotificationDate = (item) =>
   item?.created_at ?? item?.createdAt ?? item?.date ?? null;
@@ -146,6 +178,9 @@ const NotificationScreen = ({ navigation }) => {
   // Interrupteur général (push_enabled) : false = notifications désactivées
   const [enabled, setEnabled] = useState(true);
   const [busyId, setBusyId] = useState(null);
+  // Action admin en cours (« <id>:<action> ») + notification en attente d'un motif de rejet
+  const [actionBusy, setActionBusy] = useState(null);
+  const [rejectFor, setRejectFor] = useState(null);
 
   const mountedRef = useRef(true);
   const loadingRef = useRef(false);
@@ -249,21 +284,8 @@ const NotificationScreen = ({ navigation }) => {
     }
   };
 
-  const handlePressItem = async (item) => {
-    if (!isNotificationRead(item)) {
-      setReadLocally(item.id);
-      try {
-        if (typeof markAsRead === 'function') {
-          await markAsRead(item.id);
-        } else {
-          await notificationService.markAsRead(item.id);
-          if (typeof loadUnreadCount === 'function') loadUnreadCount();
-        }
-      } catch (e) {
-        console.warn('Marquer comme lue a échoué :', e?.message || e);
-      }
-    }
-
+  // Ouvre l'écran concerné (et l'onglet / la ligne exacte de la page Paiements).
+  const openTarget = (item) => {
     // Destination fournie par le backend, sinon déduite du type
     const target = item?.targetScreen || getTargetScreen(item?.type);
     if (target) {
@@ -301,12 +323,84 @@ const NotificationScreen = ({ navigation }) => {
     }
   };
 
+  const handlePressItem = async (item) => {
+    if (!isNotificationRead(item)) {
+      setReadLocally(item.id);
+      try {
+        if (typeof markAsRead === 'function') {
+          await markAsRead(item.id);
+        } else {
+          await notificationService.markAsRead(item.id);
+          if (typeof loadUnreadCount === 'function') loadUnreadCount();
+        }
+      } catch (e) {
+        console.warn('Marquer comme lue a échoué :', e?.message || e);
+      }
+    }
+
+    openTarget(item);
+  };
+
   /* ==========================================================
      SUPPRIMER / DÉSACTIVER
   ========================================================== */
 
   const refreshBadge = () => {
     if (typeof loadUnreadCount === 'function') loadUnreadCount();
+  };
+
+  /* ==========================================================
+     ACTIONS ADMIN : Vérifier · Approuver · Rejeter · Marquer comme traité
+     (le backend exécute la vraie action : retrait, commission, remboursement...)
+  ========================================================== */
+
+  const actionLabel = (item, action) =>
+    parseData(item).action_labels?.[action] || ACTION_DEFAULTS[action].label;
+
+  const runAction = async (item, action, reason) => {
+    setActionBusy(`${item.id}:${action}`);
+    const res = await notificationService.adminAction(item.id, action, reason);
+    if (!mountedRef.current) return;
+    setActionBusy(null);
+
+    if (!res?.success) {
+      notifyInfo('Action impossible', res?.error || 'Réessayez dans un instant.');
+      loadNotifications({ silent: true });
+      return;
+    }
+    notifyInfo(actionLabel(item, action), res.message || 'Action effectuée.');
+
+    if (res.handled) {
+      setNotifications((prev) =>
+        prev.map((n) =>
+          String(n.id) === String(item.id)
+            ? { ...n, is_read: true, read: true, data: res.data || n.data }
+            : n
+        )
+      );
+    } else {
+      loadNotifications({ silent: true });
+    }
+    refreshBadge();
+    // « Vérifier » ouvre aussi la page concernée (onglet + ligne exacte)
+    if (action === 'verify') openTarget(item);
+  };
+
+  const onPressAction = async (item, action) => {
+    if (action === 'reject') {
+      setRejectFor(item);
+      return;
+    }
+    if (action === 'approve') {
+      const ok = await confirmAsync(
+        `${actionLabel(item, 'approve')} ?`,
+        'Cette action sera exécutée immédiatement.',
+        actionLabel(item, 'approve'),
+        { tone: 'primary', cancelLabel: 'Annuler', icon: 'checkmark-circle-outline' }
+      );
+      if (!ok) return;
+    }
+    runAction(item, action);
   };
 
   const handleDelete = async (item) => {
@@ -410,6 +504,10 @@ const NotificationScreen = ({ navigation }) => {
   const renderItem = ({ item }) => {
     const visual = getNotificationVisual(item.type);
     const isUnread = !isNotificationRead(item);
+    const data = parseData(item);
+    const badge = data.badge ? BADGE_STYLES[data.badge] || BADGE_STYLES.Information : null;
+    const handled = Boolean(data.handled);
+    const actions = !handled && Array.isArray(data.actions) ? data.actions : [];
 
     // ⚠️ Web : un bouton ne peut pas contenir d'autres boutons. La carte est une
     // View ; la zone cliquable et les boutons d'action sont FRÈRES.
@@ -427,8 +525,10 @@ const NotificationScreen = ({ navigation }) => {
               ? 'rgba(22,138,85,0.08)'
               : 'rgba(22,138,85,0.05)',
           },
+          styles.itemColumn,
         ]}
       >
+        <View style={styles.itemRow}>
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => handlePressItem(item)}
@@ -458,6 +558,19 @@ const NotificationScreen = ({ navigation }) => {
 
               {isUnread && <View style={styles.unreadDot} />}
             </View>
+
+            {badge ? (
+              <View style={styles.badgeRow}>
+                <View style={[styles.badge, { backgroundColor: badge.bg }]}>
+                  <Text style={[styles.badgeText, { color: badge.fg }]}>{data.badge}</Text>
+                </View>
+                {handled ? (
+                  <View style={[styles.badge, { backgroundColor: '#E4F4EA' }]}>
+                    <Text style={[styles.badgeText, { color: '#17623B' }]}>Traité ✓</Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
 
             {item.message || item.body ? (
               <Text
@@ -510,6 +623,40 @@ const NotificationScreen = ({ navigation }) => {
             <Ionicons name="trash-outline" size={18} color={DANGER} />
           </TouchableOpacity>
         </View>
+        </View>
+
+        {actions.length > 0 ? (
+          <View style={styles.actionRow}>
+            {actions.map((action) => {
+              const def = ACTION_DEFAULTS[action];
+              if (!def) return null;
+              const busy = actionBusy === `${item.id}:${action}`;
+              return (
+                <TouchableOpacity
+                  key={action}
+                  activeOpacity={0.8}
+                  disabled={actionBusy !== null}
+                  onPress={() => onPressAction(item, action)}
+                  style={[
+                    styles.actionBtn,
+                    { borderColor: def.color },
+                    action === 'approve' && { backgroundColor: def.color },
+                    actionBusy !== null && !busy && { opacity: 0.5 },
+                  ]}
+                >
+                  {busy ? (
+                    <ActivityIndicator size="small" color={action === 'approve' ? '#fff' : def.color} />
+                  ) : (
+                    <Ionicons name={def.icon} size={15} color={action === 'approve' ? '#fff' : def.color} />
+                  )}
+                  <Text style={[styles.actionText, { color: action === 'approve' ? '#fff' : def.color }]}>
+                    {actionLabel(item, action)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : null}
       </View>
     );
   };
@@ -710,6 +857,20 @@ const NotificationScreen = ({ navigation }) => {
 
       {/* Fenêtre de confirmation (web + Android + iOS) */}
       <ChatConfirmHost />
+
+      <ReasonModal
+        visible={!!rejectFor}
+        title={rejectFor ? `${actionLabel(rejectFor, 'reject')} ?` : ''}
+        message="Le motif sera communiqué à la personne concernée."
+        placeholder="Motif du rejet"
+        confirmLabel="Rejeter"
+        onCancel={() => setRejectFor(null)}
+        onConfirm={(reason) => {
+          const it = rejectFor;
+          setRejectFor(null);
+          if (it) runAction(it, 'reject', reason);
+        }}
+      />
     </View>
   );
 };
@@ -817,6 +978,56 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     marginBottom: 10,
+  },
+
+  itemColumn: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+
+  badge: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1.2,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+
+  actionText: {
+    fontSize: 12.5,
+    fontWeight: '700',
   },
 
   itemMain: {

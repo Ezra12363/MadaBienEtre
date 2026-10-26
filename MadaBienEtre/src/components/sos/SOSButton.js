@@ -20,6 +20,8 @@ import {
   Linking,
   Animated,
   ActivityIndicator,
+  ScrollView,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,14 +33,17 @@ import sosService, { SOS_REASONS as SERVICE_REASONS } from '../../services/sosSe
 
 // Garde-fou : si l'ancien sosService est encore en place (sans SOS_REASONS),
 // le bouton ne plante plus et utilise ces valeurs par défaut.
+const FALLBACK_REASONS = [
+  { key: 'danger', label: 'Danger immédiat', hint: 'Ma vie ou ma sécurité est menacée', icon: 'flash', alert_type: 'emergency', severity: 'critical' },
+  { key: 'medical', label: 'Malaise / urgence médicale', hint: 'Besoin de secours médicaux', icon: 'medkit', alert_type: 'emergency', severity: 'critical' },
+  { key: 'threat', label: 'Menace / agression', hint: 'Violence, menace ou intimidation', icon: 'warning', alert_type: null, severity: 'high' },
+  { key: 'harassment', label: 'Harcèlement / comportement déplacé', hint: 'Gestes, propos ou demandes inappropriés', icon: 'hand-left', alert_type: null, severity: 'high' },
+  { key: 'unsafe', label: 'Lieu ou situation dangereuse', hint: 'Je ne me sens pas en sécurité ici', icon: 'location', alert_type: null, severity: 'medium' },
+  { key: 'other', label: 'Autre problème', hint: 'Un autre souci à signaler à l\'équipe', icon: 'help-circle', alert_type: 'other', severity: 'medium' },
+  { key: 'minor', label: 'Signalement non urgent', hint: 'À traiter sans urgence', icon: 'chatbubble-ellipses', alert_type: 'other', severity: 'low' },
+];
 const SOS_REASONS =
-  Array.isArray(SERVICE_REASONS) && SERVICE_REASONS.length
-    ? SERVICE_REASONS
-    : [
-        { key: 'danger', label: 'Danger immédiat', icon: 'flash', alert_type: 'emergency', severity: 'critical' },
-        { key: 'threat', label: 'Menace / agression', icon: 'warning', alert_type: null, severity: 'high' },
-        { key: 'other', label: 'Autre problème', icon: 'help-circle', alert_type: 'other', severity: 'medium' },
-      ];
+  Array.isArray(SERVICE_REASONS) && SERVICE_REASONS.length ? SERVICE_REASONS : FALLBACK_REASONS;
 
 const LOCATION_SHARE_INTERVAL_MS = 30000;
 const LOCATION_SHARE_MAX_MS = 30 * 60 * 1000;
@@ -56,6 +61,7 @@ const SOSButton = ({
   const [modalVisible, setModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [reasonKey, setReasonKey] = useState('danger');
+  const [extra, setExtra] = useState('');
   const [sent, setSent] = useState(null); // réponse du serveur une fois l'alerte envoyée
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const shareTimer = useRef(null);
@@ -117,6 +123,7 @@ const SOSButton = ({
       setSent(null);
     }
     setReasonKey('danger');
+    setExtra('');
     setModalVisible(true);
   };
 
@@ -131,7 +138,7 @@ const SOSButton = ({
       const result = await sosService.createSOSAlert({
         booking_id: bookingId || undefined,
         alert_type: reason.alert_type || sosService.alertTypeForRole(user?.role),
-        details: `Alerte SOS : ${reason.label}`,
+        details: extra.trim() ? `${reason.label} — ${extra.trim()}` : `Alerte SOS : ${reason.label}`,
         severity: reason.severity,
       });
 
@@ -291,10 +298,10 @@ const SOSButton = ({
   const renderConfirm = () => (
     <>
       <Text style={[styles.modalDescription, { color: themeColors.textSecondary }]}>
-        Que se passe-t-il ? Notre équipe sera notifiée avec votre position GPS.
+        Que se passe-t-il ? Choisissez la situation : notre équipe sera notifiée avec votre position GPS.
       </Text>
 
-      <View style={styles.reasonsRow}>
+      <ScrollView style={styles.reasonsScroll} contentContainerStyle={styles.reasonsRow} nestedScrollEnabled>
         {SOS_REASONS.map((r) => {
           const active = r.key === reasonKey;
           return (
@@ -305,13 +312,28 @@ const SOSButton = ({
               activeOpacity={0.7}
             >
               <Ionicons name={r.icon} size={20} color={active ? colors.error : themeColors.textSecondary} />
-              <Text style={[styles.reasonText, { color: active ? colors.error : themeColors.text }]}>
-                {r.label}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.reasonText, { color: active ? colors.error : themeColors.text }]}>
+                  {r.label}
+                </Text>
+                {!!r.hint && (
+                  <Text style={[styles.reasonHint, { color: themeColors.textSecondary }]}>{r.hint}</Text>
+                )}
+              </View>
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
+
+      <TextInput
+        style={[styles.extraInput, { color: themeColors.text }]}
+        value={extra}
+        onChangeText={setExtra}
+        placeholder="Précisez en quelques mots (facultatif)"
+        placeholderTextColor="#999"
+        multiline
+        maxLength={300}
+      />
 
       <View style={styles.modalInfo}>
         <View style={styles.infoRow}>
@@ -535,6 +557,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContainer: {
+    maxHeight: '94%',
     borderRadius: 24,
     padding: spacing.lg,
     width: '90%',
@@ -662,6 +685,12 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.bold,
     letterSpacing: 2,
     textAlign: 'center',
+  },
+  reasonsScroll: { maxHeight: 260, marginBottom: spacing.sm },
+  reasonHint: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular, marginTop: 1 },
+  extraInput: {
+    borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 12, padding: spacing.sm,
+    minHeight: 48, textAlignVertical: 'top', marginBottom: spacing.md, fontSize: typography.fontSize.sm,
   },
   reasonsRow: {
     gap: spacing.xs,

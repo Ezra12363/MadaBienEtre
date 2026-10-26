@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
+import SavedCardsManager from './SavedCardsManager';
 
 const GREEN = '#1F6B45';
 
@@ -123,6 +124,9 @@ export default function PaymentSettingsPanel() {
         <Text style={[styles.title, txt]}>Paiements & commissions</Text>
       </View>
       <Text style={[styles.desc, sub]}>Ces réglages s’appliquent immédiatement à toute la plateforme.</Text>
+
+      <Text style={[styles.group, { color: GREEN }]}>MODE DE PAIEMENT (MA CARTE)</Text>
+      <SavedCardsManager mode="manage" hideTitle />
 
       {field({ label: 'Commission de la plateforme', k: 'platform_commission_rate', suffix: '%' })}
       {field({ label: 'Retrait minimum', k: 'min_withdrawal', suffix: 'Ar' })}

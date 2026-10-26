@@ -15,7 +15,7 @@ from .ai_prediction import AIPrediction, AIModel, AIFeedback
 from .availability import TherapistAvailability, BlockedDate, BookingSlot
 from .session import MassageSession
 from .therapist_certificate import TherapistCertificate
-from .finance import PlatformSetting, CommissionPayment
+from .finance import PlatformSetting, CommissionPayment, StripeCustomer, PaymentCard
 
 __all__ = [
     'Base',
@@ -54,5 +54,7 @@ __all__ = [
     'MassageSession',
     'TherapistCertificate',
     'PlatformSetting',
-    'CommissionPayment'
+    'CommissionPayment',
+    'StripeCustomer',
+    'PaymentCard'
 ]

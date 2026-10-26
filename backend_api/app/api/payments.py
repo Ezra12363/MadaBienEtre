@@ -31,6 +31,7 @@ from ..services import payment_gateway as gateway
 from ..services import payment_notifications as pn
 from ..services import platform_settings, receipt_links, receipt_service
 from ..utils.date_utils import fmt_mada, iso_utc
+from ..services import card_service
 from ..services import wallet_service as wallet
 from ..services.payment_gateway import GatewayError
 from ..services.wallet_service import WalletError
@@ -57,11 +58,19 @@ class InitiatePaymentRequest(BaseModel):
     method: str = Field(..., pattern="^(mobile_money|card|cash)$")
     provider: Optional[str] = Field(None, pattern="^(mvola|orange_money|airtel_money)$")
     phone: Optional[str] = None
+    # Carte bancaire ENREGISTRÉE (Profil > Mode de paiement). Absent = formulaire sécurisé Stripe.
+    card_id: Optional[int] = None
+    # Où revenir après la page Stripe : URL de l'app web (http) ou deep link mobile. Sinon page de retour.
+    return_url: Optional[str] = Field(None, max_length=500)
 
 
 class RefundRequest(BaseModel):
     payment_id: int
     reason: Optional[str] = None
+
+
+class RefundAskRequest(BaseModel):
+    reason: Optional[str] = Field(None, max_length=500)
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +139,7 @@ def _serialize(payment: Payment, include_split: bool = False) -> Dict[str, Any]:
         "ui_state": _ui_state(payment.status),
         "payment_status": payment.status,
         "transaction_id": payment.transaction_id,
+        "transaction_ref": f"TXN-{payment.id:06d}",
         "payment_method": payment.provider or payment.method,
         "payer_name": payment.payer_name,
         "payer_phone": payment.payer_phone,
@@ -148,6 +158,9 @@ def _serialize(payment: Payment, include_split: bool = False) -> Dict[str, Any]:
             and payment.status in ("pending", "processing")
             and (payment.payment_data or {}).get("client_sent_at")
         ),
+        # Demande de remboursement : {status: pending|approved|rejected, reason, requested_at}
+        "refund_request": meta.get("refund_request"),
+        "card_label": _card_meta(payment).get("label"),
     }
     if include_split:
         data.update(
@@ -187,6 +200,9 @@ def _receipt_context(db: Session, payment: Payment) -> Dict[str, Any]:
         "payment_id": payment.id,
         "receipt_no": f"MBE-{payment.id:06d}",
         "transaction_id": payment.transaction_id or f"PAY-{payment.id}",
+        "transaction_ref": f"TXN-{payment.id:06d}",
+        "card_label": _card_meta(payment).get("label"),
+        "card_exp": _card_meta(payment).get("exp"),
         "status": payment.status,
         "status_label": STATUS_LABELS.get(payment.status, payment.status),
         "amount": float(payment.amount or 0),
@@ -211,12 +227,20 @@ def _receipt_context(db: Session, payment: Payment) -> Dict[str, Any]:
     }
 
 
-def _apply_gateway_status(db: Session, payment: Payment, status: str) -> Payment:
-    if status == "completed":
-        payment, _ = wallet.finalize_payment(db, payment.id)
-    elif status in ("failed", "cancelled"):
-        payment = wallet.mark_payment_failed(db, payment, status)
-    return payment
+def _card_meta(payment: Payment) -> dict:
+    """Carte qui a payé (marque, 4 derniers chiffres, expiration) : confirmée par Stripe ou carte enregistrée."""
+    meta = (payment.payment_metadata or {}).get("card")
+    if isinstance(meta, dict) and meta.get("label"):
+        return meta
+    saved = (payment.payment_data or {}).get("card")
+    return saved if isinstance(saved, dict) else {}
+
+
+def _apply_gateway_status(db: Session, payment: Payment, result) -> Payment:
+    """`result` = réponse de gateway.check_payment() (dict) ou simple statut (str)."""
+    if isinstance(result, str):
+        result = {"status": result}
+    return wallet.apply_gateway_result(db, payment, result)
 
 
 # ---------------------------------------------------------------------------
@@ -326,6 +350,14 @@ async def initiate_payment(
     if body.method == "cash":
         provider = None
 
+    # Carte ENREGISTRÉE : elle doit appartenir au client connecté.
+    saved_card = None
+    if body.method == "card" and body.card_id:
+        try:
+            saved_card = card_service.saved_card_for_payment(db, current_user, body.card_id)
+        except card_service.CardError as exc:
+            raise HTTPException(404, str(exc))
+
     # Les anciennes tentatives non abouties sont annulées (une seule en cours).
     for old in (
         db.query(Payment)
@@ -370,9 +402,16 @@ async def initiate_payment(
                 phone=phone,
                 payer_name=current_user.fullname,
                 payer_email=getattr(current_user, "email", None),
+                saved_card=saved_card,
+                return_url=body.return_url,
             )
         except GatewayError as exc:
-            db.rollback()
+            # Le refus / l'échec est CONSERVÉ (historique) et l'admin en est informé.
+            payment.status = "failed"
+            payment.transaction_id = payment.transaction_id or f"FAIL-{payment.id}-{int(time.time())}"
+            payment.payment_data = {"error": str(exc)}
+            db.commit()
+            pn.payment_failed(payment, current_user.fullname or "Le client", str(exc))
             raise HTTPException(502, str(exc))
         payment.transaction_id = result["transaction_id"]
         payment.provider = result.get("provider") or payment.provider
@@ -392,13 +431,21 @@ async def initiate_payment(
         receipt_service.method_label(payment.method, payment.provider),
     )
 
-    # Le fournisseur peut déjà avoir répondu « paid »
+    # Le fournisseur peut déjà avoir répondu « paid » (ex. carte enregistrée : confirmation immédiate)
     if payment.status == "processing":
         try:
             fresh = gateway.check_payment(payment)
-            payment = _apply_gateway_status(db, payment, fresh["status"])
+            payment = _apply_gateway_status(db, payment, fresh)
         except GatewayError:
             pass
+
+    # Toujours pas confirmé -> l'admin voit « Paiement en attente » (À vérifier)
+    if payment.status in ("pending", "processing") and payment.method != "cash":
+        pn.payment_pending(
+            payment,
+            current_user.fullname or "Le client",
+            receipt_service.method_label(payment.method, payment.provider),
+        )
 
     return {
         **_serialize(payment),
@@ -429,7 +476,7 @@ async def verify_payment(
             result = gateway.check_payment(payment)
         except GatewayError as exc:
             raise HTTPException(502, str(exc))
-        payment = _apply_gateway_status(db, payment, result["status"])
+        payment = _apply_gateway_status(db, payment, result)
 
     return _serialize(payment)
 
@@ -521,10 +568,10 @@ async def vanila_webhook(
     if payment:
         # On RE-vérifie auprès du fournisseur plutôt que de croire le corps du webhook
         try:
-            status = gateway.check_payment(payment)["status"]
+            result = gateway.check_payment(payment)
         except GatewayError:
-            status = gateway.map_status(data.get("status"))
-        _apply_gateway_status(db, payment, status)
+            result = {"status": gateway.map_status(data.get("status"))}
+        _apply_gateway_status(db, payment, result)
     return {"received": True}
 
 
@@ -546,12 +593,27 @@ async def stripe_webhook(
         if pid and session.get("payment_status") == "paid":
             payment = db.query(Payment).filter(Payment.id == int(pid)).first()
             if payment:
-                wallet.finalize_payment(db, payment.id)
+                # On RE-vérifie chez Stripe (et on contrôle le montant) plutôt que de croire le corps du webhook
+                try:
+                    result = gateway.check_payment(payment)
+                except GatewayError:
+                    result = {"status": "completed"}
+                _apply_gateway_status(db, payment, result)
+    elif event["type"] in ("payment_intent.succeeded", "payment_intent.payment_failed"):
+        intent = event["data"]["object"]
+        pid = (intent.get("metadata") or {}).get("payment_id")
+        payment = db.query(Payment).filter(Payment.id == int(pid)).first() if pid else None
+        if payment and payment.status in ("pending", "processing"):
+            try:
+                result = gateway.check_payment(payment)
+            except GatewayError:
+                result = {"status": "completed" if event["type"].endswith("succeeded") else "failed"}
+            _apply_gateway_status(db, payment, result)
     elif event["type"] in ("checkout.session.expired", "checkout.session.async_payment_failed"):
         pid = (event["data"]["object"].get("metadata") or {}).get("payment_id")
         payment = db.query(Payment).filter(Payment.id == int(pid)).first() if pid else None
         if payment:
-            wallet.mark_payment_failed(db, payment, "failed")
+            wallet.mark_payment_failed(db, payment, "failed", reason="Session de paiement expirée ou refusée")
     return {"received": True}
 
 
@@ -701,7 +763,7 @@ async def receipt_pdf(
 async def receipt_qr(payment_id: int, token: str = Query(...), db: Session = Depends(get_db)):
     payment, _u, _v = _completed_payment_for_token(db, payment_id, token)
     png = receipt_service.qr_png(
-        receipt_service.verification_url("payment", payment.transaction_id or f"PAY-{payment.id}")
+        receipt_service.verification_url("payment", f"TXN-{payment.id:06d}")
     )
     if png is None:
         raise HTTPException(404, "QR indisponible (pip install qrcode pillow).")
@@ -711,7 +773,7 @@ async def receipt_qr(payment_id: int, token: str = Query(...), db: Session = Dep
 @router.get("/{payment_id}/barcode.png")
 async def receipt_barcode(payment_id: int, token: str = Query(...), db: Session = Depends(get_db)):
     payment, _u, _v = _completed_payment_for_token(db, payment_id, token)
-    png = receipt_service.barcode_png(payment.transaction_id or f"PAY-{payment.id}")
+    png = receipt_service.barcode_png(f"TXN-{payment.id:06d}")
     if png is None:
         raise HTTPException(404, "Code-barres indisponible (pip install pillow reportlab).")
     return Response(content=png, media_type="image/png", headers={"Cache-Control": "private, max-age=600"})
@@ -720,7 +782,11 @@ async def receipt_barcode(payment_id: int, token: str = Query(...), db: Session 
 @router.get("/receipt/verify/{transaction_id}")
 async def verify_receipt(transaction_id: str, db: Session = Depends(get_db)):
     """Public : cible du QR code. N'expose aucune donnée personnelle."""
-    payment = db.query(Payment).filter(Payment.transaction_id == transaction_id).first()
+    payment = None
+    if transaction_id.upper().startswith("TXN-") and transaction_id[4:].isdigit():
+        payment = db.query(Payment).filter(Payment.id == int(transaction_id[4:])).first()
+    if payment is None:
+        payment = db.query(Payment).filter(Payment.transaction_id == transaction_id).first()
     valid = bool(payment and payment.status == "completed")
     cfg = platform_settings.get_config()
     return {
@@ -766,36 +832,46 @@ async def payments_batch(
 # ---------------------------------------------------------------------------
 # Remboursement (admin)
 # ---------------------------------------------------------------------------
+@router.post("/{payment_id}/refund-request")
+async def request_refund(
+    payment_id: int,
+    body: RefundAskRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Le CLIENT demande le remboursement d'un paiement confirmé -> notification « Demande de remboursement » à l'admin."""
+    payment = db.query(Payment).filter(Payment.id == payment_id).with_for_update().first()
+    if not payment or payment.user_id != current_user.id:
+        raise HTTPException(404, "Paiement introuvable.")
+    if payment.status != "completed":
+        raise HTTPException(400, "Seul un paiement confirmé peut faire l'objet d'une demande de remboursement.")
+    meta = dict(payment.payment_metadata or {})
+    if (meta.get("refund_request") or {}).get("status") == "pending":
+        raise HTTPException(400, "Une demande de remboursement est déjà en cours d'examen.")
+    reason = (body.reason or "").strip()
+    meta["refund_request"] = {
+        "status": "pending",
+        "reason": reason,
+        "requested_at": iso_utc(datetime.utcnow()),
+    }
+    payment.payment_metadata = meta
+    db.commit()
+    db.refresh(payment)
+    pn.refund_requested(payment, current_user.fullname or "Le client", reason)
+    return _serialize(payment)
+
+
 @router.post("/refund")
 async def refund_payment(
     body: RefundRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin),
 ):
-    payment = (
-        db.query(Payment).filter(Payment.id == body.payment_id).with_for_update().first()
-    )
-    if not payment or payment.status != "completed":
-        raise HTTPException(400, "Seul un paiement confirmé peut être remboursé.")
-
-    meta = dict(payment.payment_metadata or {})
-    net = wallet.D(meta.get("net_amount"))
-    if meta.get("settlement") == "wallet" and meta.get("therapist_id"):
-        w = wallet.get_or_create_earnings(db, int(meta["therapist_id"]))
-        if wallet.D(w.available_earnings) < net:
-            raise HTTPException(
-                400,
-                "Remboursement impossible : le thérapeute a déjà retiré ce montant. "
-                "Traitez-le manuellement.",
-            )
-        w.available_earnings = wallet.D(w.available_earnings) - net
-        w.total_earnings = wallet.D(w.total_earnings) - net
-        w.total_commission = wallet.D(w.total_commission) - wallet.D(meta.get("commission_amount"))
-    payment.status = "refunded"
-    payment.refunded_at = datetime.utcnow()
-    meta["refund_reason"] = body.reason
-    payment.payment_metadata = meta
-    db.commit()
+    try:
+        payment = wallet.refund_payment(db, body.payment_id, body.reason or "")
+    except WalletError as exc:
+        db.rollback()
+        raise HTTPException(400, str(exc))
     return _serialize(payment, include_split=True)
 
 
