@@ -66,6 +66,7 @@ import NavigationScreen from '../screens/therapist/NavigationScreen';
 // ------------------------------------------------------------
 import ChatScreen from '../screens/therapist/ChatScreen';
 import SOSScreen from '../screens/therapist/SOSScreen';
+import SOSAlertUserDetailScreen from '../screens/shared/SOSAlertUserDetailScreen';
 import ConversationsScreen from '../screens/shared/ConversationsScreen';
 
 import WithdrawScreen from '../screens/therapist/WithdrawScreen';
@@ -249,6 +250,11 @@ const DashboardStack = () => {
         component={NegotiationScreen}
       />
 
+      <Stack.Screen
+        name="TherapistSOSAlertDetail"
+        component={SOSAlertUserDetailScreen}
+      />
+
       <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
@@ -322,6 +328,11 @@ const RequestsStack = () => {
         component={NegotiationScreen}
       />
 
+      <Stack.Screen
+        name="TherapistSOSAlertDetail"
+        component={SOSAlertUserDetailScreen}
+      />
+
       <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
@@ -382,6 +393,11 @@ const CalendarStack = () => {
         component={NegotiationScreen}
       />
 
+      <Stack.Screen
+        name="TherapistSOSAlertDetail"
+        component={SOSAlertUserDetailScreen}
+      />
+
       <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>
   );
@@ -417,6 +433,11 @@ const EarningsStack = () => {
       <Stack.Screen
         name="Withdraw"
         component={WithdrawScreen}
+      />
+
+      <Stack.Screen
+        name="TherapistSOSAlertDetail"
+        component={SOSAlertUserDetailScreen}
       />
 
       <Stack.Screen name="Receipt" component={ReceiptScreen} />
@@ -474,6 +495,11 @@ const ProfileStack = () => {
       <Stack.Screen
         name="Reviews"
         component={ReviewsScreen}
+      />
+
+      <Stack.Screen
+        name="TherapistSOSAlertDetail"
+        component={SOSAlertUserDetailScreen}
       />
 
       <Stack.Screen name="Receipt" component={ReceiptScreen} />
@@ -959,6 +985,11 @@ const TherapistNavigator = () => {
       <Stack.Screen
         name="TherapistSOS"
         component={SOSScreen}
+      />
+
+      <Stack.Screen
+        name="TherapistSOSAlertDetail"
+        component={SOSAlertUserDetailScreen}
       />
       <Stack.Screen name="Receipt" component={ReceiptScreen} />
     </Stack.Navigator>

@@ -49,6 +49,7 @@ import MyReviewsScreen from '../screens/client/MyReviewsScreen';
 import TherapistReviewsScreen from '../screens/client/TherapistReviewsScreen';
 import TrackingScreen from '../screens/client/TrackingScreen';
 import SOSScreen from '../screens/client/SOSScreen';
+import SOSAlertUserDetailScreen from '../screens/shared/SOSAlertUserDetailScreen';
 import HistoryScreen from '../screens/client/HistoryScreen';
 import NegotiationScreen from '../screens/client/NegotiationScreen';
 import OffersScreen from '../screens/client/OffersScreen';
@@ -127,6 +128,7 @@ const COMMON_SCREENS = [
   ['TherapistReviews', TherapistReviewsScreen],
   ['Tracking', TrackingScreen],
   ['SOS', SOSScreen],
+  ['SOSAlertDetail', SOSAlertUserDetailScreen],
   ['Notifications', NotificationScreen],
   ['History', HistoryScreen],
   ['Negotiation', NegotiationScreen],
@@ -186,6 +188,11 @@ const HomeStack = () => {
       <Stack.Screen
         name="SOS"
         component={SOSScreen}
+      />
+
+      <Stack.Screen
+        name="SOSAlertDetail"
+        component={SOSAlertUserDetailScreen}
       />
 
       <Stack.Screen

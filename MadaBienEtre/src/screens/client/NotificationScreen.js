@@ -926,6 +926,17 @@ const NotificationScreen = ({
 
 
         /* ------------------------------------------------------
+           SOS : réponse / résolution de l'équipe -> détails de l'alerte
+        ------------------------------------------------------ */
+        const sosType = String(notification?.type || '').toLowerCase();
+        const sosData = parseNotificationData(notification) || {};
+        const sosId = sosData.sos_id ?? sosData.sosId ?? sosData.alert_id ?? null;
+        if (sosType.includes('sos') && sosId) {
+          navigation.navigate('SOSAlertDetail', { alertId: sosId });
+          return;
+        }
+
+        /* ------------------------------------------------------
            AVIS (réponse du thérapeute, avis masqué / supprimé...)
            -> détail de la réservation (avis affiché), sinon « Mes avis »
         ------------------------------------------------------ */

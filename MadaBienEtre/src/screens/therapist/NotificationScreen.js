@@ -1336,6 +1336,17 @@ const NotificationScreen = ({
 
 
         /* ------------------------------------------------------
+           SOS : réponse / résolution de l'équipe -> détails de l'alerte
+        ------------------------------------------------------ */
+        const sosType = String(notification?.type || '').toLowerCase();
+        const sosData = getNotificationData(notification) || {};
+        const sosId = sosData.sos_id ?? sosData.sosId ?? sosData.alert_id ?? null;
+        if (sosType.includes('sos') && sosId) {
+          navigation.navigate('TherapistSOSAlertDetail', { alertId: sosId });
+          return;
+        }
+
+        /* ------------------------------------------------------
            AVIS : nouvel avis / avis modifié -> page « Mes avis »
         ------------------------------------------------------ */
         if (String(notification?.type || '').toLowerCase().includes('review')) {
