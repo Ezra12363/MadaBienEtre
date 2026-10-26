@@ -699,7 +699,7 @@ const adminService = {
       if (limit) queryParams.append('limit', limit);
       if (skip) queryParams.append('skip', skip);
 
-      const response = await api.get(`/sos/?${queryParams.toString()}`);
+      const response = await api.get(`/sos?${queryParams.toString()}`);
       return response.data;
     } catch (error) {
       console.error('❌ Error getSOSAlerts:', error);
@@ -711,9 +711,9 @@ const adminService = {
    * Résoudre une alerte SOS
    * @param {number} alertId - ID de l'alerte
    */
-  async resolveSOSAlert(alertId, notes = '') {
+  async resolveSOSAlert(alertId) {
     try {
-      const response = await api.put(`/sos/close/${alertId}`, { response_notes: notes || null });
+      const response = await api.put(`/sos/close/${alertId}`);
       return response.data;
     } catch (error) {
       console.error('❌ Error resolveSOSAlert:', error);
@@ -1158,8 +1158,18 @@ const adminService = {
    */
   async getAdminSettings() {
     try {
+      // Taux de commission : valeur RÉELLE de la plateforme (même source que Paramètres > Paiements)
+      let platformRate = null;
+      try {
+        const real = await api.get('/wallet/admin/settings');
+        platformRate = real?.data?.settings?.platform_commission_rate ?? null;
+      } catch (e) {
+        platformRate = null;
+      }
       const response = await api.get('/admin/settings');
-      return response.data;
+      return platformRate === null
+        ? response.data
+        : { ...response.data, commissionRate: platformRate };
     } catch (error) {
       if (error.response?.status === 404) {
         console.log('ℹ️ [ADMIN SETTINGS] Endpoint /admin/settings non implémenté côté backend — valeurs par défaut utilisées.');
@@ -1184,7 +1194,17 @@ const adminService = {
    */
   async updateAdminSettings(settings) {
     try {
-      const response = await api.put('/admin/settings', settings);
+      // ⚠️ Le taux de commission n'est PAS enregistré ici : il se règle dans Paiements >
+      // « Commission de la plateforme » (sinon une ancienne valeur écraserait le vrai taux).
+      // eslint-disable-next-line no-unused-vars
+      const { commissionRate, ...rest } = settings || {};
+      let response = { data: rest };
+      try {
+        response = await api.put('/admin/settings', rest);
+      } catch (e) {
+        // /admin/settings n'existe pas côté backend : ce n'est pas bloquant
+        if (e?.response?.status !== 404 && e?.response?.status !== 405) throw e;
+      }
       return response.data;
     } catch (error) {
       console.error('❌ Error updateAdminSettings:', error);

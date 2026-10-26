@@ -876,13 +876,8 @@ const SettingsScreen = ({ navigation }) => {
       icon: 'settings-outline',
 
       items: [
-        {
-          id: 'commissionRate',
-          label: 'Taux de commission',
-          suffix: '%',
-          type: 'input',
-        },
-
+        // ℹ️ Le taux de commission se règle UNIQUEMENT dans « Paiements » > « Commission de la
+        // plateforme » (une seule source, appliquée à toute la plateforme).
         {
           id: 'minPrice',
           label: 'Prix minimum',

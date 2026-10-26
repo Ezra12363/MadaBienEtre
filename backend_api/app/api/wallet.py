@@ -747,6 +747,13 @@ async def admin_get_settings(
 ):
     from ..services import payment_gateway as gw
 
+    # Aligne le taux affiché partout (profil thérapeute, statistiques...) sur le taux global actuel
+    rate = platform_settings.get_config()["platform_commission_rate"]
+    db.query(User).filter(User.role == "THERAPIST", User.commission_rate != rate).update(
+        {User.commission_rate: rate}, synchronize_session=False
+    )
+    db.commit()
+
     return {
         "settings": platform_settings.get_config(),
         "gateways": {
@@ -768,10 +775,27 @@ async def admin_update_settings(
     body: SettingsBody, db: Session = Depends(get_db), current_user: User = Depends(get_current_admin)
 ):
     data = body.model_dump(exclude_none=True) if hasattr(body, "model_dump") else body.dict(exclude_none=True)
+    old_rate = platform_settings.get_config()["platform_commission_rate"]
     try:
-        return {"settings": platform_settings.save_config(db, data, current_user.id)}
+        saved = platform_settings.save_config(db, data, current_user.id)
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+
+    new_rate = saved["platform_commission_rate"]
+    if "platform_commission_rate" in data and float(new_rate) != float(old_rate):
+        # Le taux s'applique à TOUS les écrans : on aligne aussi la colonne des thérapeutes
+        # (affichée par le profil, les statistiques...) et on prévient l'admin.
+        db.query(User).filter(User.role == "THERAPIST").update(
+            {User.commission_rate: new_rate}, synchronize_session=False
+        )
+        db.commit()
+        try:
+            from ..services import payment_notifications as pn
+
+            pn.commission_rate_changed(old_rate, new_rate, current_user.fullname)
+        except Exception:  # noqa: BLE001
+            logger.exception("Notification de changement de commission non envoyée")
+    return {"settings": saved}
 
 
 @router.post("/admin/settings/apply-commission")

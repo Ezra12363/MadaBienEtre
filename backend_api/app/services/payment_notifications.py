@@ -513,3 +513,17 @@ def commission_status(cp, kind: str, title: str, body: str) -> None:
         data=_cm_data(cp, kind, "Earnings", "commission"),
         priority="high",
     )
+
+
+def commission_rate_changed(old_rate: Any, new_rate: Any, admin_name: Optional[str] = None) -> None:
+    """Journal admin : le taux de commission de la plateforme a été modifié."""
+    _admin(
+        "Commission de la plateforme modifiée",
+        f"Le taux de commission est passé de {float(old_rate):g} % à {float(new_rate):g} %"
+        + (f" (par {admin_name})" if admin_name else "")
+        + ". Il s'applique à tous les nouveaux paiements.",
+        "payment_commission",
+        {"kind": "commission_rate_changed", "screen": "Payments", "tab": "commissions",
+         "old_rate": float(old_rate), "new_rate": float(new_rate)},
+        badge="Information",
+    )

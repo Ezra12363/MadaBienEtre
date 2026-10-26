@@ -57,12 +57,13 @@ def money(value: Any) -> Decimal:
     return D(value).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
 
-def commission_rate_for(therapist: Optional[User]) -> Decimal:
-    default = D(platform_settings.get_config()["platform_commission_rate"])
-    rate = getattr(therapist, "commission_rate", None) if therapist else None
-    rate = D(rate) if rate not in (None, "") else default
+def commission_rate_for(therapist: Optional[User] = None) -> Decimal:
+    """Taux de commission de la plateforme — UN SEUL taux pour tous, réglé par l'admin
+    (Paramètres > Paiements > Commission de la plateforme). Il s'applique à tous les nouveaux
+    paiements, retraits et écrans. (L'ancien taux individuel, figé à 10 % par défaut, est ignoré.)"""
+    rate = D(platform_settings.get_config()["platform_commission_rate"])
     if rate < 0 or rate > 100:
-        rate = default
+        rate = D(settings.PLATFORM_COMMISSION_RATE)
     return rate
 
 
@@ -657,7 +658,9 @@ def pay_commission(db: Session, therapist: User, data: Dict[str, Any]) -> Commis
         wallet.pending_commission = max(D(wallet.pending_commission) - amount, ZERO)
         cp.status = "completed"
         cp.provider = "stripe"
-        cp.transfer_reference = charge["id"]
+        # Référence LISIBLE (CM-AAMMJJ-XXXXXX) ; l'identifiant Stripe reste dans les notes pour l'admin.
+        cp.transfer_reference = cp.reference
+        cp.notes = f"Payé par carte bancaire (Stripe {charge['id']})"
         cp.processed_at = cp.completed_at = datetime.utcnow()
         _tx(
             db, therapist.id, "commission", amount, wallet.available_earnings,

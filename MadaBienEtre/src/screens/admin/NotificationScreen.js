@@ -157,7 +157,7 @@ const isNotificationRead = (item) =>
 ============================================================ */
 
 // Rafraîchissement automatique tant que l'écran est affiché
-const AUTO_REFRESH_MS = 15000;
+const AUTO_REFRESH_MS = 6000;
 
 const NotificationScreen = ({ navigation }) => {
   const { colors: themeColors, isDark } = useTheme();
@@ -168,7 +168,12 @@ const NotificationScreen = ({ navigation }) => {
 
   // Le contexte global ne fournit QUE le compteur (unreadCount) et
   // des actions ; la liste est chargée directement depuis l'API.
-  const { markAsRead, markAllAsRead, loadUnreadCount } = useNotifications() || {};
+  const {
+    markAsRead,
+    markAllAsRead,
+    loadUnreadCount,
+    unreadCount: contextUnreadCount, // compteur global (signal d'une nouvelle notification)
+  } = useNotifications() || {};
 
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -232,6 +237,15 @@ const NotificationScreen = ({ navigation }) => {
       // préférences illisibles : on garde « activé »
     }
   }, []);
+
+  // Nouvelle notification reçue (signal WebSocket -> compteur) : la liste se met à jour AUTOMATIQUEMENT
+  const lastUnreadRef = useRef(contextUnreadCount);
+  useEffect(() => {
+    if (lastUnreadRef.current !== contextUnreadCount) {
+      lastUnreadRef.current = contextUnreadCount;
+      loadNotifications({ silent: true });
+    }
+  }, [contextUnreadCount, loadNotifications]);
 
   // Chargement à chaque affichage de l'écran + rafraîchissement automatique
   useFocusEffect(
