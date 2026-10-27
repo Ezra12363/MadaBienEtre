@@ -3204,9 +3204,8 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     ...(IS_WEB ? { cursor: 'pointer' } : {}),
   },
 

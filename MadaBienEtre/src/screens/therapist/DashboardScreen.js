@@ -66,15 +66,15 @@ const useHeaderTheme = () => {
             isLargeWebScreen: true,
             headerBg: '#FFFFFF',
             iconColor: HEADER_GREEN_DARK,
-            backButtonBg: 'rgba(11,99,60,0.08)',
-            backButtonBorder: 'rgba(11,99,60,0.18)',
+            backButtonBg: 'transparent',
+            backButtonBorder: 'transparent',
           }
         : {
             isLargeWebScreen: false,
             headerBg: HEADER_GREEN,
             iconColor: '#FFFFFF',
-            backButtonBg: 'rgba(255,255,255,0.18)',
-            backButtonBorder: 'rgba(255,255,255,0.32)',
+            backButtonBg: 'transparent',
+            backButtonBorder: 'transparent',
           },
     [isLargeWebScreen]
   );
@@ -1774,9 +1774,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(22, 138, 85, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(22, 138, 85, 0.28)',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
   },
 
   headerNotificationBadge: {

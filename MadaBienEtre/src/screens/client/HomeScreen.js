@@ -82,8 +82,8 @@ function useHeaderTheme(isLargeWebScreen) {
         isLargeWebScreen: true,
         headerBg: '#FFFFFF',
         iconColor: HEADER_GREEN,
-        backButtonBg: 'rgba(22, 138, 85, 0.10)',
-        backButtonBorder: 'rgba(22, 138, 85, 0.25)',
+        backButtonBg: 'transparent',
+        backButtonBorder: 'transparent',
       };
     }
 
@@ -91,8 +91,8 @@ function useHeaderTheme(isLargeWebScreen) {
       isLargeWebScreen: false,
       headerBg: HEADER_GREEN,
       iconColor: '#FFFFFF',
-      backButtonBg: 'rgba(255, 255, 255, 0.18)',
-      backButtonBorder: 'rgba(255, 255, 255, 0.35)',
+      backButtonBg: 'transparent',
+      backButtonBorder: 'transparent',
     };
   }, [isLargeWebScreen]);
 }
@@ -2674,9 +2674,8 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
   },
 
   /* Espace neutre (même taille, sans décor) utilisé à la place du

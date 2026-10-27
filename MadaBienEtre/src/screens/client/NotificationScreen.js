@@ -3202,11 +3202,8 @@ const NotificationScreen = ({
               style={[
                 styles.markAllButton,
                 {
-                  backgroundColor:
-                    `${colors.primary}12`,
-
-                  borderColor:
-                    `${colors.primary}25`,
+                  backgroundColor: 'transparent',
+                  borderColor: 'transparent',
                 },
               ]}
               activeOpacity={0.75}
@@ -3659,7 +3656,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
-    borderWidth: 1,
+    borderWidth: 0,
 
     flexDirection: 'row',
     alignItems: 'center',

@@ -1757,9 +1757,8 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       borderRadius: 17,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'rgba(255,255,255,0.16)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.3)',
+      backgroundColor: 'transparent',
+      borderWidth: 0,
     },
 
     // --------------------------------------------------------

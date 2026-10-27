@@ -45,8 +45,9 @@ const PRIMARY = colors.primary || '#168A55';
 const PRIMARY_DARK = '#0B633C';
 
 // ≈ 2 mm : 8 px sur le web (96 dpi), 12 dp sur mobile (160 dpi)
-const SIDE_GAP = IS_WEB ? 8 : 12;
-const GAP = SIDE_GAP; // espace entre colonnes
+const SIDE_GAP = IS_WEB ? 16 : 14;
+const GAP = IS_WEB ? 14 : 12; // espace entre colonnes
+const CONTENT_MAX_WIDTH = 1240; // contenu centré sur grand écran
 
 const CATEGORY_ICONS = {
   relaxant: 'spa',
@@ -270,7 +271,6 @@ const TherapistPublicationsScreen = ({ navigation }) => {
             })
           }
           onBook={() => book(item)}
-          flush={columns === 1}
           fill
         />
       </View>
@@ -290,7 +290,7 @@ const TherapistPublicationsScreen = ({ navigation }) => {
   ];
 
   const ListHeader = (
-    <View style={[styles.toolbar, columns === 1 && { paddingHorizontal: SIDE_GAP }]}>
+    <View style={styles.toolbar}>
       {/* Recherche */}
       <View
         style={[
@@ -413,10 +413,7 @@ const TherapistPublicationsScreen = ({ navigation }) => {
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={Empty}
         columnWrapperStyle={columns > 1 ? styles.columnWrapper : undefined}
-        contentContainerStyle={[
-          styles.listContent,
-          columns === 1 && { paddingHorizontal: 0 },
-        ]}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={IS_WEB}
         keyboardShouldPersistTaps="handled"
         refreshControl={
@@ -438,6 +435,9 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
 
   listContent: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
     paddingHorizontal: SIDE_GAP,
     paddingTop: 12,
     paddingBottom: 60,

@@ -973,7 +973,7 @@ const styles = StyleSheet.create({
   },
 
   headerActionButtonHovered: {
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'transparent',
   },
 
   headerActionBadge: {

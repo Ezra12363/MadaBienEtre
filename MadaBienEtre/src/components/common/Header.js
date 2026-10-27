@@ -47,8 +47,8 @@ const getHeaderColors = (isLargeWebScreen, isDark = false) => {
       subtitleColor: 'rgba(255,255,255,0.70)',
       iconColor: '#FFFFFF',
 
-      backButtonBg: 'rgba(255,255,255,0.10)',
-      backButtonBorder: 'rgba(255,255,255,0.22)',
+      backButtonBg: 'transparent',
+      backButtonBorder: 'transparent',
 
       logoBoxBg: 'rgba(255,255,255,0.12)',
     };
@@ -64,8 +64,8 @@ const getHeaderColors = (isLargeWebScreen, isDark = false) => {
       subtitleColor: 'rgba(11,99,60,0.65)',
       iconColor: GREEN_DARK,
 
-      backButtonBg: 'rgba(11,99,60,0.08)',
-      backButtonBorder: 'rgba(11,99,60,0.18)',
+      backButtonBg: 'transparent',
+      backButtonBorder: 'transparent',
 
       logoBoxBg: 'rgba(11,99,60,0.08)',
     };
@@ -80,8 +80,8 @@ const getHeaderColors = (isLargeWebScreen, isDark = false) => {
     subtitleColor: 'rgba(255,255,255,0.80)',
     iconColor: '#FFFFFF',
 
-    backButtonBg: 'rgba(255,255,255,0.18)',
-    backButtonBorder: 'rgba(255,255,255,0.32)',
+    backButtonBg: 'transparent',
+    backButtonBorder: 'transparent',
 
     logoBoxBg: 'rgba(255,255,255,0.18)',
   };
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
 
-    borderWidth: 1,
+    borderWidth: 0,
   },
 
   brand: {

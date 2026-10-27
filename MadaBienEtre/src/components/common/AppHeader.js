@@ -45,8 +45,8 @@ export const HEADER_COLORS = IS_WEB
 
       logoBoxBg: 'rgba(22,75,42,0.08)',
 
-      backButtonBg: 'rgba(22,75,42,0.08)',
-      backButtonBgPressed: 'rgba(22,75,42,0.16)',
+      backButtonBg: 'transparent',
+      backButtonBgPressed: 'transparent',
 
       statusBarStyle: 'dark-content',
       statusBarBg: '#FFFFFF',
@@ -62,8 +62,8 @@ export const HEADER_COLORS = IS_WEB
 
       logoBoxBg: 'rgba(255,255,255,0.18)',
 
-      backButtonBg: 'rgba(255,255,255,0.16)',
-      backButtonBgPressed: 'rgba(255,255,255,0.28)',
+      backButtonBg: 'transparent',
+      backButtonBgPressed: 'transparent',
 
       statusBarStyle: 'light-content',
       statusBarBg: '#164B2A',
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
 
     zIndex: 10,
 
-    elevation: 3,
+    elevation: 0,
   },
 
   backButtonMobile: {
