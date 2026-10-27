@@ -419,7 +419,7 @@ const CertificateCard = () => {
 const styles = StyleSheet.create({
 
   card: {
-    marginHorizontal: spacing.md,
+    marginHorizontal: 0, // le ScrollView a déjà son padding : évite le double espace
     marginVertical: spacing.sm,
     padding: spacing.md,
     borderRadius: 20,

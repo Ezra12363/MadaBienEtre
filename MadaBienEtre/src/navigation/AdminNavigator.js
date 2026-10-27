@@ -74,6 +74,7 @@ import MassageTypesScreen from '../screens/admin/MassageTypesScreen';
 
 const Tab = createBottomTabNavigator();
 import ReceiptScreen from '../screens/shared/ReceiptScreen';
+import Header from '../components/common/Header';
 
 const Stack = createNativeStackNavigator();
 
@@ -493,35 +494,15 @@ const ManagementScreen = ({
 
       {/* =====================================================
           HEADER GESTION
+          Composant partagé (components/common/Header.js) : même
+          apparence que les autres pages — vert sur Android / web
+          étroit, blanc sur web large.
           ===================================================== */}
 
-      <View
-        style={[
-          styles.header,
-          {
-            backgroundColor:
-              themeColors.surface,
-
-            borderBottomColor:
-              themeColors.border ||
-              '#E0E0E0',
-          },
-        ]}
-      >
-
-        <Text
-          style={[
-            styles.headerTitle,
-            {
-              color:
-                themeColors.text,
-            },
-          ]}
-        >
-          Gestion
-        </Text>
-
-      </View>
+      <Header
+        title="Gestion"
+        subtitle="Thérapeutes, paiements, avis et alertes"
+      />
 
 
       {/* =====================================================

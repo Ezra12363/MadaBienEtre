@@ -51,7 +51,6 @@ import {
   normalizeTherapistPost,
 } from './TherapistPost';
 import { getMassageTypeIconMCI } from '../../constants/massageTypeIcons';
-import ClientOnlineStatusCard from '../../components/client/ClientOnlineStatusCard';
 import AIClientHomeBlock from '../../components/ai/AIClientHomeBlock';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -1721,19 +1720,6 @@ const HomeScreen = ({ navigation }) => {
               )
             }
           />
-        </Reveal>
-
-        {/* ====================================================
-            STATUT EN LIGNE
-        ==================================================== */}
-
-        <Reveal
-          animation="fadeInUp"
-          delay={80}
-          duration={480}
-          style={styles.sectionContainer}
-        >
-          <ClientOnlineStatusCard />
         </Reveal>
 
         {/* ====================================================

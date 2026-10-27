@@ -1254,7 +1254,12 @@ const DashboardScreen = ({ navigation }) => {
             animation="fadeInUp"
             delay={220}
             duration={500}
-            style={{ marginTop: 16, marginBottom: 16 }}
+            style={{
+              marginTop: 16,
+              marginBottom: 16,
+              // même espace gauche / droite que les autres cartes
+              marginHorizontal: Platform.OS === 'web' ? 0 : 14,
+            }}
           >
             <AITherapistHomeBlock
               onOpenAssistant={(tab) =>

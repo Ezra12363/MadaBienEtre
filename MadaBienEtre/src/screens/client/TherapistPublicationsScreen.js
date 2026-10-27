@@ -43,7 +43,6 @@ const IS_WEB = Platform.OS === 'web';
 
 const PRIMARY = colors.primary || '#168A55';
 const PRIMARY_DARK = '#0B633C';
-const HEADER_GREEN = '#168A55';
 
 // ≈ 2 mm : 8 px sur le web (96 dpi), 12 dp sur mobile (160 dpi)
 const SIDE_GAP = IS_WEB ? 8 : 12;
@@ -232,21 +231,18 @@ const TherapistPublicationsScreen = ({ navigation }) => {
 
   /* ---------------------------- NAVIGATION ------------------------- */
 
-  const goBack = useCallback(() => {
-    if (navigation.canGoBack?.()) navigation.goBack();
-    else navigation.navigate('HomeScreen');
-  }, [navigation]);
-
-  const openProfile = useCallback(
-    (post) => navigation.navigate('SearchMassage', { therapistId: post.id }),
-    [navigation]
-  );
-
   const book = useCallback(
     (post) => {
       if (post.online) {
         navigation.navigate('BookingDetail', { therapist: post });
       }
+    },
+    [navigation]
+  );
+
+  const openProfile = useCallback(
+    (post) => {
+      navigation.navigate('SearchMassage', { therapistId: post.id });
     },
     [navigation]
   );
@@ -274,11 +270,12 @@ const TherapistPublicationsScreen = ({ navigation }) => {
             })
           }
           onBook={() => book(item)}
+          flush={columns === 1}
           fill
         />
       </View>
       ),
-    [isDark, surface, border, text, textSecondary, openProfile, book, navigation]
+    [isDark, surface, border, text, textSecondary, openProfile, book, navigation, columns]
   );
 
   const chips = [
@@ -292,11 +289,8 @@ const TherapistPublicationsScreen = ({ navigation }) => {
     })),
   ];
 
-  const headerBg = isLargeWeb ? '#FFFFFF' : HEADER_GREEN;
-  const headerIcon = isLargeWeb ? HEADER_GREEN : '#FFFFFF';
-
   const ListHeader = (
-    <View style={styles.toolbar}>
+    <View style={[styles.toolbar, columns === 1 && { paddingHorizontal: SIDE_GAP }]}>
       {/* Recherche */}
       <View
         style={[
@@ -406,28 +400,7 @@ const TherapistPublicationsScreen = ({ navigation }) => {
       <Header
         title="Publications"
         subtitle="Profils, savoir-faire et soins proposés"
-        leftComponent={
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={goBack}
-            style={[
-              styles.backBtn,
-              {
-                backgroundColor: isLargeWeb
-                  ? 'rgba(22,138,85,0.10)'
-                  : 'rgba(255,255,255,0.18)',
-                borderColor: isLargeWeb
-                  ? 'rgba(22,138,85,0.25)'
-                  : 'rgba(255,255,255,0.35)',
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Retour"
-          >
-            <Ionicons name="arrow-back" size={21} color={headerIcon} />
-          </TouchableOpacity>
-        }
-        rightComponent={<View style={styles.backBtn} />}
+        showBack
       />
 
       <FlatList
@@ -440,7 +413,10 @@ const TherapistPublicationsScreen = ({ navigation }) => {
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={Empty}
         columnWrapperStyle={columns > 1 ? styles.columnWrapper : undefined}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          columns === 1 && { paddingHorizontal: 0 },
+        ]}
         showsVerticalScrollIndicator={IS_WEB}
         keyboardShouldPersistTaps="handled"
         refreshControl={
@@ -460,15 +436,6 @@ const TherapistPublicationsScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 
   listContent: {
     paddingHorizontal: SIDE_GAP,

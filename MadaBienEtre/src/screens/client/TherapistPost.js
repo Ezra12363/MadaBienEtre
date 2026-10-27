@@ -2,7 +2,7 @@
 // Publication d'un thérapeute (style page Facebook) — partagée entre
 // HomeScreen (aperçu) et TherapistPublicationsScreen (plein écran).
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   View,
@@ -12,6 +12,7 @@ import {
   Image,
   Linking,
   Share,
+  Platform,
 } from 'react-native';
 
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -296,6 +297,33 @@ const PostMedia = ({ specialties }) => {
   );
 };
 
+/* ---------- Avatar avec repli sur l'initiale ---------- */
+const PostAvatar = ({ uri, name }) => {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [uri]);
+
+  if (uri && !failed) {
+    return (
+      <Image
+        source={{ uri }}
+        style={postStyles.avatar}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <View style={[postStyles.avatar, postStyles.avatarFallback]}>
+      <Text style={postStyles.avatarInitial}>
+        {String(name || '?').charAt(0).toUpperCase()}
+      </Text>
+    </View>
+  );
+};
+
 /* ---------- Publication d'un thérapeute ---------- */
 export const TherapistPost = ({ post, isDark, surface, border, text, textSecondary, onOpen, onBook, onToast, onOpenReviews, flush = false, fill = false }) => {
   const [expanded, setExpanded] = useState(false);
@@ -345,13 +373,7 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
       {/* ===== EN-TÊTE : photo de profil + nom + infos ===== */}
       <View style={postStyles.header}>
         <TouchableOpacity activeOpacity={0.85} onPress={onOpen} style={postStyles.avatarWrap}>
-          {post.photo ? (
-            <Image source={{ uri: post.photo }} style={postStyles.avatar} />
-          ) : (
-            <View style={[postStyles.avatar, postStyles.avatarFallback]}>
-              <Text style={postStyles.avatarInitial}>{post.name.charAt(0).toUpperCase()}</Text>
-            </View>
-          )}
+          <PostAvatar uri={post.photo} name={post.name} />
           <View
             style={[
               postStyles.onlineDot,
@@ -366,10 +388,15 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
             {post.verified && <Ionicons name="checkmark-circle" size={15} color={FB_BLUE} style={{ marginLeft: 4 }} />}
           </View>
           <View style={postStyles.metaRow}>
-            <Text numberOfLines={1} style={[postStyles.metaText, { color: textSecondary }]}>
+            {post.online && (
+              <Text style={[postStyles.metaText, { color: '#31A24C', fontFamily: typography.fontFamily.semiBold }]}>
+                En ligne ·{' '}
+              </Text>
+            )}
+            <Text numberOfLines={1} style={[postStyles.metaText, { color: textSecondary, flexShrink: 1 }]}>
               Massothérapeute{ago ? ` · ${ago}` : ''}
             </Text>
-            <Ionicons name="earth" size={11} color={textSecondary} style={{ marginLeft: 4 }} />
+            <Ionicons name="earth" size={12} color={textSecondary} style={{ marginLeft: 4 }} />
           </View>
           {!!post.address && (
             <View style={postStyles.metaRow}>
@@ -382,19 +409,22 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
           )}
         </TouchableOpacity>
 
-        <View style={[postStyles.statusPill, { backgroundColor: post.online ? '#E7F6EA' : subtle }]}>
-          <View style={[postStyles.statusDot, { backgroundColor: post.online ? '#31A24C' : '#A0A5AD' }]} />
-          <Text style={[postStyles.statusText, { color: post.online ? '#1E7F37' : textSecondary }]}>
-            {post.online ? 'En ligne' : 'Hors ligne'}
-          </Text>
-        </View>
+        <TouchableOpacity
+          activeOpacity={0.6}
+          onPress={onOpen}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          style={postStyles.moreBtn}
+          accessibilityLabel="Voir le profil"
+        >
+          <Ionicons name="ellipsis-horizontal" size={20} color={textSecondary} />
+        </TouchableOpacity>
       </View>
 
       {/* ===== TEXTE : mombamomba (à propos) ===== */}
       <View style={postStyles.textBlock}>
         <Text
           numberOfLines={expanded ? undefined : 3}
-          style={[postStyles.bio, { color: text }, !expanded && { minHeight: 54 }]}
+          style={[postStyles.bio, { color: text }]}
         >
           {shownBio}
         </Text>
@@ -408,7 +438,7 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
 
         {/* Fahaizana / infos clés */}
         {stats.length > 0 && (
-          <View style={[postStyles.statsBox, fill && { minHeight: 64 }]}>
+          <View style={postStyles.statsBox}>
             {stats.map((s, i) => (
               <View key={`${post.id}-st-${i}`} style={postStyles.statLine}>
                 <Ionicons name={s.icon} size={14} color={PRIMARY} />
@@ -420,7 +450,7 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
 
         {/* Fahaizana (compétences) en hashtags */}
         {post.skills.length > 0 && (
-          <Text numberOfLines={2} style={[postStyles.hashtags, fill && { minHeight: 34 }]}>
+          <Text numberOfLines={2} style={postStyles.hashtags}>
             {post.skills.slice(0, 8).map((s) => `#${s.replace(/[^\p{L}\p{N}]+/gu, '')}`).join('  ')}
           </Text>
         )}
@@ -431,7 +461,7 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
 
       {/* ===== TYPES DE MASSAGE + CATÉGORIES ===== */}
       {(post.specialties.length > 0 || post.categories.length > 0) && (
-        <View style={[postStyles.tagsBlock, fill && { minHeight: 92 }]}>
+        <View style={postStyles.tagsBlock}>
           {post.specialties.length > 0 && (
             <View style={postStyles.tagsRow}>
               {post.specialties.map((s, i) => (
@@ -510,30 +540,39 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
 };
 
 const postStyles = StyleSheet.create({
-  card: { borderRadius: 16, borderWidth: 1, marginBottom: 14, overflow: 'hidden' },
+  card: {
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    marginBottom: 10,
+    overflow: 'hidden',
+    ...(Platform.OS === 'web'
+      ? { boxShadow: '0 1px 3px rgba(0,0,0,0.12)' }
+      : { elevation: 1 }),
+  },
 
-  header: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 12, paddingTop: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 12 },
   avatarWrap: { position: 'relative', marginRight: 10 },
-  avatar: { width: 46, height: 46, borderRadius: 23 },
+  avatar: { width: 44, height: 44, borderRadius: 22 },
   avatarFallback: { backgroundColor: '#E3F1E7', alignItems: 'center', justifyContent: 'center' },
   avatarInitial: { color: PRIMARY, fontSize: 19, fontFamily: typography.fontFamily.bold },
   onlineDot: { position: 'absolute', right: -1, bottom: -1, width: 13, height: 13, borderRadius: 7, borderWidth: 2 },
   headerInfo: { flex: 1, minWidth: 0 },
   nameRow: { flexDirection: 'row', alignItems: 'center' },
-  name: { flexShrink: 1, fontSize: 14, fontFamily: typography.fontFamily.bold },
+  name: { flexShrink: 1, fontSize: 15, fontFamily: typography.fontFamily.bold },
   metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  metaText: { fontSize: 10, fontFamily: typography.fontFamily.regular },
+  metaText: { fontSize: 12, fontFamily: typography.fontFamily.regular },
+  moreBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
   statusPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginLeft: 6 },
   statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 4 },
   statusText: { fontSize: 9, fontFamily: typography.fontFamily.bold },
 
   textBlock: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 10 },
-  bio: { fontSize: 12, lineHeight: 18, fontFamily: typography.fontFamily.regular },
-  moreLink: { fontSize: 11, marginTop: 3, fontFamily: typography.fontFamily.semiBold },
-  statsBox: { marginTop: 10, gap: 5 },
+  bio: { fontSize: 14, lineHeight: 20, fontFamily: typography.fontFamily.regular },
+  moreLink: { fontSize: 13, marginTop: 3, fontFamily: typography.fontFamily.semiBold },
+  statsBox: { marginTop: 8, gap: 4 },
   statLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  statText: { flex: 1, fontSize: 11, fontFamily: typography.fontFamily.medium },
-  hashtags: { marginTop: 9, fontSize: 11, lineHeight: 17, color: FB_BLUE, fontFamily: typography.fontFamily.medium },
+  statText: { flex: 1, fontSize: 12.5, fontFamily: typography.fontFamily.medium },
+  hashtags: { marginTop: 8, fontSize: 13, lineHeight: 18, color: FB_BLUE, fontFamily: typography.fontFamily.medium },
 
   tile: { overflow: 'hidden', backgroundColor: '#DDE5E0', justifyContent: 'flex-end' },
   tileIconWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -543,22 +582,22 @@ const postStyles = StyleSheet.create({
   tileMoreText: { color: '#FFFFFF', fontSize: 20, fontFamily: typography.fontFamily.bold },
   mosaicRow: { flexDirection: 'row', gap: 2, marginTop: 2 },
 
-  tagsBlock: { paddingHorizontal: 12, paddingTop: 11 },
+  tagsBlock: { paddingHorizontal: 12, paddingTop: 10 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tag: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 14 },
-  tagText: { fontSize: 10, fontFamily: typography.fontFamily.medium },
+  tagText: { fontSize: 11.5, fontFamily: typography.fontFamily.medium },
   catTag: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 14, borderWidth: 1 },
-  catTagText: { color: PRIMARY, fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+  catTagText: { color: PRIMARY, fontSize: 11, fontFamily: typography.fontFamily.semiBold },
 
   counters: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 11, paddingBottom: 10 },
   counterLeft: { flexDirection: 'row', alignItems: 'center' },
   starBubble: { width: 18, height: 18, borderRadius: 9, backgroundColor: STAR_COLOR, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
-  counterText: { fontSize: 11, fontFamily: typography.fontFamily.regular },
-  priceText: { fontSize: 12, fontFamily: typography.fontFamily.bold },
+  counterText: { fontSize: 13, fontFamily: typography.fontFamily.regular },
+  priceText: { fontSize: 13, fontFamily: typography.fontFamily.bold },
 
-  actions: { flexDirection: 'row', borderTopWidth: 1, marginHorizontal: 8, paddingVertical: 4 },
-  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 9, borderRadius: 8 },
-  actionText: { fontSize: 11, fontFamily: typography.fontFamily.semiBold },
+  actions: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, marginHorizontal: 8, paddingVertical: 2 },
+  actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 10, borderRadius: 8 },
+  actionText: { fontSize: 12.5, fontFamily: typography.fontFamily.semiBold },
 
   emptyBox: { alignItems: 'center', paddingVertical: 28, gap: 8 },
   emptyText: { fontSize: 11, fontFamily: typography.fontFamily.regular, textAlign: 'center' },
