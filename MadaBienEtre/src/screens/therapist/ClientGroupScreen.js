@@ -58,6 +58,7 @@ import {
   isOfferExpired,
   getMassageName,
   getPrice,
+  getDisplayPrice,
   getDuration,
   getDistance,
   getDistanceFromPosition,
@@ -69,6 +70,7 @@ import {
   formatPrice,
   getOfferId,
   isActiveClientOffer,
+  isActiveTherapistOffer,
 } from './OffersScreen';
 
 import useLocationTracking from '../../hooks/useLocationTracking';
@@ -776,11 +778,22 @@ export default function ClientGroupScreen({
                   isActiveClientOffer
                 );
 
+              const activeTherapist =
+                offers.filter(
+                  isActiveTherapistOffer
+                );
+
               return {
                 ...booking,
                 _activeClientOffer:
                   active.length
                     ? active[active.length - 1]
+                    : null,
+                _activeTherapistOffer:
+                  activeTherapist.length
+                    ? activeTherapist[
+                        activeTherapist.length - 1
+                      ]
                     : null,
               };
             } catch (offerError) {
@@ -904,6 +917,7 @@ export default function ClientGroupScreen({
                     final_price:
                       returnedBooking?.final_price ??
                       returnedBooking?.price ??
+                      getPrice(clientOffer) ??
                       getPrice(booking),
                   }
                 : item
@@ -1030,7 +1044,9 @@ export default function ClientGroupScreen({
 
           message:
             `Refuser l’offre client de ${formatPrice(
-              getPrice(booking)
+              getPrice(
+                booking?._activeClientOffer
+              ) || getPrice(booking)
             )} ? Cette action ne peut pas être annulée.`,
 
           confirmLabel: 'Refuser',
@@ -1160,7 +1176,8 @@ export default function ClientGroupScreen({
           {
             bookingId: booking.id,
             currentPrice:
-              getPrice(booking),
+              getDisplayPrice(booking)
+                .amount,
             clientName:
               getClientName(booking),
             booking,
@@ -1431,8 +1448,9 @@ export default function ClientGroupScreen({
         const busy =
           busyId === booking.id;
 
-        const price =
-          getPrice(booking);
+        // ✅ Prix final confirmé (négociation terminée) ou dernière offre
+        const displayPrice =
+          getDisplayPrice(booking);
 
         const distance =
           getDistanceFromPosition(
@@ -1757,16 +1775,61 @@ export default function ClientGroupScreen({
                     </View>
                   ) : null}
 
-                  <Text
+                  <View
                     style={
-                      baseStyles.cardPrice
+                      baseStyles.cardPriceWrap
                     }
-                    numberOfLines={1}
                   >
-                    {formatPrice(
-                      price
-                    )}
-                  </Text>
+                    <View
+                      style={
+                        baseStyles.cardPriceLabelRow
+                      }
+                    >
+                      {displayPrice.icon ? (
+                        <Ionicons
+                          name={
+                            displayPrice.icon
+                          }
+                          size={11}
+                          color={
+                            displayPrice.kind ===
+                            'final'
+                              ? COLORS.greenDark
+                              : COLORS.orange
+                          }
+                        />
+                      ) : null}
+
+                      <Text
+                        style={[
+                          baseStyles.cardPriceLabel,
+                          displayPrice.kind ===
+                            'final' &&
+                            baseStyles.cardPriceLabelFinal,
+                          displayPrice.kind ===
+                            'negotiation' &&
+                            baseStyles.cardPriceLabelNegotiation,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {displayPrice.label}
+                      </Text>
+                    </View>
+
+                    <Text
+                      style={[
+                        baseStyles.cardPrice,
+                        displayPrice.kind ===
+                          'final' &&
+                          baseStyles.cardPriceFinal,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {formatPrice(
+                        displayPrice.amount
+                      )}
+                    </Text>
+                  </View>
                 </View>
 
                 {/* Statut du paiement (Payé / En attente) + reçu du client */}

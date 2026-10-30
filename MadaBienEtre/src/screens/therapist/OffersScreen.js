@@ -652,6 +652,77 @@ const getDuration = booking =>
     60
   );
 
+// ============================================================
+// PRIX AFFICHÉ SUR LES CARTES
+//  - négociation terminée (confirmée / en cours / terminée)
+//      => PRIX FINAL CONFIRMÉ (booking.final_price)
+//  - négociation en cours
+//      => DERNIÈRE OFFRE (client OU thérapeute, la plus récente)
+//  - sinon => prix proposé initialement par le client
+// ============================================================
+
+const FINAL_PRICE_STATUSES = ['confirmed', 'in_progress', 'completed'];
+
+const getDisplayPrice = booking => {
+  const status = normalizeStatus(booking);
+  const finalPrice = safeNumber(booking?.final_price);
+
+  // 1) Négociation terminée : prix final confirmé
+  if (FINAL_PRICE_STATUSES.includes(status) && finalPrice > 0) {
+    return {
+      amount: finalPrice,
+      kind: 'final',
+      label: 'Prix final confirmé',
+      icon: 'checkmark-circle',
+    };
+  }
+
+  // 2) Négociation en cours : dernière offre échangée
+  if (status === 'pending' || status === 'negotiating') {
+    const candidates = [
+      booking?._activeClientOffer
+        ? { offer: booking._activeClientOffer, from: 'client' }
+        : null,
+      booking?._activeTherapistOffer
+        ? { offer: booking._activeTherapistOffer, from: 'therapist' }
+        : null,
+    ].filter(Boolean);
+
+    if (candidates.length) {
+      const last = candidates.reduce((a, b) =>
+        getOfferSortValue(b.offer) >= getOfferSortValue(a.offer) ? b : a
+      );
+      const amount = safeNumber(
+        last.offer?.price_offered ??
+          last.offer?.price ??
+          last.offer?.counter_price
+      );
+      if (amount > 0) {
+        return {
+          amount,
+          kind: 'negotiation',
+          label:
+            last.from === 'client'
+              ? 'Dernière offre · client'
+              : 'Dernière offre · vous',
+          icon: 'swap-horizontal',
+        };
+      }
+    }
+  }
+
+  // 3) Prix initial proposé par le client
+  const initial = safeNumber(
+    booking?.client_price_proposed ?? booking?.clientPriceProposed
+  );
+  return {
+    amount: initial > 0 ? initial : getPrice(booking),
+    kind: 'initial',
+    label: 'Prix proposé',
+    icon: null,
+  };
+};
+
 const getDistance = booking => {
   const value =
     booking?.distance_km ?? booking?.distanceKm ?? booking?.distance;
@@ -1821,7 +1892,7 @@ export default function OffersScreen({ navigation, route }) {
       showToast('success', 'Ouverture de la négociation.');
       navigation.navigate('Negotiation', {
         bookingId: booking.id,
-        currentPrice: getPrice(booking),
+        currentPrice: getDisplayPrice(booking).amount,
         clientName: getClientName(booking),
         booking,
         activeTab: 'Demandes',
@@ -1895,6 +1966,7 @@ export default function OffersScreen({ navigation, route }) {
               final_price:
                 returnedBooking?.final_price ??
                 returnedBooking?.price ??
+                getPrice(cachedClientOffer) ??
                 getPrice(booking),
             };
           })
@@ -1968,7 +2040,7 @@ export default function OffersScreen({ navigation, route }) {
       setConfirmModal({
         title: 'Refuser l’offre ?',
         message: `Refuser l’offre client de ${formatPrice(
-          getPrice(booking)
+          getPrice(booking?._activeClientOffer) || getPrice(booking)
         )} ? Cette action ne peut pas être annulée.`,
         confirmLabel: 'Refuser',
         destructive: true,
@@ -2029,7 +2101,7 @@ export default function OffersScreen({ navigation, route }) {
       const statusUI = getStatusUI(booking, isDark);
       const busy = busyId === booking.id;
 
-      const price = getPrice(booking);
+      const displayPrice = getDisplayPrice(booking);
       const distance = getDistanceFromPosition(booking, therapistPosition);
       const expiresAt = getExpiresAt(booking);
       const expired = isOfferExpired(booking);
@@ -2182,9 +2254,42 @@ export default function OffersScreen({ navigation, route }) {
                   </View>
                 ) : null}
 
-                <Text style={styles.cardPrice} numberOfLines={1}>
-                  {formatPrice(price)}
-                </Text>
+                <View style={styles.cardPriceWrap}>
+                  <View style={styles.cardPriceLabelRow}>
+                    {displayPrice.icon ? (
+                      <Ionicons
+                        name={displayPrice.icon}
+                        size={11}
+                        color={
+                          displayPrice.kind === 'final'
+                            ? COLORS.greenDark
+                            : COLORS.orange
+                        }
+                      />
+                    ) : null}
+                    <Text
+                      style={[
+                        styles.cardPriceLabel,
+                        displayPrice.kind === 'final' &&
+                          styles.cardPriceLabelFinal,
+                        displayPrice.kind === 'negotiation' &&
+                          styles.cardPriceLabelNegotiation,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {displayPrice.label}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.cardPrice,
+                      displayPrice.kind === 'final' && styles.cardPriceFinal,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {formatPrice(displayPrice.amount)}
+                  </Text>
+                </View>
               </View>
 
               {/* Statut du paiement (Payé / En attente) + reçu */}
@@ -4159,8 +4264,36 @@ const createStyles = (colors, isDark) => {
       fontSize: 14,
       fontWeight: '900',
       color: COLORS.primary,
-      marginLeft: 'auto',
       letterSpacing: -0.2,
+    },
+
+    cardPriceFinal: {
+      color: COLORS.greenDark,
+    },
+
+    cardPriceWrap: {
+      marginLeft: 'auto',
+      alignItems: 'flex-end',
+    },
+
+    cardPriceLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+    },
+
+    cardPriceLabel: {
+      fontSize: 9.5,
+      fontWeight: '700',
+      color: colors.textSecondary,
+    },
+
+    cardPriceLabelFinal: {
+      color: COLORS.greenDark,
+    },
+
+    cardPriceLabelNegotiation: {
+      color: COLORS.orange,
     },
 
     cardExpiryRow: {
@@ -4725,6 +4858,7 @@ export {
   isOfferExpired,
   getMassageName,
   getPrice,
+  getDisplayPrice,
   getDuration,
   getDistance,
   getDistanceFromPosition,
