@@ -68,3 +68,64 @@ export const clearLastTabs = () => {
     // ignoré
   }
 };
+
+// ============================================================
+// État COMPLET de la navigation (page + sous-pages + paramètres)
+// ============================================================
+
+const NAV_KEY = PREFIX + 'navState';
+const MAX_SIZE = 200 * 1024;
+
+// Ne garde que l'essentiel (index, nom, params, sous-état) : pas de `key`
+const compactState = (state) => {
+  if (!state || !Array.isArray(state.routes)) return undefined;
+
+  return {
+    index: typeof state.index === 'number' ? state.index : state.routes.length - 1,
+    routes: state.routes.map((route) => {
+      const item = { name: route.name };
+      if (route.params !== undefined) item.params = route.params;
+      const child = compactState(route.state);
+      if (child) item.state = child;
+      return item;
+    }),
+  };
+};
+
+// Clé basée sur le rôle (le profil peut changer après /users/me ; la
+// déconnexion efface de toute façon l'état mémorisé).
+export const buildUserKey = (user) => String(user?.role ?? '');
+
+export const saveNavState = (user, rootState) => {
+  const storage = getStorage();
+  if (!storage) return;
+
+  try {
+    const state = compactState(rootState);
+    if (!state) return;
+
+    const json = JSON.stringify({ user: buildUserKey(user), state });
+    if (json.length > MAX_SIZE) return;
+
+    storage.setItem(NAV_KEY, json);
+  } catch (e) {
+    // ignoré (params non sérialisables, quota...)
+  }
+};
+
+export const loadNavState = (user) => {
+  const storage = getStorage();
+  if (!storage) return undefined;
+
+  try {
+    const raw = storage.getItem(NAV_KEY);
+    if (!raw) return undefined;
+
+    const data = JSON.parse(raw);
+    if (data?.user !== buildUserKey(user)) return undefined;
+
+    return data.state;
+  } catch (e) {
+    return undefined;
+  }
+};
