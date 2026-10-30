@@ -10,6 +10,7 @@ const fmtShort = (n) => {
   if (v >= 1e3) return `${Math.round(n / 1e3)} k`;
   return `${Math.round(n || 0)}`;
 };
+export const formatCount = (v) => `${Math.round(Number(v) || 0).toLocaleString('fr-FR')}`;
 export const formatAr = (v) => `${Math.round(Number(v) || 0).toLocaleString('fr-FR')} Ar`;
 
 /**
@@ -17,7 +18,7 @@ export const formatAr = (v) => `${Math.round(Number(v) || 0).toLocaleString('fr-
  * data: [{ label, values: { key: number } }]
  * series: [{ key, color, name }]
  */
-export function BarChart({ data = [], series = [], height = 150, textColor = '#777', gridColor = '#ECECEC', barWidth = 14 }) {
+export function BarChart({ data = [], series = [], height = 150, textColor = '#777', gridColor = '#ECECEC', barWidth = 14, format = formatAr, axisFormat = fmtShort }) {
   const [sel, setSel] = useState(null);
   const max = Math.max(1, ...data.flatMap((d) => series.map((s) => Number(d.values?.[s.key]) || 0)));
   const colW = Math.max(series.length * (barWidth + 2) + 10, 34);
@@ -35,7 +36,7 @@ export function BarChart({ data = [], series = [], height = 150, textColor = '#7
       </View>
       {sel !== null && data[sel] ? (
         <Text style={[styles.tip, { color: textColor }]}>
-          {data[sel].label} · {series.map((s) => `${s.name} ${formatAr(data[sel].values?.[s.key])}`).join(' · ')}
+          {data[sel].label} · {series.map((s) => `${s.name} ${(s.format || format)(data[sel].values?.[s.key])}`).join(' · ')}
         </Text>
       ) : (
         <Text style={[styles.tip, { color: textColor }]}>{empty ? 'Aucune donnée pour le moment' : 'Touchez une barre pour le détail'}</Text>
@@ -43,7 +44,7 @@ export function BarChart({ data = [], series = [], height = 150, textColor = '#7
       <View style={{ flexDirection: 'row' }}>
         <View style={{ width: 34, height, justifyContent: 'space-between' }}>
           {[1, 0.5, 0].map((r) => (
-            <Text key={r} style={[styles.axis, { color: textColor }]}>{fmtShort(max * r)}</Text>
+            <Text key={r} style={[styles.axis, { color: textColor }]}>{axisFormat(max * r)}</Text>
           ))}
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>

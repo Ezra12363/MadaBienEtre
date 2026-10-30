@@ -32,8 +32,27 @@ import { colors, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import AIFeatureButton from '../../components/ai/AIFeatureButton';
 import adminService from '../../services/adminService';
+import statsService from '../../services/statsService';
+import {
+  BarChart,
+  HBars,
+  StackedShare,
+  formatAr,
+  formatCount,
+} from '../../components/charts/SimpleCharts';
 
 const IS_WEB = Platform.OS === 'web';
+
+const STATUS_LABELS = {
+  completed: { label: 'Terminées', color: '#16A34A' },
+  confirmed: { label: 'Confirmées', color: '#3B82F6' },
+  in_progress: { label: 'En cours', color: '#2F6DB5' },
+  pending: { label: 'En attente', color: '#F59E0B' },
+  negotiating: { label: 'Négociation', color: '#F39C12' },
+  cancelled_by_client: { label: 'Annulées (client)', color: '#E53935' },
+  cancelled_by_therapist: { label: 'Annulées (thérapeute)', color: '#C0392B' },
+  expired: { label: 'Expirées', color: '#9E9E9E' },
+};
 
 /* ============================================================
    DASHBOARD SCREEN
@@ -57,6 +76,9 @@ const DashboardScreen = ({ navigation }) => {
 
   const [dashboardData, setDashboardData] = useState(null);
   const [stats, setStats] = useState(null);
+
+  // Graphiques (GET /stats/admin) : séries mensuelles, statuts, top thérapeutes
+  const [overview, setOverview] = useState(null);
 
   // Statistiques des utilisateurs (déplacées depuis UsersScreen)
   const [userStats, setUserStats] = useState(null);
@@ -199,7 +221,7 @@ const DashboardScreen = ({ navigation }) => {
     setError(null);
 
     try {
-      const [dashboard, statistics, userStatistics] =
+      const [dashboard, statistics, userStatistics, fullOverview] =
         await Promise.all([
           adminService
             .getAdminDashboard()
@@ -230,7 +252,19 @@ const DashboardScreen = ({ navigation }) => {
               );
               return null;
             }),
+
+          statsService
+            .admin(6)
+            .catch((e) => {
+              console.error(
+                'Overview statistics error:',
+                e
+              );
+              return null;
+            }),
         ]);
+
+      setOverview(fullOverview);
 
       setUserStats(
         userStatistics &&
@@ -268,6 +302,7 @@ const DashboardScreen = ({ navigation }) => {
       setDashboardData({});
       setStats({});
       setUserStats({});
+      setOverview(null);
 
       setError(
         'Une erreur est survenue lors du chargement du tableau de bord.'
@@ -338,6 +373,22 @@ const DashboardScreen = ({ navigation }) => {
 
   const formatMoney = (value) => {
     return `${formatNumber(value)} Ar`;
+  };
+
+  // Style commun des cartes de graphiques
+  const chartCardStyle = {
+    backgroundColor: themeColors.surface,
+    borderColor: isDark
+      ? 'rgba(255,255,255,0.06)'
+      : 'rgba(15,23,42,0.06)',
+    padding: 16,
+    marginBottom: 14,
+  };
+
+  const chartTitleStyle = {
+    color: themeColors.text,
+    fontSize: 14,
+    marginBottom: 10,
   };
 
   /* ============================================================
@@ -1906,6 +1957,126 @@ const DashboardScreen = ({ navigation }) => {
             </>
           )}
 
+          {/* ====================================================
+              GRAPHIQUES (données réelles de la base)
+          ==================================================== */}
+
+          {overview && (
+            <>
+              <SectionHeader
+                title="Graphiques"
+                subtitle="Évolution sur les 6 derniers mois"
+                icon="trending-up-outline"
+              />
+
+              <View
+                style={[
+                  styles.detailCard,
+                  chartCardStyle,
+                ]}
+              >
+                <Text style={chartTitleStyle}>
+                  Revenus mensuels
+                </Text>
+                <BarChart
+                  data={(overview.monthly || []).map((m) => ({
+                    label: m.label,
+                    values: { revenue: m.revenue },
+                  }))}
+                  series={[
+                    {
+                      key: 'revenue',
+                      color: colors.primary,
+                      name: 'Revenus',
+                    },
+                  ]}
+                  textColor={themeColors.textSecondary}
+                  gridColor={themeColors.border || '#ECECEC'}
+                  barWidth={22}
+                />
+              </View>
+
+              <View
+                style={[
+                  styles.detailCard,
+                  chartCardStyle,
+                ]}
+              >
+                <Text style={chartTitleStyle}>
+                  Réservations & nouveaux comptes
+                </Text>
+                <BarChart
+                  data={(overview.monthly || []).map((m) => ({
+                    label: m.label,
+                    values: {
+                      bookings: m.bookings,
+                      new_users: m.new_users,
+                    },
+                  }))}
+                  series={[
+                    {
+                      key: 'bookings',
+                      color: '#F59E0B',
+                      name: 'Réservations terminées',
+                    },
+                    {
+                      key: 'new_users',
+                      color: '#3B82F6',
+                      name: 'Nouveaux comptes',
+                    },
+                  ]}
+                  format={formatCount}
+                  textColor={themeColors.textSecondary}
+                  gridColor={themeColors.border || '#ECECEC'}
+                />
+              </View>
+
+              <View
+                style={[
+                  styles.detailCard,
+                  chartCardStyle,
+                ]}
+              >
+                <Text style={chartTitleStyle}>
+                  Réservations par statut
+                </Text>
+                <StackedShare
+                  textColor={themeColors.textSecondary}
+                  items={Object.entries(
+                    overview.bookings?.by_status || {}
+                  )
+                    .filter(([, v]) => v > 0)
+                    .map(([k, v]) => ({
+                      label: STATUS_LABELS[k]?.label || k,
+                      value: v,
+                      color: STATUS_LABELS[k]?.color || '#9E9E9E',
+                    }))}
+                />
+              </View>
+
+              <View
+                style={[
+                  styles.detailCard,
+                  chartCardStyle,
+                ]}
+              >
+                <Text style={chartTitleStyle}>
+                  Meilleurs thérapeutes
+                </Text>
+                <HBars
+                  textColor={themeColors.textSecondary}
+                  trackColor={themeColors.border || '#EFEFEF'}
+                  items={(overview.top_therapists || []).map((t) => ({
+                    label: `${t.name} · ${t.bookings} rés.`,
+                    value: t.earnings,
+                    color: colors.primary,
+                  }))}
+                  format={formatAr}
+                />
+              </View>
+            </>
+          )}
+
           <View style={styles.footer} />
         </ScrollView>
       </View>
@@ -2005,7 +2176,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    borderWidth: 0,
+    borderWidth: 0,
+
   },
 
   // Conteneur de la cloche : même taille que l'icône (23px)

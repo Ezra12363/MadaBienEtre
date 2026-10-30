@@ -29,7 +29,14 @@ import * as Animatable from 'react-native-animatable';
 
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
-import reviewService from '../../services/reviewService';
+import statsService from '../../services/statsService';
+import { formatTimeAgo } from '../../utils/timeAgo';
+import {
+  BarChart,
+  HBars,
+  formatAr,
+  formatCount,
+} from '../../components/charts/SimpleCharts';
 import AITherapistHomeBlock from '../../components/ai/AITherapistHomeBlock';
 import { useNotifications } from '../../context/NotificationContext';
 
@@ -250,6 +257,12 @@ const DashboardScreen = ({ navigation }) => {
 
   const [recentActivities, setRecentActivities] = useState([]);
 
+  // Données des graphiques (GET /stats/therapist)
+  const [weekly, setWeekly] = useState([]);
+  const [monthly, setMonthly] = useState([]);
+  const [byMassageType, setByMassageType] = useState([]);
+  const [loadError, setLoadError] = useState(null);
+
   const scrollY = useRef(new Animated.Value(0)).current;
 
   // ==========================================================
@@ -277,75 +290,49 @@ const DashboardScreen = ({ navigation }) => {
     }
 
     try {
-      await new Promise((resolve) => {
-        setTimeout(resolve, 400);
-      });
+      // ✅ Toutes les valeurs viennent de la base de données
+      const data = await statsService.therapist(6);
 
-      /*
-       * Ces données peuvent ensuite être remplacées
-       * par les vraies données de ton API.
-       */
       setStats({
-        todayBookings: 3,
-        totalEarnings: 450000,
-        pendingEarnings: 120000,
-        totalBookings: 42,
-        rating: 4.8,
-        reviews: 28,
+        todayBookings: data?.bookings?.today || 0,
+        totalEarnings: data?.earnings?.total_net || 0,
+        pendingEarnings: data?.earnings?.pending || 0,
+        totalBookings: data?.bookings?.total || 0,
+        rating: Number(data?.rating?.average || 0).toFixed(1),
+        reviews: data?.rating?.total_reviews || 0,
       });
 
-      // ✅ Avis réels : note moyenne + nombre d'avis + dernier avis reçu
-      let realReviewActivity = null;
-      try {
-        if (user?.id) {
-          const [ratingStats, latest] = await Promise.all([
-            reviewService.therapistStats(user.id),
-            reviewService.received({ limit: 1, sort: 'recent' }),
-          ]);
-          setStats((prev) => ({
-            ...prev,
-            rating: Number(ratingStats?.average_rating || 0).toFixed(1),
-            reviews: ratingStats?.total_reviews || 0,
-          }));
-          const last = (latest || [])[0];
-          if (last) {
-            realReviewActivity = {
-              id: `review-${last.id}`,
-              type: 'review',
-              message: `Nouvel avis ${last.rating} étoile${last.rating > 1 ? 's' : ''} de ${last.reviewer_name}`,
-              time: 'Récent',
-            };
-          }
-        }
-      } catch (_reviewError) {
-        // les compteurs d'avis gardent leur valeur par défaut
-      }
+      setWeekly(data?.weekly || []);
+      setMonthly(data?.monthly || []);
+      setByMassageType(data?.by_massage_type || []);
 
-      setRecentActivities([
-        {
-          id: 1,
-          type: 'booking',
-          message: 'Nouvelle réservation de Marie L.',
-          time: '10:30',
-        },
-        {
-          id: 2,
-          type: 'payment',
-          message: 'Paiement reçu de Jean R. - 45 000 Ar',
-          time: '09:15',
-        },
-        ...(realReviewActivity
-          ? [realReviewActivity]
-          : []),
-      ]);
+      setRecentActivities(
+        (data?.recent_activities || []).map((a) => {
+          const ago = formatTimeAgo(a.time);
+
+          return {
+            ...a,
+            time:
+              !ago || ago === "À l'instant"
+                ? ago || 'Récent'
+                : `Il y a ${ago}`,
+          };
+        })
+      );
+
+      setLoadError(null);
     } catch (error) {
       console.error('Erreur dashboard :', error);
+      setLoadError(
+        error?.message ||
+          'Impossible de charger vos statistiques.'
+      );
     } finally {
       if (!isRefresh) {
         setIsLoading(false);
       }
     }
-  }, [user?.id]);
+  }, []);
 
   useEffect(() => {
     loadDashboardData();
@@ -648,27 +635,16 @@ const DashboardScreen = ({ navigation }) => {
   // ==========================================================
 
   const ChartComponent = () => {
+    // ✅ Gains nets réels des 7 derniers jours (GET /stats/therapist)
     const chartData = {
-      labels: [
-        'Lun',
-        'Mar',
-        'Mer',
-        'Jeu',
-        'Ven',
-        'Sam',
-        'Dim',
-      ],
+      labels: weekly.length
+        ? weekly.map((d) => d.label)
+        : ['-'],
       datasets: [
         {
-          data: [
-            20000,
-            35000,
-            28000,
-            45000,
-            38000,
-            50000,
-            42000,
-          ],
+          data: weekly.length
+            ? weekly.map((d) => Number(d.earnings) || 0)
+            : [0],
         },
       ],
     };
@@ -1581,6 +1557,161 @@ const DashboardScreen = ({ navigation }) => {
               ACTIVITÉS RÉCENTES
           ================================================== */}
 
+          {/* ==================================================
+              GRAPHIQUES (données réelles)
+          ================================================== */}
+
+          <Animatable.View
+            animation="fadeInUp"
+            delay={400}
+            duration={500}
+          >
+            {loadError ? (
+              <View
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: surfaceColor,
+                    borderColor,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: secondaryTextColor,
+                  }}
+                >
+                  {loadError}
+                </Text>
+
+                <TouchableOpacity
+                  onPress={() => loadDashboardData()}
+                  style={{ marginTop: 8 }}
+                >
+                  <Text
+                    style={{
+                      color: primaryColor,
+                    }}
+                  >
+                    Réessayer
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: surfaceColor,
+                  borderColor,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.cardTitle,
+                  {
+                    color: textColor,
+                    marginBottom: 4,
+                  },
+                ]}
+              >
+                Mes gains (6 derniers mois)
+              </Text>
+
+              <BarChart
+                data={monthly.map((m) => ({
+                  label: m.label,
+                  values: { earnings: m.earnings },
+                }))}
+                series={[
+                  {
+                    key: 'earnings',
+                    color: primaryColor,
+                    name: 'Gains nets',
+                  },
+                ]}
+                textColor={secondaryTextColor}
+                gridColor={borderColor}
+                barWidth={22}
+              />
+            </View>
+
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: surfaceColor,
+                  borderColor,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.cardTitle,
+                  {
+                    color: textColor,
+                    marginBottom: 4,
+                  },
+                ]}
+              >
+                Séances terminées par mois
+              </Text>
+
+              <BarChart
+                data={monthly.map((m) => ({
+                  label: m.label,
+                  values: { bookings: m.bookings },
+                }))}
+                series={[
+                  {
+                    key: 'bookings',
+                    color: BLUE,
+                    name: 'Séances',
+                  },
+                ]}
+                format={formatCount}
+                textColor={secondaryTextColor}
+                gridColor={borderColor}
+                barWidth={22}
+              />
+            </View>
+
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: surfaceColor,
+                  borderColor,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.cardTitle,
+                  {
+                    color: textColor,
+                    marginBottom: 10,
+                  },
+                ]}
+              >
+                Massages les plus demandés
+              </Text>
+
+              <HBars
+                items={byMassageType.map((t) => ({
+                  label: t.label,
+                  value: t.count,
+                  color: GOLD,
+                }))}
+                format={formatCount}
+                textColor={secondaryTextColor}
+                trackColor={borderColor}
+              />
+            </View>
+          </Animatable.View>
+
           <Animatable.View
             animation="fadeInUp"
             delay={450}
@@ -1777,7 +1908,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    borderWidth: 0,
+    borderWidth: 0,
+
   },
 
   // Conteneur de la cloche : même taille que l'icône (23px)

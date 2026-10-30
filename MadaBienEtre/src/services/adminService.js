@@ -787,9 +787,9 @@ const adminService = {
   /**
    * Récupérer les statistiques admin
    */
-  async getAdminStatistics() {
+  async getAdminStatistics(period = 'month') {
     try {
-      const response = await api.get('/admin/statistics');
+      const response = await api.get('/admin/statistics', { params: { period } });
       return response.data;
     } catch (error) {
       console.error('❌ Error getAdminStatistics:', error);

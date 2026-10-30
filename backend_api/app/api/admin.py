@@ -270,6 +270,16 @@ async def admin_dashboard(
         Booking.status == "completed"
     ).scalar() or 0
 
+    # Revenu du jour / du mois (minuit heure de Madagascar)
+    from .stats import _day_start_db, _month_start_db
+    end_ts = func.coalesce(Booking.actual_end_time, Booking.updated_at)
+    today_revenue = db.query(func.sum(Booking.final_price)).filter(
+        Booking.status == "completed", end_ts >= _day_start_db()
+    ).scalar() or 0
+    month_revenue = db.query(func.sum(Booking.final_price)).filter(
+        Booking.status == "completed", end_ts >= _month_start_db()
+    ).scalar() or 0
+
     active_sos = db.query(SOSAlert).filter(SOSAlert.status == "active").count()
 
     return {
@@ -284,7 +294,9 @@ async def admin_dashboard(
             "completion_rate": round((completed_bookings / total_bookings * 100) if total_bookings > 0 else 0, 2)
         },
         "revenue": {
-            "total": float(total_revenue)
+            "total": float(total_revenue),
+            "today": float(today_revenue),
+            "month": float(month_revenue)
         },
         "sos": {
             "active": active_sos
@@ -337,13 +349,23 @@ async def admin_statistics(
         Review.is_hidden == False  # noqa: E712
     ).scalar() or 0
 
+    # Taux de complétion : parmi les réservations créées sur la période
+    completed_in_period = db.query(Booking).filter(
+        Booking.created_at >= start,
+        Booking.status == "completed"
+    ).count()
+    completion_rate = round(
+        (completed_in_period / new_bookings * 100) if new_bookings > 0 else 0, 1
+    )
+
     return {
         "period": period,
         "new_users": new_users,
         "new_bookings": new_bookings,
+        "completion_rate": completion_rate,
         "revenue": float(revenue),
         "reviews": reviews,
-        "average_rating": float(avg_rating),
+        "average_rating": round(float(avg_rating), 2),
         "start_date": start,
         "end_date": now
     }
@@ -366,14 +388,26 @@ async def admin_revenues(
         Payment.status == "completed"
     ).group_by(Payment.method).all()
 
-    monthly_revenue = db.query(
-        func.date_trunc('month', Booking.actual_end_time).label('month'),
-        func.sum(Booking.final_price).label('revenue')
-    ).filter(
+    # 12 derniers mois, du plus ancien au plus récent, regroupés en Python
+    # (indépendant du SGBD) et exprimés en heure de Madagascar.
+    from .stats import _month_keys, _window_start_db, _mkey, _month_label
+    keys = _month_keys(12)
+    end_ts = func.coalesce(Booking.actual_end_time, Booking.updated_at)
+    series = {k: 0.0 for k in keys}
+    for price, ts in db.query(Booking.final_price, end_ts).filter(
+        Booking.status == "completed",
+        end_ts >= _window_start_db(12)
+    ).all():
+        k = _mkey(ts)
+        if k in series:
+            series[k] += float(price or 0)
+
+    total_revenue = db.query(func.sum(Booking.final_price)).filter(
         Booking.status == "completed"
-    ).group_by('month').order_by(desc('month')).limit(12).all()
+    ).scalar() or 0
 
     return {
+        "total_revenue": float(total_revenue),
         "by_payment_method": [
             {
                 "method": r[0],
@@ -384,10 +418,11 @@ async def admin_revenues(
         ],
         "monthly": [
             {
-                "month": str(r[0]),
-                "revenue": float(r[1] or 0)
+                "month": k,
+                "label": _month_label(k),
+                "revenue": series[k]
             }
-            for r in monthly_revenue
+            for k in keys
         ]
     }
 

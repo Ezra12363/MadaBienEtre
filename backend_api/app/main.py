@@ -36,6 +36,7 @@ from .api import (
     sos,
     websocket,
     analytics,
+    stats,
     admin,
     massage_public,
     certificates,
@@ -416,6 +417,7 @@ app.include_router(chat.router)
 
 app.include_router(sos.router)
 app.include_router(analytics.router)
+app.include_router(stats.router)
 app.include_router(admin.router)
 
 

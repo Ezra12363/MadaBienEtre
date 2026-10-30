@@ -52,6 +52,7 @@ import {
 } from './TherapistPost';
 import { getMassageTypeIconMCI } from '../../constants/massageTypeIcons';
 import AIClientHomeBlock from '../../components/ai/AIClientHomeBlock';
+import ClientStatsSection from '../../components/client/ClientStatsSection';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -522,6 +523,8 @@ const HomeScreen = ({ navigation }) => {
   const headerTheme = useHeaderTheme(IS_WEB && isMerged);
 
   const [refreshing, setRefreshing] = useState(false);
+  // Incrémenté à chaque pull-to-refresh : recharge les statistiques réelles
+  const [statsRefreshKey, setStatsRefreshKey] = useState(0);
   const [toast, setToast] = useState({
     visible: false,
     message: '',
@@ -855,6 +858,7 @@ const HomeScreen = ({ navigation }) => {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
+    setStatsRefreshKey((k) => k + 1);
 
     showToast(
       'Actualisation des données...',
@@ -1723,6 +1727,26 @@ const HomeScreen = ({ navigation }) => {
                 'Ouverture de la réservation'
               )
             }
+          />
+        </Reveal>
+
+        {/* ====================================================
+            MES STATISTIQUES (données réelles de la base)
+        ==================================================== */}
+
+        <Reveal
+          animation="fadeInUp"
+          delay={100}
+          duration={480}
+          style={styles.sectionContainer}
+        >
+          <ClientStatsSection
+            refreshKey={statsRefreshKey}
+            primary={PRIMARY}
+            surface={surface}
+            text={text}
+            textSecondary={textSecondary}
+            border={border}
           />
         </Reveal>
 
