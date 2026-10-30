@@ -1531,24 +1531,28 @@ const HomeScreen = ({ navigation }) => {
               accessibilityRole="button"
               accessibilityLabel="Notifications"
             >
-              <Ionicons
-                name="notifications-outline"
-                size={21}
-                color={headerTheme.iconColor}
-              />
+              {/* Le badge est ancré à l'ICÔNE (et non au bouton 40x40)
+                  pour rester collé à la cloche sur Android. */}
+              <View style={styles.headerBellWrap}>
+                <Ionicons
+                  name="notifications-outline"
+                  size={21}
+                  color={headerTheme.iconColor}
+                />
 
-              {unreadCount > 0 && (
-                <View
-                  style={[
-                    styles.notificationBadge,
-                    { borderColor: headerTheme.headerBg },
-                  ]}
-                >
-                  <Text style={styles.notificationBadgeText}>
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </Text>
-                </View>
-              )}
+                {unreadCount > 0 && (
+                  <View
+                    style={[
+                      styles.notificationBadge,
+                      { borderColor: headerTheme.headerBg },
+                    ]}
+                  >
+                    <Text style={styles.notificationBadgeText}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           )
         }
@@ -2686,10 +2690,18 @@ const styles = StyleSheet.create({
     height: 40,
   },
 
+  /* Conteneur de la cloche : même taille que l'icône (21px) */
+  headerBellWrap: {
+    width: 21,
+    height: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   notificationBadge: {
     position: 'absolute',
-    top: -3,
-    right: -3,
+    top: -7,
+    left: 13,
     minWidth: 18,
     height: 18,
     paddingHorizontal: 4,

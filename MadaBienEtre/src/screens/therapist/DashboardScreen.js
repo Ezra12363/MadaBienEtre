@@ -889,32 +889,34 @@ const DashboardScreen = ({ navigation }) => {
                 accessibilityRole="button"
                 accessibilityLabel="Ouvrir les notifications"
               >
-                <Ionicons
-                  name={
-                    unreadCount > 0
-                      ? 'notifications'
-                      : 'notifications-outline'
-                  }
-                  size={23}
-                  color={headerTheme.iconColor}
-                />
+                <View style={styles.headerBellWrap}>
+                  <Ionicons
+                    name={
+                      unreadCount > 0
+                        ? 'notifications'
+                        : 'notifications-outline'
+                    }
+                    size={23}
+                    color={headerTheme.iconColor}
+                  />
 
-                {unreadCount > 0 && (
-                  <View
-                    style={[
-                      styles.headerNotificationBadge,
-                      { borderColor: headerTheme.headerBg },
-                    ]}
-                  >
-                    <Text
-                      style={styles.headerNotificationText}
+                  {unreadCount > 0 && (
+                    <View
+                      style={[
+                        styles.headerNotificationBadge,
+                        { borderColor: headerTheme.headerBg },
+                      ]}
                     >
-                      {unreadCount > 99
-                        ? '99+'
-                        : unreadCount}
-                    </Text>
-                  </View>
-                )}
+                      <Text
+                        style={styles.headerNotificationText}
+                      >
+                        {unreadCount > 99
+                          ? '99+'
+                          : unreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </TouchableOpacity>
             )
           }
@@ -1778,10 +1780,18 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
 
+  // Conteneur de la cloche : même taille que l'icône (23px)
+  headerBellWrap: {
+    width: 23,
+    height: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
   headerNotificationBadge: {
     position: 'absolute',
-    top: -5,
-    right: -5,
+    top: -7,
+    left: 15,
     minWidth: 19,
     height: 19,
     borderRadius: 10,

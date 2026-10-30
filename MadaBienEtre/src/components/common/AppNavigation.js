@@ -547,25 +547,29 @@ export const TopNavBar = ({
                   hovered && styles.headerActionButtonHovered,
                 ]}
               >
-                <Ionicons
-                  name={
-                    notificationsUnreadCount > 0
-                      ? 'notifications'
-                      : 'notifications-outline'
-                  }
-                  size={21}
-                  color="#FFFFFF"
-                />
+                {/* Le badge est ancré à l'ICÔNE (et non au bouton 42x42)
+                    pour rester collé à la cloche sur Android. */}
+                <View style={styles.bellIconWrap}>
+                  <Ionicons
+                    name={
+                      notificationsUnreadCount > 0
+                        ? 'notifications'
+                        : 'notifications-outline'
+                    }
+                    size={21}
+                    color="#FFFFFF"
+                  />
 
-                {notificationsUnreadCount > 0 && (
-                  <View style={styles.headerActionBadge}>
-                    <Text style={styles.headerActionBadgeText}>
-                      {notificationsUnreadCount > 99
-                        ? '99+'
-                        : notificationsUnreadCount}
-                    </Text>
-                  </View>
-                )}
+                  {notificationsUnreadCount > 0 && (
+                    <View style={styles.bellBadge}>
+                      <Text style={styles.headerActionBadgeText}>
+                        {notificationsUnreadCount > 99
+                          ? '99+'
+                          : notificationsUnreadCount}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </Pressable>
             )}
           </View>
@@ -980,6 +984,30 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 2,
     right: 2,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    paddingHorizontal: 3,
+    backgroundColor: '#E53935',
+    borderWidth: 1.5,
+    borderColor: PRIMARY,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Conteneur de la cloche : même taille que l'icône (21px)
+  bellIconWrap: {
+    width: 21,
+    height: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Badge collé au coin haut-droit de la cloche
+  bellBadge: {
+    position: 'absolute',
+    top: -7,
+    left: 13,
     minWidth: 17,
     height: 17,
     borderRadius: 9,
