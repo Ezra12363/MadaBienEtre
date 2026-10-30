@@ -24,6 +24,7 @@ import {
 } from '@react-navigation/bottom-tabs';
 
 import { useTheme } from '../context/ThemeContext';
+import { getLastTab, saveLastTab } from '../utils/lastTab';
 
 import {
   NavBridgeProvider,
@@ -63,6 +64,9 @@ import TherapistPublicationsScreen from '../screens/client/TherapistPublications
 // ============================================================
 
 import ReceiptScreen from '../screens/shared/ReceiptScreen';
+
+// Onglets valides (pour restaurer la page après actualisation du navigateur)
+const CLIENT_TAB_NAMES = ['Accueil', 'Réservations', 'Historique', 'Messages', 'Profil'];
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -575,6 +579,11 @@ const ClientNavigator = () => {
   // Etat visibilité de la barre d'onglets
   // ----------------------------------------------------------
 
+  // Page (onglet) à rouvrir après une actualisation du navigateur
+  const [initialTab] = useState(() =>
+    getLastTab('client', CLIENT_TAB_NAMES)
+  );
+
   const [tabBarVisible, setTabBarVisible] = useState(true);
 
   // Dernière position de scroll
@@ -727,6 +736,10 @@ const ClientNavigator = () => {
           {/* ================================================== */}
 
           <Tab.Navigator
+            initialRouteName={initialTab}
+            screenListeners={({ route }) => ({
+              focus: () => saveLastTab('client', route.name),
+            })}
             tabBar={(props) => (
               <TabBarConnector
                 {...props}

@@ -32,6 +32,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../context/ThemeContext';
+import { getLastTab, saveLastTab } from '../utils/lastTab';
 
 import {
   NavBridgeProvider,
@@ -75,6 +76,9 @@ import MassageTypesScreen from '../screens/admin/MassageTypesScreen';
 const Tab = createBottomTabNavigator();
 import ReceiptScreen from '../screens/shared/ReceiptScreen';
 import Header from '../components/common/Header';
+
+// Onglets valides (pour restaurer la page après actualisation du navigateur)
+const ADMIN_TAB_NAMES = ['Tableau de bord', 'Utilisateurs', 'Gestion', 'Analyses', 'Paramètres'];
 
 const Stack = createNativeStackNavigator();
 
@@ -687,6 +691,11 @@ const AdminNavigator = () => {
   // TAB BAR STATE
   // ==========================================================
 
+  // Page (onglet) à rouvrir après une actualisation du navigateur
+  const [initialTab] = useState(() =>
+    getLastTab('admin', ADMIN_TAB_NAMES)
+  );
+
   const [
     tabBarVisible,
     setTabBarVisible,
@@ -945,6 +954,10 @@ const AdminNavigator = () => {
         <TopNavBar brandLabel="Mada Bien-être" />
 
         <Tab.Navigator
+          initialRouteName={initialTab}
+          screenListeners={({ route }) => ({
+            focus: () => saveLastTab('admin', route.name),
+          })}
           tabBar={
             props => (
               <TabBarConnector

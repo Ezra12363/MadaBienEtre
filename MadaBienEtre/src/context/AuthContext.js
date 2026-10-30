@@ -3,6 +3,7 @@ import { createContext, useState, useContext, useEffect, useCallback, useMemo } 
 import authService from '../services/authService';
 import api from '../services/api'; // ✅ Ajout de l'import api
 import { onSessionExpired, onTokenRefreshed } from '../utils/authEvents';
+import { clearLastTabs } from '../utils/lastTab';
 
 const AuthContext = createContext();
 
@@ -26,6 +27,7 @@ export const AuthProvider = ({ children }) => {
     });
     // Refresh token expiré : retour propre à l'écran de connexion
     const offSession = onSessionExpired(() => {
+      clearLastTabs();
       setToken(null);
       setUser(null);
       setIsAuthenticated(false);
@@ -201,6 +203,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      clearLastTabs();
       setToken(null);
       setUser(null);
       setIsAuthenticated(false);

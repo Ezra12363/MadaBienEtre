@@ -26,6 +26,7 @@ import {
 } from '@react-navigation/bottom-tabs';
 
 import { useTheme } from '../context/ThemeContext';
+import { getLastTab, saveLastTab } from '../utils/lastTab';
 
 import {
   NavBridgeProvider,
@@ -87,6 +88,9 @@ import AIAssistantScreen from '../screens/therapist/AIAssistantScreen';
 // ============================================================
 
 import ReceiptScreen from '../screens/shared/ReceiptScreen';
+
+// Onglets valides (pour restaurer la page après actualisation du navigateur)
+const THERAPIST_TAB_NAMES = ['Tableau de bord', 'Demandes', 'Messages', 'Calendrier', 'Gains', 'Profil'];
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -594,6 +598,11 @@ const TherapistTabsScreen = () => {
     isDark,
   } = useTheme();
 
+  // Page (onglet) à rouvrir après une actualisation du navigateur
+  const [initialTab] = useState(() =>
+    getLastTab('therapist', THERAPIST_TAB_NAMES)
+  );
+
   const [
     tabBarVisible,
     setTabBarVisible,
@@ -829,6 +838,10 @@ const TherapistTabsScreen = () => {
         <TopNavBar brandLabel="Mada Bien-être" />
 
         <Tab.Navigator
+          initialRouteName={initialTab}
+          screenListeners={({ route }) => ({
+            focus: () => saveLastTab('therapist', route.name),
+          })}
 
           tabBar={
             props => (
