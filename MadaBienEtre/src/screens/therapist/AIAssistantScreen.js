@@ -50,7 +50,11 @@ const AIAssistantScreen = ({ route }) => {
       style={[styles.container, { backgroundColor: themeColors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <Header title="✨ Assistant IA" subtitle="Tarification intelligente" showBack />
+      <Header
+        title="Assistant IA"
+        subtitle="Tarification intelligente"
+        showBack
+      />
 
       <View style={[styles.body, { paddingHorizontal: sidePadding }]}>
         <AITabs tabs={TABS} active={tab} onChange={setTab} />
@@ -59,8 +63,14 @@ const AIAssistantScreen = ({ route }) => {
           <AIChatPanel role="THERAPIST" />
         ) : (
           <ScrollView
-            showsVerticalScrollIndicator={false}
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={Platform.OS === 'web'}
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+            scrollEnabled
+            bounces
+            alwaysBounceVertical
+            overScrollMode="always"
             contentContainerStyle={styles.scroll}
           >
             {tab === 'pricing' && <AIPricingBlock />}
@@ -86,13 +96,19 @@ const AIAssistantScreen = ({ route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  // minHeight: 0 est INDISPENSABLE sur le web : sans lui, un parent flex
+  // grandit avec son contenu au lieu de laisser le ScrollView défiler.
+  container: { flex: 1, minHeight: 0 },
   body: {
     flex: 1,
+    minHeight: 0,
     width: '100%',
     paddingTop: spacing.md,
   },
-  scroll: { paddingBottom: spacing.xxl },
+  // Le ScrollView occupe tout l'espace restant sous les onglets et défile
+  // verticalement (haut <-> bas) sur Android, iOS et web.
+  scrollView: { flex: 1, minHeight: 0, width: '100%' },
+  scroll: { flexGrow: 1, paddingBottom: spacing.xxl },
 });
 
 export default AIAssistantScreen;

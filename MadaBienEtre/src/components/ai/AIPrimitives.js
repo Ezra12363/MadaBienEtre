@@ -454,8 +454,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 4,
     marginBottom: spacing.md,
+    // Les onglets gardent leur hauteur : ils ne doivent jamais être
+    // écrasés quand le contenu en dessous défile.
+    flexShrink: 0,
   },
-  tabsScroll: { width: '100%' },
+  tabsScroll: { width: '100%', flexGrow: 0 },
   tabsContent: { gap: 4 },
   tabsContentFill: { flexGrow: 1 },
   tab: {

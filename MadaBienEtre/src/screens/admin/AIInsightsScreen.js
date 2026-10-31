@@ -149,14 +149,12 @@ const AIInsightsScreen = () => {
       style={[styles.container, { backgroundColor: themeColors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Web large : le titre + le retour passent dans la sous-barre de la
-          TopNavBar (plus de 2e bande blanche séparée). Android / iOS /
-          web étroit : header inchangé. */}
+      {/* Même header que les autres écrans (Paramètres, Utilisateurs,
+          Analyses...) et que les écrans IA client / thérapeute. */}
       <Header
         title="IA & Chatbot"
         subtitle="Indicateurs et analyses intelligentes"
         showBack
-        mergeWithTopNav
       />
 
       <View style={[styles.body, { paddingHorizontal: sidePadding }]}>

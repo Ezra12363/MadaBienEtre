@@ -240,7 +240,8 @@ const AIChatPanel = ({ role = 'CLIENT', style, initialMessage = null }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, minHeight: 320 },
-  messages: { flex: 1 },
+  // minHeight: 0 : permet aux messages de défiler (haut <-> bas) sur le web.
+  messages: { flex: 1, minHeight: 0 },
   messagesContent: { paddingVertical: spacing.sm, paddingBottom: spacing.md },
   typingRow: { paddingHorizontal: spacing.xs, marginTop: 4 },
   typingBubble: {
