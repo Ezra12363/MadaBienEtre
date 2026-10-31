@@ -683,6 +683,51 @@ async def create_booking(
             ),
         )
 
+    # --------------------------------------------------------
+    # THERAPEUTE CHOISI PAR LE CLIENT (optionnel)
+    #
+    # Bouton « Réserver » d'une carte thérapeute : la demande est
+    # VERROUILLÉE sur ce thérapeute dès la création (therapist_id
+    # renseigné) -> les autres thérapeutes ne la voient plus et ne
+    # peuvent plus y répondre (voir offers.py : 403 « déjà attribuée »).
+    # Le client enchaîne ensuite directement sur la négociation.
+    # --------------------------------------------------------
+
+    target_therapist = None
+
+    if booking_data.therapist_id:
+
+        target_therapist = db.query(
+            User
+        ).filter(
+            User.id == booking_data.therapist_id,
+            User.role == "THERAPIST",
+            User.deleted_at.is_(None),
+        ).first()
+
+        if not target_therapist:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Thérapeute introuvable",
+            )
+
+        if (
+            target_therapist.is_active is False
+            or str(
+                target_therapist.verification_status
+                or ""
+            ).strip().lower() != "approved"
+        ):
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Ce thérapeute n'est pas "
+                    "disponible pour le moment"
+                ),
+            )
+
     # ========================================================
     # IMPORTANT FIX
     #
@@ -708,7 +753,11 @@ async def create_booking(
 
         client_id=current_user.id,
 
-        therapist_id=None,
+        therapist_id=(
+            target_therapist.id
+            if target_therapist
+            else None
+        ),
 
         massage_type_id=(
             booking_data.massage_type_id
@@ -790,23 +839,31 @@ async def create_booking(
 
     try:
 
-        therapists = db.query(
-            User
-        ).filter(
+        if target_therapist is not None:
 
-            User.role == "THERAPIST",
+            # Demande directe : on ne notifie QUE le thérapeute
+            # choisi (pas de diffusion, pas de filtre de rayon).
+            therapists = [target_therapist]
 
-            User.is_active == True,
+        else:
 
-            User.deleted_at.is_(None),
+            therapists = db.query(
+                User
+            ).filter(
 
-            User.verification_status
-            == "approved",
+                User.role == "THERAPIST",
 
-            User.is_online == True,
+                User.is_active == True,
 
-            User.is_available == True,
-        ).all()
+                User.deleted_at.is_(None),
+
+                User.verification_status
+                == "approved",
+
+                User.is_online == True,
+
+                User.is_available == True,
+            ).all()
 
         # ----------------------------------------------------
         # DIAGNOSTIC : si personne n'est notifié, on veut savoir
@@ -890,7 +947,8 @@ async def create_booking(
             # Si les deux GPS existent
             # on respecte le rayon.
             if (
-                distance is not None
+                target_therapist is None
+                and distance is not None
                 and distance > radius
             ):
                 continue
@@ -901,7 +959,11 @@ async def create_booking(
 
                     therapist.id,
 
-                    "Nouvelle demande de massage",
+                    (
+                        "Demande de massage pour vous"
+                        if target_therapist is not None
+                        else "Nouvelle demande de massage"
+                    ),
 
                     (
                         f"{current_user.fullname} "

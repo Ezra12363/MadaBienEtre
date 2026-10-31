@@ -1,5 +1,6 @@
 // src/screens/client/HomeScreen.js
 
+import { toBookingParams } from '../../utils/bookingTherapist';
 import {
   useCallback,
   useMemo,
@@ -1720,10 +1721,7 @@ const HomeScreen = ({ navigation }) => {
             onBookTherapist={(therapist) =>
               navigate(
                 'CreateBooking',
-                {
-                  therapist,
-                  therapistId: therapist?.therapist_id ?? therapist?.id,
-                },
+                toBookingParams(therapist),
                 'Ouverture de la réservation'
               )
             }
@@ -2293,8 +2291,8 @@ const HomeScreen = ({ navigation }) => {
                     onBook={() => {
                       if (post.online) {
                         navigate(
-                          'BookingDetail',
-                          { therapist: post },
+                          'CreateBooking',
+                          toBookingParams(post),
                           `Réservation avec ${post.name}`,
                           'success'
                         );

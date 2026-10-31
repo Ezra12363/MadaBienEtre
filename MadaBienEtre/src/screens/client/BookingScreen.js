@@ -34,6 +34,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
+import LockedTherapistCard from '../../components/client/LockedTherapistCard';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import MapViewWrapper from '../../components/map/MapViewWrapper';
@@ -340,7 +341,21 @@ const BookingScreen = ({
   navigation,
   route,
 }) => {
-  const { therapist: _therapist } = route.params || {};
+  // Thérapeute choisi (bouton « Réserver » d'une carte thérapeute) :
+  // la demande est verrouillée sur lui et on enchaîne sur la négociation.
+  const {
+    therapist: lockedTherapist,
+    therapistId: lockedTherapistIdParam,
+  } = route?.params || {};
+
+  const lockedTherapistId = (() => {
+    const raw =
+      lockedTherapist?.therapist_id ??
+      lockedTherapist?.id ??
+      lockedTherapistIdParam;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  })();
 
   const {
     colors: themeColors,
@@ -1289,6 +1304,10 @@ const BookingScreen = ({
         client_price_proposed: priceValue,
         special_instructions:
           specialInstructions.trim() || null,
+        // Demande directe : verrouillée sur le thérapeute choisi.
+        ...(lockedTherapistId
+          ? { therapist_id: lockedTherapistId }
+          : {}),
       };
 
       const result = await createBooking(payload);
@@ -1304,10 +1323,15 @@ const BookingScreen = ({
         return;
       }
 
+      const therapistLabel =
+        lockedTherapist?.fullname || lockedTherapist?.name || 'le thérapeute choisi';
+
       showToast(
         'success',
         'Demande envoyée',
-        'Votre demande a été envoyée aux thérapeutes à proximité.',
+        lockedTherapistId
+          ? `Votre demande a été envoyée à ${therapistLabel}. Place à la négociation.`
+          : 'Votre demande a été envoyée aux thérapeutes à proximité.',
         4000
       );
 
@@ -1317,7 +1341,23 @@ const BookingScreen = ({
       // prochaine demande reparte sur un écran neuf.
       resetForm();
 
+      const createdBookingId =
+        result?.data?.id ??
+        result?.data?.booking_id ??
+        null;
+
       setTimeout(() => {
+        // Thérapeute choisi -> on continue directement sur la
+        // négociation de CETTE demande (au lieu de la liste).
+        if (lockedTherapistId && createdBookingId) {
+          navigation.navigate('Negotiation', {
+            bookingId: createdBookingId,
+            booking: result.data,
+            therapist: lockedTherapist,
+          });
+          return;
+        }
+
         navigation.navigate(
           'Réservations'
         );
@@ -2403,6 +2443,23 @@ const BookingScreen = ({
           contentInsetAdjustmentBehavior="automatic"
           overScrollMode="always"
         >
+
+          {/* ================================================= */}
+          {/* THÉRAPEUTE CHOISI (demande verrouillée) */}
+          {/* ================================================= */}
+
+          {lockedTherapistId ? (
+            // Même marge latérale que les autres sections du formulaire.
+            <View style={styles.section}>
+              <LockedTherapistCard
+                therapist={
+                  lockedTherapist || {
+                    therapist_id: lockedTherapistId,
+                  }
+                }
+              />
+            </View>
+          ) : null}
 
           {/* ================================================= */}
           {/* MASSAGE TYPE */}

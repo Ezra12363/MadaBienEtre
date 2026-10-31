@@ -1,6 +1,7 @@
 // src/screens/client/SearchMassageScreen.js
 // Fanitsiana ny fampisehoana ny types de massage par catégorie unique
 
+import { openBookingWithTherapist } from '../../utils/bookingTherapist';
 import {
   useState,
   useEffect,
@@ -2075,10 +2076,11 @@ const SearchMassageScreen = ({ navigation, route }) => {
           }}
           onBook={(slot) => {
             if (item.available) {
-              navigation.navigate("BookingDetail", {
-                therapist: item,
-                ...(slot?.date ? { selectedSlot: slot } : {}),
-              });
+              openBookingWithTherapist(
+                navigation,
+                item,
+                slot?.date ? { selectedSlot: slot } : {}
+              );
               showToast(
                 slot?.date
                   ? `Réservation pour ${item.name} · ${slot.date} ${slot.start}`
@@ -2874,7 +2876,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     disabled={!selectedMarker.available}
                     onPress={() => {
                       if (selectedMarker.available) {
-                        navigation.navigate("BookingDetail", { therapist: selectedMarker });
+                        openBookingWithTherapist(navigation, selectedMarker);
                         showToast(`Réservation pour ${selectedMarker.name}`, "success");
                       }
                     }}

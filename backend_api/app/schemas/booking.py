@@ -12,6 +12,10 @@ class BookingCreate(BaseModel):
     scheduled_date: datetime
     client_price_proposed: float = Field(..., gt=0)
     special_instructions: Optional[str] = Field(None, max_length=500)
+    # Thérapeute choisi par le client (bouton « Réserver » d'une carte
+    # thérapeute). Si fourni, la demande lui est réservée : lui seul peut
+    # y répondre / négocier, elle n'apparaît plus dans /bookings/available.
+    therapist_id: Optional[int] = Field(None, gt=0)
 
 class BookingUpdate(BaseModel):
     status: Optional[str] = None

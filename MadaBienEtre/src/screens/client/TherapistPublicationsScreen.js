@@ -5,6 +5,7 @@
 //   • Tablette (≥ 768 px) : 2 colonnes
 //   • Web large (≥ 1100)  : 3 colonnes
 
+import { openBookingWithTherapist } from '../../utils/bookingTherapist';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
@@ -235,7 +236,7 @@ const TherapistPublicationsScreen = ({ navigation }) => {
   const book = useCallback(
     (post) => {
       if (post.online) {
-        navigation.navigate('BookingDetail', { therapist: post });
+        openBookingWithTherapist(navigation, post);
       }
     },
     [navigation]

@@ -42,6 +42,7 @@ import AIBestTherapists from '../../components/ai/AIBestTherapists';
 import AIPriceEstimateCard from '../../components/ai/AIPriceEstimateCard';
 import AIChatPanel from '../../components/ai/AIChatPanel';
 import { toPositiveInt } from '../../components/ai/aiHelpers';
+import { openBookingWithTherapist } from '../../utils/bookingTherapist';
 
 const TABS = [
   { id: 'reco', label: 'Recommandations', icon: 'sparkles-outline' },
@@ -100,9 +101,8 @@ const AIRecommendationScreen = ({ navigation, route }) => {
 
   const openBooking = useCallback(
     (therapist) => {
-      const id = therapist?.therapist_id ?? therapist?.id;
       try {
-        navigation.navigate('CreateBooking', { therapist, therapistId: id });
+        openBookingWithTherapist(navigation, therapist);
       } catch (e) {
         Alert.alert('Réservation', "Impossible d'ouvrir la réservation pour le moment.");
       }
