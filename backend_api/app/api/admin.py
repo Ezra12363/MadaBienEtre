@@ -334,9 +334,12 @@ async def admin_statistics(
 
     new_bookings = db.query(Booking).filter(Booking.created_at >= start).count()
 
+    # Même date de fin que /stats/admin : actual_end_time, sinon updated_at
+    # (sinon les réservations terminées sans actual_end_time étaient oubliées).
+    end_ts = func.coalesce(Booking.actual_end_time, Booking.updated_at)
     revenue = db.query(func.sum(Booking.final_price)).filter(
         Booking.status == "completed",
-        Booking.actual_end_time >= start
+        end_ts >= start
     ).scalar() or 0
 
     # Les avis masqués par la modération ne comptent pas

@@ -44,13 +44,13 @@ import {
 const IS_WEB = Platform.OS === 'web';
 
 const STATUS_LABELS = {
-  completed: { label: 'Terminées', color: '#16A34A' },
-  confirmed: { label: 'Confirmées', color: '#3B82F6' },
+  completed: { label: 'Terminées', color: '#27AE60' },
+  confirmed: { label: 'Confirmées', color: '#4A90D9' },
   in_progress: { label: 'En cours', color: '#2F6DB5' },
-  pending: { label: 'En attente', color: '#F59E0B' },
-  negotiating: { label: 'Négociation', color: '#F39C12' },
-  cancelled_by_client: { label: 'Annulées (client)', color: '#E53935' },
-  cancelled_by_therapist: { label: 'Annulées (thérapeute)', color: '#C0392B' },
+  pending: { label: 'En attente', color: '#F5A623' },
+  negotiating: { label: 'Négociation', color: '#E6C21A' },
+  cancelled_by_client: { label: 'Annulées (client)', color: '#E74C3C' },
+  cancelled_by_therapist: { label: 'Annulées (thérapeute)', color: '#B3261E' },
   expired: { label: 'Expirées', color: '#9E9E9E' },
 };
 
@@ -83,6 +83,7 @@ const DashboardScreen = ({ navigation }) => {
   // Statistiques des utilisateurs (déplacées depuis UsersScreen)
   const [userStats, setUserStats] = useState(null);
   const [showUserStats, setShowUserStats] = useState(true);
+  const [sosDismissed, setSosDismissed] = useState(false);
 
   const [error, setError] = useState(null);
 
@@ -514,80 +515,46 @@ const DashboardScreen = ({ navigation }) => {
             : null,
         ]}
       >
-        <View style={styles.statCardTop}>
+        <View style={styles.statRow}>
           <View
             style={[
               styles.statIcon,
-              {
-                backgroundColor: `${color}18`,
-              },
+              { backgroundColor: `${color}1F` },
             ]}
           >
-            <Ionicons
-              name={icon}
-              size={23}
-              color={color}
-            />
+            <Ionicons name={icon} size={22} color={color} />
           </View>
-
-          <View
-            style={[
-              styles.statArrow,
-              {
-                backgroundColor: `${color}12`,
-              },
-            ]}
-          >
-            <Ionicons
-              name="arrow-up-outline"
-              size={14}
-              color={color}
-            />
-          </View>
-        </View>
-
-        <View style={styles.statCardBody}>
-          <Text
-            style={[
-              styles.statValue,
-              {
-                color: themeColors.text,
-              },
-            ]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-          >
-            {typeof value === 'number'
-              ? formatNumber(value)
-              : value}
-          </Text>
-
-          <Text
-            style={[
-              styles.statLabel,
-              {
-                color:
-                  themeColors.textSecondary,
-              },
-            ]}
-            numberOfLines={1}
-          >
-            {label}
-          </Text>
-
-          {subtitle ? (
+          <View style={styles.statCardBody}>
             <Text
-              style={[
-                styles.statSubtitle,
-                {
-                  color,
-                },
-              ]}
+              style={[styles.statValue, { color: themeColors.text }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {typeof value === 'number' ? formatNumber(value) : value}
+            </Text>
+            <Text
+              style={[styles.statLabel, { color: themeColors.text }]}
               numberOfLines={1}
             >
-              {subtitle}
+              {label}
             </Text>
-          ) : null}
+            {subtitle ? (
+              <Text
+                style={[
+                  styles.statSubtitle,
+                  { color: themeColors.textSecondary },
+                ]}
+                numberOfLines={1}
+              >
+                {subtitle}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+        <View
+          style={[styles.statArrow, { backgroundColor: `${color}1F` }]}
+        >
+          <Ionicons name="arrow-up-outline" size={13} color={color} />
         </View>
       </Pressable>
     );
@@ -697,59 +664,24 @@ const DashboardScreen = ({ navigation }) => {
      SECTION HEADER
   ============================================================ */
 
-  const SectionHeader = ({
-    title,
-    subtitle,
-    icon,
-  }) => (
-    <View style={styles.sectionHeader}>
-      <View style={styles.sectionTitleRow}>
-        {icon && (
-          <View
-            style={[
-              styles.sectionIcon,
-              {
-                backgroundColor:
-                  `${colors.primary}12`,
-              },
-            ]}
-          >
-            <Ionicons
-              name={icon}
-              size={18}
-              color={colors.primary}
-            />
-          </View>
-        )}
-
-        <View style={{ flex: 1 }}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              {
-                color: themeColors.text,
-              },
-            ]}
-          >
-            {title}
-          </Text>
-
-          {subtitle ? (
-            <Text
-              style={[
-                styles.sectionSubtitle,
-                {
-                  color:
-                    themeColors.textSecondary,
-                },
-              ]}
-              numberOfLines={2}
-            >
-              {subtitle}
-            </Text>
-          ) : null}
-        </View>
-      </View>
+  const SectionHeader = ({ title, subtitle }) => (
+    <View style={styles.sectionHeaderInline}>
+      <Text
+        style={[styles.sectionTitle, { color: themeColors.text }]}
+      >
+        {title}
+      </Text>
+      {subtitle ? (
+        <Text
+          style={[
+            styles.sectionSubtitle,
+            { color: themeColors.textSecondary },
+          ]}
+          numberOfLines={2}
+        >
+          {subtitle}
+        </Text>
+      ) : null}
     </View>
   );
 
@@ -786,8 +718,13 @@ const DashboardScreen = ({ navigation }) => {
     const groups = [
       {
         key: 'users',
-        title: 'Utilisateurs',
+                title: 'Utilisateurs',
         subtitle: 'Répartition par rôle',
+        split: [
+          { label: 'Clients', value: num(us.clients), color: '#3B6FC4' },
+          { label: 'Thérapeutes', value: therapistsCount, color: '#1F6B45' },
+          { label: 'Admins', value: num(us.admins), color: '#E53935' },
+        ],
         icon: 'people-outline',
         color: '#3B82F6',
         perRow: 3,
@@ -845,7 +782,7 @@ const DashboardScreen = ({ navigation }) => {
           {
             key: 'new',
             icon: 'trending-up-outline',
-            label: 'Nouveaux (7j)',
+            label: 'Nouveaux (7 j)',
             value: num(us.new_users_last_week),
             color: '#F59E0B',
             screen: 'UsersScreen',
@@ -916,22 +853,7 @@ const DashboardScreen = ({ navigation }) => {
               : 'Afficher les statistiques'
           }
         >
-          <View
-            style={[
-              styles.sectionIcon,
-              {
-                backgroundColor: `${colors.primary}12`,
-              },
-            ]}
-          >
-            <Ionicons
-              name="stats-chart-outline"
-              size={18}
-              color={colors.primary}
-            />
-          </View>
-
-          <View style={{ flex: 1, minWidth: 0 }}>
+          <View style={styles.sectionHeaderInlineFlex}>
             <Text
               style={[
                 styles.sectionTitle,
@@ -1014,21 +936,6 @@ const DashboardScreen = ({ navigation }) => {
                   <View
                     style={styles.userGroupHeader}
                   >
-                    <View
-                      style={[
-                        styles.userGroupIcon,
-                        {
-                          backgroundColor: `${group.color}16`,
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name={group.icon}
-                        size={20}
-                        color={group.color}
-                      />
-                    </View>
-
                     <View
                       style={{
                         flex: 1,
@@ -1143,6 +1050,35 @@ const DashboardScreen = ({ navigation }) => {
                     ))}
                   </View>
 
+                  {group.split ? (
+                    <View style={styles.userProgressBlock}>
+                      <View style={styles.splitBar}>
+                        {group.split.map((seg) => (
+                          <View
+                            key={seg.label}
+                            style={{
+                              flex: Math.max(0.0001, seg.value),
+                              backgroundColor: seg.color,
+                            }}
+                          />
+                        ))}
+                      </View>
+                      <Text
+                        style={[
+                          styles.splitLegend,
+                          { color: themeColors.textSecondary },
+                        ]}
+                      >
+                        {group.split
+                          .map((seg) => {
+                            const sum = group.split.reduce((acc, x) => acc + x.value, 0);
+                            const pct = sum > 0 ? Math.round((seg.value / sum) * 100) : 0;
+                            return `${seg.label} ${pct} %`;
+                          })
+                          .join('  ·  ')}
+                      </Text>
+                    </View>
+                  ) : null}
                   {/* Barre de progression (si applicable) */}
                   {group.progress ? (
                     <View
@@ -1339,6 +1275,34 @@ const DashboardScreen = ({ navigation }) => {
   /* ============================================================
      MAIN
   ============================================================ */
+
+  // ---------- Analyse détaillée : valeurs dérivées (données de la base) ----------
+  const wideDash = windowWidth >= 900;
+  const PERIOD_LABELS = { day: '24 heures', week: '7 jours', month: '30 jours', year: '12 mois' };
+  const periodLabel = PERIOD_LABELS[stats?.period] || stats?.period || '30 jours';
+  const compactAr = (v) => {
+    const n = Number(v) || 0;
+    if (n >= 1e6) return `${(n / 1e6).toFixed(1).replace('.', ',')} M`;
+    if (n >= 1e3) return `${Math.round(n / 1e3)} k`;
+    return `${Math.round(n)}`;
+  };
+  const cardBox = {
+    backgroundColor: themeColors.surface,
+    borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(15,23,42,0.07)',
+  };
+  const byStatus = overview?.bookings?.by_status || {};
+  const statusTotal = Object.values(byStatus).reduce((a, b) => a + (Number(b) || 0), 0);
+  const statusPct = (k) => (statusTotal > 0 ? Math.round(((Number(byStatus[k]) || 0) / statusTotal) * 100) : 0);
+  const BAR_ORDER = ['completed', 'pending', 'confirmed', 'expired', 'cancelled_by_client', 'in_progress', 'negotiating', 'cancelled_by_therapist'];
+  const LEGEND_ORDER = ['completed', 'confirmed', 'cancelled_by_client', 'negotiating', 'pending', 'expired', 'in_progress', 'cancelled_by_therapist'];
+  const extraStatuses = Object.keys(byStatus).filter((k) => Number(byStatus[k]) > 0 && !BAR_ORDER.includes(k));
+  const barStatuses = [...BAR_ORDER, ...extraStatuses].filter((k) => Number(byStatus[k]) > 0);
+  const legendStatuses = [...LEGEND_ORDER, ...extraStatuses].filter((k) => Number(byStatus[k]) > 0);
+  const legendSplit = Math.ceil(legendStatuses.length / 2);
+  const statusColor = (k) => STATUS_LABELS[k]?.color || '#9E9E9E';
+  const statusLabel = (k) => STATUS_LABELS[k]?.label || k;
+  const topTherapists = overview?.top_therapists || [];
+  const topMax = Math.max(1, ...topTherapists.map((t) => Number(t.earnings) || 0));
 
   return (
     <SafeAreaView
@@ -1564,50 +1528,44 @@ const DashboardScreen = ({ navigation }) => {
               SOS
           ==================================================== */}
 
-          {dashboardData?.sos?.active >
-            0 && (
-            <TouchableOpacity
-              style={styles.sosAlert}
-              onPress={() =>
-                navigation.navigate(
-                  'SOSAlerts'
-                )
-              }
-              activeOpacity={0.85}
-            >
-              <View style={styles.sosIcon}>
-                <Ionicons
-                  name="alert-circle"
-                  size={24}
-                  color="#FFFFFF"
-                />
-              </View>
-
-              <View style={styles.sosContent}>
-                <Text
-                  style={styles.sosTitle}
+          {dashboardData?.sos?.active > 0 && !sosDismissed && (
+            <View style={styles.sosAlert}>
+              <TouchableOpacity
+                style={styles.sosMain}
+                onPress={() => navigation.navigate('SOSAlerts')}
+                activeOpacity={0.85}
+              >
+                <View style={styles.sosIcon}>
+                  <Ionicons name="alert" size={22} color="#FFFFFF" />
+                </View>
+                <View style={styles.sosContent}>
+                  <Text style={styles.sosTitle}>Alerte SOS active</Text>
+                  <Text style={styles.sosText}>
+                    {dashboardData.sos.active} alerte(s) nécessitent votre
+                    attention.
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              {windowWidth >= 600 ? (
+                <TouchableOpacity
+                  style={styles.sosButton}
+                  onPress={() => navigation.navigate('SOSAlerts')}
+                  activeOpacity={0.85}
                 >
-                  Alerte SOS active
-                </Text>
-
-                <Text
-                  style={styles.sosText}
-                >
-                  {
-                    dashboardData.sos
-                      .active
-                  }{' '}
-                  alerte(s) nécessitent
-                  votre attention.
-                </Text>
-              </View>
-
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
+                  <Text style={styles.sosButtonText}>Voir les alertes</Text>
+                  <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity
+                style={styles.sosClose}
+                onPress={() => setSosDismissed(true)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel="Masquer l'alerte"
+              >
+                <Ionicons name="close" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           )}
 
           {/* ====================================================
@@ -1618,7 +1576,7 @@ const DashboardScreen = ({ navigation }) => {
 
           <View style={styles.aiBannerWrap}>
             <AIFeatureButton
-              title="✨ IA & Chatbot"
+              title="IA & Chatbot"
               subtitle="KPI, prévisions, fraude et assistant intelligent"
               onPress={() => navigateTo('AIInsights', 'IA & Chatbot')}
             />
@@ -1685,8 +1643,7 @@ const DashboardScreen = ({ navigation }) => {
                 dashboardData?.revenue
                   ?.total || 0
               )}
-              color="#E53935"
-              subtitle="Revenus cumulés"
+              color="#16A34A" subtitle="Revenus cumulés"
               onPress={() =>
                 navigation.navigate(
                   'Payments'
@@ -1702,7 +1659,7 @@ const DashboardScreen = ({ navigation }) => {
                   ?.today || 0
               )}
               color="#8B5CF6"
-              subtitle="Encaissé aujourd'hui"
+              subtitle="Reçu aujourd'hui"
               onPress={() =>
                 navigation.navigate(
                   'Payments'
@@ -1764,318 +1721,207 @@ const DashboardScreen = ({ navigation }) => {
 
           </View>
 
-          {/* ====================================================
-              DETAIL STATISTICS
-          ==================================================== */}
-
-          {stats && (
+          {stats || overview ? (
             <>
               <SectionHeader
                 title="Analyse détaillée"
-                subtitle={`Période : ${
-                  stats.period ||
-                  'month'
-                }`}
-                icon="bar-chart-outline"
+                subtitle={`Période : ${periodLabel}`}
               />
 
-              <View
-                style={[
-                  styles.detailCard,
-                  {
-                    backgroundColor:
-                      themeColors.surface,
-
-                    borderColor: isDark
-                      ? 'rgba(255,255,255,0.06)'
-                      : 'rgba(15,23,42,0.06)',
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.detailGrid,
-                    {
-                      columnGap:
-                        columns === 4
-                          ? '0%'
-                          : '0%',
-                    },
-                  ]}
-                >
-                  <DetailItem
-                    value={
-                      stats.new_users ||
-                      0
-                    }
-                    label="Nouveaux utilisateurs"
-                    color="#3B82F6"
-                    themeColors={
-                      themeColors
-                    }
-                    columns={columns}
-                  />
-
-                  <DetailItem
-                    value={
-                      stats.new_bookings ||
-                      0
-                    }
-                    label="Nouvelles réservations"
-                    color="#16A34A"
-                    themeColors={
-                      themeColors
-                    }
-                    columns={columns}
-                  />
-
-                  <DetailItem
-                    value={formatMoney(
-                      stats.revenue || 0
-                    )}
-                    label="Revenus (période)"
-                    color="#E53935"
-                    themeColors={
-                      themeColors
-                    }
-                    columns={columns}
-                  />
-
-                  <DetailItem
-                    value={`⭐ ${
-                      stats.average_rating ||
-                      0
-                    }`}
-                    label={`Note moyenne (${
-                      stats.reviews ||
-                      0
-                    } avis)`}
-                    color="#F59E0B"
-                    themeColors={
-                      themeColors
-                    }
-                    columns={columns}
-                  />
-                </View>
-
-                <View
-                  style={[
-                    styles.completionCard,
-                    {
-                      backgroundColor:
-                        isDark
-                          ? 'rgba(59,130,246,0.08)'
-                          : '#F5F8FF',
-                    },
-                  ]}
-                >
-                  <View
-                    style={
-                      styles.completionHeader
-                    }
-                  >
-                    <View>
-                      <Text
-                        style={[
-                          styles.completionLabel,
-                          {
-                            color:
-                              themeColors.textSecondary,
-                          },
-                        ]}
-                      >
+              <View style={wideDash ? styles.dashRow : styles.dashCol}>
+                {stats ? (
+                  <View style={[styles.dashCard, cardBox, wideDash && { flex: 1 }]}>
+                    <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
+                      Résumé de la période
+                    </Text>
+                    <View style={styles.miniGrid}>
+                      {[
+                        { color: '#3B82F6', value: `${stats.new_users || 0}`, label: 'Nouveaux utilisateurs' },
+                        { color: '#16A34A', value: `${stats.new_bookings || 0}`, label: 'Nouvelles réservations' },
+                        { color: '#E53935', value: formatMoney(stats.revenue || 0), label: 'Revenus générés' },
+                        { color: '#F59E0B', value: `${Number(stats.average_rating || 0).toFixed(1).replace('.', ',')} ★`, label: `Note moyenne (${stats.reviews || 0} avis)` },
+                      ].map((tile) => (
+                        <View
+                          key={tile.label}
+                          style={[
+                            styles.miniTile,
+                            { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : '#F6F7F8' },
+                          ]}
+                        >
+                          <View style={styles.miniTop}>
+                            <View style={[styles.miniDot, { backgroundColor: tile.color }]} />
+                            <Text
+                              style={[styles.miniValue, { color: themeColors.text }]}
+                              numberOfLines={1}
+                              adjustsFontSizeToFit
+                            >
+                              {tile.value}
+                            </Text>
+                          </View>
+                          <Text
+                            style={[styles.miniLabel, { color: themeColors.textSecondary }]}
+                            numberOfLines={2}
+                          >
+                            {tile.label}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                    <View style={styles.completionRow}>
+                      <Text style={[styles.miniLabel, { color: themeColors.textSecondary }]}>
                         Taux de complétion
                       </Text>
-
-                      <Text
-                        style={[
-                          styles.completionValue,
-                          {
-                            color:
-                              colors.primary,
-                          },
-                        ]}
-                      >
-                        {stats.completion_rate ||
-                          0}
-                        %
+                      <Text style={[styles.completionPct, { color: colors.primary }]}>
+                        {Math.round(Number(stats.completion_rate || 0))} %
                       </Text>
                     </View>
-
                     <View
                       style={[
-                        styles.completionIcon,
-                        {
-                          backgroundColor:
-                            `${colors.primary}14`,
-                        },
+                        styles.progressTrack,
+                        { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#E5EAF4' },
                       ]}
                     >
-                      <Ionicons
-                        name="checkmark-done-outline"
-                        size={22}
-                        color={
-                          colors.primary
-                        }
+                      <View
+                        style={[
+                          styles.progressBar,
+                          {
+                            width: `${Math.min(100, Math.max(0, Number(stats.completion_rate || 0)))}%`,
+                            backgroundColor: colors.primary,
+                          },
+                        ]}
                       />
                     </View>
                   </View>
+                ) : null}
 
-                  <View
-                    style={[
-                      styles.progressTrack,
-                      {
-                        backgroundColor:
-                          isDark
-                            ? 'rgba(255,255,255,0.08)'
-                            : '#E5EAF4',
-                      },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.progressBar,
-                        {
-                          width: `${Math.min(
-                            100,
-                            Math.max(
-                              0,
-                              Number(
-                                stats.completion_rate ||
-                                  0
-                              )
-                            )
-                          )}%`,
-                          backgroundColor:
-                            colors.primary,
-                        },
-                      ]}
+                {overview ? (
+                  <View style={[styles.dashCard, cardBox, wideDash && { flex: 1 }]}>
+                    <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
+                      Revenus mensuels
+                    </Text>
+                    <BarChart
+                      spread
+                      data={(overview.monthly || []).map((m) => ({
+                        label: m.label,
+                        values: { revenue: m.revenue },
+                      }))}
+                      series={[{ key: 'revenue', color: colors.primary, name: 'Revenus' }]}
+                      axisFormat={compactAr}
+                      textColor={themeColors.textSecondary}
+                      gridColor={themeColors.border || '#ECECEC'}
+                      barWidth={wideDash ? 26 : 22}
                     />
                   </View>
+                ) : null}
+
+                {overview ? (
+                  <View style={[styles.dashCard, cardBox, wideDash && { flex: 1 }]}>
+                    <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
+                      Réservations et nouveaux comptes
+                    </Text>
+                    <BarChart
+                      spread
+                      data={(overview.monthly || []).map((m) => ({
+                        label: m.label,
+                        values: { bookings: m.bookings, new_users: m.new_users },
+                      }))}
+                      series={[
+                        { key: 'bookings', color: '#F5A623', name: 'Réservations terminées' },
+                        { key: 'new_users', color: '#4A90D9', name: 'Nouveaux comptes' },
+                      ]}
+                      format={formatCount}
+                      axisFormat={compactAr}
+                      textColor={themeColors.textSecondary}
+                      gridColor={themeColors.border || '#ECECEC'}
+                      barWidth={wideDash ? 12 : 11}
+                    />
+                  </View>
+                ) : null}
+              </View>
+
+              {overview ? (
+                <View style={wideDash ? styles.dashRow : styles.dashCol}>
+                  <View style={[styles.dashCard, cardBox, wideDash && { flex: 1 }]}>
+                    <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
+                      Réservations par statut
+                    </Text>
+                    {barStatuses.length === 0 ? (
+                      <Text style={{ color: themeColors.textSecondary, fontSize: 13 }}>
+                        Aucune réservation pour le moment.
+                      </Text>
+                    ) : (
+                      <>
+                        <View style={styles.statusBar}>
+                          {barStatuses.map((k) => (
+                            <View
+                              key={k}
+                              style={{ flex: Number(byStatus[k]), backgroundColor: statusColor(k) }}
+                            />
+                          ))}
+                        </View>
+                        <View style={styles.legendCols}>
+                          {[legendStatuses.slice(0, legendSplit), legendStatuses.slice(legendSplit)].map((col, ci) => (
+                            <View key={ci} style={styles.legendCol}>
+                              {col.map((k) => (
+                                <View key={k} style={styles.legendRow}>
+                                  <View style={[styles.legendDot, { backgroundColor: statusColor(k) }]} />
+                                  <Text style={[styles.legendLabel, { color: themeColors.text }]} numberOfLines={1}>
+                                    {statusLabel(k)}
+                                  </Text>
+                                  <Text style={[styles.legendPct, { color: themeColors.textSecondary }]}>
+                                    {statusPct(k)} %
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
+                          ))}
+                        </View>
+                      </>
+                    )}
+                  </View>
+
+                  <View style={[styles.dashCard, cardBox, wideDash && { flex: 1 }]}>
+                    <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
+                      Meilleurs thérapeutes
+                    </Text>
+                    {topTherapists.length === 0 ? (
+                      <Text style={{ color: themeColors.textSecondary, fontSize: 13 }}>
+                        Aucune réservation terminée pour le moment.
+                      </Text>
+                    ) : (
+                      topTherapists.map((t, i) => (
+                        <View key={t.id ?? i} style={styles.topRow}>
+                          <View style={styles.topLine}>
+                            <Text style={[styles.topRank, { color: themeColors.textSecondary }]}>{i + 1}</Text>
+                            <Text style={[styles.topName, { color: themeColors.text }]} numberOfLines={1}>
+                              {t.name}
+                            </Text>
+                            <Text style={[styles.topBookings, { color: themeColors.textSecondary }]}>
+                              {t.bookings} rés.
+                            </Text>
+                            <Text style={[styles.topEarn, { color: themeColors.text }]}>
+                              {formatAr(t.earnings)}
+                            </Text>
+                          </View>
+                          <View style={[styles.topTrack, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#E8ECEF' }]}>
+                            <View
+                              style={[
+                                styles.topFill,
+                                {
+                                  width: `${Math.max(3, ((Number(t.earnings) || 0) / topMax) * 100)}%`,
+                                  backgroundColor: colors.primary,
+                                },
+                              ]}
+                            />
+                          </View>
+                        </View>
+                      ))
+                    )}
+                  </View>
                 </View>
-              </View>
+              ) : null}
             </>
-          )}
-
-          {/* ====================================================
-              GRAPHIQUES (données réelles de la base)
-          ==================================================== */}
-
-          {overview && (
-            <>
-              <SectionHeader
-                title="Graphiques"
-                subtitle="Évolution sur les 6 derniers mois"
-                icon="trending-up-outline"
-              />
-
-              <View
-                style={[
-                  styles.detailCard,
-                  chartCardStyle,
-                ]}
-              >
-                <Text style={chartTitleStyle}>
-                  Revenus mensuels
-                </Text>
-                <BarChart
-                  data={(overview.monthly || []).map((m) => ({
-                    label: m.label,
-                    values: { revenue: m.revenue },
-                  }))}
-                  series={[
-                    {
-                      key: 'revenue',
-                      color: colors.primary,
-                      name: 'Revenus',
-                    },
-                  ]}
-                  textColor={themeColors.textSecondary}
-                  gridColor={themeColors.border || '#ECECEC'}
-                  barWidth={22}
-                />
-              </View>
-
-              <View
-                style={[
-                  styles.detailCard,
-                  chartCardStyle,
-                ]}
-              >
-                <Text style={chartTitleStyle}>
-                  Réservations & nouveaux comptes
-                </Text>
-                <BarChart
-                  data={(overview.monthly || []).map((m) => ({
-                    label: m.label,
-                    values: {
-                      bookings: m.bookings,
-                      new_users: m.new_users,
-                    },
-                  }))}
-                  series={[
-                    {
-                      key: 'bookings',
-                      color: '#F59E0B',
-                      name: 'Réservations terminées',
-                    },
-                    {
-                      key: 'new_users',
-                      color: '#3B82F6',
-                      name: 'Nouveaux comptes',
-                    },
-                  ]}
-                  format={formatCount}
-                  textColor={themeColors.textSecondary}
-                  gridColor={themeColors.border || '#ECECEC'}
-                />
-              </View>
-
-              <View
-                style={[
-                  styles.detailCard,
-                  chartCardStyle,
-                ]}
-              >
-                <Text style={chartTitleStyle}>
-                  Réservations par statut
-                </Text>
-                <StackedShare
-                  textColor={themeColors.textSecondary}
-                  items={Object.entries(
-                    overview.bookings?.by_status || {}
-                  )
-                    .filter(([, v]) => v > 0)
-                    .map(([k, v]) => ({
-                      label: STATUS_LABELS[k]?.label || k,
-                      value: v,
-                      color: STATUS_LABELS[k]?.color || '#9E9E9E',
-                    }))}
-                />
-              </View>
-
-              <View
-                style={[
-                  styles.detailCard,
-                  chartCardStyle,
-                ]}
-              >
-                <Text style={chartTitleStyle}>
-                  Meilleurs thérapeutes
-                </Text>
-                <HBars
-                  textColor={themeColors.textSecondary}
-                  trackColor={themeColors.border || '#EFEFEF'}
-                  items={(overview.top_therapists || []).map((t) => ({
-                    label: `${t.name} · ${t.bookings} rés.`,
-                    value: t.earnings,
-                    color: colors.primary,
-                  }))}
-                  format={formatAr}
-                />
-              </View>
-            </>
-          )}
+          ) : null}
 
           <View style={styles.footer} />
         </ScrollView>
@@ -2414,6 +2260,68 @@ const styles = StyleSheet.create({
      SECTION
   ========================================================== */
 
+  sectionHeaderInline: {
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
+    columnGap: 14,
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  sectionHeaderInlineFlex: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'baseline',
+    columnGap: 14,
+  },
+  sosMain: { flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 },
+  sosButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginHorizontal: 10,
+  },
+  sosButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  sosClose: { padding: 6 },
+  splitBar: { flexDirection: 'row', height: 8, borderRadius: 2, overflow: 'hidden', marginTop: 4 },
+  splitLegend: { fontSize: 11, marginTop: 6 },
+  statRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  dashRow: { flexDirection: 'row', gap: 14, alignItems: 'stretch', marginBottom: 14 },
+  dashCol: { gap: 14, marginBottom: 14 },
+  dashCard: { borderWidth: 1, borderRadius: 16, padding: 16 },
+  dashCardTitle: { fontSize: 15, fontWeight: '700', fontFamily: typography.fontFamily.bold, marginBottom: 12 },
+  miniGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 },
+  miniTile: { flexGrow: 1, flexBasis: '45%', borderRadius: 10, padding: 12, gap: 8 },
+  miniTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  miniDot: { width: 8, height: 8, borderRadius: 4 },
+  miniValue: { fontSize: 15, fontWeight: '700', flexShrink: 1 },
+  miniLabel: { fontSize: 11.5 },
+  completionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  completionPct: { fontSize: 12.5, fontWeight: '700' },
+  statusBar: { flexDirection: 'row', height: 18, borderRadius: 3, overflow: 'hidden', marginBottom: 16 },
+  legendCols: { flexDirection: 'row', gap: 24 },
+  legendCol: { flex: 1, gap: 8 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendLabel: { flex: 1, fontSize: 12.5 },
+  legendPct: { fontSize: 12.5, fontWeight: '700' },
+  topRow: { marginBottom: 10 },
+  topLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  topRank: { width: 16, fontSize: 12.5, fontWeight: '700' },
+  topName: { flexShrink: 1, fontSize: 13 },
+  topBookings: { flex: 1, fontSize: 11.5 },
+  topEarn: { fontSize: 13, fontWeight: '700' },
+  topTrack: { height: 6, borderRadius: 3, marginTop: 4, marginLeft: 24 },
+  topFill: { height: 6, borderRadius: 3 },
+
   sectionHeader: {
     width: '100%',
 
@@ -2446,14 +2354,8 @@ const styles = StyleSheet.create({
   },
 
   sectionSubtitle: {
-    marginTop: 2,
-
-    fontSize: 11,
-
-    lineHeight: 15,
-
-    fontFamily:
-      typography.fontFamily.regular,
+    fontSize: 12,
+    fontFamily: typography.fontFamily.regular,
   },
 
   /* ==========================================================
@@ -2476,35 +2378,23 @@ const styles = StyleSheet.create({
   statCard: {
     flexGrow: 0,
     flexShrink: 0,
-
-    minHeight: 154,
-
-    padding: 17,
-
-    borderRadius: 18,
-
+    minHeight: 92,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
     borderWidth: 1,
-
+    position: 'relative',
+    justifyContent: 'center',
     shadowColor: '#000',
-
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-
-    shadowOpacity: 0.04,
-
-    shadowRadius: 9,
-
-    elevation: 2,
-
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
     ...(IS_WEB
       ? {
-          transitionProperty:
-            'transform, box-shadow',
+          transitionProperty: 'transform, box-shadow',
           transitionDuration: '180ms',
-          transitionTimingFunction:
-            'ease',
+          transitionTimingFunction: 'ease',
         }
       : {}),
   },
@@ -2537,27 +2427,27 @@ const styles = StyleSheet.create({
   },
 
   statIcon: {
-    width: 44,
-    height: 44,
-
-    borderRadius: 13,
-
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   statArrow: {
-    width: 28,
-    height: 28,
-
-    borderRadius: 8,
-
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   statCardBody: {
-    marginTop: 18,
+    flex: 1,
+    minWidth: 0,
   },
 
   statValue: {
@@ -2570,12 +2460,9 @@ const styles = StyleSheet.create({
   },
 
   statLabel: {
-    marginTop: 4,
-
-    fontSize: 12,
-
-    fontFamily:
-      typography.fontFamily.medium,
+    marginTop: 2,
+    fontSize: 13,
+    fontFamily: typography.fontFamily.medium,
   },
 
   statSubtitle: {
@@ -2721,18 +2608,13 @@ const styles = StyleSheet.create({
   },
 
   sosIcon: {
-    width: 42,
-    height: 42,
-
-    borderRadius: 12,
-
-    backgroundColor:
-      'rgba(255,255,255,0.15)',
-
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
-
-    marginRight: 11,
+    marginRight: 12,
   },
 
   sosContent: {
@@ -3092,10 +2974,7 @@ const styles = StyleSheet.create({
   },
 
   userGroupHeader: {
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
+    flexDirection: 'column',
     marginBottom: 10,
   },
 

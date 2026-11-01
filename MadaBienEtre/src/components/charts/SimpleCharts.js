@@ -18,7 +18,7 @@ export const formatAr = (v) => `${Math.round(Number(v) || 0).toLocaleString('fr-
  * data: [{ label, values: { key: number } }]
  * series: [{ key, color, name }]
  */
-export function BarChart({ data = [], series = [], height = 150, textColor = '#777', gridColor = '#ECECEC', barWidth = 14, format = formatAr, axisFormat = fmtShort, modern = false }) {
+export function BarChart({ data = [], series = [], height = 150, textColor = '#777', gridColor = '#ECECEC', barWidth = 14, format = formatAr, axisFormat = fmtShort, modern = false, spread = false }) {
   // modern : tooltip sombre, légende sous le graphique, colonnes réparties sur toute la largeur
   const lastFilled = (() => {
     for (let i = data.length - 1; i >= 0; i -= 1) {
@@ -30,7 +30,7 @@ export function BarChart({ data = [], series = [], height = 150, textColor = '#7
   const [boxW, setBoxW] = useState(0);
   const max = Math.max(1, ...data.flatMap((d) => series.map((s) => Number(d.values?.[s.key]) || 0)));
   const baseColW = Math.max(series.length * (barWidth + 2) + 10, 34);
-  const colW = modern && boxW > 0 && data.length > 0 ? Math.max(baseColW, (boxW - 34) / data.length) : baseColW;
+  const colW = (modern || spread) && boxW > 0 && data.length > 0 ? Math.max(baseColW, (boxW - 34) / data.length) : baseColW;
   const shortLabel = (l) => (modern && /^\S+ \d{2}$/.test(String(l)) ? String(l).split(' ')[0] : l);
   const selData = sel !== null && data[sel] ? data[sel] : null;
   const tipParts = selData

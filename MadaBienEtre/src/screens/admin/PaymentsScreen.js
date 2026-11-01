@@ -101,6 +101,7 @@ const PaymentsScreen = ({ navigation, route }) => {
   const cols = width >= 1500 ? 3 : width >= 900 ? 2 : 1;       // pleine largeur web : 2-3 colonnes
   const cellW = cols === 1 ? '100%' : cols === 2 ? '49.3%' : '32.5%';
   const wide = width >= 900;
+  const [gridW, setGridW] = useState(0); // largeur réelle de la grille (aperçu) pour aligner les 3 colonnes
   const [tab, setTab] = useState('overview');
   const [filters, setFilters] = useState(EMPTY_FILTERS);
 
@@ -248,7 +249,7 @@ const PaymentsScreen = ({ navigation, route }) => {
       : [
           { key: 'gross', color: PRIMARY, name: 'Encaissé', short: 'Encaissé' },
           { key: 'commission', color: '#B8924A', name: 'Commission', short: 'Comm.' },
-          { key: 'withdrawn', color: '#2F6DB5', name: 'Retraits payés' },
+          { key: 'withdrawn', color: '#2F6DB5', name: 'Retraits payés', short: 'Retraits' },
         ];
   const methodItems = Object.entries(ps.by_method || {}).map(([k, v], i) => ({ label: NAMES[k] || k, value: v, color: MCOL[i % MCOL.length] }));
   const topItems = (ps.top_therapists || []).map((t) => ({ label: t.name || `#${t.therapist_id}`, value: t.gross, color: PRIMARY }));
@@ -310,6 +311,23 @@ const PaymentsScreen = ({ navigation, route }) => {
     return groups.sort((x, y) => y.value - x.value);
   })();
 
+  const statusCard = (
+    <View style={[styles.card, card, wide && { flex: 1 }]}>
+      <Text style={[styles.cardTitle, txt]}>Demandes de retrait par statut</Text>
+      <View style={{ height: 10 }} />
+      <HBars
+        thick
+        textColor={theme.text}
+        trackColor={theme.border}
+        items={Object.entries(ws.withdrawals_by_status || {}).map(([k, v]) => ({
+          label: `${(STATUS[k] || {}).label || k} (${v.count})`,
+          value: v.amount,
+          color: (STATUS[k] || {}).color || PRIMARY,
+        }))}
+      />
+    </View>
+  );
+
   const tabsNode = wide ? (
     <View style={[styles.tabsBar, card]}>
       <Tab id="overview" label="Aperçu" />
@@ -368,17 +386,29 @@ const PaymentsScreen = ({ navigation, route }) => {
     </View>
   );
 
-  const kpiGrid = (
-    <View style={styles.kpiGrid}>
-      <Kpi label={wide ? 'Commission plateforme' : 'Commission'} value={formatAr(sm.total_commission)} color="#9A6A12" />
-      <Kpi label={wide ? 'Net dû aux thérapeutes' : 'Net thérapeutes'} value={formatAr(sm.total_net_therapists)} />
-      <Kpi label={wide ? 'Wallets à payer' : 'Wallets à payer'} value={formatAr(sm.wallets_available)} color="#2F6DB5" />
-      <Kpi label="Retraits payés" value={formatAr(sm.withdrawals_paid)} color="#047857" />
+  const GAP = 12;
+  const colW = wide && gridW > 0 ? (gridW - 2 * GAP) / 3 : null;
+  const colStyle = colW ? { width: colW } : { flex: 1 };
+  const spanStyle = colW ? { width: colW * 2 + GAP } : { flex: 2 };
+
+  const kpis = [
+    <Kpi key="c" label={wide ? 'Commission plateforme' : 'Commission'} value={formatAr(sm.total_commission)} color="#9A6A12" />,
+    <Kpi key="n" label={wide ? 'Net dû aux thérapeutes' : 'Net thérapeutes'} value={formatAr(sm.total_net_therapists)} />,
+    <Kpi key="w" label="Wallets à payer" value={formatAr(sm.wallets_available)} color="#2F6DB5" />,
+    <Kpi key="r" label="Retraits payés" value={formatAr(sm.withdrawals_paid)} color="#047857" />,
+  ];
+
+  const kpiGrid = wide ? (
+    <View style={{ gap: GAP, flex: 1 }}>
+      <View style={styles.gridRow}>{kpis[0]}{kpis[1]}</View>
+      <View style={styles.gridRow}>{kpis[2]}{kpis[3]}</View>
     </View>
+  ) : (
+    <View style={styles.kpiGrid}>{kpis}</View>
   );
 
   const chartCard = (
-    <View style={[styles.card, card, wide && { flex: 1.25 }]}>
+    <View style={[styles.card, card, wide && { flex: 1 }]}>
       <View style={styles.cardHead}>
         <Text style={[styles.cardTitle, txt]}>{wide ? 'Encaissements et commission' : 'Encaissements'}</Text>
         <View style={{ flexDirection: 'row', gap: 4 }}>
@@ -394,6 +424,7 @@ const PaymentsScreen = ({ navigation, route }) => {
         data={chart}
         series={series}
         format={compact}
+        axisFormat={compact}
         textColor={theme.textSecondary}
         gridColor={theme.border}
         barWidth={range === 'day' ? 7 : 11}
@@ -460,7 +491,10 @@ const PaymentsScreen = ({ navigation, route }) => {
         {tab === 'overview' ? (
           <>
             <Text style={[styles.sectionTitle, txt]}>À traiter maintenant</Text>
-            <View style={wide ? styles.todoRowWrap : { gap: 8 }}>
+            <View
+              style={wide ? styles.todoRowWrap : { gap: 8 }}
+              onLayout={(e) => wide && setGridW(e.nativeEvent.layout.width)}
+            >
               <Todo icon="hourglass-outline" color="#7A540C" bg="#FBEFD5" count={pendingPayCount} title={`paiement${pendingPayCount > 1 ? 's' : ''}`} subtitle="en attente" onPress={() => goTab('payments')} />
               <Todo icon="alert-circle-outline" color="#991B1B" bg="#FDE2E2" count={failedPayCount} title={`paiement${failedPayCount > 1 ? 's' : ''}`} subtitle="échoués" onPress={() => goTab('payments')} />
               {wide || wdToPay > 0 ? (
@@ -472,40 +506,35 @@ const PaymentsScreen = ({ navigation, route }) => {
             </View>
 
             {wide ? (
-              <View style={styles.kpiWrap}>
-                <View style={{ flex: 1 }}>{totalCard}</View>
-                <View style={{ flex: 1.6 }}>{kpiGrid}</View>
-              </View>
+              <>
+                {/* Grille alignée sur 3 colonnes égales */}
+                <View style={styles.gridRow}>
+                  <View style={colStyle}>{totalCard}</View>
+                  <View style={[spanStyle, { flexDirection: 'row' }]}>{kpiGrid}</View>
+                </View>
+
+                <View style={styles.gridRow}>
+                  <View style={spanStyle}>{chartCard}</View>
+                  <View style={colStyle}>{methodCard}</View>
+                </View>
+
+                <View style={styles.gridRow}>
+                  <View style={colStyle}>{commissionCard}</View>
+                  <View style={colStyle}>{topCard}</View>
+                  <View style={colStyle}>{statusCard}</View>
+                </View>
+              </>
             ) : (
               <>
                 {totalCard}
                 {kpiGrid}
+                {chartCard}
+                {methodCard}
+                {commissionCard}
+                {topCard}
+                {statusCard}
               </>
             )}
-
-            <View style={wide ? styles.rowCards : { gap: 14 }}>
-              {chartCard}
-              {methodCard}
-            </View>
-
-            <View style={wide ? styles.rowCards : { gap: 14 }}>
-              {commissionCard}
-              {topCard}
-            </View>
-
-            <View style={[styles.card, card]}>
-              <Text style={[styles.cardTitle, txt]}>Demandes de retrait par statut</Text>
-              <View style={{ height: 10 }} />
-              <HBars
-                textColor={theme.textSecondary}
-                trackColor={theme.border}
-                items={Object.entries(ws.withdrawals_by_status || {}).map(([k, v]) => ({
-                  label: `${(STATUS[k] || {}).label || k} (${v.count})`,
-                  value: v.amount,
-                  color: (STATUS[k] || {}).color || PRIMARY,
-                }))}
-              />
-            </View>
 
             {Number(sm.withdrawals_pending) > 0 ? (
               <Text style={[styles.empty, { color: theme.textSecondary, marginTop: 0 }]}>
@@ -769,7 +798,7 @@ const styles = StyleSheet.create({
   tabsBar: { flexDirection: 'row', borderWidth: 1, borderRadius: 14, padding: 4, gap: 4 },
   sectionTitle: { fontSize: 15, fontWeight: '700' },
   todoRowWrap: { flexDirection: 'row', gap: 12 },
-  todoCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14 },
+  todoCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14 },
   todoTitle: { fontSize: 14, fontWeight: '700' },
   todoSub: { fontSize: 13, fontWeight: '400' },
   todoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14 },
@@ -782,10 +811,11 @@ const styles = StyleSheet.create({
   splitLegend: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
   totalSmall: { color: '#fff', fontSize: 12, fontWeight: '700' },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  kpiCard: { flexGrow: 1, flexBasis: '46%', borderWidth: 1, borderRadius: 14, padding: 13, gap: 6, justifyContent: 'center' },
+  kpiCard: { flexGrow: 1, flexBasis: '46%', borderWidth: 1, borderRadius: 14, paddingVertical: 11, paddingHorizontal: 13, gap: 4, justifyContent: 'center' },
   kpiLabel: { fontSize: 12, fontWeight: '500' },
   kpiValue: { fontSize: 18, fontWeight: '700' },
   rowCards: { flexDirection: 'row', gap: 14, alignItems: 'stretch' },
+  gridRow: { flexDirection: 'row', gap: 12, alignItems: 'stretch' },
   commRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
   commLabel: { fontSize: 13, fontWeight: '500' },
   commValue: { fontSize: 13, fontWeight: '700' },
