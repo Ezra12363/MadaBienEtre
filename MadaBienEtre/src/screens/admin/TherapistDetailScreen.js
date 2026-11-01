@@ -546,7 +546,6 @@ const TherapistDetailScreen = ({ navigation, route }) => {
   return (
     <DetailScaffold
       title="Détails du thérapeute"
-      subtitle={displayName}
       toast={toast}
       refreshing={refreshing}
       onRefresh={onRefresh}

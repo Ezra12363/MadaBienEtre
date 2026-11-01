@@ -649,7 +649,6 @@ const UserDetailScreen = ({ navigation, route }) => {
   return (
     <DetailScaffold
       title={editMode ? "Modifier l'utilisateur" : 'Détails utilisateur'}
-      subtitle={displayName}
       toast={toast}
       refreshing={refreshing}
       onRefresh={onRefresh}

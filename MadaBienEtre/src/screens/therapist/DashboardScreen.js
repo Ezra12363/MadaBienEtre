@@ -104,7 +104,7 @@ const useHeaderTheme = () => {
 // CONSTANTES
 // ============================================================
 
-const DEFAULT_GREEN = '#168A55';
+const DEFAULT_GREEN = '#1F6B45';
 
 const GOLD = '#F59E0B';
 const RED = '#E45858';
@@ -207,15 +207,9 @@ const DashboardScreen = ({ navigation }) => {
   // COULEURS
   // ==========================================================
 
-  const primaryColor = safeColor(
-    colors?.primary,
-    DEFAULT_GREEN
-  );
+  // Vert de la maquette (identique sur web, Android et iOS)
+  const primaryColor = DEFAULT_GREEN;
 
-  const primaryLight = safeColor(
-    colors?.primaryLight,
-    '#43B581'
-  );
 
   const backgroundColor = safeColor(
     themeColors?.background,
@@ -1013,17 +1007,17 @@ const DashboardScreen = ({ navigation }) => {
           >
             <LinearGradient
               colors={[
-                primaryColor,
-                primaryLight,
-                '#58B986',
+                '#1F6B45',
+                '#3A935F',
+                '#55B98A',
               ]}
               start={{
                 x: 0,
-                y: 0,
+                y: 0.5,
               }}
               end={{
                 x: 1,
-                y: 1,
+                y: 0.5,
               }}
               style={[
                 styles.welcomeCard,
@@ -1415,10 +1409,9 @@ const DashboardScreen = ({ navigation }) => {
           >
             <View
               style={[
-                isWide ? styles.aiWrapWide : null,
-                isWide && {
-                  flex: 1,
-                  minWidth: 0,
+                styles.aiWrapWide,
+                isWide && { flex: 1, minWidth: 0 },
+                {
                   backgroundColor: surfaceColor,
                   borderColor,
                 },
@@ -1426,7 +1419,7 @@ const DashboardScreen = ({ navigation }) => {
             >
               <AITherapistHomeBlock
                 showPopular={false}
-                compact={isWide}
+                compact
                 onOpenAssistant={(tab) =>
                   navigation.navigate('AIAssistant', { initialTab: tab })
                 }
@@ -1527,20 +1520,10 @@ const DashboardScreen = ({ navigation }) => {
                     },
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.earningIcon,
-                      {
-                        backgroundColor: hexToRgba(
-                          primaryColor,
-                          0.14
-                        ),
-                      },
-                    ]}
-                  >
+                  <View style={styles.earningIcon}>
                     <Ionicons
                       name="wallet-outline"
-                      size={21}
+                      size={13}
                       color={primaryColor}
                     />
                   </View>
@@ -1585,21 +1568,11 @@ const DashboardScreen = ({ navigation }) => {
                     },
                   ]}
                 >
-                  <View
-                    style={[
-                      styles.earningIcon,
-                      {
-                        backgroundColor: hexToRgba(
-                          GOLD,
-                          0.14
-                        ),
-                      },
-                    ]}
-                  >
+                  <View style={styles.earningIcon}>
                     <Ionicons
                       name="time-outline"
-                      size={21}
-                      color={GOLD}
+                      size={13}
+                      color="#D97706"
                     />
                   </View>
 
@@ -1620,7 +1593,7 @@ const DashboardScreen = ({ navigation }) => {
                     style={[
                       styles.earningValue,
                       {
-                        color: GOLD,
+                        color: '#B45309',
                       },
                     ]}
                   >
@@ -1634,39 +1607,22 @@ const DashboardScreen = ({ navigation }) => {
                 onPress={() => {
                   navigation.navigate('Withdraw');
                 }}
-                style={styles.withdrawButton}
+                style={[
+                  styles.withdrawButton,
+                  { backgroundColor: primaryColor },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Retirer mes gains"
               >
-                <LinearGradient
-                  colors={[
-                    primaryColor,
-                    primaryLight,
-                  ]}
-                  start={{
-                    x: 0,
-                    y: 0,
-                  }}
-                  end={{
-                    x: 1,
-                    y: 0,
-                  }}
-                  style={styles.withdrawGradient}
-                >
-                  <Ionicons
-                    name="arrow-up-circle-outline"
-                    size={21}
-                    color="#FFFFFF"
-                  />
+                <Text style={styles.withdrawText}>
+                  Retirer mes gains
+                </Text>
 
-                  <Text style={styles.withdrawText}>
-                    Retirer mes gains
-                  </Text>
-
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color="#FFFFFF"
-                  />
-                </LinearGradient>
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color="#FFFFFF"
+                />
               </TouchableOpacity>
             </View>
 
@@ -2101,6 +2057,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
     alignSelf: 'stretch',
+    marginHorizontal: 0,
   },
 
   safeArea: {
@@ -2548,19 +2505,21 @@ const styles = StyleSheet.create({
 
   earningBox: {
     flex: 1,
-    minHeight: 132,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 12,
+    minHeight: 82,
+    borderRadius: 10,
+    borderWidth: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
 
   earningIcon: {
-    width: 39,
-    height: 39,
-    borderRadius: 13,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   earningLabel: {
@@ -2569,29 +2528,23 @@ const styles = StyleSheet.create({
   },
 
   earningValue: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '800',
-    marginTop: 5,
+    marginTop: 3,
   },
 
   withdrawButton: {
-    marginTop: 13,
-    borderRadius: 16,
-    overflow: 'hidden',
-    elevation: 3,
-  },
-
-  withdrawGradient: {
-    minHeight: 51,
+    marginTop: 12,
+    minHeight: 40,
+    borderRadius: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 14,
-    gap: 9,
+    gap: 6,
   },
 
+
   withdrawText: {
-    flex: 1,
     color: '#FFFFFF',
     textAlign: 'center',
     fontSize: 13,

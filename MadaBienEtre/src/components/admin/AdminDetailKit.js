@@ -25,7 +25,6 @@ import {
   Modal,
   Platform,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -488,9 +487,11 @@ export const DetailScaffold = ({
   const { padding } = useDetailLayout();
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
+    <View style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
       <View style={[styles.flex, { backgroundColor: themeColors.background }]}>
-        <Header title={title} subtitle={subtitle} showBack mergeWithTopNav />
+        {/* Même header que les autres pages admin (Utilisateurs, Thérapeutes, ...) :
+            composant partagé, titre seul + bouton retour. */}
+        <Header title={title} showBack />
 
         <AdminToast toast={toast} />
 
@@ -518,7 +519,7 @@ export const DetailScaffold = ({
           <View style={styles.pageInner}>{children}</View>
         </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

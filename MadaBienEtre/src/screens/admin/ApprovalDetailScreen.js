@@ -310,7 +310,6 @@ const ApprovalDetailScreen = ({ navigation, route }) => {
   return (
     <DetailScaffold
       title="Dossier de candidature"
-      subtitle="Vérification du profil"
       toast={toast}
       refreshing={refreshing}
       onRefresh={onRefresh}

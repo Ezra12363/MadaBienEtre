@@ -1,7 +1,7 @@
 // src/components/ai/AITherapistHomeBlock.js
 // THÉRAPEUTE — bloc à insérer dans le Dashboard : tarification intelligente,
 // analyse du marché, probabilité d'acceptation, chatbot + services populaires.
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
@@ -17,6 +17,9 @@ const TILES = [
 
 const AITherapistHomeBlock = ({ onOpenAssistant, showPopular = true, compact = false, style }) => {
   const { colors: tc } = useTheme();
+  const { width } = useWindowDimensions();
+  // chevron des tuiles : seulement si la place le permet (évite de tronquer sur petit mobile)
+  const showChevron = width >= 480;
 
   return (
     <View style={[styles.wrap, compact && { gap: 0, flex: 1 }, style]}>
@@ -33,9 +36,9 @@ const AITherapistHomeBlock = ({ onOpenAssistant, showPopular = true, compact = f
             key={t.tab}
             activeOpacity={0.85}
             onPress={() => onOpenAssistant?.(t.tab)}
-            style={[styles.tile, { backgroundColor: tc.surface, borderColor: tc.border }]}
+            style={[styles.tile, compact && styles.tileCompact, { backgroundColor: tc.surface, borderColor: tc.border }]}
           >
-            <View style={[styles.tileIcon, { backgroundColor: t.color + '1F' }]}>
+            <View style={[styles.tileIcon, compact && styles.tileIconCompact, { backgroundColor: t.color + '1F' }]}>
               <Ionicons name={t.icon} size={20} color={t.color} />
             </View>
             <View style={styles.tileText}>
@@ -46,6 +49,9 @@ const AITherapistHomeBlock = ({ onOpenAssistant, showPopular = true, compact = f
                 {t.desc}
               </Text>
             </View>
+            {compact && showChevron ? (
+              <Ionicons name="chevron-forward" size={16} color={tc.textSecondary} />
+            ) : null}
           </TouchableOpacity>
         ))}
       </View>
@@ -58,7 +64,7 @@ const AITherapistHomeBlock = ({ onOpenAssistant, showPopular = true, compact = f
 const styles = StyleSheet.create({
   wrap: { gap: spacing.md },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  gridCompact: { padding: 14, gap: 12, flex: 1, alignContent: 'stretch' },
+  gridCompact: { paddingHorizontal: 16, paddingVertical: 12, gap: 10, flex: 1 },
   tile: {
     flexGrow: 1,
     flexBasis: '45%',
@@ -70,6 +76,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: spacing.sm + 2,
   },
+  tileCompact: { borderRadius: 10, minHeight: 60, paddingVertical: 8, paddingHorizontal: 12 },
+  tileIconCompact: { width: 34, height: 34, borderRadius: 17 },
   tileIcon: {
     width: 36,
     height: 36,
