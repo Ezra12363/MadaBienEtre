@@ -100,6 +100,7 @@ const PaymentsScreen = ({ navigation, route }) => {
   const { width } = useWindowDimensions();
   const cols = width >= 1500 ? 3 : width >= 900 ? 2 : 1;       // pleine largeur web : 2-3 colonnes
   const cellW = cols === 1 ? '100%' : cols === 2 ? '49.3%' : '32.5%';
+  const wide = width >= 900;
   const [tab, setTab] = useState('overview');
   const [filters, setFilters] = useState(EMPTY_FILTERS);
 
@@ -241,26 +242,196 @@ const PaymentsScreen = ({ navigation, route }) => {
   const series =
     range === 'day'
       ? [
-          { key: 'gross', color: PRIMARY, name: 'Encaissé' },
-          { key: 'commission', color: '#B8924A', name: 'Commission' },
+          { key: 'gross', color: PRIMARY, name: 'Encaissé', short: 'Encaissé' },
+          { key: 'commission', color: '#B8924A', name: 'Commission', short: 'Comm.' },
         ]
       : [
-          { key: 'gross', color: PRIMARY, name: 'Encaissé' },
-          { key: 'commission', color: '#B8924A', name: 'Commission' },
+          { key: 'gross', color: PRIMARY, name: 'Encaissé', short: 'Encaissé' },
+          { key: 'commission', color: '#B8924A', name: 'Commission', short: 'Comm.' },
           { key: 'withdrawn', color: '#2F6DB5', name: 'Retraits payés' },
         ];
   const methodItems = Object.entries(ps.by_method || {}).map(([k, v], i) => ({ label: NAMES[k] || k, value: v, color: MCOL[i % MCOL.length] }));
   const topItems = (ps.top_therapists || []).map((t) => ({ label: t.name || `#${t.therapist_id}`, value: t.gross, color: PRIMARY }));
 
   const Tab = ({ id, label, badge }) => (
-    <TouchableOpacity onPress={() => { setTab(id); setFilters(EMPTY_FILTERS); }} style={[styles.tab, tab === id && { backgroundColor: PRIMARY }]}>
-      <Text style={[styles.tabText, { color: tab === id ? '#fff' : theme.textSecondary }]}>{label}</Text>
+    <TouchableOpacity
+      onPress={() => { setTab(id); setFilters(EMPTY_FILTERS); }}
+      activeOpacity={0.8}
+      style={[styles.tab, wide && { flex: 1, justifyContent: 'center' }, tab === id && { backgroundColor: PRIMARY }]}
+    >
+      <Text style={[styles.tabText, { color: tab === id ? '#fff' : theme.textSecondary, fontWeight: tab === id ? '700' : '500' }]} numberOfLines={1}>{label}</Text>
       {badge > 0 ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{badge}</Text>
         </View>
       ) : null}
     </TouchableOpacity>
+  );
+
+  // ---------- Aperçu : valeurs dérivées (aucune nouvelle donnée API) ----------
+  const goTab = (id) => { setTab(id); setFilters(EMPTY_FILTERS); };
+  const compact = (v) => {
+    const n = Number(v) || 0;
+    if (n >= 1e6) return `${(n / 1e6).toFixed(1).replace('.', ',')} M`;
+    if (n >= 1e3) return `${Math.round(n / 1e3)} k`;
+    return `${Math.round(n)}`;
+  };
+  const netT = Number(sm.total_net_therapists) || 0;
+  const commT = Number(sm.total_commission) || 0;
+  const splitTotal = netT + commT;
+  const pctTherapists = splitTotal > 0 ? Math.round((netT / splitTotal) * 100) : 0;
+  const pctCommission = splitTotal > 0 ? 100 - pctTherapists : 0;
+  const pendingPayCount = ps.pending_payments || 0;
+  const failedPayCount = ps.failed_payments || 0;
+  const wdToPay = pendingW.length;
+  const commDue = Number(ws.commission_due) || 0;
+
+  // Modes de paiement regroupés : Carte / Mobile Money (détail par opérateur) / autres
+  const MOBILE = ['mvola', 'orange_money', 'airtel_money'];
+  const CARD = ['stripe', 'card'];
+  const methodGroups = (() => {
+    const by = ps.by_method || {};
+    const mobile = MOBILE.filter((k) => Number(by[k])).map((k) => ({ label: NAMES[k] || k, value: Number(by[k]) }));
+    const groups = [];
+    const cardVal = CARD.reduce((acc, k) => acc + (Number(by[k]) || 0), 0);
+    if (cardVal) groups.push({ label: 'Carte', value: cardVal, color: PRIMARY });
+    const mobileGeneric = Number(by.mobile_money) || 0;
+    if (mobile.length || mobileGeneric) {
+      groups.push({
+        label: 'Mobile Money',
+        value: mobile.reduce((a, b) => a + b.value, 0) + mobileGeneric,
+        color: '#7A5CB5',
+        children: mobile.sort((x, y) => y.value - x.value),
+      });
+    }
+    Object.entries(by)
+      .filter(([k]) => !MOBILE.includes(k) && !CARD.includes(k) && k !== 'mobile_money' && Number(by[k]))
+      .forEach(([k, v], i) => groups.push({ label: k === 'cash' ? 'Espèces' : NAMES[k] || k, value: Number(v), color: k === 'cash' ? '#4A9B9B' : MCOL[(i + 3) % MCOL.length] }));
+    return groups.sort((x, y) => y.value - x.value);
+  })();
+
+  const tabsNode = wide ? (
+    <View style={[styles.tabsBar, card]}>
+      <Tab id="overview" label="Aperçu" />
+      <Tab id="payments" label="Paiements" badge={pendingPayCount} />
+      <Tab id="withdrawals" label="Retraits" badge={pendingW.length} />
+      <Tab id="commissions" label="Commissions" badge={pendingC.length} />
+      <Tab id="transactions" label="Journal" />
+    </View>
+  ) : (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
+      <Tab id="overview" label="Aperçu" />
+      <Tab id="payments" label="Paiements" badge={pendingPayCount} />
+      <Tab id="withdrawals" label="Retraits" badge={pendingW.length} />
+      <Tab id="commissions" label="Commissions" badge={pendingC.length} />
+      <Tab id="transactions" label="Journal" />
+    </ScrollView>
+  );
+
+  const Todo = ({ icon, color, bg, count, title, subtitle, onPress }) =>
+    wide ? (
+      <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={[styles.todoCard, { backgroundColor: bg }]}>
+        <Ionicons name={icon} size={22} color={color} />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.todoTitle, { color }]}>{count} {title}</Text>
+          <Text style={[styles.todoSub, { color }]}>{subtitle}</Text>
+        </View>
+      </TouchableOpacity>
+    ) : (
+      <TouchableOpacity activeOpacity={0.85} onPress={onPress} style={[styles.todoRow, { backgroundColor: bg }]}>
+        <Ionicons name={icon} size={20} color={color} />
+        <Text style={[styles.todoRowText, { color }]} numberOfLines={2}>{count} {title}{subtitle ? ` ${subtitle}` : ''}</Text>
+        <Ionicons name="chevron-forward" size={18} color={color} />
+      </TouchableOpacity>
+    );
+
+  const Kpi = ({ label, value, color }) => (
+    <View style={[styles.kpiCard, card]}>
+      <Text style={[styles.kpiLabel, { color: theme.textSecondary }]} numberOfLines={1}>{label}</Text>
+      <Text style={[styles.kpiValue, { color: color || theme.text }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+    </View>
+  );
+
+  const totalCard = (
+    <View style={styles.totalCard}>
+      <Text style={styles.totalLabel}>Total encaissé</Text>
+      <Text style={styles.totalValue} numberOfLines={1} adjustsFontSizeToFit>{formatAr(sm.total_payments)}</Text>
+      <View style={styles.splitBar}>
+        <View style={{ flex: Math.max(0.0001, pctTherapists), backgroundColor: '#FFFFFF' }} />
+        <View style={{ flex: Math.max(0.0001, pctCommission), backgroundColor: '#B8924A' }} />
+      </View>
+      <View style={styles.splitLegend}>
+        <Text style={styles.totalSmall}>Thérapeutes {pctTherapists} %</Text>
+        <Text style={styles.totalSmall}>Commission {pctCommission} %</Text>
+      </View>
+      {wide ? <Text style={[styles.totalSmall, { marginTop: 6 }]}>{ps.completed_payments || 0} paiements confirmés</Text> : null}
+    </View>
+  );
+
+  const kpiGrid = (
+    <View style={styles.kpiGrid}>
+      <Kpi label={wide ? 'Commission plateforme' : 'Commission'} value={formatAr(sm.total_commission)} color="#9A6A12" />
+      <Kpi label={wide ? 'Net dû aux thérapeutes' : 'Net thérapeutes'} value={formatAr(sm.total_net_therapists)} />
+      <Kpi label={wide ? 'Wallets à payer' : 'Wallets à payer'} value={formatAr(sm.wallets_available)} color="#2F6DB5" />
+      <Kpi label="Retraits payés" value={formatAr(sm.withdrawals_paid)} color="#047857" />
+    </View>
+  );
+
+  const chartCard = (
+    <View style={[styles.card, card, wide && { flex: 1.25 }]}>
+      <View style={styles.cardHead}>
+        <Text style={[styles.cardTitle, txt]}>{wide ? 'Encaissements et commission' : 'Encaissements'}</Text>
+        <View style={{ flexDirection: 'row', gap: 4 }}>
+          {[['day', '30 j'], ['month', '12 mois']].map(([id, label]) => (
+            <TouchableOpacity key={id} onPress={() => setRange(id)} style={[styles.sw, range === id && { backgroundColor: PRIMARY }]}>
+              <Text style={{ color: range === id ? '#fff' : theme.textSecondary, fontSize: 12 }}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+      <BarChart
+        modern
+        data={chart}
+        series={series}
+        format={compact}
+        textColor={theme.textSecondary}
+        gridColor={theme.border}
+        barWidth={range === 'day' ? 7 : 11}
+      />
+    </View>
+  );
+
+  const methodCard = (
+    <View style={[styles.card, card, wide && { flex: 1 }]}>
+      <Text style={[styles.cardTitle, txt]}>Par mode de paiement</Text>
+      <View style={{ height: 10 }} />
+      <HBars items={methodGroups} textColor={theme.text} trackColor={theme.border} thick percent={wide} percentOnly={!wide} />
+    </View>
+  );
+
+  const commissionCard = (
+    <View style={[styles.card, card, wide && { flex: 1 }]}>
+      <Text style={[styles.cardTitle, txt]}>Commission</Text>
+      <View style={{ height: 10 }} />
+      {[
+        ['Encaissée', formatAr(ws.commission_collected), '#047857'],
+        ['Due (espèces)', formatAr(ws.commission_due), '#B45309'],
+        ['En vérification', formatAr(ws.commission_in_review), theme.text],
+      ].map(([label, value, color]) => (
+        <View key={label} style={styles.commRow}>
+          <Text style={[styles.commLabel, { color: theme.text }]}>{label}</Text>
+          <Text style={[styles.commValue, { color }]}>{value}</Text>
+        </View>
+      ))}
+    </View>
+  );
+
+  const topCard = (
+    <View style={[styles.card, card, wide && { flex: 1 }]}>
+      <Text style={[styles.cardTitle, txt]}>Top thérapeutes</Text>
+      <View style={{ height: 10 }} />
+      <HBars items={topItems} textColor={theme.text} trackColor={theme.border} thick />
+    </View>
   );
 
   return (
@@ -283,66 +454,43 @@ const PaymentsScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         ) : null}
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-          <Tab id="overview" label="Aperçu" />
-          <Tab id="payments" label="Paiements" />
-          <Tab id="withdrawals" label="Retraits" badge={pendingW.length} />
-          <Tab id="commissions" label="Commissions" badge={pendingC.length} />
-          <Tab id="transactions" label="Journal" />
-        </ScrollView>
+        {tabsNode}
 
         {/* ============ APERÇU ============ */}
         {tab === 'overview' ? (
           <>
-            <View style={styles.tiles}>
-              <StatTile label="Total encaissé" value={formatAr(sm.total_payments)} bg={theme.surface} textColor={theme.text} />
-              <StatTile label="Commission plateforme" value={formatAr(sm.total_commission)} color="#B8924A" bg={theme.surface} textColor={theme.text} />
-              <StatTile label="Net dû aux thérapeutes" value={formatAr(sm.total_net_therapists)} bg={theme.surface} textColor={theme.text} />
-              <StatTile label="Wallets (à payer)" value={formatAr(sm.wallets_available)} color="#2F6DB5" bg={theme.surface} textColor={theme.text} />
-              <StatTile label="Retraits en attente" value={formatAr(sm.withdrawals_pending)} color="#B45309" bg={theme.surface} textColor={theme.text} />
-              <StatTile label="Retraits payés" value={formatAr(sm.withdrawals_paid)} color="#047857" bg={theme.surface} textColor={theme.text} />
-              <StatTile label="Commission encaissée" value={formatAr(ws.commission_collected)} color="#047857" bg={theme.surface} textColor={theme.text} />
-              <StatTile label="Commission due (espèces)" value={formatAr(ws.commission_due)} color="#B45309" bg={theme.surface} textColor={theme.text} sub={`dont en vérification : ${formatAr(ws.commission_in_review)}`} />
-              <StatTile label="Paiements confirmés" value={`${ps.completed_payments || 0}`} bg={theme.surface} textColor={theme.text} />
-              <StatTile label="En attente / échoués" value={`${ps.pending_payments || 0} / ${ps.failed_payments || 0}`} color="#B45309" bg={theme.surface} textColor={theme.text} />
+            <Text style={[styles.sectionTitle, txt]}>À traiter maintenant</Text>
+            <View style={wide ? styles.todoRowWrap : { gap: 8 }}>
+              <Todo icon="hourglass-outline" color="#7A540C" bg="#FBEFD5" count={pendingPayCount} title={`paiement${pendingPayCount > 1 ? 's' : ''}`} subtitle="en attente" onPress={() => goTab('payments')} />
+              <Todo icon="alert-circle-outline" color="#991B1B" bg="#FDE2E2" count={failedPayCount} title={`paiement${failedPayCount > 1 ? 's' : ''}`} subtitle="échoués" onPress={() => goTab('payments')} />
+              {wide || wdToPay > 0 ? (
+                <Todo icon="checkmark-circle-outline" color="#166534" bg="#DDF3E3" count={wdToPay} title={`retrait${wdToPay > 1 ? 's' : ''}`} subtitle="à payer" onPress={() => goTab('withdrawals')} />
+              ) : null}
+              {!wide && commDue > 0 ? (
+                <Todo icon="pricetag-outline" color="#7A540C" bg="#FBEFD5" count={formatAr(commDue)} title="commission" subtitle="due" onPress={() => goTab('commissions')} />
+              ) : null}
             </View>
 
-            <View style={[styles.card, card]}>
-              <View style={styles.cardHead}>
-                <Text style={[styles.cardTitle, txt]}>Encaissements et commission</Text>
-                <View style={{ flexDirection: 'row', gap: 4 }}>
-                  {[['day', '30 j'], ['month', '12 mois']].map(([id, label]) => (
-                    <TouchableOpacity key={id} onPress={() => setRange(id)} style={[styles.sw, range === id && { backgroundColor: PRIMARY }]}>
-                      <Text style={{ color: range === id ? '#fff' : theme.textSecondary, fontSize: 12 }}>{label}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+            {wide ? (
+              <View style={styles.kpiWrap}>
+                <View style={{ flex: 1 }}>{totalCard}</View>
+                <View style={{ flex: 1.6 }}>{kpiGrid}</View>
               </View>
-              <BarChart data={chart} series={series} textColor={theme.textSecondary} gridColor={theme.border} barWidth={range === 'day' ? 7 : 11} />
+            ) : (
+              <>
+                {totalCard}
+                {kpiGrid}
+              </>
+            )}
+
+            <View style={wide ? styles.rowCards : { gap: 14 }}>
+              {chartCard}
+              {methodCard}
             </View>
 
-            <View style={[styles.card, card]}>
-              <Text style={[styles.cardTitle, txt]}>Répartition des encaissements</Text>
-              <View style={{ height: 10 }} />
-              <StackedShare
-                textColor={theme.textSecondary}
-                items={[
-                  { label: 'Part thérapeutes', value: sm.total_net_therapists, color: PRIMARY },
-                  { label: 'Commission', value: sm.total_commission, color: '#B8924A' },
-                ]}
-              />
-            </View>
-
-            <View style={[styles.card, card]}>
-              <Text style={[styles.cardTitle, txt]}>Par mode de paiement</Text>
-              <View style={{ height: 10 }} />
-              <HBars items={methodItems} textColor={theme.textSecondary} trackColor={theme.border} />
-            </View>
-
-            <View style={[styles.card, card]}>
-              <Text style={[styles.cardTitle, txt]}>Top thérapeutes (encaissements)</Text>
-              <View style={{ height: 10 }} />
-              <HBars items={topItems} textColor={theme.textSecondary} trackColor={theme.border} />
+            <View style={wide ? styles.rowCards : { gap: 14 }}>
+              {commissionCard}
+              {topCard}
             </View>
 
             <View style={[styles.card, card]}>
@@ -358,6 +506,12 @@ const PaymentsScreen = ({ navigation, route }) => {
                 }))}
               />
             </View>
+
+            {Number(sm.withdrawals_pending) > 0 ? (
+              <Text style={[styles.empty, { color: theme.textSecondary, marginTop: 0 }]}>
+                Retraits en attente de paiement : {formatAr(sm.withdrawals_pending)}
+              </Text>
+            ) : null}
           </>
         ) : null}
 
@@ -612,6 +766,29 @@ const styles = StyleSheet.create({
   badge: { backgroundColor: '#DC2626', borderRadius: 9, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 5 },
   badgeText: { color: '#fff', fontSize: 11, fontWeight: '400' },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  tabsBar: { flexDirection: 'row', borderWidth: 1, borderRadius: 14, padding: 4, gap: 4 },
+  sectionTitle: { fontSize: 15, fontWeight: '700' },
+  todoRowWrap: { flexDirection: 'row', gap: 12 },
+  todoCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14 },
+  todoTitle: { fontSize: 14, fontWeight: '700' },
+  todoSub: { fontSize: 13, fontWeight: '400' },
+  todoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14 },
+  todoRowText: { flex: 1, fontSize: 14, fontWeight: '700' },
+  kpiWrap: { flexDirection: 'row', gap: 12, alignItems: 'stretch' },
+  totalCard: { backgroundColor: '#1F6B45', borderRadius: 18, padding: 18, gap: 6, flex: 1, justifyContent: 'center' },
+  totalLabel: { color: '#CFE5D8', fontSize: 12, fontWeight: '600' },
+  totalValue: { color: '#fff', fontSize: 28, fontWeight: '800' },
+  splitBar: { flexDirection: 'row', height: 9, borderRadius: 5, overflow: 'hidden', marginTop: 6 },
+  splitLegend: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  totalSmall: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  kpiCard: { flexGrow: 1, flexBasis: '46%', borderWidth: 1, borderRadius: 14, padding: 13, gap: 6, justifyContent: 'center' },
+  kpiLabel: { fontSize: 12, fontWeight: '500' },
+  kpiValue: { fontSize: 18, fontWeight: '700' },
+  rowCards: { flexDirection: 'row', gap: 14, alignItems: 'stretch' },
+  commRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
+  commLabel: { fontSize: 13, fontWeight: '500' },
+  commValue: { fontSize: 13, fontWeight: '700' },
   card: { borderWidth: 1, borderRadius: 16, padding: 14 },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' },
   cardTitle: { fontSize: 15, fontWeight: '400' },

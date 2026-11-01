@@ -130,6 +130,7 @@ const EarningsScreen = ({ navigation, route }) => {
   const [busyId, setBusyId] = useState(null);
   const [tab, setTab] = useState('overview'); // overview | gains | retraits | commission
   const [range, setRange] = useState('month'); // day | month
+  const [period, setPeriod] = useState('12m'); // 7d | 30d | 12m (Résumé)
 
   // modal paiement de commission
   const [cmOpen, setCmOpen] = useState(false);
@@ -271,13 +272,13 @@ const EarningsScreen = ({ navigation, route }) => {
   const chartSeries =
     range === 'day'
       ? [
-          { key: 'net', color: PRIMARY, name: 'Gains nets' },
-          { key: 'commission', color: '#B8924A', name: 'Commission' },
+          { key: 'net', color: PRIMARY, name: 'Gains nets', short: 'Net' },
+          { key: 'commission', color: '#B8924A', name: 'Commission', short: 'Comm.' },
         ]
       : [
-          { key: 'net', color: PRIMARY, name: 'Gains nets' },
-          { key: 'commission', color: '#B8924A', name: 'Commission' },
-          { key: 'withdrawn', color: '#2F6DB5', name: 'Retiré' },
+          { key: 'net', color: PRIMARY, name: 'Gains nets', short: 'Net' },
+          { key: 'commission', color: '#B8924A', name: 'Commission', short: 'Comm.' },
+          { key: 'withdrawn', color: '#2F6DB5', name: 'Retiré', short: 'Retiré' },
         ];
   const methodItems = Object.entries(s.by_method || {}).map(([k, v], i) => ({
     label: METHOD_NAMES[k] || k,
@@ -309,11 +310,153 @@ const EarningsScreen = ({ navigation, route }) => {
   const Tab = ({ id, label }) => (
     <TouchableOpacity
       onPress={() => changeTab(id)}
-      style={[styles.tab, tab === id && { backgroundColor: PRIMARY }]}
+      style={[styles.tabItem, tab === id && { backgroundColor: PRIMARY }]}
       activeOpacity={0.8}
     >
-      <Text style={[styles.tabText, { color: tab === id ? '#fff' : theme.textSecondary }]}>{label}</Text>
+      <Text style={[styles.tabItemText, { color: tab === id ? '#fff' : theme.textSecondary, fontWeight: tab === id ? '700' : '500' }]} numberOfLines={1}>
+        {label}
+      </Text>
     </TouchableOpacity>
+  );
+
+  // ---------- Aperçu : valeurs calculées (aucune nouvelle donnée côté API) ----------
+  const isOverview = tab === 'overview';
+  const sumLast = (arr, n, key) => (arr || []).slice(-n).reduce((acc, x) => acc + (Number(x?.[key]) || 0), 0);
+  const periodNet = period === '7d' ? s.week : period === '30d' ? s.month : s.year;
+  const periodCommission =
+    period === '12m'
+      ? (s.monthly || []).length
+        ? sumLast(s.monthly, 12, 'commission')
+        : s.commission_total
+      : (s.daily || []).length
+        ? sumLast(s.daily, period === '7d' ? 7 : 30, 'commission')
+        : s.commission_total;
+  const grossTotal = (Number(s.net_total) || 0) + (Number(s.commission_total) || 0);
+  const commissionPct = grossTotal > 0 ? Math.round(((Number(s.commission_total) || 0) / grossTotal) * 100) : 0;
+  const paidAvg = (s.paid_count || 0) > 0 ? (Number(s.net_total) || 0) / s.paid_count : 0;
+  const pendingTotal = (s.pending_count || 0) + (s.unpaid_bookings || 0);
+  const cashPendingCount = (w.cash_pending || []).length || s.pending_count || 0;
+
+  const tabsBar = (
+    <View style={[styles.tabsBar, card]}>
+      <Tab id="overview" label="Aperçu" />
+      <Tab id="gains" label="Gains" />
+      <Tab id="retraits" label="Retraits" />
+      <Tab id="commission" label={wide ? 'Commission' : 'Comm.'} />
+    </View>
+  );
+
+  const balanceNode = (
+    <View style={styles.balanceCard}>
+      <Text style={styles.balanceLabel}>Solde disponible</Text>
+      <Text style={styles.balanceValue}>{formatAr(w.available)}</Text>
+      <View style={styles.balRow}>
+        <View>
+          <Text style={styles.balSmallLabel}>En attente</Text>
+          <Text style={styles.balSmallValue}>{formatAr(w.withdrawals_pending)}</Text>
+        </View>
+        <View>
+          <Text style={styles.balSmallLabel}>Déjà retiré</Text>
+          <Text style={styles.balSmallValue}>{formatAr(w.withdrawals_paid)}</Text>
+        </View>
+      </View>
+      <TouchableOpacity
+        disabled={!canWithdraw}
+        onPress={() => navigation.navigate('Withdraw')}
+        style={[styles.withdrawBtn, !canWithdraw && { opacity: 0.5 }]}
+      >
+        <Ionicons name="swap-vertical-outline" size={18} color={PRIMARY} />
+        <Text style={styles.withdrawText}>Demander un retrait</Text>
+      </TouchableOpacity>
+      {!canWithdraw ? <Text style={styles.balanceHint}>Retrait minimum : {formatAr(w.min_withdrawal)}</Text> : null}
+    </View>
+  );
+
+  const pendingNode =
+    isOverview && cashPendingCount > 0 ? (
+      <TouchableOpacity style={styles.pendingBox} onPress={() => changeTab('gains')} activeOpacity={0.85}>
+        <Ionicons name="time-outline" size={20} color="#9A6A12" />
+        <Text style={styles.pendingText}>
+          {cashPendingCount} paiement{cashPendingCount > 1 ? 's' : ''} en attente{wide ? ' de confirmation' : ''}
+        </Text>
+        {!wide ? <Ionicons name="chevron-forward" size={18} color="#9A6A12" /> : null}
+      </TouchableOpacity>
+    ) : null;
+
+  const dueNode =
+    due > 0 ? (
+      <TouchableOpacity style={styles.dueBox} onPress={() => changeTab('commission')} activeOpacity={0.85}>
+        <Ionicons name="alert-circle-outline" size={20} color="#9A6A12" />
+        <Text style={styles.dueText}>
+          Commission à payer à l’administrateur : {formatAr(due)} (paiements reçus en espèces)
+        </Text>
+        <Ionicons name="chevron-forward" size={18} color="#9A6A12" />
+      </TouchableOpacity>
+    ) : null;
+
+  const Stat = ({ icon, label, value, color, sub, onPressSub }) => (
+    <View style={[styles.statCard, card]}>
+      <View style={styles.statHead}>
+        {wide ? <Ionicons name={icon} size={14} color={theme.textSecondary} /> : null}
+        <Text style={[styles.statLabel, { color: theme.textSecondary }]} numberOfLines={1}>{label}</Text>
+      </View>
+      <Text style={[styles.statValue, { color: color || theme.text }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      {wide && sub ? (
+        onPressSub ? (
+          <TouchableOpacity onPress={onPressSub}><Text style={[styles.statSub, { color: theme.textSecondary }]}>{sub}</Text></TouchableOpacity>
+        ) : (
+          <Text style={[styles.statSub, { color: theme.textSecondary }]}>{sub}</Text>
+        )
+      ) : null}
+    </View>
+  );
+
+  const resumeNode = (
+    <View style={{ gap: 10 }}>
+      <View style={styles.resumeHead}>
+        <Text style={[styles.resumeTitle, txt]}>Résumé</Text>
+        <View style={styles.periodRow}>
+          {[
+            ['7d', '7 j'],
+            ['30d', '30 j'],
+            ['12m', wide ? '12 mois' : '12 m'],
+          ].map(([id, label]) => (
+            <TouchableOpacity
+              key={id}
+              onPress={() => setPeriod(id)}
+              activeOpacity={0.8}
+              style={[styles.periodChip, { borderColor: period === id ? PRIMARY : theme.border || '#E5E7EB' }, period === id && { backgroundColor: PRIMARY + '14' }]}
+            >
+              <Text style={[styles.periodText, { color: period === id ? PRIMARY : theme.text }]}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+      <View style={styles.statGrid}>
+        <Stat icon="trending-up-outline" label="Gains nets" value={formatAr(periodNet)} sub={`Aujourd’hui : ${formatAr(s.today)}`} />
+        <Stat
+          icon="pricetag-outline"
+          label={wide ? 'Commission payée' : 'Commission'}
+          value={formatAr(periodCommission)}
+          color="#9A6A12"
+          sub={`${commissionPct} % des paiements`}
+        />
+        <Stat
+          icon="checkmark-circle-outline"
+          label={wide ? 'Réservations payées' : 'Payées'}
+          value={`${s.paid_count || 0}`}
+          sub={`Moy. ${formatAr(paidAvg)}`}
+        />
+        <Stat
+          icon="hourglass-outline"
+          label="En attente"
+          value={`${pendingTotal}`}
+          color="#B45309"
+          sub="Voir les détails"
+          onPressSub={() => changeTab('gains')}
+        />
+      </View>
+    </View>
   );
 
   return (
@@ -336,61 +479,30 @@ const EarningsScreen = ({ navigation, route }) => {
           </TouchableOpacity>
         ) : null}
 
-        {/* Solde */}
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Solde disponible</Text>
-          <Text style={styles.balanceValue}>{formatAr(w.available)}</Text>
-          <Text style={styles.balanceHint}>
-            En attente de retrait : {formatAr(w.withdrawals_pending)} · Déjà retiré : {formatAr(w.withdrawals_paid)}
-          </Text>
-          <TouchableOpacity
-            disabled={!canWithdraw}
-            onPress={() => navigation.navigate('Withdraw')}
-            style={[styles.withdrawBtn, !canWithdraw && { opacity: 0.5 }]}
-          >
-            <Ionicons name="arrow-up-circle-outline" size={18} color={PRIMARY} />
-            <Text style={styles.withdrawText}>Demander un retrait</Text>
-          </TouchableOpacity>
-          {!canWithdraw ? <Text style={styles.balanceHint}>Retrait minimum : {formatAr(w.min_withdrawal)}</Text> : null}
-        </View>
+        {wide ? tabsBar : null}
 
-        {due > 0 ? (
-          <TouchableOpacity style={styles.dueBox} onPress={() => changeTab('commission')} activeOpacity={0.85}>
-            <Ionicons name="alert-circle-outline" size={20} color="#9A6A12" />
-            <Text style={styles.dueText}>
-              Commission à payer à l’administrateur : {formatAr(due)} (paiements reçus en espèces)
-            </Text>
-            <Ionicons name="chevron-forward" size={18} color="#9A6A12" />
-          </TouchableOpacity>
-        ) : null}
-
-        <View style={styles.tabs}>
-          <Tab id="overview" label="Aperçu" />
-          <Tab id="gains" label="Gains" />
-          <Tab id="retraits" label="Retraits" />
-          <Tab id="commission" label="Commission" />
-        </View>
+        {wide && isOverview ? (
+          <View style={styles.twoCol}>
+            <View style={styles.colLeft}>
+              {balanceNode}
+              {pendingNode}
+              {dueNode}
+            </View>
+            <View style={styles.colRight}>{resumeNode}</View>
+          </View>
+        ) : (
+          <>
+            {balanceNode}
+            {pendingNode}
+            {dueNode}
+            {!wide ? tabsBar : null}
+            {isOverview ? resumeNode : null}
+          </>
+        )}
 
         {/* ================= APERÇU ================= */}
-        {tab === 'overview' ? (
+        {isOverview ? (
           <>
-            <View style={styles.tiles}>
-              <StatTile label="Gains nets (total)" value={formatAr(s.net_total)} bg={theme.surface} textColor={theme.text} />
-              <StatTile label="Commission payée" value={formatAr(s.commission_total)} color="#B8924A" bg={theme.surface} textColor={theme.text} />
-              <StatTile label="Aujourd’hui" value={formatAr(s.today)} bg={theme.surface} textColor={theme.text} />
-              <StatTile label="7 derniers jours" value={formatAr(s.week)} bg={theme.surface} textColor={theme.text} />
-              <StatTile label="30 derniers jours" value={formatAr(s.month)} bg={theme.surface} textColor={theme.text} />
-              <StatTile label="12 derniers mois" value={formatAr(s.year)} bg={theme.surface} textColor={theme.text} />
-              <StatTile label="Réservations payées" value={`${s.paid_count || 0}`} color="#047857" bg={theme.surface} textColor={theme.text} />
-              <StatTile
-                label="En attente de paiement"
-                value={`${(s.pending_count || 0) + (s.unpaid_bookings || 0)}`}
-                color="#B45309"
-                bg={theme.surface}
-                textColor={theme.text}
-              />
-            </View>
-
             <View style={[styles.card, card]}>
               <View style={styles.cardHead}>
                 <Text style={[styles.cardTitle, txt]}>Évolution de vos gains</Text>
@@ -405,26 +517,41 @@ const EarningsScreen = ({ navigation, route }) => {
                   ))}
                 </View>
               </View>
-              <BarChart data={chartData} series={chartSeries} textColor={theme.textSecondary} gridColor={theme.border} barWidth={range === 'day' ? 7 : 12} />
-            </View>
-
-            <View style={[styles.card, card]}>
-              <Text style={[styles.cardTitle, txt]}>Gains par mode de paiement</Text>
-              <View style={{ height: 10 }} />
-              <HBars items={methodItems} textColor={theme.textSecondary} trackColor={theme.border} />
-            </View>
-
-            <View style={[styles.card, card]}>
-              <Text style={[styles.cardTitle, txt]}>Où va chaque paiement client</Text>
-              <View style={{ height: 10 }} />
-              <StackedShare
+              <BarChart
+                modern
+                data={chartData}
+                series={chartSeries}
                 textColor={theme.textSecondary}
-                items={[
-                  { label: 'Votre part', value: s.net_total, color: PRIMARY },
-                  { label: 'Commission', value: s.commission_total, color: '#B8924A' },
-                ]}
+                gridColor={theme.border}
+                barWidth={range === 'day' ? 7 : 12}
               />
             </View>
+
+            <View style={wide ? styles.rowCards : { gap: 14 }}>
+              <View style={[styles.card, card, wide && { flex: 1 }]}>
+                <Text style={[styles.cardTitle, txt]}>Par mode de paiement</Text>
+                <View style={{ height: 10 }} />
+                <HBars items={methodItems} textColor={theme.textSecondary} trackColor={theme.border} percent thick />
+              </View>
+
+              <View style={[styles.card, card, wide && { flex: 1 }]}>
+                <Text style={[styles.cardTitle, txt]}>Où va chaque paiement</Text>
+                <View style={{ height: 10 }} />
+                <StackedShare
+                  textColor={theme.textSecondary}
+                  items={[
+                    { label: 'Votre part', value: s.net_total, color: PRIMARY },
+                    { label: 'Commission', value: s.commission_total, color: '#B8924A' },
+                  ]}
+                />
+              </View>
+            </View>
+
+            {(Number(w.available) || 0) > (Number(s.net_total) || 0) ? (
+              <Text style={[styles.footNote, sub]}>
+                Le solde ({formatAr(w.available)}) inclut aussi les bonus et dépôts, donc il peut dépasser les gains nets.
+              </Text>
+            ) : null}
           </>
         ) : null}
 
@@ -730,6 +857,30 @@ const styles = StyleSheet.create({
   noticeBox: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#D1FAE5', borderRadius: 12, padding: 12 },
   noticeText: { color: '#047857', flex: 1, fontSize: 13, fontWeight: '400' },
   balanceCard: { backgroundColor: '#1F6B45', borderRadius: 18, padding: 18, gap: 6 },
+  balRow: { flexDirection: 'row', gap: 28, marginTop: 4, marginBottom: 2 },
+  balSmallLabel: { color: '#CFE5D8', fontSize: 12, fontWeight: '600' },
+  balSmallValue: { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 1 },
+  pendingBox: { flexDirection: 'row', gap: 10, alignItems: 'center', backgroundColor: '#FBEFD5', borderRadius: 14, padding: 12 },
+  pendingText: { color: '#7A540C', flex: 1, fontSize: 13, fontWeight: '500' },
+  tabsBar: { flexDirection: 'row', borderWidth: 1, borderRadius: 14, padding: 4, gap: 4 },
+  tabItem: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  tabItemText: { fontSize: 13 },
+  twoCol: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
+  colLeft: { width: '36%', minWidth: 280, gap: 12 },
+  colRight: { flex: 1, minWidth: 0 },
+  rowCards: { flexDirection: 'row', gap: 14, alignItems: 'stretch' },
+  resumeHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  resumeTitle: { fontSize: 15, fontWeight: '700' },
+  periodRow: { flexDirection: 'row', gap: 6 },
+  periodChip: { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 5 },
+  periodText: { fontSize: 12, fontWeight: '600' },
+  statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  statCard: { flexGrow: 1, flexBasis: '46%', borderWidth: 1, borderRadius: 14, padding: 12, gap: 4 },
+  statHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statLabel: { fontSize: 12, fontWeight: '500' },
+  statValue: { fontSize: 20, fontWeight: '700' },
+  statSub: { fontSize: 11.5, fontWeight: '400' },
+  footNote: { fontSize: 12, fontWeight: '400', marginTop: -2 },
   balanceLabel: { color: '#CFE5D8', fontSize: 13, fontWeight: '400' },
   balanceValue: { color: '#fff', fontSize: 32, fontWeight: '400' },
   balanceHint: { color: '#CFE5D8', fontSize: 12, fontWeight: '400' },

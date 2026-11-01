@@ -296,6 +296,16 @@ const WebTimeInput = ({
 // ✅ IMAGE PLUS GRANDE
 // ============================================================
 
+// Pastilles colorées des types de massage (cycle de 6 teintes).
+const TYPE_TONES = [
+  { bg: '#F7CBBE', fg: '#C2563A' },
+  { bg: '#BFD8F4', fg: '#2F6DB5' },
+  { bg: '#FBD69A', fg: '#B7791F' },
+  { bg: '#D9D0F4', fg: '#6B52B3' },
+  { bg: '#C3E8D2', fg: '#2E8B57' },
+  { bg: '#F6C9DE', fg: '#B03A78' },
+];
+
 const TypeCardVisual = ({
   imageUrl,
   iconName,
@@ -382,6 +392,10 @@ const BookingScreen = ({
 
   const [selectedDate, setSelectedDate] =
     useState(() => getMadagascarTodayDate());
+
+  // Raccourcis de date « Aujourd'hui / Demain / Autre date ».
+  const [forceOtherDate, setForceOtherDate] =
+    useState(false);
 
   const [selectedTime, setSelectedTime] =
     useState(() => {
@@ -2479,6 +2493,8 @@ const BookingScreen = ({
               Type de massage
             </Text>
 
+            {IS_WEB ? (
+              <>
             {/* ================================================= */}
             {/* ✅ CAROUSEL WRAPPER */}
             {/* ================================================= */}
@@ -2577,7 +2593,7 @@ const BookingScreen = ({
                         key={type.id}
                         activeOpacity={0.82}
                         style={[
-                          styles.typeCard,
+                          styles.typeCardWeb,
                           {
                             backgroundColor:
                               themeColors.surface,
@@ -2606,7 +2622,7 @@ const BookingScreen = ({
 
                         <View
                           style={[
-                            styles.typeIcon,
+                            styles.typeIconWeb,
                             {
                               backgroundColor:
                                 active
@@ -2634,7 +2650,7 @@ const BookingScreen = ({
 
                         <Text
                           style={[
-                            styles.typeName,
+                            styles.typeNameWeb,
                             {
                               color:
                                 themeColors.text,
@@ -2647,7 +2663,7 @@ const BookingScreen = ({
 
                         <Text
                           style={[
-                            styles.typePrice,
+                            styles.typePriceWeb,
                             {
                               color:
                                 themeColors.textSecondary,
@@ -2700,6 +2716,102 @@ const BookingScreen = ({
                 )}
 
             </View>
+              </>
+            ) : (
+              <>
+            {/* ================================================= */}
+            {/* GRILLE DES TYPES DE MASSAGE (web + Android + iOS) */}
+            {/* ================================================= */}
+
+            {massageTypesLoading &&
+              massageTypes.length === 0 && (
+                <ActivityIndicator
+                  size="small"
+                  color={colors.primary}
+                  style={{ marginVertical: spacing.md }}
+                />
+              )}
+
+            <View style={styles.typeGrid}>
+              {massageTypes.map((type, index) => {
+                const active = selectedType === type.id;
+                const tone =
+                  TYPE_TONES[index % TYPE_TONES.length];
+
+                return (
+                  <TouchableOpacity
+                    key={type.id}
+                    activeOpacity={0.82}
+                    style={[
+                      styles.typeCard,
+                      {
+                        backgroundColor:
+                          themeColors.surface,
+                        borderColor: active
+                          ? colors.primary
+                          : 'transparent',
+                      },
+                    ]}
+                    onPress={() => {
+                      setSelectedType(type.id);
+
+                      showToast(
+                        'success',
+                        'Massage sélectionné',
+                        type.name
+                      );
+                    }}
+                  >
+                    {active ? (
+                      <View style={styles.typeCheck}>
+                        <Ionicons
+                          name="checkmark"
+                          size={12}
+                          color="#FFFFFF"
+                        />
+                      </View>
+                    ) : null}
+
+                    <View
+                      style={[
+                        styles.typeIcon,
+                        { backgroundColor: tone.bg },
+                      ]}
+                    >
+                      <TypeCardVisual
+                        iconName={type.icon}
+                        size={52}
+                        tintColor={tone.fg}
+                      />
+                    </View>
+
+                    <Text
+                      style={[
+                        styles.typeName,
+                        { color: themeColors.text },
+                      ]}
+                      numberOfLines={2}
+                    >
+                      {type.name}
+                    </Text>
+
+                    <Text
+                      style={[
+                        styles.typePrice,
+                        {
+                          color:
+                            themeColors.textSecondary,
+                        },
+                      ]}
+                    >
+                      {type.price.toLocaleString('fr-FR')} Ar
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+              </>
+            )}
           </View>
 
           {/* ================================================= */}
@@ -2794,7 +2906,7 @@ const BookingScreen = ({
                 },
               ]}
             >
-              Préférence de sexe
+              Préférence du thérapeute
             </Text>
 
             <View
@@ -2853,18 +2965,6 @@ const BookingScreen = ({
                       );
                     }}
                   >
-                    <Ionicons
-                      name={
-                        gender.icon
-                      }
-                      size={18}
-                      color={
-                        active
-                          ? colors.primary
-                          : themeColors.textSecondary
-                      }
-                    />
-
                     <Text
                       style={[
                         styles.genderText,
@@ -2898,8 +2998,75 @@ const BookingScreen = ({
                 },
               ]}
             >
-              Date & Heure
+              Date et heure
             </Text>
+
+            <View style={styles.quickRow}>
+              {[
+                { id: 'today', label: "Aujourd'hui", days: 0 },
+                { id: 'tomorrow', label: 'Demain', days: 1 },
+                { id: 'other', label: 'Autre date', days: null },
+              ].map((opt) => {
+                const todayDate = getMadagascarTodayDate();
+                const sameDay = (d1, d2) =>
+                  d1.getFullYear() === d2.getFullYear() &&
+                  d1.getMonth() === d2.getMonth() &&
+                  d1.getDate() === d2.getDate();
+                const tomorrowDate = new Date(todayDate);
+                tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+
+                const isToday = sameDay(selectedDate, todayDate);
+                const isTomorrow = sameDay(selectedDate, tomorrowDate);
+
+                const active =
+                  opt.id === 'today'
+                    ? isToday && !forceOtherDate
+                    : opt.id === 'tomorrow'
+                    ? isTomorrow && !forceOtherDate
+                    : forceOtherDate || (!isToday && !isTomorrow);
+
+                return (
+                  <TouchableOpacity
+                    key={opt.id}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: active
+                          ? colors.primary + '12'
+                          : themeColors.surface,
+                        borderColor: active
+                          ? colors.primary
+                          : 'transparent',
+                      },
+                    ]}
+                    onPress={() => {
+                      if (opt.days === null) {
+                        setForceOtherDate(true);
+                        return;
+                      }
+                      setForceOtherDate(false);
+                      const d = new Date(todayDate);
+                      d.setDate(d.getDate() + opt.days);
+                      setSelectedDate(d);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        {
+                          color: active
+                            ? colors.primary
+                            : themeColors.text,
+                        },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             <View
               style={
@@ -2932,17 +3099,14 @@ const BookingScreen = ({
               style={[
                 styles.addressContainer,
                 {
-                  backgroundColor:
-                    themeColors.surface,
-                  borderColor:
-                    themeColors.border ||
-                    '#E0E0E0',
+                  backgroundColor: themeColors.surface,
+                  borderColor: themeColors.border || '#E0E0E0',
                 },
               ]}
             >
               <Ionicons
-                name="location-outline"
-                size={21}
+                name="search-outline"
+                size={20}
                 color={colors.primary}
               />
 
@@ -2950,19 +3114,12 @@ const BookingScreen = ({
                 ref={addressInputRef}
                 style={[
                   styles.addressInput,
-                  {
-                    color:
-                      themeColors.text,
-                  },
+                  { color: themeColors.text },
                 ]}
-                placeholder="Entrez votre adresse"
-                placeholderTextColor={
-                  themeColors.textSecondary
-                }
+                placeholder="Rechercher un lot, une adresse, une ville"
+                placeholderTextColor={themeColors.textSecondary}
                 value={address}
-                onChangeText={
-                  setAddress
-                }
+                onChangeText={setAddress}
                 multiline={false}
                 numberOfLines={1}
                 returnKeyType="next"
@@ -2971,45 +3128,49 @@ const BookingScreen = ({
                 autoCapitalize="sentences"
                 textAlignVertical="center"
               />
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={handleUseCurrentLocation}
+                disabled={isSearchingLocation}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel="Utiliser ma position actuelle"
+              >
+                {isSearchingLocation ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={colors.primary}
+                  />
+                ) : (
+                  <Ionicons
+                    name="locate-outline"
+                    size={22}
+                    color={colors.primary}
+                  />
+                )}
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity
-              activeOpacity={0.8}
-              style={
-                styles.locationButton
-              }
-              onPress={
-                handleUseCurrentLocation
-              }
-              disabled={
-                isSearchingLocation
-              }
-            >
-              {isSearchingLocation ? (
-                <ActivityIndicator
-                  size="small"
-                  color={
-                    colors.primary
-                  }
-                />
-              ) : (
-                <Ionicons
-                  name="locate"
-                  size={20}
-                  color={
-                    colors.primary
-                  }
-                />
-              )}
-
-              <Text
-                style={
-                  styles.locationButtonText
+              activeOpacity={0.85}
+              style={styles.mapPickBox}
+              onPress={() => {
+                if (selectedLocation?.latitude == null) {
+                  setMapRegion(DEFAULT_REGION);
                 }
-              >
-                {isSearchingLocation
-                  ? 'Recherche de votre position...'
-                  : 'Utiliser ma position actuelle'}
+                setShowMapModal(true);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Choisir sur la carte"
+            >
+              <Ionicons
+                name="location"
+                size={28}
+                color={colors.primary}
+              />
+              <Text style={styles.mapPickText}>
+                Touchez pour choisir sur la carte
               </Text>
             </TouchableOpacity>
           </View>
@@ -3081,20 +3242,68 @@ const BookingScreen = ({
               />
             </View>
 
+            <View style={styles.quickRow}>
+              {(() => {
+                const base = getBasePrice();
+                const current =
+                  parseInt(priceProposed, 10) || base;
+                const plus10 =
+                  Math.round((current * 1.1) / 500) * 500;
+                const rounded =
+                  Math.ceil((base * 1.1) / 5000) * 5000;
+                const fmt = (n) =>
+                  Number(n).toLocaleString('fr-FR');
+
+                return [
+                  {
+                    id: 'base',
+                    label: `${fmt(base)} conseillé`,
+                    value: base,
+                  },
+                  { id: 'plus', label: '+10%', value: plus10 },
+                  {
+                    id: 'round',
+                    label: fmt(rounded === base ? base + 5000 : rounded),
+                    value: rounded === base ? base + 5000 : rounded,
+                  },
+                ].map((chip) => (
+                  <TouchableOpacity
+                    key={chip.id}
+                    activeOpacity={0.8}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: themeColors.surface,
+                        borderColor:
+                          String(chip.value) === String(priceProposed)
+                            ? colors.primary
+                            : 'transparent',
+                      },
+                    ]}
+                    onPress={() =>
+                      setPriceProposed(String(chip.value))
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: themeColors.text },
+                      ]}
+                    >
+                      {chip.label}
+                    </Text>
+                  </TouchableOpacity>
+                ));
+              })()}
+            </View>
+
             <Text
               style={[
                 styles.priceHint,
-                {
-                  color:
-                    themeColors.textSecondary,
-                },
+                { color: themeColors.textSecondary },
               ]}
             >
-              Prix minimum conseillé :{' '}
-              {getBasePrice().toLocaleString(
-                'fr-FR'
-              )}{' '}
-              Ar
+              Minimum accepté : 20 000 Ar
             </Text>
           </View>
 
@@ -3147,7 +3356,7 @@ const BookingScreen = ({
                       themeColors.text,
                   },
                 ]}
-                placeholder="Ex : allergies, étage, code du portail, animal domestique..."
+                placeholder="Allergies, étage, code du portail..."
                 placeholderTextColor={
                   themeColors.textSecondary
                 }
@@ -3377,16 +3586,155 @@ const styles = StyleSheet.create({
   // SECTION
   // ==========================================================
 
+  typeCardWeb: {
+    width: 165,
+
+    minHeight: 176,
+
+    paddingVertical: 15,
+
+    paddingHorizontal: 12,
+
+    borderRadius: 20,
+
+    marginRight: spacing.sm,
+
+    alignItems: 'center',
+
+    borderWidth: 2,
+
+    justifyContent: 'center',
+
+    overflow: 'hidden',
+
+    // ✅ Légère ombre premium (carte qui "flotte" un peu),
+    // cohérente avec les autres cartes de l'app.
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+        userSelect: 'none',
+      },
+    }),
+  },
+
+  typeIconWeb: {
+    width: 78,
+
+    height: 78,
+
+    borderRadius: 20,
+
+    alignItems: 'center',
+
+    justifyContent: 'center',
+
+    marginBottom: 10,
+
+    overflow: 'hidden',
+  },
+
+  typeNameWeb: {
+    fontSize:
+      typography.fontSize.sm,
+
+    fontFamily:
+      typography.fontFamily.medium,
+
+    textAlign: 'center',
+
+    lineHeight: 19,
+
+    minHeight: 38,
+
+    width: '100%',
+  },
+
+  typePriceWeb: {
+    fontSize:
+      typography.fontSize.xs,
+
+    fontFamily:
+      typography.fontFamily.regular,
+
+    marginTop: 6,
+  },
+
+  typeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+
+  typeCheck: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+
+  quickRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+
+  chipText: {
+    fontSize: 13,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  mapPickBox: {
+    marginTop: 8,
+    minHeight: 96,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.primary + '40',
+    backgroundColor: colors.primary + '18',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+
+  mapPickText: {
+    color: colors.primary,
+    fontSize: 12,
+    fontFamily: typography.fontFamily.medium,
+  },
+
   section: {
     paddingHorizontal: spacing.md,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
 
   sectionTitle: {
-    fontSize: typography.fontSize.md,
-    fontFamily:
-      typography.fontFamily.semiBold,
-    marginBottom: spacing.sm,
+    fontSize: 15,
+    fontWeight: '700',
+    fontFamily: typography.fontFamily.semiBold,
+    marginBottom: 8,
   },
 
   // ==========================================================
@@ -3464,40 +3812,27 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   typeCard: {
-    width: 165,
-
-    minHeight: 176,
-
-    paddingVertical: 15,
-
-    paddingHorizontal: 12,
-
-    borderRadius: 20,
-
-    marginRight: spacing.sm,
-
-    alignItems: 'center',
-
-    borderWidth: 2,
-
-    justifyContent: 'center',
-
-    overflow: 'hidden',
-
-    // ✅ Légère ombre premium (carte qui "flotte" un peu),
-    // cohérente avec les autres cartes de l'app.
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-
     ...Platform.select({
       web: {
+        flexBasis: 130,
+        flexGrow: 1,
+        maxWidth: 190,
         cursor: 'pointer',
         userSelect: 'none',
       },
+      default: { width: '23%' },
     }),
+    paddingTop: 12,
+    paddingBottom: 10,
+    paddingHorizontal: 6,
+    borderRadius: 16,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
   },
 
   // ==========================================================
@@ -3508,45 +3843,29 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   typeIcon: {
-    width: 78,
-
-    height: 78,
-
-    borderRadius: 20,
-
+    width: 56,
+    height: 56,
+    borderRadius: 14,
     alignItems: 'center',
-
     justifyContent: 'center',
-
-    marginBottom: 10,
-
+    marginBottom: 8,
     overflow: 'hidden',
   },
 
   typeName: {
-    fontSize:
-      typography.fontSize.sm,
-
-    fontFamily:
-      typography.fontFamily.medium,
-
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: typography.fontFamily.medium,
     textAlign: 'center',
-
-    lineHeight: 19,
-
-    minHeight: 38,
-
+    lineHeight: 16,
+    minHeight: 32,
     width: '100%',
   },
 
   typePrice: {
-    fontSize:
-      typography.fontSize.xs,
-
-    fontFamily:
-      typography.fontFamily.regular,
-
-    marginTop: 6,
+    fontSize: 11,
+    fontFamily: typography.fontFamily.regular,
+    marginTop: 4,
   },
 
   // ==========================================================
@@ -3556,21 +3875,19 @@ const styles = StyleSheet.create({
   durationContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: 8,
   },
 
   durationButton: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1.5,
   },
 
   durationText: {
-    fontSize:
-      typography.fontSize.sm,
-    fontFamily:
-      typography.fontFamily.medium,
+    fontSize: 13,
+    fontFamily: typography.fontFamily.medium,
   },
 
   // ==========================================================
@@ -3580,24 +3897,22 @@ const styles = StyleSheet.create({
   genderContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: 8,
   },
 
   genderButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 12,
-    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1.5,
   },
 
   genderText: {
-    fontSize:
-      typography.fontSize.sm,
-    fontFamily:
-      typography.fontFamily.medium,
+    fontSize: 13,
+    fontFamily: typography.fontFamily.medium,
   },
 
   // ==========================================================
@@ -3653,15 +3968,13 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   addressContainer: {
-    minHeight: 54,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    // ✅ Rayon aligné sur celui des boutons (16) pour une
-    // cohérence visuelle "premium" sur toute l'interface.
-    borderRadius: 16,
-    borderWidth: 1.5,
-    gap: spacing.sm,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 8,
   },
 
   addressInput: {
@@ -3715,12 +4028,12 @@ const styles = StyleSheet.create({
   // ==========================================================
 
   priceContainer: {
-    height: 58,
+    height: 50,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: 16,
-    borderWidth: 1.5,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
   },
 
   // ✅ Halo/ombre colorée affiché uniquement quand le champ est
@@ -3735,22 +4048,18 @@ const styles = StyleSheet.create({
   },
 
   priceCurrency: {
-    fontSize:
-      typography.fontSize.lg,
-    fontFamily:
-      typography.fontFamily.bold,
+    fontSize: typography.fontSize.md,
+    fontFamily: typography.fontFamily.bold,
     color: colors.primary,
-    marginRight: spacing.sm,
+    marginRight: 8,
   },
 
   priceInput: {
     flex: 1,
-    height: 52,
+    height: 46,
     minWidth: 0,
-    fontSize:
-      typography.fontSize.lg,
-    fontFamily:
-      typography.fontFamily.bold,
+    fontSize: typography.fontSize.md,
+    fontFamily: typography.fontFamily.medium,
     padding: 0,
     margin: 0,
     includeFontPadding: false,

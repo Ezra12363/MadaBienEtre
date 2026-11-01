@@ -22,6 +22,7 @@ import {
   Modal,
   Pressable,
   Image,
+  ScrollView,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -167,6 +168,45 @@ const getBookingTime = (booking) => {
   const minutes = String(date.getMinutes()).padStart(2, '0');
 
   return `${hours}:${minutes}`;
+};
+
+// ------------------------------------------------------------
+// ✅ DÉMARRAGE DU MASSAGE : QUAND LE BOUTON « COMMENCER » APPARAÎT
+//
+// Un massage CONFIRMÉ ne peut être commencé qu'à l'approche de
+// son heure : le bouton apparaît directement dans la carte
+// START_WINDOW_MINUTES minutes avant l'heure prévue (et reste
+// disponible ensuite si le rendez-vous est en retard).
+// Avant, la carte indique simplement à quelle heure il sera possible.
+// ------------------------------------------------------------
+const START_WINDOW_MINUTES = 30;
+
+const getScheduledTimestamp = (booking) => {
+  const dateKey = getBookingDate(booking);
+  const time = getBookingTime(booking);
+
+  if (!dateKey) {
+    return null;
+  }
+
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const [hours, minutes] = /^\d{1,2}:\d{2}$/.test(time)
+    ? time.split(':').map(Number)
+    : [0, 0];
+
+  const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
+
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
+};
+
+const canStartNow = (booking, now = Date.now()) => {
+  const scheduled = getScheduledTimestamp(booking);
+
+  if (scheduled === null) {
+    return true;
+  }
+
+  return now >= scheduled - START_WINDOW_MINUTES * 60 * 1000;
 };
 
 const getClientName = (booking) => {
@@ -1312,6 +1352,117 @@ const ConfirmationModal = ({ visible, type, booking, themeColors, onCancel, onCo
 // MAIN SCREEN
 // ============================================================
 
+// ============================================================
+// MODALE CALENDRIER (ouverte par le bouton calendrier + compteur)
+// ============================================================
+const CalendarModal = ({
+  visible,
+  themeColors,
+  onClose,
+  onReset,
+  resultCount,
+  hasRange,
+  children,
+}) => {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      statusBarTranslucent={Platform.OS === 'android'}
+      onRequestClose={onClose}
+    >
+      <Pressable
+        style={styles.menuModalBackdrop}
+        onPress={onClose}
+      >
+        <Pressable
+          style={[
+            styles.calendarModalSheet,
+            {
+              backgroundColor:
+                themeColors.card || themeColors.surface,
+              paddingBottom:
+                16 +
+                (Platform.OS === 'android' ? insets.bottom : 0),
+            },
+          ]}
+          onPress={() => {}}
+        >
+          <View style={styles.actionSheetHandle} />
+
+          <View style={styles.calendarModalHeader}>
+            <Text
+              style={[
+                styles.calendarModalTitle,
+                { color: themeColors.text },
+              ]}
+            >
+              Calendrier
+            </Text>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Fermer le calendrier"
+            >
+              <Ionicons
+                name="close"
+                size={24}
+                color={themeColors.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={styles.calendarModalScroll}
+            contentContainerStyle={styles.calendarModalScrollContent}
+          >
+            {children}
+          </ScrollView>
+
+          <View style={styles.calendarModalFooter}>
+            {hasRange ? (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={onReset}
+                style={[
+                  styles.calendarModalSecondary,
+                  { borderColor: themeColors.border },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.calendarModalSecondaryText,
+                    { color: themeColors.text },
+                  ]}
+                >
+                  Réinitialiser
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={onClose}
+              style={styles.calendarModalPrimary}
+            >
+              <Text style={styles.calendarModalPrimaryText}>
+                Voir les rendez-vous ({resultCount})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+};
+
 const CalendarScreen = ({ navigation }) => {
   const { colors: themeColors } = useTheme();
 
@@ -1340,6 +1491,20 @@ const CalendarScreen = ({ navigation }) => {
   });
 
   const [menuTarget, setMenuTarget] = useState(null);
+
+  // Modale calendrier + horloge (met à jour l'apparition du bouton
+  // « Commencer le massage » sans recharger l'écran).
+  const [calendarVisible, setCalendarVisible] = useState(false);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(
+      () => setNowTick(Date.now()),
+      30000,
+    );
+
+    return () => clearInterval(timer);
+  }, []);
 
   const [confirmation, setConfirmation] = useState({
     visible: false,
@@ -2120,12 +2285,101 @@ const CalendarScreen = ({ navigation }) => {
                 </View>
               </View>
             </View>
+
+            {/* ✅ ACTIONS DIRECTES : Commencer / Terminer le massage */}
+            {status === 'confirmed' &&
+              (canStartNow(booking, nowTick) ? (
+                <View style={styles.bookingActions}>
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => handleStartMassage(booking)}
+                    style={[
+                      styles.cardActionButton,
+                      { backgroundColor: '#2E7D32' },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Commencer le massage"
+                  >
+                    <Ionicons
+                      name="play-circle-outline"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.cardActionText}>
+                      Commencer le massage
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.bookingActions}>
+                  <View
+                    style={[
+                      styles.cardActionHint,
+                      { backgroundColor: `${PRIMARY_GREEN}10` },
+                    ]}
+                  >
+                    <Ionicons
+                      name="time-outline"
+                      size={16}
+                      color={PRIMARY_GREEN}
+                    />
+                    <Text
+                      style={[
+                        styles.cardActionHintText,
+                        { color: themeColors.textSecondary },
+                      ]}
+                    >
+                      {`Commencer disponible dès ${(() => {
+                        const ts = getScheduledTimestamp(booking);
+                        if (ts === null) return time;
+                        const d = new Date(
+                          ts - START_WINDOW_MINUTES * 60 * 1000,
+                        );
+                        const hh = String(d.getHours()).padStart(2, '0');
+                        const mm = String(d.getMinutes()).padStart(2, '0');
+                        const sameDay =
+                          toDateKey(d) === toDateKey(new Date(nowTick));
+                        return sameDay
+                          ? `${hh}:${mm}`
+                          : `${formatShortDate(toDateKey(d))} à ${hh}:${mm}`;
+                      })()}`}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+
+            {status === 'in_progress' && (
+              <View style={styles.bookingActions}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => handleCompleteMassage(booking)}
+                  style={[
+                    styles.cardActionButton,
+                    { backgroundColor: PRIMARY_GREEN },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Terminer le massage"
+                >
+                  <Ionicons
+                    name="checkmark-done-circle-outline"
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.cardActionText}>
+                    Terminer le massage
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </Animatable.View>
       );
     },
     [
       handleMenuPress,
+      handleStartMassage,
+      handleCompleteMassage,
+      nowTick,
       openBooking,
       themeColors,
     ],
@@ -2207,20 +2461,24 @@ const CalendarScreen = ({ navigation }) => {
           </Text>
         </View>
 
-        <View
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() => setCalendarVisible(true)}
           style={[
             styles.pageCountBadge,
             {
               backgroundColor: `${PRIMARY_GREEN}16`,
+              borderColor: `${PRIMARY_GREEN}55`,
             },
           ]}
+          accessibilityRole="button"
+          accessibilityLabel="Ouvrir le calendrier"
         >
           <Ionicons
             name="calendar-number-outline"
-            size={16}
+            size={18}
             color={PRIMARY_GREEN}
           />
-
           <Text
             style={[
               styles.pageCountText,
@@ -2231,7 +2489,7 @@ const CalendarScreen = ({ navigation }) => {
           >
             {filteredBookings.length}
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* ======================================================
@@ -2387,28 +2645,6 @@ const CalendarScreen = ({ navigation }) => {
         )}
 
         {/* ==================================================
-            CALENDRIER PERMANENT
-        ================================================== */}
-
-        <Animatable.View
-          animation="fadeInDown"
-          duration={500}
-        >
-          <CalendarPanel
-            themeColors={themeColors}
-            viewDate={viewDate}
-            onPrevMonth={handlePrevMonth}
-            onNextMonth={handleNextMonth}
-            onToday={handleGoToday}
-            range={dateRange}
-            onSelectDate={handleSelectCalendarDate}
-            onResetRange={handleResetDateRange}
-            bookingsByDate={bookingsByDate}
-            presentStatuses={presentStatuses}
-          />
-        </Animatable.View>
-
-        {/* ==================================================
             BOOKINGS LIST
         ================================================== */}
 
@@ -2556,6 +2792,27 @@ const CalendarScreen = ({ navigation }) => {
           )}
       </Animated.ScrollView>
 
+      <CalendarModal
+        visible={calendarVisible}
+        themeColors={themeColors}
+        onClose={() => setCalendarVisible(false)}
+        onReset={handleResetDateRange}
+        resultCount={filteredBookings.length}
+        hasRange={!!dateRange.start}
+      >
+        <CalendarPanel
+          themeColors={themeColors}
+          viewDate={viewDate}
+          onPrevMonth={handlePrevMonth}
+          onNextMonth={handleNextMonth}
+          onToday={handleGoToday}
+          range={dateRange}
+          onSelectDate={handleSelectCalendarDate}
+          onResetRange={handleResetDateRange}
+          bookingsByDate={bookingsByDate}
+          presentStatuses={presentStatuses}
+        />
+      </CalendarModal>
       <BookingMenuSheet
         visible={!!menuTarget}
         booking={menuTarget}
@@ -2691,8 +2948,9 @@ const styles = StyleSheet.create({
   },
 
   pageCountBadge: {
-    minWidth: 42,
+    minWidth: 52,
     height: 42,
+    borderWidth: 1,
     borderRadius: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -3434,6 +3692,115 @@ const styles = StyleSheet.create({
   // ========================================================
   // MODALS (menu 3 points + confirmation)
   // ========================================================
+
+  // ========================================================
+  // MODALE CALENDRIER + ACTIONS DIRECTES DES CARTES
+  // ========================================================
+
+  calendarModalSheet: {
+    width: '100%',
+    maxWidth: Platform.OS === 'web' ? 560 : undefined,
+    maxHeight: '90%',
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    borderBottomLeftRadius: Platform.OS === 'web' ? 25 : 0,
+    borderBottomRightRadius: Platform.OS === 'web' ? 25 : 0,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    alignSelf: 'center',
+  },
+
+  calendarModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+
+  calendarModalTitle: {
+    fontSize: 18,
+    fontFamily: typography.fontFamily.bold,
+  },
+
+  calendarModalScroll: {
+    flexGrow: 0,
+  },
+
+  calendarModalScrollContent: {
+    paddingBottom: 8,
+  },
+
+  calendarModalFooter: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+
+  calendarModalSecondary: {
+    height: 46,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  calendarModalSecondaryText: {
+    fontSize: 14,
+    fontFamily: typography.fontFamily.medium,
+  },
+
+  calendarModalPrimary: {
+    flex: 1,
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: PRIMARY_GREEN,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  calendarModalPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+
+  bookingActions: {
+    paddingHorizontal: 11,
+    paddingBottom: 11,
+  },
+
+  cardActionButton: {
+    height: 44,
+    borderRadius: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+
+  cardActionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: typography.fontFamily.semiBold,
+  },
+
+  cardActionHint: {
+    minHeight: 38,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: 12,
+  },
+
+  cardActionHintText: {
+    fontSize: 12.5,
+    fontFamily: typography.fontFamily.medium,
+  },
 
   menuModalBackdrop: {
     flex: 1,
