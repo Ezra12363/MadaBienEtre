@@ -43,6 +43,14 @@ import offerService from '../../services/offerService';
 
 import Header from '../../components/common/Header';
 import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
+import {
+  PAYMENT_FILTER_PAID,
+  PAYMENT_FILTER_PENDING,
+  isPayableStatus,
+  isPaymentFilter,
+  paymentFilterOf,
+  useBatchPayments,
+} from '../../components/payment/paymentUtils';
 
 import { useTheme } from '../../context/ThemeContext';
 import MapViewWrapper from '../../components/map/MapViewWrapper';
@@ -1446,12 +1454,40 @@ export default function OffersScreen({ navigation, route }) {
   }, []);
 
   // ==========================================================
+  // PAIEMENTS (filtres « En attente de paiement » / « Payé »)
+  // Seules les réservations confirmées / en cours / terminées ont un paiement.
+  // ==========================================================
+
+  const payableBookingIds = useMemo(
+    () =>
+      bookings
+        .filter(item => isPayableStatus(normalizeStatus(item)))
+        .map(item => item.id),
+    [bookings]
+  );
+
+  const { payments: paymentsByBooking } = useBatchPayments(
+    payableBookingIds,
+    true,
+    bookings
+  );
+
+  // ==========================================================
   // COUNTS
   // ==========================================================
 
   const counts = useMemo(() => {
+    const countPayment = filter =>
+      bookings.filter(
+        item =>
+          paymentFilterOf(normalizeStatus(item), paymentsByBooking[item.id]) ===
+          filter
+      ).length;
+
     return {
       all: bookings.length,
+      payment_pending: countPayment(PAYMENT_FILTER_PENDING),
+      payment_paid: countPayment(PAYMENT_FILTER_PAID),
       pending: bookings.filter(item => normalizeStatus(item) === 'pending')
         .length,
       negotiating: bookings.filter(
@@ -1472,7 +1508,7 @@ export default function OffersScreen({ navigation, route }) {
       expired: bookings.filter(item => normalizeStatus(item) === 'expired')
         .length,
     };
-  }, [bookings]);
+  }, [bookings, paymentsByBooking]);
 
   // ==========================================================
   // FILTER
@@ -1492,6 +1528,13 @@ export default function OffersScreen({ navigation, route }) {
       if (activeTab === 'completed' && status !== 'completed') return false;
       if (activeTab === 'cancelled' && !isCancelledStatus(status)) return false;
       if (activeTab === 'expired' && status !== 'expired') return false;
+
+      if (
+        isPaymentFilter(activeTab) &&
+        paymentFilterOf(status, paymentsByBooking[booking.id]) !== activeTab
+      ) {
+        return false;
+      }
 
       if (fromKey || toKey) {
         const bookingDateKey = getDateOnlyKey(getScheduledDate(booking));
@@ -1517,7 +1560,7 @@ export default function OffersScreen({ navigation, route }) {
 
       return true;
     });
-  }, [activeTab, bookings, dateFrom, dateTo, searchQuery]);
+  }, [activeTab, bookings, dateFrom, dateTo, searchQuery, paymentsByBooking]);
 
   // ==========================================================
   // GROUPEMENT PAR CLIENT (même nom => une seule carte)
@@ -2771,6 +2814,18 @@ export default function OffersScreen({ navigation, route }) {
           active={activeTab === 'expired'}
           onPress={() => setActiveTab('expired')}
         />
+        <TabButton
+          label="En attente de paiement"
+          count={counts.payment_pending}
+          active={activeTab === PAYMENT_FILTER_PENDING}
+          onPress={() => setActiveTab(PAYMENT_FILTER_PENDING)}
+        />
+        <TabButton
+          label="Payé"
+          count={counts.payment_paid}
+          active={activeTab === PAYMENT_FILTER_PAID}
+          onPress={() => setActiveTab(PAYMENT_FILTER_PAID)}
+        />
       </ScrollView>
     </View>
   );
@@ -3424,6 +3479,10 @@ export default function OffersScreen({ navigation, route }) {
           ? 'Aucune réservation annulée.'
           : activeTab === 'expired'
           ? 'Aucune réservation expirée.'
+          : activeTab === PAYMENT_FILTER_PENDING
+          ? 'Aucune réservation en attente de paiement.'
+          : activeTab === PAYMENT_FILTER_PAID
+          ? 'Aucune réservation payée.'
           : 'Aucune réservation disponible.'}
       </Text>
       <Pressable style={styles.emptyRefresh} onPress={handleRefresh}>

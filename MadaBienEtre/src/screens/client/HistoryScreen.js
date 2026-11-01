@@ -30,6 +30,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Header from '../../components/common/Header';
 import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
+import {
+  PAYMENT_FILTER_LABELS,
+  PAYMENT_FILTER_PAID,
+  PAYMENT_FILTER_PENDING,
+  isPayableStatus,
+  isPaymentFilter,
+  paymentFilterOf,
+  useBatchPayments,
+} from '../../components/payment/paymentUtils';
 import { useAuth } from '../../context/AuthContext';
 import useShareToChat from '../../hooks/useShareToChat';
 import { useTheme } from '../../context/ThemeContext';
@@ -1429,6 +1438,22 @@ const HistoryScreen = ({ navigation }) => {
 
   const [bookings, setBookings] = useState([]);
   const [activeFilter, setActiveFilter] = useState('all');
+
+  // ---------- PAIEMENTS (filtres « En attente de paiement » / « Payé ») ----------
+  // Seules les réservations confirmées / en cours / terminées ont un paiement.
+  const payableBookingIds = useMemo(
+    () =>
+      bookings
+        .filter((booking) => isPayableStatus(booking.status))
+        .map((booking) => booking.bookingId),
+    [bookings],
+  );
+
+  const { payments: paymentsByBooking } = useBatchPayments(
+    payableBookingIds,
+    true,
+    bookings,
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -1641,6 +1666,13 @@ const HistoryScreen = ({ navigation }) => {
 
     if (activeFilter !== 'all') {
       result = result.filter((booking) => {
+        if (isPaymentFilter(activeFilter)) {
+          return (
+            paymentFilterOf(booking.status, paymentsByBooking[booking.bookingId]) ===
+            activeFilter
+          );
+        }
+
         if (activeFilter === 'cancelled') {
           return (
             booking.status === 'cancelled' ||
@@ -1676,7 +1708,7 @@ const HistoryScreen = ({ navigation }) => {
     }
 
     return result;
-  }, [bookings, activeFilter, appliedRange]);
+  }, [bookings, activeFilter, appliedRange, paymentsByBooking]);
 
   // ---------- CALENDAR HANDLERS ----------
 
@@ -1889,6 +1921,8 @@ const HistoryScreen = ({ navigation }) => {
     { label: 'En cours', value: 'in_progress' },
     { label: 'Terminées', value: 'completed' },
     { label: 'Annulées', value: 'cancelled' },
+    { label: PAYMENT_FILTER_LABELS[PAYMENT_FILTER_PENDING], value: PAYMENT_FILTER_PENDING },
+    { label: PAYMENT_FILTER_LABELS[PAYMENT_FILTER_PAID], value: PAYMENT_FILTER_PAID },
   ];
 
   return (

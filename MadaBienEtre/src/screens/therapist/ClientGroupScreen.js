@@ -35,6 +35,15 @@ import { Ionicons } from '@expo/vector-icons';
 import offerService from '../../services/offerService';
 import Header from '../../components/common/Header';
 import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
+import {
+  PAYMENT_FILTER_LABELS,
+  PAYMENT_FILTER_PAID,
+  PAYMENT_FILTER_PENDING,
+  isPayableStatus,
+  isPaymentFilter,
+  paymentFilterOf,
+  useBatchPayments,
+} from '../../components/payment/paymentUtils';
 import { useTheme } from '../../context/ThemeContext';
 
 import {
@@ -92,6 +101,11 @@ const STATUS_FILTER_LABELS = {
   completed: 'Terminée',
   cancelled: 'Annulée',
   rejected: 'Refusée',
+  in_progress: 'En cours',
+  expired: 'Expirée',
+  cancelled_by_client: 'Annulée (client)',
+  cancelled_by_therapist: 'Annulée (moi)',
+  ...PAYMENT_FILTER_LABELS,
 };
 
 const getStatusFilterLabel = status => {
@@ -1297,8 +1311,37 @@ export default function ClientGroupScreen({
       set.add(normalizeStatus(booking));
     });
 
-    return ['all', ...Array.from(set)];
+    // Filtres de paiement : proposés dès qu'au moins une réservation
+    // peut être payée (confirmée / en cours / terminée).
+    const hasPayable = Array.from(set).some(isPayableStatus);
+
+    // Placés juste après « Tous » pour rester visibles sans défilement.
+    return [
+      'all',
+      ...(hasPayable
+        ? [PAYMENT_FILTER_PENDING, PAYMENT_FILTER_PAID]
+        : []),
+      ...Array.from(set),
+    ];
   }, [bookings]);
+
+  // ==========================================================
+  // PAIEMENTS (pour les filtres « En attente de paiement » / « Payé »)
+  // ==========================================================
+
+  const payableBookingIds = useMemo(
+    () =>
+      bookings
+        .filter(booking => isPayableStatus(normalizeStatus(booking)))
+        .map(booking => booking.id),
+    [bookings]
+  );
+
+  const { payments: paymentsByBooking } = useBatchPayments(
+    payableBookingIds,
+    true,
+    bookings
+  );
 
   // ==========================================================
   // FILTRES : DATES AYANT DES RÉSERVATIONS (pour points calendrier)
@@ -1332,7 +1375,16 @@ export default function ClientGroupScreen({
 
   const filteredBookings = useMemo(() => {
     return bookings.filter(booking => {
-      if (
+      if (isPaymentFilter(statusFilter)) {
+        if (
+          paymentFilterOf(
+            normalizeStatus(booking),
+            paymentsByBooking[booking.id]
+          ) !== statusFilter
+        ) {
+          return false;
+        }
+      } else if (
         statusFilter !== 'all' &&
         normalizeStatus(booking) !== statusFilter
       ) {
@@ -1357,7 +1409,7 @@ export default function ClientGroupScreen({
 
       return true;
     });
-  }, [bookings, statusFilter, selectedDate]);
+  }, [bookings, statusFilter, selectedDate, paymentsByBooking]);
 
   const hasActiveFilters =
     statusFilter !== 'all' || !!selectedDate;
