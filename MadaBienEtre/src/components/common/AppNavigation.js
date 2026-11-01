@@ -78,6 +78,7 @@ import useChatUnread from '../../hooks/useChatUnread';
 import { colors, typography, spacing } from '../../theme';
 
 import BottomTabBar from './BottomTabBar';
+import LiveShareChip from './LiveShareChip';
 
 // ============================================================
 // SEUIL RESPONSIVE
@@ -493,6 +494,13 @@ export const TopNavBar = ({
         {/* ================================================== */}
         <View style={styles.rightNav}>
           <View style={styles.headerActions}>
+            {/* ✅ Signal « partage de position en direct » (client + thérapeute) */}
+            <LiveShareChip
+              navigation={navigation}
+              variant="onDark"
+              style={styles.liveChipTopNav}
+            />
+
             {aiTarget && (
               <Pressable
                 onPress={openAI}
@@ -959,6 +967,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
     flexShrink: 0,
+  },
+
+  liveChipTopNav: {
+    marginRight: 8,
   },
 
   headerActionButton: {

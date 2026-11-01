@@ -16,6 +16,8 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { colors, typography } from '../../theme';
 import { useTheme } from '../../context/ThemeContext';
 import { useNavBridge, useTopNavLayout } from './AppNavigation';
+import LiveShareChip from './LiveShareChip';
+import { useLiveSharing } from '../../context/LiveSharingContext';
 
 /* =========================================================
    COLORS — thème RESPONSIVE du header
@@ -164,6 +166,11 @@ const Header = ({
 
   const HEADER_COLORS = getHeaderColors(isLargeWebScreen, isDark);
 
+  // ✅ Signal « partage de position en direct » (client + thérapeute)
+  const liveSharing = useLiveSharing();
+  const showLiveChip = !!liveSharing?.active;
+  const liveChipOnLight = isLargeWebScreen && !isDark;
+
   // Web large : la TopNavBar affiche déjà titre + retour.
   if (isMergedHeader) {
     return null;
@@ -270,7 +277,13 @@ const Header = ({
           </View>
         </View>
 
-        <View style={styles.sideSlot}>
+        <View style={[styles.sideSlot, showLiveChip && styles.sideSlotLive]}>
+          {showLiveChip ? (
+            <LiveShareChip
+              variant={liveChipOnLight ? 'onLight' : 'onDark'}
+              compact={!isLargeWebScreen}
+            />
+          ) : null}
           {rightComponent || null}
         </View>
       </View>
@@ -324,9 +337,22 @@ const styles = StyleSheet.create({
   sideSlot: {
     width: 44,
     height: 42,
+    flexShrink: 0,
 
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  // Quand le signal « en direct » est affiché, la zone de droite s'élargit.
+  // ⚠️ `width: 'auto'` (et NON `undefined`) : sur le web, `undefined` ne
+  // remplace pas le `width: 44` du style de base => le signal était coupé.
+  sideSlotLive: {
+    width: 'auto',
+    minWidth: 44,
+    flexDirection: 'row',
+    flexShrink: 0,
+    overflow: 'visible',
+    gap: 6,
   },
 
   backButton: {

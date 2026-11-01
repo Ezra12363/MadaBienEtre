@@ -75,7 +75,7 @@ import ChatActionSheet from '../../components/chat/ChatActionSheet';
 import { getChatPalette } from '../../components/chat/chatTheme';
 import useShareToChat from '../../hooks/useShareToChat';
 import useLocationTracking from '../../hooks/useLocationTracking';
-import { createTrackingSocket } from '../../services/trackingSocket';
+import { useLiveSharing } from '../../context/LiveSharingContext';
 import { API_URL } from '../../config/env';
 
 import { useTheme } from '../../context/ThemeContext';
@@ -109,7 +109,6 @@ const END_COLOR = '#D32F2F';
 const ROUTE_COLOR = '#E53935';
 const DEST_COLOR = '#2E7D32';
 
-const SHARE_MIN_INTERVAL_MS = 900; // 1 envoi par seconde
 const REROUTE_DISTANCE_KM = 0.2; // recalcul itinéraire après 200 m
 
 // ============================================================
@@ -340,17 +339,18 @@ export default function NavigationScreen({ route: navRoute }) {
   const [routeLoading, setRouteLoading] = useState(false);
   const gpsError = gpsErrorMsg || '';
 
-  // ✅ Partage de la position au client (WebSocket)
-  const [isSharing, setIsSharing] = useState(false);
-  const [socketStatus, setSocketStatus] = useState('idle');
-  const [lastSentAt, setLastSentAt] = useState(null);
-  const [shareError, setShareError] = useState('');
+  // ✅ Partage de la position au client : géré par LiveSharingContext (global).
+  // Le WebSocket + le GPS vivent à la RACINE de l'app : le partage continue
+  // quand on quitte cette page et ne s'arrête que sur « Arrêter ».
+  const live = useLiveSharing();
+  const isSharing = live.isSharingBooking(bookingId);
+  const socketStatus = isSharing ? live.status : 'idle';
+  const lastSentAt = isSharing ? live.lastSentAt : null;
+  const shareError = live.error;
   const [followMe, setFollowMe] = useState(true);
   const navWasOnRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
 
-  const socketRef = useRef(null);
-  const lastSendRef = useRef(0);
   const gpsLocationRef = useRef(null);
   const lastRouteOriginRef = useRef(null);
   const routeLoadingRef = useRef(false);
@@ -642,123 +642,42 @@ export default function NavigationScreen({ route: navRoute }) {
   // PARTAGE DE LA POSITION AU CLIENT (WebSocket)
   // ==========================================================
 
-  // Envoie la position ACTIVE au client. Ne renvoie JAMAIS une position en
-  // cache (ancienne) : le client verrait le thérapeute au mauvais endroit.
-  const sendCurrentLocation = useCallback(() => {
-    const loc = gpsLocationRef.current;
-    if (!loc || loc.cached) return false;
-
-    const sent = socketRef.current?.send({
-      type: 'location_update',
-      latitude: loc.latitude,
-      longitude: loc.longitude,
-      heading: loc.heading,
-      speed: loc.speed,
-      accuracy: loc.accuracy,
-    });
-
-    if (sent) {
-      lastSendRef.current = Date.now();
-      setLastSentAt(Date.now());
-    }
-    return !!sent;
-  }, []);
-
   const startSharing = useCallback(() => {
     if (!bookingId) {
       Alert.alert('Erreur', 'Réservation introuvable.');
       return;
     }
-    // (le token manquant est géré par trackingSocket : relecture AsyncStorage)
-    socketRef.current?.close();
-    setShareError('');
-    lastSendRef.current = 0;
-
-    socketRef.current = createTrackingSocket({
+    live.clearError();
+    live.startSharing({
       bookingId,
-      token,
-      onStatusChange: (status) => {
-        setSocketStatus(status);
-        // (Re)connecté : annonce le début du partage + position immédiate
-        if (status === 'connected') {
-          // ETA + distance : insérés dans la notification du client
-          socketRef.current?.send({
-            type: 'tracking_started',
-            eta: routeInfoRef.current?.drivingDurationText || null,
-            distance: routeInfoRef.current?.distanceText || null,
-          });
-          // Position réelle immédiate (si on a déjà un vrai relevé)
-          sendCurrentLocation();
-        }
-      },
-      onMessage: (msg) => {
-        if (!msg?.error) return;
-
-        const reasons = {
-          missing_token: 'token manquant',
-          invalid_token: 'token invalide ou expiré',
-        };
-        const text = reasons[msg.reason]
-          ? `${msg.error} (${reasons[msg.reason]})`
-          : msg.error;
-        setShareError(text);
-
-        // ✅ Erreur FATALE (auth / droits / réservation) : on ne laisse pas
-        // le bouton rouge "en cours" alors que rien n'est envoyé.
-        if (
-          ['Authentication failed', 'Not authorized', 'Booking not found'].includes(
-            msg.error
-          )
-        ) {
-          socketRef.current?.close();
-          socketRef.current = null;
-          setIsSharing(false);
-          setSocketStatus('idle');
-          Alert.alert(
-            'Partage impossible',
-            `${text}\n\nReconnectez-vous puis réessayez.`
-          );
-        }
-      },
+      clientName: params.clientName,
+      clientId: params.clientId,
+      clientAddress: params.clientAddress || params.address,
+      clientLatitude: clientLatitude,
+      clientLongitude: clientLongitude,
+      // ETA + distance : insérés dans la notification du client
+      eta: routeInfoRef.current?.drivingDurationText || null,
+      distance: routeInfoRef.current?.distanceText || null,
     });
-
-    setIsSharing(true);
-  }, [bookingId, token, sendCurrentLocation]);
+  }, [bookingId, live, params, clientLatitude, clientLongitude]);
 
   const stopSharing = useCallback(() => {
-    socketRef.current?.send({ type: 'tracking_stopped' });
-    socketRef.current?.close();
-    socketRef.current = null;
-    setIsSharing(false);
-    setSocketStatus('idle');
-  }, []);
+    live.stopSharing();
+  }, [live]);
 
-  // Envoi à CHAQUE nouvelle position (limité à 1 par seconde)
+  // Tant que cette page est ouverte, elle transmet sa position (GPS / GPS du
+  // téléphone / position manuelle) au moteur global de partage. En quittant la
+  // page, le moteur reprend avec sa propre position GPS : rien ne s'interrompt.
+  const reportLocation = live.reportLocation;
   useEffect(() => {
-    if (!isSharing || !activeLocation || activeLocation.cached) return;
-    if (Date.now() - lastSendRef.current < SHARE_MIN_INTERVAL_MS) return;
-    sendCurrentLocation();
-  }, [activeLocation, isSharing, sendCurrentLocation]);
+    if (!isSharing) {
+      reportLocation(null);
+      return;
+    }
+    reportLocation(activeLocation && !activeLocation.cached ? activeLocation : null);
+  }, [isSharing, activeLocation, reportLocation]);
 
-  // Battement de cœur : si la position ne change pas (arrêt, position
-  // manuelle), on renvoie quand même toutes les ~4 s pour que le client voie
-  // que le partage est toujours actif.
-  useEffect(() => {
-    if (!isSharing) return undefined;
-    const timer = setInterval(() => {
-      if (Date.now() - lastSendRef.current >= 3500) sendCurrentLocation();
-    }, 2000);
-    return () => clearInterval(timer);
-  }, [isSharing, sendCurrentLocation]);
-
-  // Ferme la socket en quittant l'écran
-  useEffect(
-    () => () => {
-      socketRef.current?.close();
-      socketRef.current = null;
-    },
-    []
-  );
+  useEffect(() => () => reportLocation(null), [reportLocation]);
 
   const shareStatusText = (() => {
     if (shareError) return `⚠️ ${shareError}`;
@@ -768,7 +687,7 @@ export default function NavigationScreen({ route: navRoute }) {
       const time = lastSentAt
         ? new Date(lastSentAt).toLocaleTimeString('fr-FR')
         : '…';
-      return `🔴 En direct · dernier envoi ${time} · gardez l'application ouverte`;
+      return `🔴 En direct · dernier envoi ${time} · actif sur toutes les pages jusqu'à l'arrêt`;
     }
     return '';
   })();

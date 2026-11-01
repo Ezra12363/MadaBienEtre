@@ -9,7 +9,7 @@
 //                   blancs (bien lisibles sur fond foncé).
 // ============================================================
 
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import {
   View,
@@ -26,6 +26,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useNavBridge, useTopNavLayout } from './AppNavigation';
+import LiveShareChip from './LiveShareChip';
+import { useLiveSharing } from '../../context/LiveSharingContext';
 
 /* =========================================================
    COLORS — un jeu de couleurs par plateforme
@@ -87,12 +89,41 @@ export default function AppHeader({
 }) {
   const { width } = useWindowDimensions();
 
+  // ✅ Signal « partage de position en direct » (client + thérapeute)
+  const liveSharing = useLiveSharing();
+  const showLiveChip = !!liveSharing?.active;
+
   /* ---------------------------------------------------------
      RESPONSIVE
   --------------------------------------------------------- */
 
   const isMobile = width < 850;
   const isTablet = width >= 850 && width < 1100;
+
+  /* ---------------------------------------------------------
+     LARGEUR RÉELLE DE LA ZONE DROITE (signal « en direct » +
+     actions). Le bloc logo/titre est centré en position absolue ;
+     son padding latéral est donc calculé d'après cette largeur,
+     pour que le titre ne passe jamais sous le signal (symétrique
+     => le logo reste bien centré).
+  --------------------------------------------------------- */
+
+  const [rightWidth, setRightWidth] = useState(0);
+
+  const onRightLayout = useCallback((e) => {
+    const w = Math.ceil(e?.nativeEvent?.layout?.width || 0);
+    setRightWidth((prev) => (Math.abs(prev - w) > 1 ? w : prev));
+  }, []);
+
+  const sidePad = isMobile ? 14 : 20;
+  const leftWidth = isMobile ? 40 : 44;
+  const reservedSide = Math.max(leftWidth, rightWidth) + sidePad + 8;
+  const centerPadding = Math.max(isMobile ? 55 : 70, reservedSide);
+
+  // Très petit écran + signal affiché : on masque le logo pour
+  // laisser la place au titre.
+  const hideLogoForLive =
+    showLiveChip && width - 2 * centerPadding < 150;
 
   /* ---------------------------------------------------------
      BARRE FUSIONNÉE (web large) — voir AppNavigation.js
@@ -207,9 +238,10 @@ export default function AppHeader({
           styles.centerLogoContainer,
 
           isMobile && styles.centerLogoContainerMobile,
+          { paddingHorizontal: centerPadding },
         ]}
       >
-        {showLogo ? (
+        {showLogo && !hideLogoForLive ? (
           <View
             style={[
               styles.logoBox,
@@ -266,14 +298,23 @@ export default function AppHeader({
           RIGHT — ACTIONS
       ===================================================== */}
 
-      {rightContent ? (
+      {rightContent || showLiveChip ? (
         <View
+          onLayout={onRightLayout}
           style={[
             styles.rightContent,
 
             isMobile && styles.rightContentMobile,
           ]}
         >
+          {showLiveChip ? (
+            <LiveShareChip
+              navigation={navigation}
+              variant={IS_WEB ? 'onLight' : 'onDark'}
+              compact={isMobile}
+            />
+          ) : null}
+
           {rightContent}
         </View>
       ) : (
@@ -657,6 +698,8 @@ const styles = StyleSheet.create({
 
     height: 44,
 
+    flexShrink: 0,
+
     zIndex: 1,
   },
 
@@ -674,6 +717,8 @@ const styles = StyleSheet.create({
     minWidth: 44,
 
     minHeight: 44,
+
+    flexShrink: 0,
 
     alignItems: 'center',
 

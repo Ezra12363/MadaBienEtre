@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { ActivityIndicator, View, Text, StyleSheet, Platform } from 'react-native';
 import { colors, typography } from '../theme';
 import { saveNavState, loadNavState } from '../utils/lastTab';
+import { LiveSharingProvider } from '../context/LiveSharingContext';
 
 import AuthNavigator from './AuthNavigator';
 import ClientNavigator from './ClientNavigator';
@@ -138,7 +139,11 @@ const RootNavigator = () => {
     return <LoadingScreen />;
   }
 
+  // ✅ LiveSharingProvider est monté ICI (racine de la navigation) : le partage de
+  // position du thérapeute continue sur toutes les pages, et les en-têtes
+  // client / thérapeute affichent le signal « en direct ».
   return (
+    <LiveSharingProvider>
     <View style={styles.root}>
       <Stack.Navigator
         screenOptions={{
@@ -171,6 +176,7 @@ const RootNavigator = () => {
         </View>
       )}
     </View>
+    </LiveSharingProvider>
   );
 };
 

@@ -14,7 +14,7 @@ from datetime import datetime
 from sqlalchemy import Enum as SAEnum, JSON as SAJSON
 
 from ..core.database import get_db
-from ..core.dependencies import get_current_user_ws, get_user_from_websocket
+from ..core.dependencies import get_current_user, get_current_user_ws, get_user_from_websocket
 from ..models.booking import Booking
 from ..models.user import User
 from ..models.notification import Notification
@@ -49,8 +49,36 @@ tracking_state: dict[int, dict] = {}
 
 def _get_state(booking_id: int) -> dict:
     return tracking_state.setdefault(
-        booking_id, {"active": False, "last": None, "notified": False}
+        booking_id,
+        {
+            "active": False,
+            "last": None,
+            "notified": False,
+            # horodatage (time.time()) du dernier signe de vie du thérapeute
+            "last_ts": 0.0,
+            # "stopped" (arrêt volontaire) | "disconnected" (réseau coupé) | None
+            "stopped_reason": None,
+            "stopped_at": 0.0,
+        },
     )
+
+
+# Un partage est considéré « en direct » tant que le thérapeute a donné signe de
+# vie il y a moins de LIVE_STALE_S secondes (le mobile renvoie sa position toutes
+# les ~4 s au pire), et on garde le signal DISCONNECT_GRACE_S secondes après une
+# coupure réseau pour éviter qu'il clignote pendant la reconnexion automatique.
+LIVE_STALE_S = 90
+DISCONNECT_GRACE_S = 40
+_TERMINAL_STATUSES = {"completed", "cancelled", "cancelled_by_client", "cancelled_by_therapist", "expired"}
+
+
+def _is_live(state: dict) -> bool:
+    now = time.time()
+    if state.get("active"):
+        return now - float(state.get("last_ts") or 0) < LIVE_STALE_S
+    if state.get("stopped_reason") == "disconnected":
+        return now - float(state.get("stopped_at") or 0) < DISCONNECT_GRACE_S
+    return False
 
 # On n'écrit en base qu'au plus toutes les N secondes par réservation
 # (le WebSocket, lui, diffuse chaque position immédiatement).
@@ -243,6 +271,48 @@ def _notify_once(db: Session, booking, user, state: dict, eta=None, distance=Non
     _notify_client_en_route(db, booking, getattr(user, "fullname", None), eta, distance)
 
 
+@router.get("/tracking/active")
+async def tracking_active(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Partages de position EN DIRECT concernant l'utilisateur connecté.
+
+    Le client l'interroge depuis n'importe quelle page de l'app pour afficher le
+    signal « Thérapeute en direct » dans l'en-tête ; le thérapeute peut s'en
+    servir pour retrouver ses partages en cours. Le signal disparaît quand le
+    thérapeute arrête le partage (ou quand la réservation est terminée/annulée).
+    """
+    live_ids = [bid for bid, st in tracking_state.items() if _is_live(st)]
+    if not live_ids:
+        return []
+
+    bookings = db.query(Booking).filter(Booking.id.in_(live_ids)).all()
+    out = []
+    for b in bookings:
+        if current_user.id not in (b.client_id, b.therapist_id):
+            continue
+        status = str(getattr(b.status, "value", b.status) or "").lower()
+        if status in _TERMINAL_STATUSES:
+            continue
+        st = tracking_state.get(b.id) or {}
+        therapist = db.query(User).filter(User.id == b.therapist_id).first()
+        client = db.query(User).filter(User.id == b.client_id).first()
+        last = st.get("last") or {}
+        out.append({
+            "booking_id": b.id,
+            "therapist_id": b.therapist_id,
+            "client_id": b.client_id,
+            "therapist_name": getattr(therapist, "fullname", None),
+            "client_name": getattr(client, "fullname", None),
+            "reconnecting": not st.get("active", False),
+            "latitude": last.get("latitude"),
+            "longitude": last.get("longitude"),
+            "last_update": last.get("timestamp"),
+        })
+    return out
+
+
 @router.websocket("/ws/tracking/{booking_id}")
 async def websocket_tracking(
     websocket: WebSocket,
@@ -313,6 +383,8 @@ async def websocket_tracking(
             elif msg_type == "tracking_started" and is_therapist:
                 state = _get_state(booking_id)
                 state["active"] = True
+                state["stopped_reason"] = None
+                state["last_ts"] = time.time()
                 eta, distance = data.get("eta"), data.get("distance")
 
                 # ✅ Notifie le client (une seule fois par réservation)
@@ -329,6 +401,8 @@ async def websocket_tracking(
             elif msg_type == "tracking_stopped" and is_therapist:
                 state = _get_state(booking_id)
                 state["active"] = False
+                state["stopped_reason"] = "stopped"
+                state["stopped_at"] = time.time()
                 await manager.broadcast_to_room(
                     room_id,
                     {"type": "tracking_stopped", "reason": "stopped",
@@ -355,6 +429,8 @@ async def websocket_tracking(
                 }
                 state = _get_state(booking_id)
                 state["active"] = True
+                state["stopped_reason"] = None
+                state["last_ts"] = time.time()
                 state["last"] = payload
                 # Au cas où "tracking_started" aurait été manqué
                 _notify_once(db, booking, user, state)
@@ -390,6 +466,8 @@ async def websocket_tracking(
             state = tracking_state.get(booking_id)
             if state and state["active"]:
                 state["active"] = False
+                state["stopped_reason"] = "disconnected"
+                state["stopped_at"] = time.time()
                 try:
                     await manager.broadcast_to_room(
                         room_id,
