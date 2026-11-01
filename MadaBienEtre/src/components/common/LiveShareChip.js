@@ -9,7 +9,7 @@
 //   - Point rouge qui pulse ; orange « Reconnexion… » si la liaison saute.
 // ============================================================
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 
 import { useLiveSharing } from '../../context/LiveSharingContext';
@@ -70,11 +70,6 @@ function PulseDot({ color }) {
 export default function LiveShareChip({ variant = 'onDark', compact = false, navigation: navProp, style }) {
   const live = useLiveSharing();
 
-  // Très petit écran (< 360 px) : on garde seulement le point qui pulse
-  // + « Direct » ; le libellé complet ne tient plus à côté du titre.
-  const { width: winWidth } = useWindowDimensions();
-  const tiny = winWidth < 360;
-
   let hookNav = null;
   try {
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -93,10 +88,10 @@ export default function LiveShareChip({ variant = 'onDark', compact = false, nav
   const label = reconnecting
     ? 'Reconnexion…'
     : live.isTherapist
-      ? compact || tiny
+      ? compact
         ? 'Direct'
         : 'Partage en direct'
-      : compact || tiny
+      : compact
         ? 'Direct'
         : 'Thérapeute en direct';
 
@@ -140,11 +135,7 @@ export default function LiveShareChip({ variant = 'onDark', compact = false, nav
       style={[styles.chip, { backgroundColor: theme.bg, borderColor: theme.border }, style]}
     >
       <PulseDot color={dotColor} />
-      <Text
-        numberOfLines={1}
-        ellipsizeMode="clip"
-        style={[styles.label, tiny && styles.labelTiny, { color: theme.text }]}
-      >
+      <Text numberOfLines={1} ellipsizeMode="clip" style={[styles.label, { color: theme.text }]}>
         {label}
       </Text>
     </Pressable>
@@ -156,14 +147,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'center',
-    // Ne JAMAIS se laisser comprimer / couper par le parent
-    flexShrink: 0,
+    flexShrink: 0, // ne jamais être écrasé par le titre / les autres boutons
     gap: 7,
     paddingHorizontal: 10,
     height: 28,
     borderRadius: 14,
     borderWidth: 1,
-    overflow: 'visible',
   },
   dotWrap: {
     width: 10,
@@ -185,14 +174,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     fontWeight: '700',
-    // Pas de maxWidth : le texte prend sa largeur réelle (sinon « Thérapeute en… »)
     flexShrink: 0,
-    ...Platform.select({
-      web: { whiteSpace: 'nowrap' },
-      default: { includeFontPadding: false },
-    }),
-  },
-  labelTiny: {
-    fontSize: 11,
   },
 });

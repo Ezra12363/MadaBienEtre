@@ -50,7 +50,7 @@ const NEAR_BOTTOM_PX = 140;
 const ChatRoomView = ({
   navigation,
   route,
-  compactHeader = false, // web large : la barre du haut gère déjà retour + titre
+  compactHeader = false, // true = masque le Header (non utilisé par défaut)
   onMeta, // ({ title, subtitle }) => void  (pour la TopNavBar du thérapeute)
 }) => {
   const params = route?.params || {};
@@ -371,7 +371,8 @@ const ChatRoomView = ({
   return (
     <ChatTrackingProvider value={trackingValue}>
     <View style={[styles.root, { backgroundColor: palette.screenBg }]}>
-            {!compactHeader && (
+      {/* Header partagé (identique aux autres pages, client ET thérapeute) */}
+      {!compactHeader && (
         <View onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
           <Header title="Conversation" showBack onBackPress={handleBack} />
         </View>

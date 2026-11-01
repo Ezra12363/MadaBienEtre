@@ -2732,7 +2732,14 @@ const BookingScreen = ({
                 />
               )}
 
-            <View style={styles.typeGrid}>
+            {/* ✅ Android / iOS : UNE seule ligne, défilement horizontal */}
+            <ScrollView
+              horizontal
+              nestedScrollEnabled
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="always"
+              contentContainerStyle={styles.typeRow}
+            >
               {massageTypes.map((type, index) => {
                 const active = selectedType === type.id;
                 const tone =
@@ -2809,7 +2816,7 @@ const BookingScreen = ({
                   </TouchableOpacity>
                 );
               })}
-            </View>
+            </ScrollView>
               </>
             )}
           </View>
@@ -3671,6 +3678,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
+  // Android / iOS : une seule ligne défilante (marge haute pour la pastille ✓)
+  typeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingTop: 8,
+    paddingBottom: 6,
+    paddingRight: spacing.md,
+  },
+
   typeCheck: {
     position: 'absolute',
     top: -6,
@@ -3820,7 +3837,7 @@ const styles = StyleSheet.create({
         cursor: 'pointer',
         userSelect: 'none',
       },
-      default: { width: '23%' },
+      default: { width: 96 },
     }),
     paddingTop: 12,
     paddingBottom: 10,

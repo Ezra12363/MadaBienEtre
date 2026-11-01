@@ -22,9 +22,18 @@ const PERIODS = [
 
 const fmtAr = (v) => `${Math.round(Number(v) || 0).toLocaleString('fr-FR')} Ar`;
 
+// Source par défaut : séances terminées du thérapeute connecté.
+// Pour un autre rôle, passer `fetcher(period) -> [{ massage_type_id, name,
+// min_price, category, count }]` (doit être une fonction STABLE : définie
+// hors du composant parent).
+const defaultFetcher = (period) => statsService.therapistServices(period);
+
 const PopularServicesCard = ({
   title = 'Services les plus demandés',
   subtitle = 'Massages les plus réservés (réservations terminées)',
+  countLabel = 'réalisé(s)',
+  emptyText = 'Aucune séance terminée sur cette période.',
+  fetcher = defaultFetcher,
   defaultPeriod = 'month',
   refreshKey = 0,
   style,
@@ -44,7 +53,7 @@ const PopularServicesCard = ({
     async (silent = false) => {
       if (!silent) setLoading(true);
       try {
-        const rows = await statsService.therapistServices(period);
+        const rows = await fetcher(period);
         setItems(rows);
         setError(null);
       } catch (e) {
@@ -53,7 +62,7 @@ const PopularServicesCard = ({
         if (!silent) setLoading(false);
       }
     },
-    [period],
+    [period, fetcher],
   );
 
   // changement de période -> chargement avec spinner ; refreshKey -> rechargement silencieux
@@ -111,7 +120,7 @@ const PopularServicesCard = ({
       ) : items.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="leaf-outline" size={26} color={muted} />
-          <Text style={[styles.empty, { color: muted }]}>Aucune séance terminée sur cette période.</Text>
+          <Text style={[styles.empty, { color: muted }]}>{emptyText}</Text>
         </View>
       ) : (
         items.map((item) => {
@@ -126,7 +135,7 @@ const PopularServicesCard = ({
                   <Text style={[styles.name, { color: text }]} numberOfLines={1}>
                     {item.name}
                   </Text>
-                  <Text style={styles.count}>{count} réalisé(s)</Text>
+                  <Text style={styles.count}>{count} {countLabel}</Text>
                 </View>
                 {item.min_price ? (
                   <Text style={[styles.price, { color: muted }]}>à partir de {fmtAr(item.min_price)}</Text>

@@ -54,12 +54,42 @@ import {
 import { getMassageTypeIconMCI } from '../../constants/massageTypeIcons';
 import AIClientHomeBlock from '../../components/ai/AIClientHomeBlock';
 import ClientStatsSection from '../../components/client/ClientStatsSection';
+import AIBestTherapists from '../../components/ai/AIBestTherapists';
+import PopularServicesCard from '../../components/therapist/PopularServicesCard';
+import useClientStats from '../../hooks/useClientStats';
+import aiService from '../../services/aiService';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const IS_WEB = Platform.OS === 'web';
 const USE_NATIVE_DRIVER = Platform.OS !== 'web';
 const TABLET_BREAKPOINT = 768;
+// Disposition "bureau" (colonnes côte à côte) : identique au tableau de bord thérapeute
+const DESKTOP_BREAKPOINT = 1024;
+
+// "Services populaires" (toute la plateforme) pour la carte commune
+// PopularServicesCard. Fonction STABLE (définie hors du composant).
+const fetchPopularServices = async (period) => {
+  const result = await aiService.getPopularServicesNamed(period);
+  if (!result.success) {
+    throw new Error(result.error || 'Impossible de charger les services.');
+  }
+  return (Array.isArray(result.data) ? result.data : []).map((i) => ({
+    massage_type_id: i.massage_type_id,
+    name: i.name,
+    min_price: i.min_price,
+    category: i.category,
+    count: Number(i.bookings_count) || 0,
+  }));
+};
+
+// Montant court pour le hero : 641 458 -> "641 k"
+const shortAr = (v) => {
+  const n = Math.abs(Number(v) || 0);
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1).replace('.0', '').replace('.', ',')} M`;
+  if (n >= 1e3) return `${Math.round(n / 1e3)} k`;
+  return `${Math.round(n)}`;
+};
 
 // Espace latéral des publications thérapeutes ≈ 2 mm
 // (8 px sur le web, 12 dp sur mobile). Les sections ont 16 px de
@@ -105,6 +135,7 @@ function useHeaderTheme(isLargeWebScreen) {
 
 const PRIMARY = colors.primary || '#168A55';
 const PRIMARY_DARK = '#0B633C';
+const PRIMARY_BRAND = '#1F6B45';
 const _PRIMARY_LIGHT = '#E9F8EF';
 
 const SECONDARY = colors.secondary || '#2EAD72';
@@ -546,6 +577,15 @@ const HomeScreen = ({ navigation }) => {
   const [postsLoading, setPostsLoading] = useState(true);
 
   const isTabletWidth = screenWidth >= TABLET_BREAKPOINT;
+  const isWide = screenWidth >= DESKTOP_BREAKPOINT;
+
+  // Statistiques réelles (hero + section "Mes statistiques")
+  const {
+    data: clientStats,
+    loading: clientStatsLoading,
+    error: clientStatsError,
+    reload: reloadClientStats,
+  } = useClientStats(statsRefreshKey);
 
   // Même grille que l'écran plein (1 / 2 / 3 colonnes)
   const homePostColumns = getPostColumns(screenWidth);
@@ -809,10 +849,6 @@ const HomeScreen = ({ navigation }) => {
     user?.first_name ||
     'Utilisateur';
 
-  const avatarLetter = displayName
-    .charAt(0)
-    .toUpperCase();
-
   /* ==========================================================
      NAVIGATION
   ========================================================== */
@@ -930,7 +966,10 @@ const HomeScreen = ({ navigation }) => {
         animation="fadeInUp"
         delay={index * 70}
         duration={450}
-        style={styles.quickActionWrapper}
+        style={[
+          styles.quickActionWrapper,
+          isWide && styles.quickActionWrapperWide,
+        ]}
       >
         <TouchableOpacity
           activeOpacity={0.84}
@@ -944,6 +983,7 @@ const HomeScreen = ({ navigation }) => {
           }
           style={[
             styles.quickAction,
+            isWide && styles.quickActionWide,
             {
               backgroundColor: surface,
               borderColor: border,
@@ -997,6 +1037,7 @@ const HomeScreen = ({ navigation }) => {
     ),
     [
       navigate,
+      isWide,
       surface,
       border,
       text,
@@ -1595,7 +1636,8 @@ const HomeScreen = ({ navigation }) => {
         scrollEventThrottle={16}
       >
         {/* ====================================================
-            HERO
+            HERO (même structure que le tableau de bord thérapeute :
+            identité à gauche, 3 chiffres réels à droite)
         ==================================================== */}
 
         <Reveal
@@ -1604,121 +1646,315 @@ const HomeScreen = ({ navigation }) => {
           style={styles.heroWrapper}
         >
           <LinearGradient
-            colors={[PRIMARY_DARK, PRIMARY]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.heroCard}
+            colors={['#1F6B45', '#3A935F', '#55B98A']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={[
+              styles.heroCard,
+              isWide && styles.heroCardWide,
+            ]}
           >
             <View style={styles.heroCircleOne} />
             <View style={styles.heroCircleTwo} />
-            <View style={styles.heroCircleThree} />
 
-            <View style={styles.heroTop}>
+            <View style={[styles.heroTop, isWide && { flex: 1 }]}>
               <View style={styles.heroTextContainer}>
-                <View style={styles.clientBadge}>
-                  <Ionicons
-                    name="sparkles"
-                    size={11}
-                    color="#FFFFFF"
-                  />
-
-                  <Text style={styles.clientBadgeText}>
-                    ESPACE CLIENT
-                  </Text>
-                </View>
-
                 <Text style={styles.heroGreeting}>
-                  {greeting} 👋
+                  {greeting},
                 </Text>
 
-                <Text
-                  numberOfLines={1}
-                  style={styles.heroName}
-                >
-                  {displayName}
-                </Text>
+                <View style={styles.heroNameRow}>
+                  <Text
+                    numberOfLines={1}
+                    style={styles.heroName}
+                  >
+                    {displayName}
+                  </Text>
+
+                  <View style={styles.heroPill}>
+                    <View style={styles.heroPillDot} />
+                    <Text style={styles.heroPillText}>
+                      Espace client
+                    </Text>
+                  </View>
+                </View>
 
                 <Text style={styles.heroDescription}>
                   Prenez soin de vous. Trouvez un professionnel
                   adapté à vos besoins.
                 </Text>
               </View>
+            </View>
 
-              <View style={styles.heroAvatarWrapper}>
-                {user?.profile_image ? (
-                  <Image
-                    source={{ uri: user.profile_image }}
-                    style={styles.heroAvatar}
-                  />
-                ) : (
-                  <Text style={styles.heroAvatarText}>
-                    {avatarLetter}
-                  </Text>
-                )}
+            <View
+              style={[
+                styles.heroStatsRow,
+                isWide && styles.heroStatsRowWide,
+              ]}
+            >
+              <View style={styles.heroStat}>
+                <Text style={styles.heroStatValue}>
+                  {clientStats?.bookings?.total ?? 0}
+                </Text>
+                <Text style={styles.heroStatLabel}>
+                  Réservations
+                </Text>
+              </View>
 
-                <View style={styles.heroOnline} />
+              <View style={styles.heroStatDivider} />
+
+              <View style={styles.heroStat}>
+                <Text style={styles.heroStatValue}>
+                  {clientStats?.bookings?.upcoming ?? 0}
+                </Text>
+                <Text style={styles.heroStatLabel}>
+                  À venir
+                </Text>
+              </View>
+
+              <View style={styles.heroStatDivider} />
+
+              <View style={styles.heroStat}>
+                <Text
+                  style={styles.heroStatValue}
+                  numberOfLines={1}
+                >
+                  {shortAr(clientStats?.spending?.month)}
+                </Text>
+                <Text style={styles.heroStatLabel}>
+                  Dépensé ce mois (Ar)
+                </Text>
               </View>
             </View>
 
-            <TouchableOpacity
-              activeOpacity={0.88}
-              onPress={() =>
-                navigate(
-                  'SearchMassage',
-                  undefined,
-                  'Recherche de thérapeutes disponibles'
-                )
-              }
-              style={styles.heroCTA}
-            >
-              <View style={styles.heroCTAIcon}>
+            {!isWide && (
+              <TouchableOpacity
+                activeOpacity={0.88}
+                onPress={() =>
+                  navigate(
+                    'SearchMassage',
+                    undefined,
+                    'Recherche de thérapeutes disponibles'
+                  )
+                }
+                style={styles.heroCTA}
+              >
+                <View style={styles.heroCTAIcon}>
+                  <Ionicons
+                    name="search"
+                    size={18}
+                    color={PRIMARY}
+                  />
+                </View>
+
+                <View style={styles.heroCTAContent}>
+                  <Text style={styles.heroCTATitle}>
+                    Trouver mon massage
+                  </Text>
+
+                  <Text style={styles.heroCTASubtitle}>
+                    Thérapeutes disponibles près de vous
+                  </Text>
+                </View>
+
                 <Ionicons
-                  name="search"
-                  size={18}
-                  color={PRIMARY}
+                  name="arrow-forward"
+                  size={19}
+                  color="#FFFFFF"
                 />
-              </View>
-
-              <View style={styles.heroCTAContent}>
-                <Text style={styles.heroCTATitle}>
-                  Trouver mon massage
-                </Text>
-
-                <Text style={styles.heroCTASubtitle}>
-                  Thérapeutes disponibles près de vous
-                </Text>
-              </View>
-
-              <Ionicons
-                name="arrow-forward"
-                size={19}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
+              </TouchableOpacity>
+            )}
           </LinearGradient>
         </Reveal>
 
         {/* ====================================================
-            ✨ ASSISTANT IA & CHATBOT
-            Recommandations, estimation du prix, services
-            populaires, thérapeutes recommandés, chatbot.
+            NOTIFICATIONS NON LUES (nombre réel)
+        ==================================================== */}
+
+        {unreadCount > 0 && (
+          <Reveal
+            animation="fadeInUp"
+            delay={40}
+            duration={450}
+            style={styles.sectionContainerTight}
+          >
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() =>
+                navigate('Notifications', undefined, null)
+              }
+              style={[
+                styles.notifCard,
+                {
+                  backgroundColor: surface,
+                  borderColor: `${PRIMARY}33`,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.notifIcon,
+                  { backgroundColor: `${PRIMARY}1A` },
+                ]}
+              >
+                <Ionicons
+                  name="notifications"
+                  size={15}
+                  color={PRIMARY}
+                />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    styles.notifTitle,
+                    { color: text },
+                  ]}
+                >
+                  {unreadCount} notification
+                  {unreadCount > 1 ? 's' : ''} non lue
+                  {unreadCount > 1 ? 's' : ''}
+                </Text>
+
+                <Text
+                  style={[
+                    styles.notifSubtitle,
+                    { color: textSecondary },
+                  ]}
+                >
+                  Consultez vos nouvelles informations
+                </Text>
+              </View>
+
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={textSecondary}
+              />
+            </TouchableOpacity>
+          </Reveal>
+        )}
+
+        {/* ====================================================
+            ACCÈS RAPIDE
         ==================================================== */}
 
         <Reveal
           animation="fadeInUp"
-          delay={40}
-          duration={480}
-          style={styles.sectionContainer}
+          delay={80}
+          duration={500}
+          style={styles.sectionContainerTight}
         >
-          <AIClientHomeBlock
-            onOpenAssistant={(tab) =>
+          <View
+            style={[
+              styles.sectionHeader,
+              isWide && styles.sectionHeaderInline,
+            ]}
+          >
+            <Text
+              style={[
+                styles.sectionTitle,
+                isWide && { fontSize: 14 },
+                { color: text },
+              ]}
+            >
+              Accès rapide
+            </Text>
+
+            <Text
+              style={[
+                styles.sectionSubtitle,
+                isWide && { marginTop: 0, marginLeft: 14 },
+                { color: textSecondary },
+              ]}
+            >
+              Tout ce dont vous avez besoin
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.quickActionsGrid,
+              isWide && styles.quickActionsGridWide,
+            ]}
+          >
+            {QUICK_ACTIONS.map((item, index) =>
+              renderQuickAction({
+                item,
+                index,
+              })
+            )}
+          </View>
+        </Reveal>
+
+        {/* ====================================================
+            ✨ ASSISTANT IA  |  SERVICES POPULAIRES
+            (2 colonnes sur bureau, empilés sur mobile / Android)
+        ==================================================== */}
+
+        <Reveal
+          animation="fadeInUp"
+          delay={120}
+          duration={480}
+          style={[
+            styles.sectionContainerTight,
+            styles.rowBlock,
+            { flexDirection: isWide ? 'row' : 'column' },
+          ]}
+        >
+          <View
+            style={[
+              styles.aiWrap,
+              isWide && { flex: 1, minWidth: 0 },
+              { backgroundColor: surface, borderColor: border },
+            ]}
+          >
+            <AIClientHomeBlock
+              compact
+              showPopular={false}
+              showBest={false}
+              onOpenAssistant={(tab) =>
+                navigate(
+                  'AIRecommendation',
+                  { initialTab: tab },
+                  "Ouverture de l'assistant IA"
+                )
+              }
+            />
+          </View>
+
+          <PopularServicesCard
+            title="Services populaires"
+            subtitle="Massages les plus réservés (réservations terminées)"
+            countLabel="réserv."
+            emptyText="Aucune réservation terminée sur cette période."
+            fetcher={fetchPopularServices}
+            refreshKey={statsRefreshKey}
+            style={isWide ? { flex: 1, minWidth: 0 } : null}
+          />
+        </Reveal>
+
+        {/* ====================================================
+            THÉRAPEUTES RECOMMANDÉS (mieux notés)
+        ==================================================== */}
+
+        <Reveal
+          animation="fadeInUp"
+          delay={140}
+          duration={480}
+          style={styles.sectionContainerTight}
+        >
+          <AIBestTherapists
+            title="Thérapeutes recommandés"
+            limit={3}
+            onPress={(therapist) =>
               navigate(
-                'AIRecommendation',
-                { initialTab: tab },
-                "Ouverture de l'assistant IA"
+                'CreateBooking',
+                toBookingParams(therapist),
+                'Ouverture de la réservation'
               )
             }
-            onBookTherapist={(therapist) =>
+            onBook={(therapist) =>
               navigate(
                 'CreateBooking',
                 toBookingParams(therapist),
@@ -1734,60 +1970,29 @@ const HomeScreen = ({ navigation }) => {
 
         <Reveal
           animation="fadeInUp"
-          delay={100}
+          delay={160}
           duration={480}
-          style={styles.sectionContainer}
+          style={styles.sectionContainerTight}
         >
           <ClientStatsSection
-            refreshKey={statsRefreshKey}
-            primary={PRIMARY}
+            data={clientStats}
+            loading={clientStatsLoading}
+            error={clientStatsError}
+            onRetry={reloadClientStats}
+            onBook={() =>
+              navigate(
+                'BookingScreen',
+                undefined,
+                'Ouverture des réservations'
+              )
+            }
+            isWide={isWide}
+            primary={PRIMARY_BRAND}
             surface={surface}
             text={text}
             textSecondary={textSecondary}
             border={border}
           />
-        </Reveal>
-
-        {/* ====================================================
-            ACCÈS RAPIDE
-        ==================================================== */}
-
-        <Reveal
-          animation="fadeInUp"
-          delay={140}
-          duration={500}
-          style={styles.sectionContainer}
-        >
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { color: text },
-                ]}
-              >
-                Accès rapide
-              </Text>
-
-              <Text
-                style={[
-                  styles.sectionSubtitle,
-                  { color: textSecondary },
-                ]}
-              >
-                Tout ce dont vous avez besoin
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.quickActionsGrid}>
-            {QUICK_ACTIONS.map((item, index) =>
-              renderQuickAction({
-                item,
-                index,
-              })
-            )}
-          </View>
         </Reveal>
 
         {/* ====================================================
@@ -2606,6 +2811,76 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
 
+  sectionContainerTight: {
+    marginTop: 12,
+    paddingHorizontal: 16,
+  },
+
+  rowBlock: {
+    gap: 12,
+    alignItems: 'stretch',
+  },
+
+  aiWrap: {
+    borderWidth: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+    alignSelf: 'stretch',
+  },
+
+  notifCard: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  notifIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  notifTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+
+  notifSubtitle: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+
+  sectionHeaderInline: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 8,
+  },
+
+  quickActionsGridWide: {
+    gap: 12,
+    justifyContent: 'flex-start',
+  },
+
+  quickActionWrapperWide: {
+    width: undefined,
+    flex: 1,
+    marginBottom: 0,
+  },
+
+  quickActionWide: {
+    minHeight: 70,
+    borderRadius: 14,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+
   lastSection: {
     marginBottom: 0,
   },
@@ -2751,18 +3026,19 @@ const styles = StyleSheet.create({
   },
 
   heroCard: {
-    minHeight: 265,
-    borderRadius: 27,
-    padding: 20,
+    minHeight: 150,
+    borderRadius: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
     overflow: 'hidden',
-    shadowColor: PRIMARY_DARK,
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.22,
-    shadowRadius: 18,
-    elevation: 9,
+  },
+
+  heroCardWide: {
+    minHeight: 112,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
 
   heroCircleOne: {
@@ -2785,15 +3061,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
 
-  heroCircleThree: {
-    position: 'absolute',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    left: -45,
-    bottom: 20,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-  },
 
   heroTop: {
     flexDirection: 'row',
@@ -2806,24 +3073,7 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
 
-  clientBadge: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 9,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    marginBottom: 11,
-  },
 
-  clientBadgeText: {
-    color: 'rgba(255,255,255,0.92)',
-    fontSize: 7.5,
-    letterSpacing: 0.8,
-    marginLeft: 4,
-    fontFamily: typography.fontFamily.bold,
-  },
 
   heroGreeting: {
     color: 'rgba(255,255,255,0.78)',
@@ -2833,9 +3083,81 @@ const styles = StyleSheet.create({
 
   heroName: {
     color: '#FFFFFF',
-    fontSize: 25,
-    marginTop: 1,
-    fontFamily: typography.fontFamily.bold,
+    fontSize: 24,
+    fontWeight: '800',
+    flexShrink: 1,
+  },
+
+  heroNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 2,
+  },
+
+  heroPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+  },
+
+  heroPillDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22C55E',
+    marginRight: 6,
+  },
+
+  heroPillText: {
+    color: '#0B633C',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+
+  heroStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.18)',
+  },
+
+  heroStatsRowWide: {
+    marginTop: 0,
+    paddingTop: 0,
+    borderTopWidth: 0,
+    width: 620,
+    maxWidth: '55%',
+  },
+
+  heroStat: {
+    flex: 1,
+    alignItems: 'center',
+  },
+
+  heroStatValue: {
+    color: '#FFFFFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+
+  heroStatLabel: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 11,
+    marginTop: 4,
+    textAlign: 'center',
+  },
+
+  heroStatDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: 'rgba(255,255,255,0.2)',
   },
 
   heroDescription: {
@@ -2847,41 +3169,9 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
   },
 
-  heroAvatarWrapper: {
-    width: 65,
-    height: 65,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
 
-  heroAvatar: {
-    width: 61,
-    height: 61,
-    borderRadius: 20,
-  },
 
-  heroAvatarText: {
-    color: '#FFFFFF',
-    fontSize: 26,
-    fontFamily: typography.fontFamily.bold,
-  },
 
-  heroOnline: {
-    position: 'absolute',
-    width: 13,
-    height: 13,
-    right: -2,
-    bottom: -2,
-    borderRadius: 7,
-    backgroundColor: SUCCESS,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
 
   heroCTA: {
     marginTop: 22,

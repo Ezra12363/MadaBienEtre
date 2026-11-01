@@ -337,21 +337,18 @@ const styles = StyleSheet.create({
   sideSlot: {
     width: 44,
     height: 42,
-    flexShrink: 0,
 
     justifyContent: 'center',
     alignItems: 'center',
   },
 
-  // Quand le signal « en direct » est affiché, la zone de droite s'élargit.
-  // ⚠️ `width: 'auto'` (et NON `undefined`) : sur le web, `undefined` ne
-  // remplace pas le `width: 44` du style de base => le signal était coupé.
+  // Quand le signal « en direct » est affiché, la zone de droite s'élargit
   sideSlotLive: {
-    width: 'auto',
+    width: 'auto', // (undefined n'écrase pas width: 44 -> le chip était coupé)
     minWidth: 44,
-    flexDirection: 'row',
     flexShrink: 0,
-    overflow: 'visible',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
     gap: 6,
   },
 
@@ -369,6 +366,7 @@ const styles = StyleSheet.create({
 
   brand: {
     flex: 1,
+    flexShrink: 1,
 
     minWidth: 0,
 

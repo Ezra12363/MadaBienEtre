@@ -5,9 +5,10 @@
 // Cette enveloppe ne garde que la partie propre à l'écran racine
 // "TherapistChat" : sur le web LARGE (>= 900px), la TopNavBar partagée doit
 // rester affichée et connaître les onglets du TherapistNavigator.
-// Sur mobile / web étroit, la conversation est en plein écran (comme la
-// maquette), sans barre d'onglets.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+// Le header de la conversation est le composant partagé <Header> (rendu par
+// ChatRoomView), identique à celui des autres pages et au côté client :
+// plus de titre injecté dans la sous-barre de la TopNavBar.
+import { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
 
 import ChatRoomView from '../../components/chat/ChatRoomView';
@@ -100,12 +101,6 @@ const ChatScreen = (props) => {
 const ChatScreenInner = ({ navigation, route, embedded }) => {
   const { isMerged } = useTopNavLayout();
   const bridge = useNavBridge();
-  const [meta, setMeta] = useState({ title: 'Conversation', subtitle: '' });
-
-  const handleBack = useCallback(() => {
-    if (navigation?.canGoBack?.()) navigation.goBack();
-  }, [navigation]);
-
   const tabsInfo = useMemo(
     () => discoverTabs(navigation) || { container: null, routes: FALLBACK_TABS },
     [navigation]
@@ -149,33 +144,16 @@ const ChatScreenInner = ({ navigation, route, embedded }) => {
   }, [tabsInfo, fakeNavigation]);
 
   const setTabData = bridge?.setTabData;
-  const setPageContext = bridge?.setPageContext;
 
   useEffect(() => {
     if (!embedded && isMerged && setTabData) setTabData(tabData);
   }, [embedded, isMerged, setTabData, tabData]);
 
-  useEffect(() => {
-    if (isMerged && setPageContext) {
-      setPageContext({
-        title: meta.title,
-        subtitle: meta.subtitle,
-        showBack: true,
-        onBack: handleBack,
-      });
-    }
-  }, [isMerged, setPageContext, meta.title, meta.subtitle, handleBack]);
-
   return (
     <View style={{ flex: 1 }}>
       {isMerged && !embedded ? <TopNavBar brandLabel="Mada Bien-être" /> : null}
 
-      <ChatRoomView
-        navigation={navigation}
-        route={route}
-        compactHeader={isMerged}
-        onMeta={setMeta}
-      />
+      <ChatRoomView navigation={navigation} route={route} />
     </View>
   );
 };
