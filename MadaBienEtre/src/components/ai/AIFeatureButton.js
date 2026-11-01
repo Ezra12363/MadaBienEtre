@@ -15,6 +15,7 @@ const AIFeatureButton = ({
   subtitle = 'Recommandations, estimation de prix et réponses instantanées',
   bottom = 24,
   right = 20,
+  compact = false,
 }) => {
   if (variant === 'fab') {
     return (
@@ -42,16 +43,16 @@ const AIFeatureButton = ({
         colors={AI_GRADIENT}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.banner}
+        style={[styles.banner, compact && styles.bannerCompact]}
       >
-        <View style={styles.bannerIcon}>
-          <Ionicons name="sparkles" size={24} color={colors.primary} />
+        <View style={[styles.bannerIcon, compact && styles.bannerIconCompact]}>
+          <Ionicons name="sparkles" size={compact ? 15 : 24} color={colors.primary} />
         </View>
         <View style={styles.bannerText}>
-          <Text style={styles.bannerTitle}>{title}</Text>
-          <Text style={styles.bannerSubtitle}>{subtitle}</Text>
+          <Text style={[styles.bannerTitle, compact && styles.bannerTitleCompact]}>{title}</Text>
+          <Text style={[styles.bannerSubtitle, compact && styles.bannerSubtitleCompact]}>{subtitle}</Text>
         </View>
-        <Ionicons name="arrow-forward-circle" size={28} color="#fff" />
+        {compact ? null : <Ionicons name="arrow-forward-circle" size={28} color="#fff" />}
       </LinearGradient>
     </TouchableOpacity>
   );
@@ -70,6 +71,20 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
+  bannerCompact: {
+    borderRadius: 0,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minHeight: 54,
+    gap: spacing.sm,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  bannerIconCompact: { width: 28, height: 28, borderRadius: 14 },
+  bannerTitleCompact: { fontSize: typography.fontSize.md, lineHeight: 18 },
+  bannerSubtitleCompact: { fontSize: 10, lineHeight: 13, marginTop: 1 },
   bannerIcon: {
     width: 46,
     height: 46,

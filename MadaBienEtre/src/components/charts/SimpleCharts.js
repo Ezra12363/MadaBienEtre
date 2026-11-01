@@ -119,6 +119,152 @@ export function BarChart({ data = [], series = [], height = 150, textColor = '#7
   );
 }
 
+
+// Arrondit un maximum vers une valeur "lisible" (210 k -> 250 k, 547 k -> 600 k…)
+const niceMax = (value, integer = false) => {
+  const v = Number(value) || 0;
+  if (v <= 0) return integer ? 2 : 1;
+  const pow = 10 ** Math.floor(Math.log10(v));
+  const n = v / pow;
+  const step = integer
+    ? (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10)
+    : (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10);
+  const m = step * pow;
+  // axe d'entiers (nombre de séances) : maximum pair pour avoir une moitié entière
+  return integer ? Math.max(2, Math.ceil(m / 2) * 2) : m;
+};
+
+/**
+ * Histogramme pleine largeur avec grille et axe Y (100 % données réelles).
+ * data: [{ label, value }]
+ * - showValues : affiche la valeur courte ("210 k") au-dessus de chaque barre non nulle
+ * - nice       : arrondit le maximum de l'axe (250 k / 125 k / 0)
+ * - integer    : axe d'entiers (nombre de séances : 20 / 10 / 0)
+ * - name       : légende "● name" sous le titre
+ */
+export function GridBarChart({
+  data = [],
+  color = '#1F6B45',
+  name,
+  height = 130,
+  textColor = '#777',
+  gridColor = '#ECECEC',
+  showValues = false,
+  nice = false,
+  integer = false,
+  barWidth = 30,
+  format = formatAr,
+  axisFormat = fmtShort,
+  emptyText = 'Aucune donnée pour le moment',
+}) {
+  const [sel, setSel] = useState(null);
+  const rawMax = Math.max(0, ...data.map((d) => Number(d.value) || 0));
+  const max = nice || integer ? niceMax(rawMax, integer) : Math.max(1, rawMax);
+  const empty = rawMax <= 0;
+  const ticks = [1, 0.5, 0];
+  const selItem = sel !== null && data[sel] ? data[sel] : null;
+
+  return (
+    <View>
+      {name ? (
+        <View style={[styles.legend, { marginBottom: 6 }]}>
+          <View style={styles.legendItem}>
+            <View style={[styles.dot, { backgroundColor: color }]} />
+            <Text style={[styles.legendText, { color: textColor }]}>{name}</Text>
+          </View>
+        </View>
+      ) : null}
+
+      <View style={{ flexDirection: 'row' }}>
+        {/* Axe Y */}
+        <View style={{ width: 40, height, justifyContent: 'space-between', paddingRight: 6 }}>
+          {ticks.map((r) => (
+            <Text key={r} style={[styles.axis, { color: textColor, textAlign: 'right' }]}>
+              {axisFormat(max * r)}
+            </Text>
+          ))}
+        </View>
+
+        {/* Zone du graphique */}
+        <View style={{ flex: 1 }}>
+          <View style={{ height }}>
+            {/* lignes de grille */}
+            {ticks.map((r) => (
+              <View
+                key={`g-${r}`}
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: (1 - r) * (height - 1),
+                  height: 1,
+                  backgroundColor: gridColor,
+                }}
+              />
+            ))}
+
+            {/* barres */}
+            <View style={{ flex: 1, flexDirection: 'row' }}>
+              {data.map((d, i) => {
+                const v = Number(d.value) || 0;
+                const h = v > 0 ? Math.max(4, (v / max) * (height - 18)) : 0;
+                return (
+                  <View
+                    key={`${d.label}-${i}`}
+                    style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end' }}
+                    onTouchEnd={() => setSel(i)}
+                    // @ts-ignore (web)
+                    onClick={() => setSel(i)}
+                  >
+                    {showValues && v > 0 ? (
+                      <Text style={[styles.valueLabel, { color: textColor }]} numberOfLines={1}>
+                        {axisFormat(v)}
+                      </Text>
+                    ) : null}
+                    <View
+                      style={{
+                        width: barWidth,
+                        maxWidth: '80%',
+                        height: h,
+                        backgroundColor: color,
+                        borderTopLeftRadius: 3,
+                        borderTopRightRadius: 3,
+                        opacity: sel === null || sel === i ? 1 : 0.5,
+                      }}
+                    />
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* libellés X */}
+          <View style={{ flexDirection: 'row' }}>
+            {data.map((d, i) => (
+              <Text
+                key={`${d.label}-x-${i}`}
+                style={[styles.xLabel, { flex: 1, color: textColor }]}
+                numberOfLines={1}
+              >
+                {d.label}
+              </Text>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      <Text style={[styles.tip, { color: textColor }]}>
+        {empty
+          ? emptyText
+          : selItem
+            ? `${selItem.label} · ${format(selItem.value)}`
+            : ' '}
+      </Text>
+    </View>
+  );
+}
+
 /** Barres horizontales : items = [{ label, value, color }] */
 export function HBars({ items = [], textColor = '#777', trackColor = '#EFEFEF', format = formatAr, percent = false, percentOnly = false, thick = false }) {
   const max = Math.max(1, ...items.map((i) => Number(i.value) || 0));
@@ -204,6 +350,7 @@ const styles = StyleSheet.create({
   bubbleTitle: { color: '#fff', fontSize: 12, fontWeight: '700' },
   bubbleText: { color: '#fff', fontSize: 12, fontWeight: '600', marginTop: 1 },
   axis: { fontSize: 10, fontWeight: '400' },
+  valueLabel: { fontSize: 10, fontWeight: '400', marginBottom: 2 },
   xLabel: { fontSize: 10, textAlign: 'center', marginTop: 4, fontWeight: '400' },
   hRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   hSub: { fontSize: 11, fontWeight: '400', flexShrink: 1, opacity: 0.85 },

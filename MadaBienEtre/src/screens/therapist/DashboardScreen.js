@@ -1,4 +1,16 @@
 // src/screens/therapist/DashboardScreen.js
+//
+// Tableau de bord THÉRAPEUTE — 100 % dynamique (base de données).
+//
+//   GET /stats/therapist            -> cartes, gains, graphiques, activités, statut en ligne
+//   GET /stats/therapist/services   -> "Services les plus demandés" (jour / semaine / mois)
+//   PUT /therapists/toggle-online   -> bouton En ligne / Hors ligne (enregistré en base)
+//
+// Mise à jour automatique : au montage, au retour sur l'écran (focus),
+// toutes les 60 s (silencieux) et par pull-to-refresh.
+//
+// Responsive : >= 1024 px -> disposition "bureau" (colonnes côte à côte),
+// sinon -> disposition mobile (cartes empilées) comme avant.
 
 import {
   useState,
@@ -14,7 +26,6 @@ import {
   StyleSheet,
   RefreshControl,
   Animated,
-  Dimensions,
   Platform,
   useWindowDimensions,
   FlatList,
@@ -30,15 +41,17 @@ import * as Animatable from 'react-native-animatable';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import statsService from '../../services/statsService';
-import { formatTimeAgo } from '../../utils/timeAgo';
+import availabilityService from '../../services/availabilityService';
+import { formatTimeAgo, toTimestamp } from '../../utils/timeAgo';
 import {
-  BarChart,
+  GridBarChart,
   HBars,
-  formatAr,
   formatCount,
 } from '../../components/charts/SimpleCharts';
 import AITherapistHomeBlock from '../../components/ai/AITherapistHomeBlock';
+import PopularServicesCard from '../../components/therapist/PopularServicesCard';
 import { useNotifications } from '../../context/NotificationContext';
+import { BREAKPOINTS } from '../../hooks/useResponsive';
 
 import Header from '../../components/common/Header';
 import { useTopNavLayout } from '../../components/common/AppNavigation';
@@ -91,12 +104,7 @@ const useHeaderTheme = () => {
 // CONSTANTES
 // ============================================================
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 const DEFAULT_GREEN = '#168A55';
-const _DARK_GREEN = '#0E6B43';
-const _LIGHT_GREEN = '#EAF7F0';
-const _SOFT_GREEN = '#F3FAF6';
 
 const GOLD = '#F59E0B';
 const RED = '#E45858';
@@ -106,21 +114,11 @@ const BLUE = '#3B82F6';
 const LOADING_GREEN = '#2E7D32';
 const LOADING_BACKGROUND = '#F5F5F5';
 
+// Rafraîchissement automatique silencieux (ms)
+const AUTO_REFRESH_MS = 60 * 1000;
 
-// ============================================================
-// CHART
-// ============================================================
-
-let LineChart = null;
-
-if (Platform.OS !== 'web') {
-  try {
-    const ChartKit = require('react-native-chart-kit');
-    LineChart = ChartKit.LineChart;
-  } catch (_error) {
-    console.warn('react-native-chart-kit non disponible');
-  }
-}
+// Une activité de moins de 24 h reçoit le badge "Nouveau"
+const NEW_ACTIVITY_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 
 // ============================================================
@@ -175,6 +173,9 @@ const formatPrice = (value) => {
   return `${number.toLocaleString('fr-FR')} Ar`;
 };
 
+// "Juin 26" -> "Juin" (6 mois affichés : pas d'ambiguïté d'année)
+const shortMonth = (label) => String(label || '').split(' ')[0];
+
 
 // ============================================================
 // SCREEN
@@ -182,8 +183,15 @@ const formatPrice = (value) => {
 
 const DashboardScreen = ({ navigation }) => {
   const { colors: themeColors } = useTheme();
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const { unreadCount } = useNotifications();
+  const { width: windowWidth } = useWindowDimensions();
+
+  // Disposition "bureau" : colonnes côte à côte (>= 1024 px)
+  const isWide = windowWidth >= BREAKPOINTS.desktop;
+  // Marge latérale des cartes : sur natif, 14 ; sur web le
+  // scrollContent applique déjà un padding horizontal.
+  const sidePad = Platform.OS === 'web' ? 0 : 14;
 
   // Web large : TopNavBar (AppNavigation.js) affiche déjà le profil,
   // les notifications et les messages tout en haut — on ne les
@@ -234,17 +242,17 @@ const DashboardScreen = ({ navigation }) => {
     '#E2EBE5'
   );
 
-  const _isDark =
-    backgroundColor.toLowerCase() === '#121212' ||
-    backgroundColor.toLowerCase() === '#000000';
-
   // ==========================================================
   // STATES
   // ==========================================================
 
   const [refreshing, setRefreshing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isOnline, setIsOnline] = useState(true);
+
+  // Statut en ligne : valeur initiale = celle de l'utilisateur connecté,
+  // puis synchronisée avec la base à chaque chargement (data.profile).
+  const [isOnline, setIsOnline] = useState(Boolean(user?.is_online));
+  const [togglingOnline, setTogglingOnline] = useState(false);
 
   const [stats, setStats] = useState({
     todayBookings: 0,
@@ -263,24 +271,32 @@ const DashboardScreen = ({ navigation }) => {
   const [byMassageType, setByMassageType] = useState([]);
   const [loadError, setLoadError] = useState(null);
 
+  // Incrémenté à chaque rechargement : relance la carte
+  // "Services les plus demandés" (qui a son propre endpoint).
+  const [refreshKey, setRefreshKey] = useState(0);
+
   const scrollY = useRef(new Animated.Value(0)).current;
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // ==========================================================
   // CHARGEMENT DES DONNÉES
   // ==========================================================
 
   /*
-   * isRefresh = true  -> appel déclenché par le pull-to-refresh
-   *                      (RefreshControl) : on NE touche PAS à
-   *                      isLoading, donc l'écran de chargement
-   *                      plein écran (spinner + "Mada Bien-être")
-   *                      ne se réaffiche pas ; seul le spinner
-   *                      natif du RefreshControl tourne.
-   * isRefresh = false -> chargement initial (premier montage, ou
-   *                      actualisation de la page sur le web) :
-   *                      isLoading passe à true, ce qui affiche
-   *                      l'écran de chargement ci-dessous : un
-   *                      spinner centré avec "Mada Bien-être".
+   * isRefresh = true  -> appel silencieux (pull-to-refresh, retour sur
+   *                      l'écran, minuteur automatique) : on NE touche
+   *                      PAS à isLoading, donc l'écran de chargement
+   *                      plein écran ne se réaffiche pas.
+   * isRefresh = false -> chargement initial : isLoading passe à true
+   *                      (spinner centré + "Mada Bien-être").
    */
   const loadDashboardData = useCallback(async (options = {}) => {
     const { isRefresh = false } = options;
@@ -293,14 +309,24 @@ const DashboardScreen = ({ navigation }) => {
       // ✅ Toutes les valeurs viennent de la base de données
       const data = await statsService.therapist(6);
 
+      if (!isMountedRef.current) {
+        return;
+      }
+
       setStats({
         todayBookings: data?.bookings?.today || 0,
         totalEarnings: data?.earnings?.total_net || 0,
         pendingEarnings: data?.earnings?.pending || 0,
         totalBookings: data?.bookings?.total || 0,
-        rating: Number(data?.rating?.average || 0).toFixed(1),
+        rating: Number(data?.rating?.average || 0)
+          .toFixed(1)
+          .replace('.', ','),
         reviews: data?.rating?.total_reviews || 0,
       });
+
+      if (typeof data?.profile?.is_online === 'boolean') {
+        setIsOnline(data.profile.is_online);
+      }
 
       setWeekly(data?.weekly || []);
       setMonthly(data?.monthly || []);
@@ -312,6 +338,9 @@ const DashboardScreen = ({ navigation }) => {
 
           return {
             ...a,
+            isNew:
+              Date.now() - toTimestamp(a.time) <
+              NEW_ACTIVITY_MAX_AGE_MS,
             time:
               !ago || ago === "À l'instant"
                 ? ago || 'Récent'
@@ -320,22 +349,49 @@ const DashboardScreen = ({ navigation }) => {
         })
       );
 
+      setRefreshKey((key) => key + 1);
       setLoadError(null);
     } catch (error) {
       console.error('Erreur dashboard :', error);
-      setLoadError(
-        error?.message ||
-          'Impossible de charger vos statistiques.'
-      );
+
+      if (isMountedRef.current) {
+        setLoadError(
+          error?.message ||
+            'Impossible de charger vos statistiques.'
+        );
+      }
     } finally {
-      if (!isRefresh) {
+      if (!isRefresh && isMountedRef.current) {
         setIsLoading(false);
       }
     }
   }, []);
 
+  // Chargement initial
   useEffect(() => {
     loadDashboardData();
+  }, [loadDashboardData]);
+
+  // Retour sur l'écran (après une réservation, un paiement…) -> données à jour
+  useEffect(() => {
+    if (!navigation?.addListener) {
+      return undefined;
+    }
+
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadDashboardData({ isRefresh: true });
+    });
+
+    return unsubscribe;
+  }, [navigation, loadDashboardData]);
+
+  // Rafraîchissement automatique silencieux
+  useEffect(() => {
+    const timer = setInterval(() => {
+      loadDashboardData({ isRefresh: true });
+    }, AUTO_REFRESH_MS);
+
+    return () => clearInterval(timer);
   }, [loadDashboardData]);
 
   const onRefresh = async () => {
@@ -373,11 +429,53 @@ const DashboardScreen = ({ navigation }) => {
   }, [navigation]);
 
   // ==========================================================
-  // STATUT EN LIGNE
+  // STATUT EN LIGNE  (enregistré en base : PUT /therapists/toggle-online)
   // ==========================================================
 
-  const toggleOnlineStatus = () => {
-    setIsOnline((current) => !current);
+  const toggleOnlineStatus = async () => {
+    if (togglingOnline) {
+      return;
+    }
+
+    const previous = isOnline;
+
+    // Mise à jour immédiate de l'interface, annulée si le serveur refuse
+    setIsOnline(!previous);
+    setTogglingOnline(true);
+
+    try {
+      const result = await availabilityService.toggleOnline();
+
+      if (!result?.success) {
+        throw new Error(result?.error || 'Erreur');
+      }
+
+      const serverValue =
+        typeof result.data?.is_online === 'boolean'
+          ? result.data.is_online
+          : !previous;
+
+      if (isMountedRef.current) {
+        setIsOnline(serverValue);
+      }
+
+      // garde le profil local (AuthContext) cohérent avec la base
+      updateProfile?.({ is_online: serverValue });
+    } catch (error) {
+      if (isMountedRef.current) {
+        setIsOnline(previous);
+      }
+
+      Alert.alert(
+        'Statut',
+        error?.message ||
+          'Impossible de changer votre statut pour le moment.'
+      );
+    } finally {
+      if (isMountedRef.current) {
+        setTogglingOnline(false);
+      }
+    }
   };
 
   // ==========================================================
@@ -426,9 +524,70 @@ const DashboardScreen = ({ navigation }) => {
 
   // ==========================================================
   // RENDER ACTION RAPIDE
+  // - bureau : carte horizontale compacte (icône | texte | flèche)
+  // - mobile : carte verticale (comme avant)
   // ==========================================================
 
   const renderQuickAction = ({ item }) => {
+    if (isWide) {
+      return (
+        <TouchableOpacity
+          activeOpacity={0.86}
+          onPress={item.onPress}
+          style={[
+            styles.quickActionWide,
+            {
+              backgroundColor: surfaceColor,
+              borderColor,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.quickActionWideIcon,
+              {
+                backgroundColor: hexToRgba(item.color, 0.13),
+              },
+            ]}
+          >
+            <Ionicons
+              name={item.icon}
+              size={20}
+              color={item.color}
+            />
+          </View>
+
+          <View style={styles.quickActionWideText}>
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.quickActionLabel,
+                { color: textColor },
+              ]}
+            >
+              {item.label}
+            </Text>
+
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.quickActionDescription,
+                { color: secondaryTextColor },
+              ]}
+            >
+              {item.description}
+            </Text>
+          </View>
+
+          <Ionicons
+            name="chevron-forward"
+            size={16}
+            color={secondaryTextColor}
+          />
+        </TouchableOpacity>
+      );
+    }
+
     return (
       <TouchableOpacity
         activeOpacity={0.86}
@@ -533,9 +692,11 @@ const DashboardScreen = ({ navigation }) => {
 
   // ==========================================================
   // ACTIVITÉ
+  // isLast : pas de trait de séparation sous le dernier élément
+  // d'une colonne.
   // ==========================================================
 
-  const renderActivity = ({ item, index }) => {
+  const renderActivity = ({ item, index, isLast }) => {
     const activity = getActivityIcon(item.type);
 
     return (
@@ -544,10 +705,9 @@ const DashboardScreen = ({ navigation }) => {
         style={[
           styles.activityItem,
           {
-            borderBottomColor:
-              index === recentActivities.length - 1
-                ? 'transparent'
-                : borderColor,
+            borderBottomColor: isLast
+              ? 'transparent'
+              : borderColor,
           },
         ]}
       >
@@ -602,7 +762,7 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {index === 0 && (
+        {index === 0 && item.isNew && (
           <View
             style={[
               styles.newActivityBadge,
@@ -631,144 +791,52 @@ const DashboardScreen = ({ navigation }) => {
   };
 
   // ==========================================================
-  // GRAPHIQUE
+  // DONNÉES DÉRIVÉES DES GRAPHIQUES (toutes issues de la base)
   // ==========================================================
 
-  const ChartComponent = () => {
-    // ✅ Gains nets réels des 7 derniers jours (GET /stats/therapist)
-    const chartData = {
-      labels: weekly.length
-        ? weekly.map((d) => d.label)
-        : ['-'],
-      datasets: [
-        {
-          data: weekly.length
-            ? weekly.map((d) => Number(d.earnings) || 0)
-            : [0],
-        },
-      ],
-    };
+  const weeklyData = weekly.map((d) => ({
+    label: d.label,
+    value: Number(d.earnings) || 0,
+  }));
 
-    if (Platform.OS === 'web') {
-      const maxValue = Math.max(
-        ...chartData.datasets[0].data
-      );
+  const monthlyEarnings = monthly.map((m) => ({
+    label: shortMonth(m.label),
+    value: Number(m.earnings) || 0,
+  }));
 
-      return (
-        <View style={styles.webChartContainer}>
-          <View style={styles.webChartBars}>
-            {chartData.datasets[0].data.map(
-              (value, index) => {
-                const height =
-                  maxValue > 0
-                    ? (value / maxValue) * 130
-                    : 0;
+  const monthlySessions = monthly.map((m) => ({
+    label: shortMonth(m.label),
+    value: Number(m.bookings) || 0,
+  }));
 
-                return (
-                  <View
-                    key={index}
-                    style={styles.webChartBarWrapper}
-                  >
-                    <Text
-                      style={[
-                        styles.webChartValue,
-                        {
-                          color: secondaryTextColor,
-                        },
-                      ]}
-                    >
-                      {(value / 1000).toFixed(0)}k
-                    </Text>
-
-                    <View
-                      style={[
-                        styles.webChartBar,
-                        {
-                          height: Math.max(height, 7),
-                          backgroundColor: primaryColor,
-                        },
-                      ]}
-                    />
-                  </View>
-                );
-              }
-            )}
-          </View>
-
-          <View style={styles.webChartLabels}>
-            {chartData.labels.map((label, index) => (
-              <Text
-                key={index}
-                style={[
-                  styles.webChartLabel,
-                  {
-                    color: secondaryTextColor,
-                  },
-                ]}
-              >
-                {label}
-              </Text>
-            ))}
-          </View>
-        </View>
-      );
+  // Activités en 2 colonnes sur grand écran
+  const activityColumns = useMemo(() => {
+    if (!isWide) {
+      return [recentActivities];
     }
 
-    if (LineChart) {
-      return (
-        <LineChart
-          data={chartData}
-          width={Math.min(SCREEN_WIDTH - 46, 560)}
-          height={185}
-          chartConfig={{
-            backgroundColor: surfaceColor,
-            backgroundGradientFrom: surfaceColor,
-            backgroundGradientTo: surfaceColor,
-            decimalPlaces: 0,
-            color: () => primaryColor,
-            labelColor: () => secondaryTextColor,
-            propsForDots: {
-              r: '5',
-              strokeWidth: '2',
-              stroke: primaryColor,
-            },
-            propsForBackgroundLines: {
-              stroke: borderColor,
-              strokeDasharray: '',
-            },
-          }}
-          bezier
-          withInnerLines
-          withOuterLines={false}
-          style={styles.chart}
-          formatYLabel={(value) =>
-            `${(Number(value) / 1000).toFixed(0)}k`
-          }
-        />
-      );
-    }
+    const half = Math.ceil(recentActivities.length / 2);
 
-    return (
-      <View style={styles.chartFallback}>
-        <Ionicons
-          name="bar-chart-outline"
-          size={34}
-          color={secondaryTextColor}
-        />
+    return [
+      recentActivities.slice(0, half),
+      recentActivities.slice(half),
+    ];
+  }, [isWide, recentActivities]);
 
-        <Text
-          style={[
-            styles.chartFallbackText,
-            {
-              color: secondaryTextColor,
-            },
-          ]}
-        >
-          Graphique non disponible
-        </Text>
-      </View>
-    );
-  };
+  // Style d'une carte placée dans une ligne à colonnes (bureau)
+  const cellStyle = (flex) =>
+    isWide
+      ? { flex, marginHorizontal: 0, marginTop: 0, minWidth: 0 }
+      : null;
+
+  // Conteneur d'une ligne : colonnes sur bureau, pile sur mobile
+  const rowStyle = [
+    styles.row,
+    {
+      marginHorizontal: sidePad,
+      flexDirection: isWide ? 'row' : 'column',
+    },
+  ];
 
   // ==========================================================
   // LOADING
@@ -941,7 +1009,7 @@ const DashboardScreen = ({ navigation }) => {
           <Animatable.View
             animation="fadeInDown"
             duration={550}
-            style={styles.topSection}
+            style={isWide ? styles.topSectionWide : styles.topSection}
           >
             <LinearGradient
               colors={[
@@ -957,64 +1025,129 @@ const DashboardScreen = ({ navigation }) => {
                 x: 1,
                 y: 1,
               }}
-              style={styles.welcomeCard}
+              style={[
+                styles.welcomeCard,
+                isWide && styles.welcomeCardWide,
+              ]}
             >
               <View style={styles.welcomeDecorCircleOne} />
               <View style={styles.welcomeDecorCircleTwo} />
 
-              <View style={styles.welcomeTopRow}>
+              <View
+                style={[
+                  styles.welcomeTopRow,
+                  isWide && styles.welcomeTopRowWide,
+                ]}
+              >
                 <View style={styles.welcomeIdentity}>
                   <Text style={styles.welcomeSmallText}>
-                    Bonjour 👋
+                    Bonjour,
                   </Text>
 
-                  <Text
-                    numberOfLines={1}
-                    style={styles.welcomeName}
-                  >
-                    {user?.fullname ||
-                      user?.full_name ||
-                      user?.name ||
-                      'Thérapeute'}
-                  </Text>
+                  <View style={styles.welcomeNameRow}>
+                    <Text
+                      numberOfLines={1}
+                      style={styles.welcomeName}
+                    >
+                      {user?.fullname ||
+                        user?.full_name ||
+                        user?.name ||
+                        'Thérapeute'}
+                    </Text>
+
+                    {isWide && (
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={toggleOnlineStatus}
+                        disabled={togglingOnline}
+                        style={[
+                          styles.onlineToggle,
+                          styles.onlineToggleInline,
+                          {
+                            backgroundColor: isOnline
+                              ? '#FFFFFF'
+                              : 'rgba(15,23,42,0.28)',
+                          },
+                        ]}
+                        accessibilityRole="switch"
+                        accessibilityState={{ checked: isOnline }}
+                      >
+                        <View
+                          style={[
+                            styles.onlineToggleDot,
+                            {
+                              backgroundColor: isOnline
+                                ? '#22C55E'
+                                : '#CBD5E1',
+                            },
+                          ]}
+                        />
+
+                        <Text
+                          style={[
+                            styles.onlineToggleText,
+                            {
+                              color: isOnline
+                                ? '#0B633C'
+                                : '#FFFFFF',
+                            },
+                          ]}
+                        >
+                          {isOnline
+                            ? 'En ligne'
+                            : 'Hors ligne'}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
 
                   <Text style={styles.welcomeDescription}>
                     Voici le résumé de votre activité
                   </Text>
                 </View>
 
-                <TouchableOpacity
-                  activeOpacity={0.85}
-                  onPress={toggleOnlineStatus}
-                  style={[
-                    styles.onlineToggle,
-                    {
-                      backgroundColor: isOnline
-                        ? 'rgba(255,255,255,0.22)'
-                        : 'rgba(15,23,42,0.22)',
-                    },
-                  ]}
-                >
-                  <View
+                {!isWide && (
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={toggleOnlineStatus}
+                    disabled={togglingOnline}
                     style={[
-                      styles.onlineToggleDot,
+                      styles.onlineToggle,
                       {
                         backgroundColor: isOnline
-                          ? '#B7F7D1'
-                          : '#CBD5E1',
+                          ? 'rgba(255,255,255,0.22)'
+                          : 'rgba(15,23,42,0.22)',
                       },
                     ]}
-                  />
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: isOnline }}
+                  >
+                    <View
+                      style={[
+                        styles.onlineToggleDot,
+                        {
+                          backgroundColor: isOnline
+                            ? '#B7F7D1'
+                            : '#CBD5E1',
+                        },
+                      ]}
+                    />
 
-                  <Text style={styles.onlineToggleText}>
-                    {isOnline
-                      ? 'En ligne'
-                      : 'Hors ligne'}
-                  </Text>
-                </TouchableOpacity>
+                    <Text style={styles.onlineToggleText}>
+                      {isOnline
+                        ? 'En ligne'
+                        : 'Hors ligne'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
-              <View style={styles.welcomeStatsRow}>
+              <View
+                style={[
+                  styles.welcomeStatsRow,
+                  isWide && styles.welcomeStatsRowWide,
+                ]}
+              >
                 <View style={styles.welcomeStat}>
                   <Text style={styles.welcomeStatValue}>
                     {stats.todayBookings}
@@ -1065,7 +1198,44 @@ const DashboardScreen = ({ navigation }) => {
           </Animatable.View>
 
           {/* ==================================================
-              NOTIFICATION
+              ERREUR DE CHARGEMENT
+          ================================================== */}
+
+          {loadError ? (
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: surfaceColor,
+                  borderColor,
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  color: secondaryTextColor,
+                }}
+              >
+                {loadError}
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => loadDashboardData()}
+                style={{ marginTop: 8 }}
+              >
+                <Text
+                  style={{
+                    color: primaryColor,
+                  }}
+                >
+                  Réessayer
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {/* ==================================================
+              NOTIFICATION (nombre réel de non lues)
           ================================================== */}
 
           {unreadCount > 0 && (
@@ -1079,6 +1249,7 @@ const DashboardScreen = ({ navigation }) => {
                 onPress={openNotifications}
                 style={[
                   styles.notificationCard,
+                  isWide && styles.notificationCardWide,
                   {
                     backgroundColor: surfaceColor,
                     borderColor: hexToRgba(
@@ -1091,6 +1262,7 @@ const DashboardScreen = ({ navigation }) => {
                 <View
                   style={[
                     styles.notificationCardIcon,
+                    isWide && styles.notificationCardIconWide,
                     {
                       backgroundColor: hexToRgba(
                         primaryColor,
@@ -1101,7 +1273,7 @@ const DashboardScreen = ({ navigation }) => {
                 >
                   <Ionicons
                     name="notifications"
-                    size={21}
+                    size={isWide ? 15 : 21}
                     color={primaryColor}
                   />
                 </View>
@@ -1132,23 +1304,11 @@ const DashboardScreen = ({ navigation }) => {
                   </Text>
                 </View>
 
-                <View
-                  style={[
-                    styles.notificationCardArrow,
-                    {
-                      backgroundColor: hexToRgba(
-                        primaryColor,
-                        0.08
-                      ),
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color={primaryColor}
-                  />
-                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={isWide ? secondaryTextColor : primaryColor}
+                />
               </TouchableOpacity>
             </Animatable.View>
           )}
@@ -1162,11 +1322,23 @@ const DashboardScreen = ({ navigation }) => {
             delay={150}
             duration={500}
           >
-            <View style={styles.sectionHeader}>
-              <View>
+            <View
+              style={[
+                styles.sectionHeader,
+                isWide && styles.sectionHeaderWide,
+              ]}
+            >
+              <View
+                style={
+                  isWide
+                    ? styles.sectionTitleInline
+                    : null
+                }
+              >
                 <Text
                   style={[
                     styles.sectionTitle,
+                    isWide && styles.sectionTitleWide,
                     {
                       color: textColor,
                     },
@@ -1178,6 +1350,7 @@ const DashboardScreen = ({ navigation }) => {
                 <Text
                   style={[
                     styles.sectionSubtitle,
+                    isWide && { marginTop: 0, marginLeft: 14 },
                     {
                       color: secondaryTextColor,
                     },
@@ -1187,18 +1360,25 @@ const DashboardScreen = ({ navigation }) => {
                 </Text>
               </View>
 
-              <View
-                style={[
-                  styles.sectionAccent,
-                  {
-                    backgroundColor: primaryColor,
-                  },
-                ]}
-              />
+              {!isWide && (
+                <View
+                  style={[
+                    styles.sectionAccent,
+                    {
+                      backgroundColor: primaryColor,
+                    },
+                  ]}
+                />
+              )}
             </View>
 
-            {Platform.OS === 'web' ? (
-              <View style={styles.quickActionsGrid}>
+            {isWide || Platform.OS === 'web' ? (
+              <View
+                style={[
+                  styles.quickActionsGrid,
+                  isWide && { marginHorizontal: sidePad },
+                ]}
+              >
                 {quickActions.map((item) => (
                   <View
                     key={item.id}
@@ -1223,41 +1403,59 @@ const DashboardScreen = ({ navigation }) => {
           </Animatable.View>
 
           {/* ==================================================
-              ✨ IA — TARIFICATION INTELLIGENTE
-              Suggestion de tarif, analyse du marché, probabilité
-              d'acceptation, chatbot.
+              ✨ IA — TARIFICATION INTELLIGENTE  |  SERVICES LES PLUS DEMANDÉS
+              Bureau : 2 colonnes. Mobile : l'un sous l'autre.
           ================================================== */}
 
           <Animatable.View
             animation="fadeInUp"
             delay={220}
             duration={500}
-            style={{
-              marginTop: 16,
-              marginBottom: 16,
-              // même espace gauche / droite que les autres cartes
-              marginHorizontal: Platform.OS === 'web' ? 0 : 14,
-            }}
+            style={[rowStyle, { marginTop: 14 }]}
           >
-            <AITherapistHomeBlock
-              onOpenAssistant={(tab) =>
-                navigation.navigate('AIAssistant', { initialTab: tab })
-              }
+            <View
+              style={[
+                isWide ? styles.aiWrapWide : null,
+                isWide && {
+                  flex: 1,
+                  minWidth: 0,
+                  backgroundColor: surfaceColor,
+                  borderColor,
+                },
+              ]}
+            >
+              <AITherapistHomeBlock
+                showPopular={false}
+                compact={isWide}
+                onOpenAssistant={(tab) =>
+                  navigation.navigate('AIAssistant', { initialTab: tab })
+                }
+              />
+            </View>
+
+            <PopularServicesCard
+              refreshKey={refreshKey}
+              style={[
+                !isWide && { marginTop: 14 },
+                isWide && { flex: 1, minWidth: 0 },
+              ]}
             />
           </Animatable.View>
 
           {/* ==================================================
-              GAINS
+              GAINS  |  ÉVOLUTION DES REVENUS (7 derniers jours)
           ================================================== */}
 
           <Animatable.View
             animation="fadeInUp"
-            delay={250}
+            delay={300}
             duration={500}
+            style={rowStyle}
           >
             <View
               style={[
                 styles.card,
+                cellStyle(1),
                 {
                   backgroundColor: surfaceColor,
                   borderColor,
@@ -1471,20 +1669,11 @@ const DashboardScreen = ({ navigation }) => {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-          </Animatable.View>
 
-          {/* ==================================================
-              GRAPHIQUE
-          ================================================== */}
-
-          <Animatable.View
-            animation="fadeInUp"
-            delay={350}
-            duration={500}
-          >
             <View
               style={[
                 styles.card,
+                cellStyle(2),
                 {
                   backgroundColor: surfaceColor,
                   borderColor,
@@ -1515,93 +1704,36 @@ const DashboardScreen = ({ navigation }) => {
                     Activité des 7 derniers jours
                   </Text>
                 </View>
-
-                <View
-                  style={[
-                    styles.chartLegend,
-                    {
-                      backgroundColor: hexToRgba(
-                        primaryColor,
-                        0.09
-                      ),
-                    },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.chartLegendDot,
-                      {
-                        backgroundColor: primaryColor,
-                      },
-                    ]}
-                  />
-
-                  <Text
-                    style={[
-                      styles.chartLegendText,
-                      {
-                        color: primaryColor,
-                      },
-                    ]}
-                  >
-                    Revenus
-                  </Text>
-                </View>
               </View>
 
-              <ChartComponent />
+              <GridBarChart
+                data={weeklyData}
+                color={primaryColor}
+                name="Revenus"
+                height={150}
+                nice
+                showValues
+                barWidth={isWide ? 40 : 26}
+                textColor={secondaryTextColor}
+                gridColor={borderColor}
+              />
             </View>
           </Animatable.View>
 
           {/* ==================================================
-              ACTIVITÉS RÉCENTES
-          ================================================== */}
-
-          {/* ==================================================
-              GRAPHIQUES (données réelles)
+              GRAPHIQUES MENSUELS (6 derniers mois) + MASSAGES
           ================================================== */}
 
           <Animatable.View
             animation="fadeInUp"
             delay={400}
             duration={500}
+            style={rowStyle}
           >
-            {loadError ? (
-              <View
-                style={[
-                  styles.card,
-                  {
-                    backgroundColor: surfaceColor,
-                    borderColor,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: secondaryTextColor,
-                  }}
-                >
-                  {loadError}
-                </Text>
-
-                <TouchableOpacity
-                  onPress={() => loadDashboardData()}
-                  style={{ marginTop: 8 }}
-                >
-                  <Text
-                    style={{
-                      color: primaryColor,
-                    }}
-                  >
-                    Réessayer
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : null}
-
             <View
               style={[
                 styles.card,
+                cellStyle(1),
                 {
                   backgroundColor: surfaceColor,
                   borderColor,
@@ -1620,27 +1752,21 @@ const DashboardScreen = ({ navigation }) => {
                 Mes gains (6 derniers mois)
               </Text>
 
-              <BarChart
-                data={monthly.map((m) => ({
-                  label: m.label,
-                  values: { earnings: m.earnings },
-                }))}
-                series={[
-                  {
-                    key: 'earnings',
-                    color: primaryColor,
-                    name: 'Gains nets',
-                  },
-                ]}
+              <GridBarChart
+                data={monthlyEarnings}
+                color={primaryColor}
+                name="Gains nets"
+                nice
+                barWidth={isWide ? 30 : 22}
                 textColor={secondaryTextColor}
                 gridColor={borderColor}
-                barWidth={22}
               />
             </View>
 
             <View
               style={[
                 styles.card,
+                cellStyle(1),
                 {
                   backgroundColor: surfaceColor,
                   borderColor,
@@ -1659,28 +1785,22 @@ const DashboardScreen = ({ navigation }) => {
                 Séances terminées par mois
               </Text>
 
-              <BarChart
-                data={monthly.map((m) => ({
-                  label: m.label,
-                  values: { bookings: m.bookings },
-                }))}
-                series={[
-                  {
-                    key: 'bookings',
-                    color: BLUE,
-                    name: 'Séances',
-                  },
-                ]}
+              <GridBarChart
+                data={monthlySessions}
+                color={BLUE}
+                name="Séances"
+                integer
                 format={formatCount}
+                barWidth={isWide ? 30 : 22}
                 textColor={secondaryTextColor}
                 gridColor={borderColor}
-                barWidth={22}
               />
             </View>
 
             <View
               style={[
                 styles.card,
+                cellStyle(1),
                 {
                   backgroundColor: surfaceColor,
                   borderColor,
@@ -1706,11 +1826,15 @@ const DashboardScreen = ({ navigation }) => {
                   color: GOLD,
                 }))}
                 format={formatCount}
-                textColor={secondaryTextColor}
+                textColor={textColor}
                 trackColor={borderColor}
               />
             </View>
           </Animatable.View>
+
+          {/* ==================================================
+              ACTIVITÉS RÉCENTES (2 colonnes sur bureau)
+          ================================================== */}
 
           <Animatable.View
             animation="fadeInUp"
@@ -1751,33 +1875,50 @@ const DashboardScreen = ({ navigation }) => {
                   </Text>
                 </View>
 
-                <View
-                  style={[
-                    styles.activityHeaderIcon,
-                    {
-                      backgroundColor: hexToRgba(
-                        primaryColor,
-                        0.1
-                      ),
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="pulse-outline"
-                    size={20}
-                    color={primaryColor}
-                  />
-                </View>
+                {!isWide && (
+                  <View
+                    style={[
+                      styles.activityHeaderIcon,
+                      {
+                        backgroundColor: hexToRgba(
+                          primaryColor,
+                          0.1
+                        ),
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="pulse-outline"
+                      size={20}
+                      color={primaryColor}
+                    />
+                  </View>
+                )}
               </View>
 
               {recentActivities.length > 0 ? (
-                <View>
-                  {recentActivities.map((item, index) =>
-                    renderActivity({
-                      item,
-                      index,
-                    })
-                  )}
+                <View
+                  style={{
+                    flexDirection: isWide ? 'row' : 'column',
+                    gap: isWide ? 24 : 0,
+                  }}
+                >
+                  {activityColumns.map((column, columnIndex) => (
+                    <View
+                      key={columnIndex}
+                      style={isWide ? { flex: 1, minWidth: 0 } : null}
+                    >
+                      {column.map((item, index) =>
+                        renderActivity({
+                          item,
+                          // le badge "Nouveau" ne concerne que la toute
+                          // première activité (colonne de gauche)
+                          index: columnIndex === 0 ? index : index + 1,
+                          isLast: index === column.length - 1,
+                        })
+                      )}
+                    </View>
+                  ))}
                 </View>
               ) : (
                 <View style={styles.emptyActivities}>
@@ -1848,6 +1989,120 @@ const DashboardScreen = ({ navigation }) => {
 // ============================================================
 
 const styles = StyleSheet.create({
+  // ==========================================================
+  // DISPOSITION BUREAU (>= 1024 px)
+  // ==========================================================
+
+  row: {
+    marginTop: 12,
+    gap: 12,
+    alignItems: 'stretch',
+  },
+
+  topSectionWide: {
+    marginTop: 10,
+    width: '100%',
+  },
+
+  welcomeCardWide: {
+    marginHorizontal: 0,
+    minHeight: 112,
+    borderRadius: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  welcomeTopRowWide: {
+    flex: 1,
+  },
+
+  welcomeNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginTop: 2,
+  },
+
+  onlineToggleInline: {
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    marginTop: 4,
+  },
+
+  welcomeStatsRowWide: {
+    marginTop: 0,
+    paddingTop: 0,
+    borderTopWidth: 0,
+    width: 620,
+    maxWidth: '55%',
+  },
+
+  notificationCardWide: {
+    marginHorizontal: 0,
+    marginTop: 10,
+    minHeight: 46,
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+
+  notificationCardIconWide: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+
+  sectionHeaderWide: {
+    marginHorizontal: 0,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+
+  sectionTitleInline: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+
+  sectionTitleWide: {
+    fontSize: 14,
+  },
+
+  quickActionWide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 70,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+
+  quickActionWideIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  quickActionWideText: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  aiWrapWide: {
+    borderWidth: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+    alignSelf: 'stretch',
+  },
+
   safeArea: {
     flex: 1,
     width: '100%',
@@ -2124,13 +2379,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  notificationCardArrow: {
-    width: 32,
-    height: 32,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 
   // ==========================================================
   // SECTIONS
@@ -2350,89 +2598,18 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  // ==========================================================
-  // CHART
-  // ==========================================================
 
-  chartLegend: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 18,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    gap: 5,
-  },
 
-  chartLegendDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
 
-  chartLegendText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
 
-  chart: {
-    marginTop: 2,
-    marginLeft: -16,
-    borderRadius: 18,
-  },
 
-  webChartContainer: {
-    paddingTop: 4,
-    paddingBottom: 2,
-  },
 
-  webChartBars: {
-    height: 165,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-around',
-    paddingHorizontal: 4,
-  },
 
-  webChartBarWrapper: {
-    width: 38,
-    height: 160,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
 
-  webChartValue: {
-    fontSize: 10,
-    marginBottom: 6,
-  },
 
-  webChartBar: {
-    width: 26,
-    minHeight: 7,
-    borderRadius: 9,
-  },
 
-  webChartLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 9,
-  },
 
-  webChartLabel: {
-    width: 38,
-    textAlign: 'center',
-    fontSize: 11,
-  },
 
-  chartFallback: {
-    height: 150,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-  },
-
-  chartFallbackText: {
-    fontSize: 13,
-  },
 
   // ==========================================================
   // ACTIVITÉS

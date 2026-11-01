@@ -15,7 +15,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -344,7 +344,7 @@ async def therapist_stats(
             amount = f"{round(_f(p.amount)):,}".replace(",", " ")
             activities.append((ts, {
                 "id": f"payment-{p.id}", "type": "payment",
-                "message": f"Paiement reçu de {name} - {amount} Ar",
+                "message": f"Paiement reçu de {name} · {amount} Ar",
             }))
     for r, name in (
         db.query(Review, User.fullname)
@@ -380,6 +380,10 @@ async def therapist_stats(
             "available": available,
         },
         "rating": {"average": round(avg_rating, 2), "total_reviews": reviews_count},
+        "profile": {
+            "is_online": bool(current_user.is_online),
+            "is_available": bool(getattr(current_user, "is_available", True)),
+        },
         "weekly": list(week.values()),
         "monthly": [series[k] for k in keys],
         "by_massage_type": _by_massage_type(
@@ -387,6 +391,66 @@ async def therapist_stats(
         ),
         "recent_activities": [
             {**a, "time": iso_utc(ts)} for ts, a in activities[:6]
+        ],
+    }
+
+
+# ============================================================
+# THÉRAPEUTE — services les plus demandés par période
+#   GET /stats/therapist/services?period=day|week|month
+# Uniquement les séances TERMINÉES du thérapeute connecté.
+# ============================================================
+SERVICE_PERIOD_DAYS = {"day": 1, "week": 7, "month": 30}
+
+
+@router.get("/therapist/services")
+async def therapist_services(
+    period: str = Query("month"),
+    limit: int = Query(5, ge=1, le=10),
+    current_user: User = Depends(get_current_therapist),
+    db: Session = Depends(get_db),
+):
+    days = SERVICE_PERIOD_DAYS.get(period)
+    if days is None:
+        raise HTTPException(
+            status_code=400, detail="Période invalide. Utilisez day, week ou month."
+        )
+
+    # day = depuis minuit (Madagascar) ; week = 7 jours glissants (aujourd'hui inclus) ; month = 30 jours
+    start = _day_start_db() - timedelta(days=days - 1)
+    done_at = func.coalesce(Booking.actual_end_time, Booking.scheduled_date)
+
+    rows = (
+        db.query(
+            MassageType.id,
+            MassageType.name,
+            MassageType.min_price,
+            MassageType.category,
+            func.count(Booking.id),
+        )
+        .join(Booking, Booking.massage_type_id == MassageType.id)
+        .filter(
+            Booking.therapist_id == current_user.id,
+            Booking.status == "completed",
+            done_at >= start,
+        )
+        .group_by(MassageType.id, MassageType.name, MassageType.min_price, MassageType.category)
+        .order_by(func.count(Booking.id).desc(), MassageType.name.asc())
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "period": period,
+        "items": [
+            {
+                "massage_type_id": r[0],
+                "name": r[1],
+                "min_price": _f(r[2]) or None,
+                "category": str(r[3]) if r[3] else None,
+                "count": int(r[4]),
+            }
+            for r in rows
         ],
     }
 

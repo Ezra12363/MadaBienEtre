@@ -24,6 +24,17 @@ const statsService = {
   client: (months = 6) => load('/stats/client', months, 'Impossible de charger vos statistiques.'),
   /** Tableau de bord THÉRAPEUTE */
   therapist: (months = 6) => load('/stats/therapist', months, 'Impossible de charger vos statistiques.'),
+  /** Services les plus réalisés du thérapeute : period = 'day' | 'week' | 'month' */
+  therapistServices: async (period = 'month') => {
+    try {
+      const res = await api.get('/stats/therapist/services', { params: { period } });
+      return Array.isArray(res.data?.items) ? res.data.items : [];
+    } catch (error) {
+      const e = new Error(errMsg(error, 'Impossible de charger les services.'));
+      e.status = error?.response?.status;
+      throw e;
+    }
+  },
   /** Tableau de bord ADMIN + écran Analyses */
   admin: (months = 6) => load('/stats/admin', months, 'Impossible de charger les statistiques.'),
 };
