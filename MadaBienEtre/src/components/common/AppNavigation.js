@@ -336,7 +336,7 @@ export const TopNavBar = ({
     return null;
   }
 
-  const { state, descriptors, navigation, getIcon, getLabel } = bridge.tabData;
+  const { state, descriptors, navigation, getLabel } = bridge.tabData;
   const pageContext = bridge.pageContext;
 
   const hasProfileRoute = state.routes.some((r) => r.name === 'Profil');
@@ -397,7 +397,12 @@ export const TopNavBar = ({
       {/* BARRE PRINCIPALE */}
       {/* -------------------------------------------------- */}
 
-      <View style={styles.mainBar}>
+      <View
+        style={[
+          styles.mainBar,
+          { backgroundColor: PRIMARY, borderBottomColor: PRIMARY_DARK },
+        ]}
+      >
         {/* ================================================== */}
         {/* GAUCHE — LOGO + NOM DE L'APPLICATION               */}
         {/* ================================================== */}
@@ -438,12 +443,6 @@ export const TopNavBar = ({
                 ? getLabel(route.name)
                 : options.tabBarLabel ?? route.name;
 
-              const iconName = getIcon
-                ? getIcon(route.name, focused)
-                : focused
-                ? 'ellipse'
-                : 'ellipse-outline';
-
               const onPress = () => {
                 const event = navigation.emit({
                   type: 'tabPress',
@@ -468,12 +467,6 @@ export const TopNavBar = ({
                     !focused && hovered && styles.menuItemHovered,
                   ]}
                 >
-                  <Ionicons
-                    name={iconName}
-                    size={17}
-                    color={focused ? '#FFFFFF' : 'rgba(255,255,255,0.88)'}
-                  />
-
                   <Text
                     numberOfLines={1}
                     style={[
@@ -483,6 +476,8 @@ export const TopNavBar = ({
                   >
                     {label}
                   </Text>
+
+                  {focused && <View style={styles.menuItemUnderline} />}
                 </Pressable>
               );
             })}
@@ -659,6 +654,22 @@ export const TopNavBar = ({
                       >
                         {user?.fullname || user?.name || 'Utilisateur'}
                       </Text>
+
+                      {!!user?.email && (
+                        <Text
+                          numberOfLines={1}
+                          style={[
+                            styles.profileDropdownEmail,
+                            {
+                              color:
+                                themeColors.textSecondary ||
+                                (isDark ? '#AEB7C6' : '#6B7280'),
+                            },
+                          ]}
+                        >
+                          {user.email}
+                        </Text>
+                      )}
 
                       <Text
                         numberOfLines={1}
@@ -894,31 +905,35 @@ const styles = StyleSheet.create({
   menuArea: {
     flex: 1,
     minWidth: 0,
-    height: '100%',
+    alignSelf: 'stretch',
     justifyContent: 'center',
   },
 
   menuScroll: {
     width: '100%',
     maxWidth: '100%',
+    flexGrow: 1,
   },
 
+  // Menu en "pilules" sur fond vert : texte blanc gras, item actif =
+  // pilule blanche translucide + soulignement dégradé.
   menuScrollContent: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
-    paddingRight: 8,
-    gap: 3,
+    paddingHorizontal: 8,
+    gap: 6,
   },
 
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    minHeight: 42,
+    justifyContent: 'center',
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    borderRadius: 14,
+    minHeight: 48,
+    position: 'relative',
     flexShrink: 0,
     ...Platform.select({
       web: {
@@ -934,23 +949,34 @@ const styles = StyleSheet.create({
 
   menuItemActive: {
     backgroundColor: 'rgba(255,255,255,0.20)',
-    ...Platform.select({
-      web: {
-        boxShadow: '0px 2px 8px rgba(0,0,0,0.10)',
-      },
-      default: {},
-    }),
   },
 
   menuItemLabel: {
-    color: 'rgba(255,255,255,0.88)',
-    fontSize: 13.5,
-    fontFamily: typography.fontFamily.medium,
+    color: 'rgba(255,255,255,0.92)',
+    fontSize: 15,
+    fontFamily: typography.fontFamily.bold,
   },
 
   menuItemLabelActive: {
     color: '#FFFFFF',
-    fontFamily: typography.fontFamily.bold,
+  },
+
+  // Petit trait dégradé sous l'item actif
+  menuItemUnderline: {
+    position: 'absolute',
+    left: 18,
+    right: 18,
+    bottom: 4,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#FFFFFF',
+    ...Platform.select({
+      web: {
+        backgroundImage:
+          'linear-gradient(90deg, #FFFFFF 0%, rgba(255,255,255,0.25) 100%)',
+      },
+      default: {},
+    }),
   },
 
   // ---------- actions à droite ----------
@@ -1152,6 +1178,11 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.bold,
   },
 
+  profileDropdownEmail: {
+    fontSize: 11.5,
+    marginTop: 2,
+  },
+
   profileDropdownRole: {
     fontSize: 11,
     marginTop: 2,
@@ -1170,7 +1201,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 58,
     right: 0,
-    width: 230,
+    width: 260,
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
     paddingVertical: 6,
