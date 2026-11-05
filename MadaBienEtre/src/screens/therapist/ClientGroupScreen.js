@@ -23,6 +23,7 @@ import {
   Text,
   View,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 
 import {
@@ -280,6 +281,10 @@ export default function ClientGroupScreen({
   const insets = useSafeAreaInsets();
 
   const isWeb = Platform.OS === 'web';
+
+  // Web large : 3 cartes par ligne. Android / fenêtre étroite : 1 par ligne.
+  const { width: windowWidth } = useWindowDimensions();
+  const numColumns = isWeb && windowWidth >= 850 ? 3 : 1;
 
   const sheetBottomPadding =
     Math.max(
@@ -1411,6 +1416,23 @@ export default function ClientGroupScreen({
     });
   }, [bookings, statusFilter, selectedDate, paymentsByBooking]);
 
+  // ✅ Grille : complète la dernière ligne avec des cases vides pour que
+  // les cartes gardent la même largeur (3 par ligne sur le web).
+  const gridBookings = useMemo(() => {
+    if (numColumns <= 1) return filteredBookings;
+    const remainder = filteredBookings.length % numColumns;
+    if (remainder === 0) return filteredBookings;
+    return [
+      ...filteredBookings,
+      ...Array.from({ length: numColumns - remainder }, (_, index) => ({
+        __placeholder: true,
+        key: `__placeholder-${index}`,
+        id: `__placeholder-${index}`,
+        bookingId: `__placeholder-${index}`,
+      })),
+    ];
+  }, [filteredBookings, numColumns]);
+
   const hasActiveFilters =
     statusFilter !== 'all' || !!selectedDate;
 
@@ -1488,6 +1510,17 @@ export default function ClientGroupScreen({
   const renderBookingCard =
     useCallback(
       ({ item: booking }) => {
+        if (booking.__placeholder) {
+          return (
+            <View
+              style={[
+                isWeb && webStyles.webCard,
+                { backgroundColor: 'transparent', borderWidth: 0 },
+              ]}
+            />
+          );
+        }
+
         const status =
           normalizeStatus(booking);
 
@@ -1886,6 +1919,7 @@ export default function ClientGroupScreen({
 
                 {/* Statut du paiement (Payé / En attente) + reçu du client */}
                 <BookingPaymentSection
+                  flat
                   booking={booking}
                   role="therapist"
                   navigation={navigation}
@@ -3021,7 +3055,8 @@ export default function ClientGroupScreen({
           ]}
         >
           <FlatList
-            data={filteredBookings}
+            key={`grid-${numColumns}`}
+            data={gridBookings}
             keyExtractor={item =>
               String(item.id)
             }
@@ -3034,17 +3069,15 @@ export default function ClientGroupScreen({
 
             /*
              * WEB :
-             * 2 cartes par ligne.
+             * 3 cartes par ligne.
              *
              * ANDROID :
              * 1 carte par ligne.
              */
-            numColumns={
-              isWeb ? 2 : 1
-            }
+            numColumns={numColumns}
 
             columnWrapperStyle={
-              isWeb &&
+              numColumns > 1 &&
               filteredBookings.length > 0
                 ? webStyles.webColumnWrapper
                 : undefined
@@ -3054,7 +3087,7 @@ export default function ClientGroupScreen({
               filteredBookings.length ===
               0
                 ? baseStyles.listEmptyContent
-                : isWeb
+                : numColumns > 1
                 ? webStyles.webListContent
                 : baseStyles.mobileList
             }

@@ -811,7 +811,7 @@ export const TopNavBar = ({
 // isMerged = Platform.OS === 'web' && width >= TOPNAV_BREAKPOINT).
 // Couleurs de marque (thème vert) — mêmes que AppHeader.js (dupliquées
 // ici pour éviter un import circulaire AppHeader <-> AppNavigation).
-const PRIMARY = '#007517';
+const PRIMARY = '#0B633C';
 const PRIMARY_DARK = '#0B633C';
 const PRIMARY_SOFT = '#EAF7F0';
 

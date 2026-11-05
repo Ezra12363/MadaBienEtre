@@ -1229,11 +1229,8 @@ export default function OffersScreen({ navigation, route }) {
   const isWeb = Platform.OS === 'web';
   const isMobile = !isWeb || width < 850;
 
-  const numColumns = isMobile
-    ? width >= 900
-      ? 2
-      : 1
-    : 1;
+  // Web large : 3 cartes par ligne. Android / fenêtre étroite : 1 par ligne.
+  const numColumns = isMobile ? 1 : 3;
 
   const insets = useSafeAreaInsets();
   const sheetBottomPadding =
@@ -1594,6 +1591,23 @@ export default function OffersScreen({ navigation, route }) {
       };
     });
   }, [filteredBookings]);
+
+  // ✅ Grille : complète la dernière ligne avec des cases vides pour que
+  // les cartes gardent la même largeur (3 par ligne sur le web).
+  const gridClientBookings = useMemo(() => {
+    if (numColumns <= 1) return groupedClientBookings;
+    const remainder = groupedClientBookings.length % numColumns;
+    if (remainder === 0) return groupedClientBookings;
+    return [
+      ...groupedClientBookings,
+      ...Array.from({ length: numColumns - remainder }, (_, index) => ({
+        __placeholder: true,
+        key: `__placeholder-${index}`,
+        id: `__placeholder-${index}`,
+        bookingId: `__placeholder-${index}`,
+      })),
+    ];
+  }, [groupedClientBookings, numColumns]);
 
   // ==========================================================
   // MAP DATA
@@ -2337,6 +2351,7 @@ export default function OffersScreen({ navigation, route }) {
 
               {/* Statut du paiement (Payé / En attente) + reçu */}
               <BookingPaymentSection
+                flat
                 booking={booking}
                 role="therapist"
                 navigation={navigation}
@@ -2539,7 +2554,9 @@ export default function OffersScreen({ navigation, route }) {
 
   const renderClientGroupCard = useCallback(
     ({ item: group }) =>
-      renderMobileCard({
+      group.__placeholder
+        ? <View style={{ flex: 1, marginBottom: 10 }} />
+        : renderMobileCard({
         item: group.latestBooking,
         onPressOverride: () => openClientGroupPage(group),
         badgeCount: group.count,
@@ -3568,7 +3585,7 @@ export default function OffersScreen({ navigation, route }) {
                   ) : (
                     <FlatList
                       key={`web-grid-${numColumns}`}
-                      data={groupedClientBookings}
+                      data={gridClientBookings}
                       keyExtractor={group => group.key}
                       renderItem={renderClientGroupCard}
                       numColumns={numColumns}
@@ -3657,7 +3674,7 @@ export default function OffersScreen({ navigation, route }) {
             ) : (
               <FlatList
                 key={`mobile-grid-${numColumns}`}
-                data={groupedClientBookings}
+                data={gridClientBookings}
                 keyExtractor={group => group.key}
                 renderItem={renderClientGroupCard}
                 numColumns={numColumns}

@@ -1173,9 +1173,10 @@ const Tag = ({ label, themeColors }) => (
   </View>
 );
 
-const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress, onReviewPress }) => {
+const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress, onReviewPress, navigation, columns = 1 }) => {
   const { width } = useWindowDimensions();
-  const isWide = width >= 768;
+  // Grille (3 colonnes) : vignette compacte pour garder de la place au texte.
+  const isWide = width >= 768 && columns === 1;
   const statusConfig = getStatusConfig(booking.status);
   const typeVisual = getMassageTypeVisual(booking.massageType);
   const formattedPrice = formatPrice(booking.displayPrice);
@@ -1208,6 +1209,7 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
       onPress={() => onPress(booking)}
       style={[
         styles.bookingCard,
+        columns > 1 && styles.bookingCardGrid,
         { backgroundColor: themeColors.card, borderColor: themeColors.border },
       ]}
     >
@@ -1332,51 +1334,57 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
                 </Text>
               )}
             </View>
-
-            {showTherapist && onSharePress && !['cancelled', 'canceled', 'rejected', 'expired'].includes(String(booking.status).toLowerCase()) && (
-              <TouchableOpacity
-                activeOpacity={0.8}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                onPress={() => onSharePress(booking)}
-                accessibilityRole="button"
-                accessibilityLabel="Partager la réservation avec le thérapeute dans la messagerie"
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 5,
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
-                  borderRadius: 14,
-                  backgroundColor: COLORS.primarySoft,
-                  marginLeft: 'auto',
-                  marginRight: 6,
-                }}
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={14} color={COLORS.primary} />
-                <Text style={{ color: COLORS.primary, fontSize: 12, fontWeight: '700' }}>Partager</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              onPress={() => onMenuPress?.(booking)}
-              style={styles.menuButton}
-            >
-              <Ionicons name="ellipsis-vertical" size={16} color={COLORS.textSecondary} />
-            </TouchableOpacity>
           </View>
+
+          {/* Statut du paiement : sous le prix, sans bordure, sur une seule ligne */}
+          <BookingPaymentSection
+            flat
+            booking={{
+              id: booking.bookingId,
+              status: booking.status,
+              final_price: booking.displayPrice,
+            }}
+            role="client"
+            navigation={navigation}
+          />
         </View>
       </View>
 
-      {/* TAGS */}
-      {tags.length > 0 && (
+      {/* LIGNE DU BAS : tags (Prévu le…) à gauche, actions à droite */}
+      <View style={styles.footerRow}>
         <View style={styles.tagsWrap}>
           {tags.map((label, index) => (
             <Tag key={`${label}-${index}`} label={label} themeColors={themeColors} />
           ))}
         </View>
-      )}
+
+        <View style={styles.footerActions}>
+          {showTherapist && onSharePress && !['cancelled', 'canceled', 'rejected', 'expired'].includes(String(booking.status).toLowerCase()) && (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              onPress={() => onSharePress(booking)}
+              accessibilityRole="button"
+              accessibilityLabel="Partager la réservation avec le thérapeute dans la messagerie"
+              style={styles.shareButton}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={14} color={COLORS.primary} />
+              <Text style={styles.shareButtonText}>Partager</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            onPress={() => onMenuPress?.(booking)}
+            accessibilityRole="button"
+            accessibilityLabel="Plus d'actions"
+            style={[styles.menuButton, { borderColor: themeColors.border }]}
+          >
+            <Ionicons name="ellipsis-vertical" size={16} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+        </View>
+      </View>
 
     </TouchableOpacity>
   );
@@ -1430,6 +1438,10 @@ const EmptyState = ({ activeFilter, onCreateBooking, themeColors }) => {
 const HistoryScreen = ({ navigation }) => {
   const { user: _user } = useAuth();
   const { colors: themeColors } = useTheme();
+
+  // Web large : 3 cartes par ligne. Android / fenêtre étroite : 1 par ligne.
+  const { width: windowWidth } = useWindowDimensions();
+  const numColumns = Platform.OS === 'web' && windowWidth >= 850 ? 3 : 1;
 
   const therapistNameCacheRef = useRef(new Map());
   // ✅ IDs déjà connus comme introuvables (404 « Thérapeute non trouvé ») :
@@ -1872,6 +1884,10 @@ const HistoryScreen = ({ navigation }) => {
 
   const renderBooking = useCallback(
     ({ item }) => {
+      if (item.__placeholder) {
+        return <View style={styles.gridItem} />;
+      }
+
       const resolvedImageUrl = resolveBookingImage(item);
 
       const bookingWithImage =
@@ -1880,38 +1896,46 @@ const HistoryScreen = ({ navigation }) => {
           : { ...item, imageUrl: resolvedImageUrl };
 
       return (
-        <View>
+        <View style={numColumns > 1 ? styles.gridItem : undefined}>
           <BookingCard
+            columns={numColumns}
             booking={bookingWithImage}
             themeColors={themeColors}
             onPress={handleBookingPress}
             onMenuPress={handleMenuPress}
             onSharePress={handleSharePress}
+            navigation={navigation}
             onReviewPress={(b) =>
               navigation.navigate('Rating', { bookingId: b.bookingId })
             }
           />
-          {/* Statut du paiement sous le prix : Payer maintenant / Voir le reçu */}
-          <BookingPaymentSection
-            booking={{
-              id: item.bookingId,
-              status: item.status,
-              final_price: item.displayPrice,
-            }}
-            role="client"
-            navigation={navigation}
-            style={{ marginTop: -6, marginBottom: 14, marginHorizontal: 2 }}
-          />
         </View>
       );
     },
-    [themeColors, handleBookingPress, handleMenuPress, handleSharePress, resolveBookingImage, navigation],
+    [themeColors, handleBookingPress, handleMenuPress, handleSharePress, resolveBookingImage, navigation, numColumns],
   );
 
   const keyExtractor = useCallback(
     (item, index) => String(item.bookingId || index),
     [],
   );
+
+  // ✅ Grille : complète la dernière ligne avec des cases vides pour que
+  // les cartes gardent la même largeur (3 par ligne sur le web).
+  const gridBookings = useMemo(() => {
+    if (numColumns <= 1) return filteredBookings;
+    const remainder = filteredBookings.length % numColumns;
+    if (remainder === 0) return filteredBookings;
+    return [
+      ...filteredBookings,
+      ...Array.from({ length: numColumns - remainder }, (_, index) => ({
+        __placeholder: true,
+        key: `__placeholder-${index}`,
+        id: `__placeholder-${index}`,
+        bookingId: `__placeholder-${index}`,
+      })),
+    ];
+  }, [filteredBookings, numColumns]);
 
   const filterOptions = [
     { label: 'Toutes', value: 'all' },
@@ -2047,9 +2071,12 @@ const HistoryScreen = ({ navigation }) => {
           </View>
         ) : (
           <FlatList
-            data={filteredBookings}
+            key={`grid-${numColumns}`}
+            data={gridBookings}
             keyExtractor={keyExtractor}
             renderItem={renderBooking}
+            numColumns={numColumns}
+            columnWrapperStyle={numColumns > 1 ? styles.gridColumnWrapper : undefined}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.listContent,
@@ -2236,6 +2263,24 @@ const styles = StyleSheet.create({
 
   emptyListContent: {
     flexGrow: 1,
+  },
+
+  // ---------- GRILLE (web : 3 cartes par ligne) ----------
+
+  // alignItems 'stretch' : toutes les cartes d'une ligne ont la même hauteur
+  // (avec ou sans bloc paiement).
+  gridColumnWrapper: {
+    gap: 12,
+    alignItems: 'stretch',
+  },
+
+  bookingCardGrid: {
+    flexGrow: 1,
+  },
+
+  gridItem: {
+    flex: 1,
+    minWidth: 0,
   },
 
   // ---------- BOOKING CARD ----------
@@ -2440,22 +2485,49 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
+  },
+
+  footerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 10,
   },
 
   tagsWrap: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginTop: 10,
+  },
+
+  footerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
+
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    backgroundColor: COLORS.primarySoft,
+  },
+
+  shareButtonText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: '700',
   },
 
   tag: {

@@ -50,7 +50,7 @@ function Line({ label, value, tc }) {
  *  defaultOpen?: boolean, style?: object
  * }} props
  */
-export default function BookingPaymentSection({ booking, role = 'client', navigation, payment: preloaded, onChanged, defaultOpen = false, style }) {
+export default function BookingPaymentSection({ booking, role = 'client', navigation, payment: preloaded, onChanged, defaultOpen = false, flat = false, style }) {
   const theme = useTheme?.() || {};
   const tc = { text: '#222', textSecondary: '#777', border: '#E5E5E5', card: '#FFFFFF', ...(theme.colors || {}) };
 
@@ -154,25 +154,24 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
   if (!booking || !payable) return null;
 
   return (
-    <View style={[styles.wrap, { borderColor: tc.border, backgroundColor: tc.card }, style]}>
-      <TouchableOpacity style={styles.head} onPress={toggle} activeOpacity={0.8}>
+    <View style={[styles.wrap, { borderColor: tc.border, backgroundColor: tc.card }, flat && styles.wrapFlat, style]}>
+      <TouchableOpacity style={[styles.head, flat && styles.headFlat]} onPress={toggle} activeOpacity={0.8}>
         <View style={styles.headLeft}>
-          <Ionicons name="wallet-outline" size={18} color={GREEN} />
-          <View style={{ flexShrink: 1 }}>
-            <Text style={[styles.title, { color: tc.text }]}>Statut du paiement</Text>
-            <Text style={[styles.sub, { color: tc.textSecondary }]} numberOfLines={1}>
-              {summary}
-            </Text>
-          </View>
+          <Ionicons name="wallet-outline" size={15} color={GREEN} />
+          {/* UNE seule ligne : le détail (summary) est affiché une fois ouvert */}
+          <Text style={[styles.title, { color: tc.text }]} numberOfLines={1}>
+            Statut du paiement
+          </Text>
         </View>
         <View style={styles.headRight}>
-          <PaymentStatusBadge state={state} />
-          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={18} color={tc.textSecondary} />
+          <PaymentStatusBadge state={state} small />
+          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={15} color={tc.textSecondary} />
         </View>
       </TouchableOpacity>
 
       {open ? (
-        <View style={[styles.body, { borderTopColor: tc.border }]}>
+        <View style={[styles.body, { borderTopColor: tc.border }, flat && styles.bodyFlat]}>
+          <Text style={[styles.summary, { color: tc.textSecondary }]}>{summary}</Text>
           <Line tc={tc} label={pending ? 'Montant à payer' : isTherapist ? 'Montant payé par le client' : 'Montant payé'} value={formatAr(amount)} />
           {!pending ? <Line tc={tc} label="Mode de paiement" value={payment?.method_label} /> : null}
           {payment?.created_at ? <Line tc={tc} label="Paiement initié le" value={formatDateTime(payment.created_at)} /> : null}
@@ -188,14 +187,14 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
           {/* ----- Actions ----- */}
           {state === 'paid' ? (
             <TouchableOpacity style={styles.primary} onPress={() => navigation?.navigate?.('Receipt', { kind: 'payment', id: payment.id, view })} activeOpacity={0.85}>
-              <Ionicons name="receipt-outline" size={18} color="#fff" />
+              <Ionicons name="receipt-outline" size={15} color="#fff" />
               <Text style={styles.primaryText}>{isTherapist ? 'Voir le reçu du client' : 'Voir le reçu'}</Text>
             </TouchableOpacity>
           ) : null}
 
           {state === 'paid' && !isTherapist && refundStatus === 'pending' ? (
             <View style={styles.notice}>
-              <Ionicons name="time-outline" size={18} color="#B45309" />
+              <Ionicons name="time-outline" size={15} color="#B45309" />
               <Text style={styles.noticeText}>Demande de remboursement envoyée : en attente de la décision de l’administrateur.</Text>
             </View>
           ) : null}
@@ -207,7 +206,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
           ) : null}
           {state === 'paid' && !isTherapist && refundStatus !== 'pending' ? (
             <TouchableOpacity style={[styles.primary, styles.secondary]} onPress={() => setRefundOpen(true)} disabled={busy} activeOpacity={0.85}>
-              {busy ? <ActivityIndicator color={GREEN} /> : <Ionicons name="return-down-back-outline" size={18} color={GREEN} />}
+              {busy ? <ActivityIndicator size="small" color={GREEN} /> : <Ionicons name="return-down-back-outline" size={15} color={GREEN} />}
               <Text style={[styles.primaryText, { color: GREEN }]}>Demander un remboursement</Text>
             </TouchableOpacity>
           ) : null}
@@ -218,14 +217,14 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
               onPress={() => navigation?.navigate?.('Payment', { bookingId: booking.id })}
               activeOpacity={0.85}
             >
-              <Ionicons name="card-outline" size={18} color="#fff" />
+              <Ionicons name="card-outline" size={15} color="#fff" />
               <Text style={styles.primaryText}>{cashWaiting ? 'Modifier le mode de paiement' : 'Payer maintenant'}</Text>
             </TouchableOpacity>
           ) : null}
 
           {pending && !isTherapist && cashWaiting && !payment?.client_sent_at ? (
             <TouchableOpacity style={[styles.primary, styles.secondary]} onPress={notifyTherapist} disabled={busy} activeOpacity={0.85}>
-              {busy ? <ActivityIndicator color={GREEN} /> : <Ionicons name="paper-plane-outline" size={18} color={GREEN} />}
+              {busy ? <ActivityIndicator size="small" color={GREEN} /> : <Ionicons name="paper-plane-outline" size={15} color={GREEN} />}
               <Text style={[styles.primaryText, { color: GREEN }]}>J’ai remis les espèces — prévenir le thérapeute</Text>
             </TouchableOpacity>
           ) : null}
@@ -240,7 +239,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
 
           {pending && isTherapist && payment?.awaiting_confirmation ? (
             <View style={styles.notice}>
-              <Ionicons name="alert-circle-outline" size={18} color="#B45309" />
+              <Ionicons name="alert-circle-outline" size={15} color="#B45309" />
               <Text style={styles.noticeText}>
                 Le client indique vous avoir remis {formatAr(amount)} le {formatDateTime(payment.client_sent_at)}. Vérifiez puis confirmez la réception.
               </Text>
@@ -249,7 +248,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
 
           {pending && isTherapist && cashWaiting ? (
             <TouchableOpacity style={styles.primary} onPress={confirmCash} disabled={busy} activeOpacity={0.85}>
-              {busy ? <ActivityIndicator color="#fff" /> : <Ionicons name="cash-outline" size={18} color="#fff" />}
+              {busy ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="cash-outline" size={15} color="#fff" />}
               <Text style={styles.primaryText}>Confirmer la réception des espèces</Text>
             </TouchableOpacity>
           ) : null}
@@ -277,16 +276,20 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
 }
 
 const styles = StyleSheet.create({
-  wrap: { borderWidth: 1, borderRadius: 14, marginTop: 10, overflow: 'hidden' },
-  head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, gap: 8 },
-  headLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1 },
-  headRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  title: { fontSize: 14, fontWeight: '400' },
-  sub: { fontSize: 12, marginTop: 1, fontWeight: '400' },
+  wrap: { borderWidth: 1, borderRadius: 12, marginTop: 10, overflow: 'hidden', alignSelf: 'stretch', minWidth: 0 },
+  head: { flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 9, paddingHorizontal: 12, minHeight: 38, gap: 8 },
+  // Variante « flat » : sans bordure ni fond, à intégrer dans une autre carte.
+  wrapFlat: { borderWidth: 0, borderRadius: 0, backgroundColor: 'transparent', marginTop: 0 },
+  headFlat: { paddingHorizontal: 0, minHeight: 24, paddingVertical: 0 },
+  bodyFlat: { borderTopWidth: 0, paddingHorizontal: 0 },
+  headLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
+  headRight: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
+  title: { fontSize: 12, fontWeight: '400', flexShrink: 1, minWidth: 0 },
+  summary: { fontSize: 11, paddingVertical: 6, fontWeight: '400' },
   body: { borderTopWidth: 1, paddingHorizontal: 12, paddingBottom: 12, paddingTop: 6 },
   line: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 6, gap: 12 },
-  lineLabel: { fontSize: 13, fontWeight: '400', flexShrink: 0 },
-  lineValue: { fontSize: 14, fontWeight: '400', flex: 1, textAlign: 'right' },
+  lineLabel: { fontSize: 11.5, fontWeight: '400', flexShrink: 0 },
+  lineValue: { fontSize: 12, fontWeight: '400', flex: 1, textAlign: 'right' },
   primary: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -294,12 +297,12 @@ const styles = StyleSheet.create({
     gap: 8,
     backgroundColor: GREEN,
     borderRadius: 12,
-    paddingVertical: 12,
-    marginTop: 10,
+    paddingVertical: 9,
+    marginTop: 8,
   },
-  primaryText: { color: '#fff', fontSize: 15, fontWeight: '400' },
+  primaryText: { color: '#fff', fontSize: 12.5, fontWeight: '400' },
   secondary: { backgroundColor: '#E8F3EC', borderWidth: 1, borderColor: GREEN },
   notice: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: '#FEF3C7', borderRadius: 10, padding: 10, marginTop: 10 },
-  noticeText: { flex: 1, color: '#92400E', fontSize: 13, lineHeight: 18, fontWeight: '400' },
-  hint: { fontSize: 12, marginTop: 10, lineHeight: 17, fontWeight: '400' },
+  noticeText: { flex: 1, color: '#92400E', fontSize: 11.5, lineHeight: 16, fontWeight: '400' },
+  hint: { fontSize: 11, marginTop: 8, lineHeight: 15, fontWeight: '400' },
 });
