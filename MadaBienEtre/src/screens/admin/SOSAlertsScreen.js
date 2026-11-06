@@ -16,6 +16,7 @@ import {
   ScrollView,
   Linking,
   useWindowDimensions,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -30,6 +31,7 @@ import {
   STATUS_COLORS,
   TypeBadge,
   Avatar,
+  alertPhoto,
   fmtDate,
   roleLabel,
 } from '../../components/sos/sosAdminShared';
@@ -48,9 +50,11 @@ const SOSAlertsScreen = () => {
   const { colors: themeColors } = useTheme();
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
-  // Une carte par ligne, en pleine largeur (web et mobile).
-  const numColumns = 1;
-  const isWide = width >= 800;
+  // WEB : 3 cartes par ligne (2 sur tablette, 1 sur écran étroit).
+  // ANDROID / iOS : 1 carte par ligne, version COMPACTE (faible hauteur).
+  const isNative = Platform.OS !== 'web';
+  const numColumns = isNative ? 1 : width >= 1024 ? 3 : width >= 700 ? 2 : 1;
+  const compact = isNative || width < 640;
 
   const [tab, setTab] = useState('active'); // active | history
   const [typeFilter, setTypeFilter] = useState('all');
@@ -105,73 +109,123 @@ const SOSAlertsScreen = () => {
   const renderAlert = ({ item }) => {
     const sev = SEVERITY_COLORS[item.severity] || '#999';
     const satellite = sosService.getSatelliteLink(item.latitude, item.longitude);
+    const address = item.address || (item.latitude != null ? sosService.formatCoordinates(item.latitude, item.longitude) : 'Adresse non disponible');
+    const isActive = item.status === 'active';
+    const statusText = `${STATUS_LABELS[item.status] || item.status}${isActive && !item.responded_by ? '  ·  À traiter' : ''}`;
+    const photo = alertPhoto(item);
+    const btnIcon = compact ? 13 : 14;
+
+    const actions = (
+      <View style={[styles.quickRow, compact && styles.quickRowCompact]}>
+        {item.user_phone ? (
+          <TouchableOpacity style={[styles.quickBtn, compact && styles.quickBtnCompact, { backgroundColor: colors.primary }]} onPress={() => call(item.user_phone)}>
+            <Ionicons name="call" size={btnIcon} color="#fff" />
+            <Text style={styles.quickText}>Appeler</Text>
+          </TouchableOpacity>
+        ) : null}
+        {satellite ? (
+          <TouchableOpacity style={[styles.quickBtn, compact && styles.quickBtnCompact, { backgroundColor: '#2D7FF9' }]} onPress={() => Linking.openURL(satellite)}>
+            <Ionicons name="map" size={btnIcon} color="#fff" />
+            <Text style={styles.quickText}>{compact ? 'Carte' : 'Voir sur la carte'}</Text>
+          </TouchableOpacity>
+        ) : null}
+        <TouchableOpacity
+          style={[styles.quickBtn, compact && styles.quickBtnCompact, { backgroundColor: isActive ? colors.success || '#27AE60' : '#888' }]}
+          onPress={() => openDetail(item)}
+        >
+          <Ionicons name={isActive ? 'checkmark-circle' : 'eye'} size={btnIcon} color="#fff" />
+          <Text style={styles.quickText}>{isActive ? 'Traiter' : 'Détails'}</Text>
+        </TouchableOpacity>
+        {compact && item.booking_id ? (
+          <Text style={[styles.meta, { color: themeColors.textSecondary, marginLeft: 'auto' }]}>Résa #{item.booking_id}</Text>
+        ) : null}
+      </View>
+    );
+
     return (
-      <View style={numColumns > 1 ? { flex: 1, maxWidth: `${100 / numColumns}%` } : null}>
-      <TouchableOpacity
-        style={[styles.card, { backgroundColor: themeColors.surface, borderLeftColor: sev }, numColumns > 1 && styles.cardGrid]}
-        onPress={() => openDetail(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.cardHeader}>
-          <View style={styles.cardLeft}>
-            <Avatar uri={item.user_photo} name={item.user} />
-            <View style={{ flexShrink: 1, marginLeft: spacing.md }}>
-              <Text style={[styles.name, { color: themeColors.text }]} numberOfLines={1}>{item.user}</Text>
-              <Text style={[styles.meta, { color: themeColors.textSecondary }]}>{roleLabel(item)}</Text>
-              <TypeBadge type={item.alert_type} />
+      <View style={numColumns > 1 ? [styles.gridCell, { maxWidth: `${100 / numColumns}%` }] : null}>
+        <TouchableOpacity
+          style={[
+            styles.card,
+            compact && styles.cardCompact,
+            numColumns > 1 && styles.cardGrid,
+            { backgroundColor: themeColors.surface, borderLeftColor: sev },
+          ]}
+          onPress={() => openDetail(item)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.cardHeader}>
+            <View style={styles.cardLeft}>
+              <Avatar uri={photo} name={item.user} size={compact ? 38 : 46} />
+              <View style={{ flexShrink: 1, marginLeft: spacing.sm }}>
+                <Text style={[styles.name, { color: themeColors.text }]} numberOfLines={1}>{item.user}</Text>
+                {compact ? (
+                  <View style={styles.roleRow}>
+                    <Text style={[styles.meta, { color: themeColors.textSecondary }]}>{roleLabel(item)}</Text>
+                    <TypeBadge type={item.alert_type} compact />
+                  </View>
+                ) : (
+                  <>
+                    <Text style={[styles.meta, { color: themeColors.textSecondary }]}>{roleLabel(item)}</Text>
+                    <TypeBadge type={item.alert_type} />
+                  </>
+                )}
+              </View>
+            </View>
+            <View style={[styles.severityBadge, { backgroundColor: sev + '20' }]}>
+              <Text style={[styles.severityText, { color: sev }]}>{SEVERITY_LABELS[item.severity] || item.severity}</Text>
             </View>
           </View>
-          <View style={[styles.severityBadge, { backgroundColor: sev + '20' }]}>
-            <Text style={[styles.severityText, { color: sev }]}>{SEVERITY_LABELS[item.severity] || item.severity}</Text>
-          </View>
-        </View>
 
-        <Text style={[styles.status, { color: STATUS_COLORS[item.status], marginTop: 6 }]}>
-          {STATUS_LABELS[item.status] || item.status}
-          {item.status === 'active' && !item.responded_by ? '  ·  À traiter' : ''}
-        </Text>
+          {compact ? (
+            <Text style={[styles.infoLineCompact, { color: themeColors.text }]} numberOfLines={1}>
+              <Text style={{ color: STATUS_COLORS[item.status], fontFamily: typography.fontFamily.medium }}>{statusText}</Text>
+              {item.user_phone ? `   📞 ${item.user_phone}` : ''}
+              {`   🕒 ${fmtDate(item.created_at)}`}
+            </Text>
+          ) : (
+            <>
+              <Text style={[styles.status, { color: STATUS_COLORS[item.status], marginTop: 6 }]}>{statusText}</Text>
+              <View style={numColumns === 1 && width >= 800 ? styles.infoRowWide : null}>
+                {item.user_phone ? (
+                  <Text style={[styles.infoLine, { color: themeColors.text }]} onPress={() => call(item.user_phone)}>📞 {item.user_phone}</Text>
+                ) : null}
+                <Text style={[styles.infoLine, { color: themeColors.text }]}>🕒 {fmtDate(item.created_at)}</Text>
+              </View>
+            </>
+          )}
 
-        <View style={isWide ? styles.infoRowWide : null}>
-        {item.user_phone ? (
-            <Text style={[styles.infoLine, { color: themeColors.text }]} onPress={() => call(item.user_phone)}>📞 {item.user_phone}</Text>
-          ) : null}
-          <Text style={[styles.infoLine, { color: themeColors.text }]}>🕒 {fmtDate(item.created_at)}</Text>
-          <Text style={[styles.infoLine, { color: themeColors.text }]} numberOfLines={2}>
-            📍 {item.address || (item.latitude != null ? sosService.formatCoordinates(item.latitude, item.longitude) : 'Adresse non disponible')}
-          </Text>
-        </View>
-        {item.details ? (
-          <View style={[styles.messageBox, { backgroundColor: sev + '12' }]}>
-            <Text style={[styles.messageLabel, { color: themeColors.textSecondary }]}>Message de {item.user} :</Text>
-            <Text style={[styles.messageText, { color: themeColors.text }]} numberOfLines={3}>{item.details}</Text>
-          </View>
-        ) : null}
-        {item.booking_id ? (
-          <Text style={[styles.meta, { color: themeColors.textSecondary, marginTop: 4 }]}>Réservation #{item.booking_id}</Text>
-        ) : null}
-
-        <View style={styles.quickRow}>
-          {item.user_phone ? (
-            <TouchableOpacity style={[styles.quickBtn, { backgroundColor: colors.primary }]} onPress={() => call(item.user_phone)}>
-              <Ionicons name="call" size={14} color="#fff" />
-              <Text style={styles.quickText}>Appeler</Text>
-            </TouchableOpacity>
-          ) : null}
-          {satellite ? (
-            <TouchableOpacity style={[styles.quickBtn, { backgroundColor: '#2D7FF9' }]} onPress={() => Linking.openURL(satellite)}>
-              <Ionicons name="map" size={14} color="#fff" />
-              <Text style={styles.quickText}>Voir sur la carte</Text>
-            </TouchableOpacity>
-          ) : null}
-          <TouchableOpacity
-            style={[styles.quickBtn, { backgroundColor: item.status === 'active' ? colors.success || '#27AE60' : '#888' }]}
-            onPress={() => openDetail(item)}
+          <Text
+            style={[compact ? styles.infoLineCompact : styles.infoLine, { color: themeColors.text }]}
+            numberOfLines={compact ? 1 : 2}
           >
-            <Ionicons name={item.status === 'active' ? 'checkmark-circle' : 'eye'} size={14} color="#fff" />
-            <Text style={styles.quickText}>{item.status === 'active' ? 'Traiter' : 'Détails'}</Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+            📍 {address}
+          </Text>
+
+          {item.details ? (
+            <View style={[styles.messageBox, compact && styles.messageBoxCompact, { backgroundColor: sev + '12' }]}>
+              {compact ? (
+                <Text style={[styles.messageText, { color: themeColors.text }]} numberOfLines={1}>
+                  <Text style={{ color: themeColors.textSecondary, fontFamily: typography.fontFamily.medium }}>Message : </Text>
+                  {item.details}
+                </Text>
+              ) : (
+                <>
+                  <Text style={[styles.messageLabel, { color: themeColors.textSecondary }]}>Message de {item.user} :</Text>
+                  <Text style={[styles.messageText, { color: themeColors.text }]} numberOfLines={3}>{item.details}</Text>
+                </>
+              )}
+            </View>
+          ) : null}
+
+          {!compact && item.booking_id ? (
+            <Text style={[styles.meta, { color: themeColors.textSecondary, marginTop: 4 }]}>Réservation #{item.booking_id}</Text>
+          ) : null}
+
+          {/* Pousse les boutons en bas : toutes les cartes d'une ligne ont la même hauteur. */}
+          {numColumns > 1 ? <View style={{ flex: 1 }} /> : null}
+          {actions}
+        </TouchableOpacity>
       </View>
     );
   };
@@ -249,7 +303,7 @@ const SOSAlertsScreen = () => {
                 </Text>
               </View>
             }
-            contentContainerStyle={[styles.listContent, width >= 800 && { padding: spacing.lg }]}
+            contentContainerStyle={[styles.listContent, !isNative && width >= 800 && { padding: spacing.lg }]}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
             showsVerticalScrollIndicator={false}
           />
@@ -269,7 +323,14 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.regular, textAlign: 'center', marginTop: spacing.xs },
   listContent: { padding: spacing.md, flexGrow: 1 },
   infoRowWide: { flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.lg },
-  cardGrid: { marginHorizontal: 6 },
+  gridCell: { flex: 1, padding: 6 },
+  cardGrid: { flex: 1, marginBottom: 0 },
+  cardCompact: { padding: spacing.sm, borderRadius: 12, marginBottom: 6 },
+  roleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  infoLineCompact: { fontSize: 11, fontFamily: typography.fontFamily.regular, marginTop: 4 },
+  messageBoxCompact: { paddingVertical: 4, paddingHorizontal: spacing.sm, marginTop: 4, marginBottom: 0, borderRadius: 8 },
+  quickRowCompact: { flexWrap: 'nowrap', gap: 6, marginTop: 6, alignItems: 'center' },
+  quickBtnCompact: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 7 },
   statsRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   statBox: { flex: 1, borderRadius: 14, paddingVertical: spacing.md, alignItems: 'center' },
   statNumber: { fontSize: 26, fontFamily: typography.fontFamily.bold },

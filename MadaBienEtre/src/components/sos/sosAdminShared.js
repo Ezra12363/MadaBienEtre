@@ -1,6 +1,6 @@
 // src/components/sos/sosAdminShared.js
 // Constantes et petits composants partagés par la liste et le détail des alertes SOS (admin).
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, Image } from 'react-native';
 import { colors, typography } from '../../theme';
 import { API_URL } from '../../config/env';
@@ -35,26 +35,74 @@ const ROLE_LABELS = { CLIENT: '👤 Client', THERAPIST: '💆 Thérapeute', ADMI
 export const roleLabel = (a) =>
   ROLE_LABELS[String(a?.user_role || '').toUpperCase()] || TYPE_LABELS[a?.alert_type] || '—';
 
+// URL absolue d'une photo de profil. Le backend peut renvoyer :
+//  - un chemin relatif (« /uploads/x.jpg » ou « uploads\\x.jpg »)
+//  - une URL absolue pointant vers localhost / 127.0.0.1 (inaccessible depuis un téléphone)
 export const photoUrl = (u) => {
-  if (!u) return null;
-  return /^https?:\/\//i.test(u) ? u : `${API_URL}${u.startsWith('/') ? '' : '/'}${u}`;
+  if (!u || typeof u !== 'string') return null;
+  let v = u.trim().replace(/\\/g, '/');
+  if (!v) return null;
+  if (/^(data:|blob:|file:)/i.test(v)) return v;
+  if (/^https?:\/\//i.test(v)) {
+    return v.replace(/^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?/i, API_URL);
+  }
+  return `${API_URL}${v.startsWith('/') ? '' : '/'}${v}`;
 };
 
-export const TypeBadge = ({ type }) => {
+// Cherche la photo de profil dans les différents champs possibles de l'alerte.
+export const alertPhoto = (a) =>
+  a?.user_photo ||
+  a?.user_profile_photo ||
+  a?.user_profile_image ||
+  a?.profile_photo ||
+  a?.profile_image ||
+  a?.photo ||
+  a?.avatar ||
+  a?.user?.profile_photo ||
+  a?.user?.profile_image ||
+  a?.user?.photo ||
+  null;
+
+export const TypeBadge = ({ type, compact = false }) => {
   const b = TYPE_BADGES[type] || TYPE_BADGES.other;
   return (
-    <View style={{ alignSelf: 'flex-start', backgroundColor: b.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginTop: 4 }}>
-      <Text style={{ color: b.fg, fontSize: 11, fontFamily: typography.fontFamily.bold }}>{b.label}</Text>
+    <View
+      style={{
+        alignSelf: 'flex-start',
+        backgroundColor: b.bg,
+        borderRadius: 8,
+        paddingHorizontal: compact ? 6 : 8,
+        paddingVertical: compact ? 1 : 3,
+        marginTop: compact ? 0 : 4,
+      }}
+    >
+      <Text style={{ color: b.fg, fontSize: compact ? 10 : 11, fontFamily: typography.fontFamily.bold }}>{b.label}</Text>
     </View>
   );
 };
 
-// Photo de profil, sinon initiale.
+// Photo de profil (ronde, recadrée « cover »), sinon initiale.
 export const Avatar = ({ uri, name, size = 44 }) => {
   const [failed, setFailed] = useState(false);
-  const box = { width: size, height: size, borderRadius: size / 2 };
-  if (uri && !failed) {
-    return <Image source={{ uri: photoUrl(uri) }} style={[box, { backgroundColor: '#E5E7EB' }]} onError={() => setFailed(true)} />;
+  const url = photoUrl(uri);
+
+  // Nouvelle photo -> on retente le chargement.
+  useEffect(() => {
+    setFailed(false);
+  }, [url]);
+
+  const box = { width: size, height: size, borderRadius: size / 2, overflow: 'hidden' };
+  if (url && !failed) {
+    return (
+      <View style={[box, { backgroundColor: '#E5E7EB' }]}>
+        <Image
+          source={{ uri: url }}
+          style={{ width: size, height: size }}
+          resizeMode="cover"
+          onError={() => setFailed(true)}
+        />
+      </View>
+    );
   }
   return (
     <View style={[box, { backgroundColor: colors.primary + '25', alignItems: 'center', justifyContent: 'center' }]}>
