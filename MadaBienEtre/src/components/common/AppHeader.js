@@ -41,11 +41,11 @@ export const HEADER_COLORS = IS_WEB
       headerBg: '#FFFFFF',
       border: '#E3E7E4',
 
-      text: '#164B2A',
-      subtitle: 'rgba(22,75,42,0.65)',
-      iconColor: '#164B2A',
+      text: '#1B5C36',
+      subtitle: 'rgba(27, 92, 54,0.65)',
+      iconColor: '#1B5C36',
 
-      logoBoxBg: 'rgba(22,75,42,0.08)',
+      logoBoxBg: 'rgba(27, 92, 54,0.08)',
 
       backButtonBg: 'transparent',
       backButtonBgPressed: 'transparent',
@@ -55,7 +55,7 @@ export const HEADER_COLORS = IS_WEB
     }
   : {
       // ---- ANDROID / IOS : fond vert (inchangé) ----
-      headerBg: '#2E7D32',
+      headerBg: '#2E8B57',
       border: 'rgba(255,255,255,0.14)',
 
       text: '#FFFFFF',
@@ -68,7 +68,7 @@ export const HEADER_COLORS = IS_WEB
       backButtonBgPressed: 'transparent',
 
       statusBarStyle: 'light-content',
-      statusBarBg: '#164B2A',
+      statusBarBg: '#1B5C36',
     };
 
 /* =========================================================

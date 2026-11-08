@@ -448,7 +448,7 @@ const PaymentScreen = ({ navigation, route }) => {
 
           {isCash && !payment.client_sent_at ? (
             <TouchableOpacity
-              style={[styles.primaryBtn, { backgroundColor: '#1F6B45' }]}
+              style={[styles.primaryBtn, { backgroundColor: '#2E8B57' }]}
               disabled={notifying}
               onPress={async () => {
                 setNotifying(true);
@@ -463,7 +463,7 @@ const PaymentScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           ) : null}
           {isCash && payment.client_sent_at ? (
-            <Text style={[styles.muted, { color: '#1F6B45', textAlign: 'center' }]}>
+            <Text style={[styles.muted, { color: '#2E8B57', textAlign: 'center' }]}>
               ✓ Votre thérapeute a été prévenu. Le paiement sera validé dès qu’il confirmera la réception.
             </Text>
           ) : null}

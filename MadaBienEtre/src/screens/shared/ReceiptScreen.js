@@ -18,8 +18,8 @@ import { formatAr } from '../../components/payment/paymentUtils';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 
-const GREEN = '#1F6B45';
-const GREEN_DARK = '#154A31';
+const GREEN = '#2E8B57';
+const GREEN_DARK = '#1B5C36';
 const GOLD = '#B8924A';
 const CREAM = '#FBF8F1';
 const INK = '#2B2B2B';

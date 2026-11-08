@@ -55,8 +55,8 @@ import {
 
 // ✅ Thème harmonisé avec HomeScreen.js (même vert PRIMARY, même
 // orange que les cartes de promotions de l'accueil).
-const _PRIMARY = colors.primary || '#168A55';
-const PRIMARY_DARK = '#0B633C';
+const _PRIMARY = colors.primary || '#2E8B57';
+const PRIMARY_DARK = '#2E8B57';
 const GREEN = '#00A86B'; // SUCCESS (HomeScreen) — statut "accepté"
 const ORANGE = '#F28A24'; // même orange que les cartes de HomeScreen
 

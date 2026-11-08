@@ -45,9 +45,9 @@ import AppHeader from '../../components/common/AppHeader';
 ============================================================ */
 
 const LIGHT_COLORS = {
-  primary: '#2E7D32',
-  primaryDark: '#164B2A',
-  primaryMid: '#1F6B38',
+  primary: '#2E8B57',
+  primaryDark: '#1B5C36',
+  primaryMid: '#2E8B57',
   primaryLight: '#EAF5EC',
 
   background: '#F6FAF7',
@@ -74,7 +74,7 @@ const DARK_COLORS = {
   primary: '#34A853',
   primaryDark: '#0E2415',
   primaryMid: '#1E5C33',
-  primaryLight: 'rgba(76,175,80,0.16)',
+  primaryLight: 'rgba(109, 184, 138,0.16)',
 
   background: '#0B0F0C',
   surface: '#161D19',

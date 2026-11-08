@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { typography } from '../../theme';
 
 const STYLES = {
-  success: { bg: '#1E8E4E', icon: 'checkmark-circle' },
+  success: { bg: '#2E8B57', icon: 'checkmark-circle' },
   error: { bg: '#C62828', icon: 'alert-circle' },
   info: { bg: '#1E6FD9', icon: 'information-circle' },
 };

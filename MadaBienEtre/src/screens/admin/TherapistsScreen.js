@@ -36,6 +36,7 @@ import useResponsive from '../../hooks/useResponsive';
 import { API_URL } from '../../config/env';
 import { exportToExcel } from '../../utils/exportExcel';
 
+import { normalizeMediaUrl } from '../../utils/mediaUrl';
 const IS_WEB = Platform.OS === 'web';
 
 // Sur le web : le texte passe à la ligne au lieu d'être coupé ("...")
@@ -1112,7 +1113,7 @@ const TherapistsScreen = () => {
         {therapist?.profile_image ? (
           <Image
             source={{
-              uri: therapist.profile_image,
+              uri: normalizeMediaUrl(therapist.profile_image),
             }}
             style={{
               width: size,
@@ -2307,7 +2308,7 @@ const TherapistsScreen = () => {
                 style={[
                   styles.refreshButton,
                   {
-                    backgroundColor: '#1D6F42',
+                    backgroundColor: '#2E8B57',
                     opacity: exportingExcel ? 0.6 : 1,
                   },
                 ]}

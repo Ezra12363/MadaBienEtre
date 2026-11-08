@@ -59,8 +59,8 @@ const { width: _width, height } = Dimensions.get("window");
    CONSTANTES
 ============================================================ */
 
-const PRIMARY = "#2E7D32";
-const SECONDARY = "#1F6B38";
+const PRIMARY = "#2E8B57";
+const SECONDARY = "#2E8B57";
 const SUCCESS = "#00C853";
 const WARNING = "#FF9800";
 const DANGER = "#E53935";
@@ -953,7 +953,7 @@ const Toast = ({ visible, message, type, onHide }) => {
           border: `${PRIMARY}40`,
           icon: "information-circle",
           iconColor: PRIMARY,
-          textColor: "#164B2A",
+          textColor: "#1B5C36",
         };
     }
   };

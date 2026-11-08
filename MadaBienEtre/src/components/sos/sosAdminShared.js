@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, Image } from 'react-native';
 import { colors, typography } from '../../theme';
-import { API_URL } from '../../config/env';
+import { normalizeMediaUrl } from '../../utils/mediaUrl';
 
 export const TYPE_LABELS = {
   client: '👤 Client',
@@ -38,16 +38,7 @@ export const roleLabel = (a) =>
 // URL absolue d'une photo de profil. Le backend peut renvoyer :
 //  - un chemin relatif (« /uploads/x.jpg » ou « uploads\\x.jpg »)
 //  - une URL absolue pointant vers localhost / 127.0.0.1 (inaccessible depuis un téléphone)
-export const photoUrl = (u) => {
-  if (!u || typeof u !== 'string') return null;
-  let v = u.trim().replace(/\\/g, '/');
-  if (!v) return null;
-  if (/^(data:|blob:|file:)/i.test(v)) return v;
-  if (/^https?:\/\//i.test(v)) {
-    return v.replace(/^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?/i, API_URL);
-  }
-  return `${API_URL}${v.startsWith('/') ? '' : '/'}${v}`;
-};
+export const photoUrl = (u) => normalizeMediaUrl(u) || null;
 
 // Cherche la photo de profil dans les différents champs possibles de l'alerte.
 export const alertPhoto = (a) =>

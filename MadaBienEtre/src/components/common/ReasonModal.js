@@ -42,7 +42,7 @@ export default function ReasonModal({
     if (visible) setText('');
   }, [visible]);
 
-  const color = tone === 'danger' ? '#D9363E' : '#1F6B45';
+  const color = tone === 'danger' ? '#D9363E' : '#2E8B57';
   const disabled = required && !text.trim();
 
   return (

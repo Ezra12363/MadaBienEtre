@@ -79,7 +79,7 @@ import LiveRouteMap from '../../components/map/LiveRouteMap';
 // ============================================================
 
 const ROUTE_COLOR = '#E53935'; // rouge, comme demandé
-const PRIMARY = '#2E7D32'; // vert, cohérent avec le thème de la page Welcome
+const PRIMARY = '#2E8B57'; // vert, cohérent avec le thème de la page Welcome
 const REFRESH_INTERVAL_MS = 12000; // rafraîchissement position + itinéraire
 const ARRIVED_THRESHOLD_KM = 0.12; // ~120 m => considéré "arrivé"
 const LIVE_FRESH_MS = 20000; // position WebSocket considérée "fraîche"

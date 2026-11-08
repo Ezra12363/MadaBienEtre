@@ -137,7 +137,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
         : '#EAF8EF',
 
       border: isDark
-        ? '#28683C'
+        ? '#2E8B57'
         : '#B8E7C7',
     },
 
@@ -1063,10 +1063,10 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
         <LinearGradient
           colors={[
-            '#164B2A',
-            '#1F6B38',
-            '#2E7D32',
-            '#4CAF50',
+            '#247447',
+            '#2E8B57',
+            '#2E8B57',
+            '#6DB88A',
           ]}
           start={{
             x: 0,
@@ -1399,7 +1399,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
         <StatusBar
           barStyle="light-content"
-          backgroundColor="#164B2A"
+          backgroundColor="#1B5C36"
         />
 
 
@@ -1421,9 +1421,9 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
             <LinearGradient
               colors={[
-                '#2E8B36',
-                '#3FA447',
-                '#4CAF50',
+                '#2E8B57',
+                '#4FA06F',
+                '#6DB88A',
               ]}
               start={{
                 x: 0,
@@ -2008,7 +2008,7 @@ const styles = StyleSheet.create({
   mobileSafeArea: {
     flex: 1,
 
-    backgroundColor: '#164B2A',
+    backgroundColor: '#1B5C36',
   },
 
   mobileGradient: {

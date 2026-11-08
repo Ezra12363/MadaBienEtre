@@ -42,6 +42,7 @@ import {
 } from '../../components/admin/AdminDetailKit';
 import { API_URL } from '../../config/env';
 
+import { normalizeMediaUrl } from '../../utils/mediaUrl';
 const IS_WEB = Platform.OS === 'web';
 
 // Sur le web : le texte passe à la ligne au lieu d'être coupé ("...")
@@ -1033,7 +1034,7 @@ const ApprovalsScreen = () => {
       return (
         <Image
           source={{
-            uri: item.profile_image,
+            uri: normalizeMediaUrl(item.profile_image),
           }}
           style={{
             width: size,

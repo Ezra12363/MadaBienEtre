@@ -25,6 +25,7 @@ import { downloadAuthenticatedPdf } from '../../utils/downloadFile';
 import adminService from '../../services/adminService';
 import AdminUserAddressModal from '../../components/admin/AdminUserAddressModal';
 import AdminSpecialtiesManager from '../../components/admin/AdminSpecialtiesManager';
+import { normalizeMediaUrl } from '../../utils/mediaUrl';
 import {
   ActionButton,
   ActionRow,
@@ -305,7 +306,7 @@ const TherapistDetailScreen = ({ navigation, route }) => {
     <ProfileHero
       avatar={
         <DetailAvatar
-          uri={therapist.profile_image}
+          uri={normalizeMediaUrl(therapist.profile_image)}
           name={therapist.fullname}
           color="#4CAF50"
           size={88}
@@ -528,8 +529,8 @@ const TherapistDetailScreen = ({ navigation, route }) => {
           </>
         ) : (
           <View style={styles.certLoading}>
-            <Ionicons name="information-circle-outline" size={20} color="#2E7D32" />
-            <Text style={[styles.certLoadingText, { color: '#2E7D32' }]}>
+            <Ionicons name="information-circle-outline" size={20} color="#2E8B57" />
+            <Text style={[styles.certLoadingText, { color: '#2E8B57' }]}>
               Aucun certificat généré pour ce thérapeute
             </Text>
           </View>

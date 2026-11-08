@@ -68,6 +68,7 @@ import SpecialtiesSelector from '../../components/therapist/SpecialtiesSelector'
 // mode lecture reste correct après un logout/login).
 import therapistService from '../../services/therapistService';
 
+import { normalizeMediaUrl } from '../../utils/mediaUrl';
 // ============================================================
 // CONSTANTS
 // ============================================================
@@ -417,7 +418,7 @@ const ProfileScreen = ({ navigation }) => {
             ? '#12351F'
             : '#F0FDF4',
           border: isDark
-            ? '#1F6B3A'
+            ? '#2E8B57'
             : '#BBF7D0',
         };
 
@@ -2406,7 +2407,7 @@ const ProfileScreen = ({ navigation }) => {
                 <Image
                   key={`profile-${forceRefresh}`}
                   source={{
-                    uri: user.profile_image,
+                    uri: normalizeMediaUrl(user.profile_image),
                   }}
                   style={styles.avatar}
                 />

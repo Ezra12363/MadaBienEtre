@@ -9,7 +9,7 @@ import Header from '../../components/common/Header';
 import SavedCardsManager from '../../components/payment/SavedCardsManager';
 import { useTheme } from '../../context/ThemeContext';
 
-const GREEN = '#1F6B45';
+const GREEN = '#2E8B57';
 
 export default function PaymentMethodsScreen() {
   const { colors: theme } = useTheme();

@@ -146,7 +146,7 @@ export default function TherapistReviewsPanel({ therapistId, mode = 'public', on
     <View>
       {!!banner && (
         <View style={[s.banner, { backgroundColor: banner.type === 'error' ? '#FEE2E2' : '#E8F5E9' }]}>
-          <Text style={{ color: banner.type === 'error' ? '#B91C1C' : '#1B5E20', fontWeight: '600', fontSize: 13 }}>{banner.message}</Text>
+          <Text style={{ color: banner.type === 'error' ? '#B91C1C' : '#2E8B57', fontWeight: '600', fontSize: 13 }}>{banner.message}</Text>
         </View>
       )}
 

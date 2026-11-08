@@ -144,7 +144,7 @@ const niceMax = (value, integer = false) => {
  */
 export function GridBarChart({
   data = [],
-  color = '#1F6B45',
+  color = '#2E8B57',
   name,
   height = 130,
   textColor = '#777',
@@ -279,7 +279,7 @@ export function HBars({ items = [], textColor = '#777', trackColor = '#EFEFEF', 
             <Text style={[styles.hLabel, { color: textColor }]}>{percentOnly && total ? `${Math.round(((Number(it.value) || 0) / total) * 100)} %` : `${format(it.value)}${percent && total ? ` · ${Math.round(((Number(it.value) || 0) / total) * 100)} %` : ''}`}</Text>
           </View>
           <View style={[styles.track, { backgroundColor: trackColor }, thick && { height: 12, borderRadius: 6 }]}>
-            <View style={[styles.fill, thick && { height: 12, borderRadius: 6 }, { width: `${Math.max(2, ((Number(it.value) || 0) / max) * 100)}%`, backgroundColor: it.color || '#1F6B45' }]} />
+            <View style={[styles.fill, thick && { height: 12, borderRadius: 6 }, { width: `${Math.max(2, ((Number(it.value) || 0) / max) * 100)}%`, backgroundColor: it.color || '#2E8B57' }]} />
           </View>
           {!percentOnly && Array.isArray(it.children) && it.children.length ? (
             <View style={{ marginTop: 6, paddingLeft: 10, gap: 2 }}>
@@ -323,7 +323,7 @@ export function StackedShare({ items = [], textColor = '#777' }) {
 }
 
 /** Tuile chiffre clé */
-export function StatTile({ label, value, color = '#1F6B45', icon, bg = '#fff', textColor = '#222', sub, basis = '45%' }) {
+export function StatTile({ label, value, color = '#2E8B57', icon, bg = '#fff', textColor = '#222', sub, basis = '45%' }) {
   return (
     <View style={[styles.tile, { backgroundColor: bg, flexBasis: basis }]}>
       <Text style={[styles.tileLabel, { color: textColor, opacity: 0.65 }]}>{label}</Text>

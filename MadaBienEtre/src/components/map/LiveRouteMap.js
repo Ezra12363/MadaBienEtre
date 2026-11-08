@@ -82,7 +82,7 @@ const LiveRouteMap = forwardRef(
       destination, // adresse du client : {latitude, longitude}
       destinationTitle = 'Destination',
       destinationDescription,
-      destinationColor = '#2E7D32',
+      destinationColor = '#2E8B57',
 
       routeCoordinates, // tracé complet (vraie route) calculé par routing.js
       routeIsFallback = false,

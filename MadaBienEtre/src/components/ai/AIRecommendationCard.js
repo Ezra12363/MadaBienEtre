@@ -13,6 +13,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
 import { formatAr } from './aiHelpers';
 
+import { normalizeMediaUrl } from '../../utils/mediaUrl';
 const scoreColor = (score) => {
   if (score >= 80) return colors.success;
   if (score >= 60) return colors.warning;
@@ -63,7 +64,7 @@ const AIRecommendationCard = ({
 
         <View style={styles.avatarContainer}>
           {therapist.profile_image ? (
-            <Image source={{ uri: therapist.profile_image }} style={styles.avatar} />
+            <Image source={{ uri: normalizeMediaUrl(therapist.profile_image) }} style={styles.avatar} />
           ) : (
             <View style={styles.avatarFallback}>
               <Text style={styles.avatarText}>

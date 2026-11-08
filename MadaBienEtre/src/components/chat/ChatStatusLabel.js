@@ -13,7 +13,7 @@ const ChatStatusLabel = ({ status, palette, color }) => {
     status === 'failed'
       ? palette?.danger || '#E53935'
       : status === 'read'
-      ? palette?.metaRead || '#2E7D32'
+      ? palette?.metaRead || '#2E8B57'
       : color || palette?.meta || '#757575';
 
   return (

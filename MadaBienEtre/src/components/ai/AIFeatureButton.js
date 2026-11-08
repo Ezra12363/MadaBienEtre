@@ -40,7 +40,7 @@ const AIFeatureButton = ({
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
       <LinearGradient
-        colors={compact ? ['#1F6B45', '#3B9A4E', '#4CAF50'] : AI_GRADIENT}
+        colors={compact ? ['#2E8B57', '#4FA06F', '#6DB88A'] : AI_GRADIENT}
         start={{ x: 0, y: compact ? 0.5 : 0 }}
         end={{ x: 1, y: compact ? 0.5 : 1 }}
         style={[styles.banner, compact && styles.bannerCompact]}

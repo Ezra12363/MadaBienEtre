@@ -84,8 +84,8 @@ export default function ReviewCard({
       <View style={s.badges}>
         {review.is_verified && (
           <View style={[s.badge, { backgroundColor: '#E8F5E9' }]}>
-            <Ionicons name="checkmark-circle" size={12} color="#2E7D32" />
-            <Text style={[s.badgeText, { color: '#2E7D32' }]}>Séance terminée</Text>
+            <Ionicons name="checkmark-circle" size={12} color="#2E8B57" />
+            <Text style={[s.badgeText, { color: '#2E8B57' }]}>Séance terminée</Text>
           </View>
         )}
         {review.is_anonymous && role !== 'public' && (
@@ -164,7 +164,7 @@ export default function ReviewCard({
         )}
         {review.can_report && onReport && <Action icon="flag-outline" label="Signaler" color="#B45309" onPress={() => onReport(review)} />}
         {role === 'admin' && !hidden && onHide && <Action icon="eye-off-outline" label="Masquer" color="#E65100" onPress={() => onHide(review)} />}
-        {role === 'admin' && hidden && onRestore && <Action icon="eye-outline" label="Rétablir" color="#2E7D32" onPress={() => onRestore(review)} />}
+        {role === 'admin' && hidden && onRestore && <Action icon="eye-outline" label="Rétablir" color="#2E8B57" onPress={() => onRestore(review)} />}
         {review.can_delete && onDelete && <Action icon="trash-outline" label="Supprimer" color="#DC2626" onPress={() => onDelete(review)} />}
       </View>
       )}

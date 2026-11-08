@@ -30,7 +30,7 @@ export const getChatBubbleMaxWidth = (width) => {
 };
 
 export const getChatPalette = (themeColors = {}, isDark = false) => {
-  const primary = themeColors.primary || '#2E7D32';
+  const primary = themeColors.primary || '#2E8B57';
   const surface = themeColors.surface || (isDark ? '#1E1E1E' : '#FFFFFF');
   const border = themeColors.border || (isDark ? '#333333' : '#E0E0E0');
   const text = themeColors.text || (isDark ? '#FFFFFF' : '#1A1A1A');

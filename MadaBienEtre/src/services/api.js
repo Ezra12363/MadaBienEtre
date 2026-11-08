@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // nampiasa IP roa SAMIHAFA (172.28.182.30 vs 192.168.1.45).
 import { API_URL, API_TIMEOUT } from '../config/env';
 import { emitSessionExpired, emitTokenRefreshed } from '../utils/authEvents';
+import { deepNormalizeMedia } from '../utils/mediaUrl';
 
 console.log('🌐 [API CONFIG] Base URL utilisée :', API_URL);
 
@@ -67,6 +68,13 @@ const processQueue = (error, token = null) => {
 api.interceptors.response.use(
   (response) => {
     console.log(`📥 [API RESPONSE] ${response.status} ${response.config.url}`);
+    // ✅ Photos : réécrit toute URL « /uploads/... » avec l'API_URL ACTUELLE
+    // (corrige les photos qui disparaissent quand l'IP du serveur change).
+    try {
+      if (response.data && typeof response.data === 'object') {
+        response.data = deepNormalizeMedia(response.data);
+      }
+    } catch (_e) {}
     return response;
   },
   async (error) => {

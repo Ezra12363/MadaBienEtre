@@ -21,8 +21,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors, typography } from '../../theme';
 import massageTypeService from '../../services/massageTypeService';
 
-const PRIMARY = colors.primary || '#168A55';
-const PRIMARY_DARK = '#0B633C';
+const PRIMARY = colors.primary || '#2E8B57';
+const PRIMARY_DARK = '#2E8B57';
 
 const MASSAGE_CATEGORY_LABELS = {
   relaxant: 'Relaxant',
@@ -58,7 +58,7 @@ const FB_BLUE = '#1877F2';
 const STAR_COLOR = '#F5B301';
 
 const CATEGORY_GRADIENTS = {
-  relaxant: ['#2EAD72', '#168A55'],
+  relaxant: ['#2EAD72', '#2E8B57'],
   therapeutique: ['#2584D8', '#1B5FA8'],
   sportif: ['#F28A24', '#D0661A'],
   reflexologie: ['#8E5CD9', '#6A3FB0'],

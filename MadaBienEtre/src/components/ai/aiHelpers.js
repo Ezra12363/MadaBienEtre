@@ -3,8 +3,8 @@
 
 import { colors } from '../../theme';
 
-export const AI_GREEN = colors.primary; // #2E7D32
-export const AI_GREEN_DARK = colors.primaryDark; // #1B5E20
+export const AI_GREEN = colors.primary; // #2E8B57
+export const AI_GREEN_DARK = colors.primaryDark; // #2E8B57
 export const AI_GREEN_LIGHT = colors.primaryLight; // #4CAF50
 export const AI_GRADIENT = [colors.primaryDark, colors.primary, colors.primaryLight];
 

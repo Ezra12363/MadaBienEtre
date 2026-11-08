@@ -16,7 +16,7 @@ export const formatDateTime = (iso) => formatMadaLong(iso);
 export const formatShort = (iso) => formatMadaShort(iso);
 
 export const PAY_STATE = {
-  paid: { label: 'Payé', icon: 'checkmark-circle', color: '#1F7A4D', bg: '#E3F1E8' },
+  paid: { label: 'Payé', icon: 'checkmark-circle', color: '#2E8B57', bg: '#E3F1E8' },
   pending: { label: 'En attente', icon: 'time', color: '#B7791F', bg: '#FBEFD5' },
   refunded: { label: 'Remboursé', icon: 'return-up-back', color: '#5B6B7A', bg: '#E8EDF1' },
 };

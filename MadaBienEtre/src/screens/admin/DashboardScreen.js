@@ -722,7 +722,7 @@ const DashboardScreen = ({ navigation }) => {
         subtitle: 'Répartition par rôle',
         split: [
           { label: 'Clients', value: num(us.clients), color: '#3B6FC4' },
-          { label: 'Thérapeutes', value: therapistsCount, color: '#1F6B45' },
+          { label: 'Thérapeutes', value: therapistsCount, color: '#2E8B57' },
           { label: 'Admins', value: num(us.admins), color: '#E53935' },
         ],
         icon: 'people-outline',
@@ -2044,7 +2044,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     backgroundColor: '#E53935',
     borderWidth: 1.5,
-    borderColor: colors.primary || '#168A55',
+    borderColor: colors.primary || '#2E8B57',
     alignItems: 'center',
     justifyContent: 'center',
   },

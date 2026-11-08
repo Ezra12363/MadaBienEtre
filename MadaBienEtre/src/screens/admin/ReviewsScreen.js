@@ -204,7 +204,7 @@ export default function ReviewsScreen() {
         <View style={{ width: '100%' }}>
           {!!toast && (
             <View style={[s.toast, { backgroundColor: toast.type === 'error' ? '#FEE2E2' : '#E8F5E9' }]}>
-              <Text style={{ color: toast.type === 'error' ? '#B91C1C' : '#1B5E20', fontWeight: '600' }}>{toast.message}</Text>
+              <Text style={{ color: toast.type === 'error' ? '#B91C1C' : '#2E8B57', fontWeight: '600' }}>{toast.message}</Text>
             </View>
           )}
 

@@ -3,9 +3,9 @@ import { Platform } from 'react-native';
 import { DefaultTheme } from 'react-native-paper';
 
 export const colors = {
-  primary: '#2E7D32',
-  primaryLight: '#4CAF50',
-  primaryDark: '#1B5E20',
+  primary: '#2E8B57',
+  primaryLight: '#4FA06F',
+  primaryDark: '#247447',
   secondary: '#FF6F00',
   secondaryLight: '#FFA726',
   accent: '#00897B',
@@ -13,7 +13,7 @@ export const colors = {
   surface: '#FFFFFF',
   surfaceLight: '#FAFAFA',
   error: '#D32F2F',
-  success: '#2E7D32',
+  success: '#2E8B57',
   warning: '#F57C00',
   info: '#1976D2',
   text: '#1A1A1A',

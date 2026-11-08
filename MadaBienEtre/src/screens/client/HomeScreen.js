@@ -105,7 +105,7 @@ const POST_NEGATIVE_MARGIN = POST_SIDE_GAP - 16;
    - Web petit écran, Android, iOS : fond vert, icônes blanches.
 ============================================================ */
 
-const HEADER_GREEN = '#168A55';
+const HEADER_GREEN = '#2E8B57';
 
 function useHeaderTheme(isLargeWebScreen) {
   return useMemo(() => {
@@ -133,9 +133,9 @@ function useHeaderTheme(isLargeWebScreen) {
    CONSTANTES COULEURS
 ============================================================ */
 
-const PRIMARY = colors.primary || '#168A55';
-const PRIMARY_DARK = '#0B633C';
-const PRIMARY_BRAND = '#1F6B45';
+const PRIMARY = colors.primary || '#2E8B57';
+const PRIMARY_DARK = '#2E8B57';
+const PRIMARY_BRAND = '#2E8B57';
 const _PRIMARY_LIGHT = '#E9F8EF';
 
 const SECONDARY = colors.secondary || '#2EAD72';
@@ -929,7 +929,7 @@ const HomeScreen = ({ navigation }) => {
       case 'in_progress':
         return INFO;
       case 'completed':
-        return '#2E7D32';
+        return '#2E8B57';
       case 'cancelled':
         return DANGER;
       default:
@@ -1646,7 +1646,7 @@ const HomeScreen = ({ navigation }) => {
           style={styles.heroWrapper}
         >
           <LinearGradient
-            colors={['#1F6B45', '#3A935F', '#55B98A']}
+            colors={['#2E8B57', '#4FA06F', '#6DB88A']}
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
             style={[
@@ -3114,7 +3114,7 @@ const styles = StyleSheet.create({
   },
 
   heroPillText: {
-    color: '#0B633C',
+    color: '#2E8B57',
     fontSize: 11,
     fontWeight: '800',
   },
@@ -3619,7 +3619,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 16,
-    backgroundColor: 'rgba(22,138,85,0.10)',
+    backgroundColor: 'rgba(46, 139, 87,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 11,

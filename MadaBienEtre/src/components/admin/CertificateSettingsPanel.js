@@ -25,7 +25,7 @@ import { API_URL } from '../../config/env';
 import certificateSettingsService from '../../services/certificateSettingsService';
 import { downloadAuthenticatedPdf } from '../../utils/downloadFile';
 
-const GREEN = '#1F6B45';
+const GREEN = '#2E8B57';
 const IS_WEB = Platform.OS === 'web';
 
 const TEXT_FIELDS = [
@@ -95,7 +95,7 @@ export default function CertificateSettingsPanel() {
       const v = String(form[key] || '').trim();
       const normalized = v.startsWith('#') ? v : `#${v}`;
       if (v && !HEX.test(normalized)) {
-        setMsg({ ok: false, text: `Couleur « ${label} » invalide : utilisez le format #RRGGBB (ex. #1F6B45).` });
+        setMsg({ ok: false, text: `Couleur « ${label} » invalide : utilisez le format #RRGGBB (ex. #2E8B57).` });
         return;
       }
     }

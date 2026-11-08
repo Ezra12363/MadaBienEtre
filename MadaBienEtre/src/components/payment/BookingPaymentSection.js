@@ -21,7 +21,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const GREEN = '#1F6B45';
+const GREEN = '#2E8B57';
 
 const bookingAmount = (b) => {
   for (const v of [b?.final_price, b?.finalPrice, b?.agreed_price, b?.therapist_initial_price, b?.client_price_proposed, b?.price]) {

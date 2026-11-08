@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const GREEN = '#1F6B45';
+const GREEN = '#2E8B57';
 
 export const RANGE_OPTIONS = [
   { id: 'all', label: 'Tout' },

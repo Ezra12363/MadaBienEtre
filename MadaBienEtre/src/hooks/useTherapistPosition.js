@@ -188,12 +188,12 @@ export default function useTherapistPosition({
       return { text: 'Position manuelle · Revenir au GPS', color: '#6A1B9A', action: 'gps' };
     }
     if (activeLocation.phone) {
-      return { text: 'GPS du téléphone', color: '#2E7D32', action: null };
+      return { text: 'GPS du téléphone', color: '#2E8B57', action: null };
     }
     const acc = activeLocation.accuracy;
     if (acc == null) return null;
     const m = Math.round(acc);
-    if (acc <= 50) return { text: `GPS précis · ±${m} m`, color: '#2E7D32', action: null };
+    if (acc <= 50) return { text: `GPS précis · ±${m} m`, color: '#2E8B57', action: null };
     if (acc <= 150) return { text: `GPS · ±${m} m`, color: '#F59E0B', action: null };
     return { text: `Position approximative ±${m} m · Corriger`, color: '#D32F2F', action: 'pick' };
   })();

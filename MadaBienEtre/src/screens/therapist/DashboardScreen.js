@@ -69,8 +69,8 @@ import {
 // ============================================================
 
 const HEADER_WEB_LARGE_BREAKPOINT = 850;
-const HEADER_GREEN = '#168A55';
-const HEADER_GREEN_DARK = '#0B633C';
+const HEADER_GREEN = '#2E8B57';
+const HEADER_GREEN_DARK = '#2E8B57';
 
 const useHeaderTheme = () => {
   const { width } = useWindowDimensions();
@@ -104,14 +104,14 @@ const useHeaderTheme = () => {
 // CONSTANTES
 // ============================================================
 
-const DEFAULT_GREEN = '#1F6B45';
+const DEFAULT_GREEN = '#2E8B57';
 
 const GOLD = '#F59E0B';
 const RED = '#E45858';
 const BLUE = '#3B82F6';
 
 // Écran de chargement (spinner centré + "Mada Bien-être")
-const LOADING_GREEN = '#2E7D32';
+const LOADING_GREEN = '#2E8B57';
 const LOADING_BACKGROUND = '#F5F5F5';
 
 // Rafraîchissement automatique silencieux (ms)
@@ -136,7 +136,7 @@ const hexToRgba = (hex, alpha = 0.12) => {
     typeof hex !== 'string' ||
     !hex.startsWith('#')
   ) {
-    return `rgba(22, 138, 85, ${alpha})`;
+    return `rgba(46, 139, 87, ${alpha})`;
   }
 
   let clean = hex.replace('#', '');
@@ -149,7 +149,7 @@ const hexToRgba = (hex, alpha = 0.12) => {
   }
 
   if (clean.length !== 6) {
-    return `rgba(22, 138, 85, ${alpha})`;
+    return `rgba(46, 139, 87, ${alpha})`;
   }
 
   const r = parseInt(clean.substring(0, 2), 16);
@@ -161,7 +161,7 @@ const hexToRgba = (hex, alpha = 0.12) => {
     Number.isNaN(g) ||
     Number.isNaN(b)
   ) {
-    return `rgba(22, 138, 85, ${alpha})`;
+    return `rgba(46, 139, 87, ${alpha})`;
   }
 
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
@@ -1007,9 +1007,9 @@ const DashboardScreen = ({ navigation }) => {
           >
             <LinearGradient
               colors={[
-                '#1F6B45',
-                '#3A935F',
-                '#55B98A',
+                '#2E8B57',
+                '#4FA06F',
+                '#6DB88A',
               ]}
               start={{
                 x: 0,
@@ -1082,7 +1082,7 @@ const DashboardScreen = ({ navigation }) => {
                             styles.onlineToggleText,
                             {
                               color: isOnline
-                                ? '#0B633C'
+                                ? '#2E8B57'
                                 : '#FFFFFF',
                             },
                           ]}
@@ -2169,7 +2169,7 @@ const styles = StyleSheet.create({
     padding: 20,
     overflow: 'hidden',
     elevation: 6,
-    shadowColor: '#0B5D3A',
+    shadowColor: '#2E8B57',
     shadowOffset: {
       width: 0,
       height: 7,

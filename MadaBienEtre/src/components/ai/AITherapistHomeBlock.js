@@ -9,7 +9,7 @@ import AIFeatureButton from './AIFeatureButton';
 import AIPopularServices from './AIPopularServices';
 
 const TILES = [
-  { tab: 'pricing', icon: 'pricetag-outline', label: 'Tarification', desc: 'Suggestion & calcul', color: '#1F6B45' },
+  { tab: 'pricing', icon: 'pricetag-outline', label: 'Tarification', desc: 'Suggestion & calcul', color: '#2E8B57' },
   { tab: 'market', icon: 'stats-chart-outline', label: 'Marché', desc: 'Prix & tendances', color: '#2563EB' },
   { tab: 'acceptance', icon: 'pulse-outline', label: 'Acceptation', desc: 'Chance du prix', color: '#D97706' },
   { tab: 'chat', icon: 'chatbubbles-outline', label: 'Chatbot', desc: "Aide à l'application", color: '#7C3AED' },

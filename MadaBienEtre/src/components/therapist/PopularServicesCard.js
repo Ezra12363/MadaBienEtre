@@ -12,7 +12,7 @@ import { useTheme } from '../../context/ThemeContext';
 import statsService from '../../services/statsService';
 import { getMassageTypeIconIonicons } from '../../constants/massageTypeIcons';
 
-const GREEN = '#1F6B45';
+const GREEN = '#2E8B57';
 
 const PERIODS = [
   { id: 'day', label: 'Jour' },

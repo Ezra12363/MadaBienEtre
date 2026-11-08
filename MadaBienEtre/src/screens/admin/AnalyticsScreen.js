@@ -46,7 +46,7 @@ const METHOD_GROUP = {
   vanila_pay: 'Vanilla Pay',
 };
 const METHOD_COLOR = {
-  'Carte bancaire': '#1F6B45',
+  'Carte bancaire': '#2E8B57',
   Espèces: '#F5A623',
   'Mobile Money': '#4A90D9',
   'Vanilla Pay': '#9B59B6',

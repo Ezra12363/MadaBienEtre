@@ -11,7 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import cardService from '../../services/cardService';
 
-const GREEN = '#1F6B45';
+const GREEN = '#2E8B57';
 
 let StripeRN = null;
 try {

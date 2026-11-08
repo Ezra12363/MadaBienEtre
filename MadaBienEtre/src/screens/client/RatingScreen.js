@@ -209,8 +209,8 @@ const RatingScreen = ({ navigation, route }) => {
           <View style={s.inner}>
             {isEdit && (
               <View style={[s.notice, { backgroundColor: readOnly ? '#FFF3E0' : '#E8F5E9' }]}>
-                <Ionicons name={readOnly ? 'lock-closed-outline' : 'information-circle-outline'} size={18} color={readOnly ? '#E65100' : '#2E7D32'} />
-                <Text style={{ flex: 1, color: readOnly ? '#8D4B00' : '#1B5E20', fontSize: 12.5 }}>
+                <Ionicons name={readOnly ? 'lock-closed-outline' : 'information-circle-outline'} size={18} color={readOnly ? '#E65100' : '#2E8B57'} />
+                <Text style={{ flex: 1, color: readOnly ? '#8D4B00' : '#2E8B57', fontSize: 12.5 }}>
                   {readOnly
                     ? `Cet avis ne peut plus être modifié (délai de ${existing.edit_window_days} jours dépassé ou avis masqué).`
                     : `Publié le ${formatReviewDate(existing.created_at)} · modifiable pendant ${existing.edit_window_days} jours.`}

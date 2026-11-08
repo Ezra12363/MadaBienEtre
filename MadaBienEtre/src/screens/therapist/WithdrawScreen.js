@@ -27,7 +27,7 @@ import { formatAr, formatDateTime } from '../../components/payment/paymentUtils'
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 
-const GREEN = '#1F6B45';
+const GREEN = '#2E8B57';
 
 const METHODS = [
   { id: 'mobile_money', flag: 'withdraw_mobile_money_enabled', label: 'Mobile Money', icon: 'phone-portrait-outline' },

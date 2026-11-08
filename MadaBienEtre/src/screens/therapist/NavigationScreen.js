@@ -98,7 +98,7 @@ import {
 
 const DEFAULT_REGION = { latitude: -18.8792, longitude: 47.5079 };
 
-const PRIMARY = '#2E7D32'; // vert, cohérent avec le thème de la page Welcome
+const PRIMARY = '#2E8B57'; // vert, cohérent avec le thème de la page Welcome
 
 // Convention carte standard (reconnaissable internationalement) :
 // bleu = position du thérapeute, rouge = destination du client.
@@ -107,7 +107,7 @@ const END_COLOR = '#D32F2F';
 // ✅ Même rendu que l'écran client : ligne ROUGE sur la vraie route,
 // destination en VERT, thérapeute en BLEU ("vous").
 const ROUTE_COLOR = '#E53935';
-const DEST_COLOR = '#2E7D32';
+const DEST_COLOR = '#2E8B57';
 
 const REROUTE_DISTANCE_KM = 0.2; // recalcul itinéraire après 200 m
 
@@ -718,12 +718,12 @@ export default function NavigationScreen({ route: navRoute }) {
       return { text: 'Position manuelle · Revenir au GPS', color: '#6A1B9A', action: 'gps' };
     }
     if (activeLocation.phone) {
-      return { text: 'GPS du téléphone', color: '#2E7D32', action: null };
+      return { text: 'GPS du téléphone', color: '#2E8B57', action: null };
     }
     const acc = activeLocation.accuracy;
     if (acc == null) return null;
     const m = Math.round(acc);
-    if (acc <= 50) return { text: `GPS précis · ±${m} m`, color: '#2E7D32', action: null };
+    if (acc <= 50) return { text: `GPS précis · ±${m} m`, color: '#2E8B57', action: null };
     if (acc <= 150) return { text: `GPS · ±${m} m`, color: '#F59E0B', action: null };
     return { text: `Position approximative ±${m} m · Corriger`, color: '#D32F2F', action: 'pick' };
   })();
@@ -1494,7 +1494,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: spacing.sm,
     left: spacing.sm,
-    backgroundColor: '#1B5E20',
+    backgroundColor: '#2E8B57',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 8,

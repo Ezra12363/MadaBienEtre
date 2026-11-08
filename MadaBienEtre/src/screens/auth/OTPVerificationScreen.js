@@ -1572,10 +1572,10 @@ const OTPVerificationScreen = ({
 
           <LinearGradient
             colors={[
-              '#164B2A',
-              '#1F6B38',
-              '#2E7D32',
-              '#4CAF50',
+              '#1B5C36',
+              '#2E8B57',
+              '#2E8B57',
+              '#6DB88A',
             ]}
 
             start={{
@@ -1862,7 +1862,7 @@ const OTPVerificationScreen = ({
 
           <StatusBar
             barStyle="light-content"
-            backgroundColor="#164B2A"
+            backgroundColor="#1B5C36"
           />
 
 
@@ -1889,9 +1889,9 @@ const OTPVerificationScreen = ({
 
               <LinearGradient
                 colors={[
-                  '#2E8B36',
-                  '#3FA447',
-                  '#4CAF50',
+                  '#2E8B57',
+                  '#4FA06F',
+                  '#6DB88A',
                 ]}
 
                 start={{
@@ -2440,7 +2440,7 @@ const styles =
 
   mobileSafeArea: {
     flex: 1,
-    backgroundColor: '#164B2A',
+    backgroundColor: '#1B5C36',
   },
 
   mobileGradient: {

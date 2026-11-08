@@ -33,7 +33,7 @@ import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import { colors } from '../../theme';
 
-const PRIMARY = colors.primary || '#1F6B45';
+const PRIMARY = colors.primary || '#2E8B57';
 
 const STATUS = {
   pending: { label: 'En attente', color: '#B45309', bg: '#FEF3C7' },
@@ -45,7 +45,7 @@ const STATUS = {
   refunded: { label: 'Remboursé', color: '#5B6B7A', bg: '#E8EDF1' },
 };
 const NAMES = { mvola: 'MVola', orange_money: 'Orange Money', airtel_money: 'Airtel Money', stripe: 'Carte (Stripe)', vanila_pay: 'Vanila Pay', card: 'Carte', cash: 'Espèces', mobile_money: 'Mobile Money' };
-const MCOL = ['#1F6B45', '#B8924A', '#2F6DB5', '#C0562F', '#7A5CB5', '#4A9B9B'];
+const MCOL = ['#2E8B57', '#B8924A', '#2F6DB5', '#C0562F', '#7A5CB5', '#4A9B9B'];
 
 const Pill = ({ s }) => {
   const st = STATUS[s] || STATUS.pending;
@@ -804,7 +804,7 @@ const styles = StyleSheet.create({
   todoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14 },
   todoRowText: { flex: 1, fontSize: 14, fontWeight: '700' },
   kpiWrap: { flexDirection: 'row', gap: 12, alignItems: 'stretch' },
-  totalCard: { backgroundColor: '#1F6B45', borderRadius: 18, padding: 18, gap: 6, flex: 1, justifyContent: 'center' },
+  totalCard: { backgroundColor: '#2E8B57', borderRadius: 18, padding: 18, gap: 6, flex: 1, justifyContent: 'center' },
   totalLabel: { color: '#CFE5D8', fontSize: 12, fontWeight: '600' },
   totalValue: { color: '#fff', fontSize: 28, fontWeight: '800' },
   splitBar: { flexDirection: 'row', height: 9, borderRadius: 5, overflow: 'hidden', marginTop: 6 },

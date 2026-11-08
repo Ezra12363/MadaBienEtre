@@ -28,6 +28,7 @@ import { colors } from '../../theme';
 import adminService from '../../services/adminService';
 import AdminUserAddressModal from '../../components/admin/AdminUserAddressModal';
 import AdminSpecialtiesManager from '../../components/admin/AdminSpecialtiesManager';
+import { normalizeMediaUrl } from '../../utils/mediaUrl';
 import {
   IS_WEB,
   ActionButton,
@@ -378,7 +379,7 @@ const UserDetailScreen = ({ navigation, route }) => {
     <ProfileHero
       avatar={
         <DetailAvatar
-          uri={user.profile_image}
+          uri={normalizeMediaUrl(user.profile_image)}
           name={user.fullname}
           color={roleColor}
           size={88}

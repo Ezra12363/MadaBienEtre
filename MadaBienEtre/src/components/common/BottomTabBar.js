@@ -69,7 +69,7 @@ const BottomTabBar = ({
   const bottomInset = Math.max(insets.bottom || 0, 0);
   const tabHeight = Platform.OS === 'web' ? 72 : 66 + bottomInset;
 
-  const activeColor = colors?.primary || '#168A55';
+  const activeColor = colors?.primary || '#2E8B57';
   const inactiveColor = themeColors.textSecondary || '#7A8194';
 
   const borderColor =

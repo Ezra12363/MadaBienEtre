@@ -44,7 +44,7 @@ import { formatTimeAgo, useNow } from '../../utils/timeAgo';
    COULEURS
 ============================================================ */
 
-const PRIMARY = colors.primary || '#168A55';
+const PRIMARY = colors.primary || '#2E8B57';
 const DANGER = colors.error || '#D9363E';
 const WARNING = '#E89B22';
 const INFO = '#2584D8';
@@ -133,7 +133,7 @@ const BADGE_STYLES = {
   Information: { bg: '#E6F0FB', fg: '#1D5FA8' },
   'À vérifier': { bg: '#FEF3C7', fg: '#92400E' },
   'À valider': { bg: '#FEF3C7', fg: '#92400E' },
-  Succès: { bg: '#E4F4EA', fg: '#17623B' },
+  Succès: { bg: '#E4F4EA', fg: '#2E8B57' },
   Échec: { bg: '#FDE7E8', fg: '#B4232A' },
   Anomalie: { bg: '#FDE7E8', fg: '#B4232A' },
 };
@@ -541,8 +541,8 @@ const NotificationScreen = ({ navigation }) => {
           isUnread && {
             borderColor: `${PRIMARY}55`,
             backgroundColor: isDark
-              ? 'rgba(22,138,85,0.08)'
-              : 'rgba(22,138,85,0.05)',
+              ? 'rgba(46, 139, 87,0.08)'
+              : 'rgba(46, 139, 87,0.05)',
           },
           styles.itemColumn,
         ]}
@@ -585,7 +585,7 @@ const NotificationScreen = ({ navigation }) => {
                 </View>
                 {handled ? (
                   <View style={[styles.badge, { backgroundColor: '#E4F4EA' }]}>
-                    <Text style={[styles.badgeText, { color: '#17623B' }]}>Traité ✓</Text>
+                    <Text style={[styles.badgeText, { color: '#2E8B57' }]}>Traité ✓</Text>
                   </View>
                 ) : null}
               </View>
@@ -948,9 +948,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(22,138,85,0.08)',
+    backgroundColor: 'rgba(46, 139, 87,0.08)',
     borderWidth: 1,
-    borderColor: 'rgba(22,138,85,0.28)',
+    borderColor: 'rgba(46, 139, 87,0.28)',
   },
 
   /* ---------- Bannière « désactivées » (dans le flux) ---------- */
@@ -1130,7 +1130,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(22,138,85,0.08)',
+    backgroundColor: 'rgba(46, 139, 87,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 4,

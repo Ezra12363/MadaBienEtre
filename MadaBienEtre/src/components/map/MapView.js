@@ -165,7 +165,7 @@ export const Circle = ({ radius, strokeColor, fillColor }) => {
       styles.circle,
       {
         borderColor: strokeColor || colors.primary,
-        backgroundColor: fillColor || 'rgba(76, 175, 80, 0.1)',
+        backgroundColor: fillColor || 'rgba(109, 184, 138, 0.1)',
         width: radius || 100,
         height: radius || 100,
         borderRadius: (radius || 100) / 2,

@@ -14,7 +14,7 @@ import AIPopularServices from './AIPopularServices';
 import AIBestTherapists from './AIBestTherapists';
 
 const SHORTCUTS = [
-  { tab: 'reco', icon: 'people-outline', label: 'Recommandations', desc: 'Massage idéal pour vous', color: '#1F6B45' },
+  { tab: 'reco', icon: 'people-outline', label: 'Recommandations', desc: 'Massage idéal pour vous', color: '#2E8B57' },
   { tab: 'price', icon: 'calculator-outline', label: 'Estimer le prix', desc: 'Tarif juste & calcul', color: '#2563EB' },
   { tab: 'chat', icon: 'chatbubbles-outline', label: 'Chatbot', desc: "Aide à l'application", color: '#7C3AED' },
 ];

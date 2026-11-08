@@ -41,7 +41,7 @@ import bookingService from '../../services/bookingService';
 // COLORS
 // ============================================================
 
-const PRIMARY_GREEN = colors.primary || '#168A55';
+const PRIMARY_GREEN = colors.primary || '#2E8B57';
 const _SECONDARY_GREEN = '#2E9B68';
 const _LIGHT_GREEN = '#E8F6EF';
 
@@ -1205,7 +1205,7 @@ const BookingMenuSheet = ({
                 <Ionicons
                   name="checkmark-done-circle-outline"
                   size={19}
-                  color="#2E7D32"
+                  color="#2E8B57"
                 />
               </View>
 
@@ -1300,7 +1300,7 @@ const ConfirmationModal = ({ visible, type, booking, themeColors, onCancel, onCo
     ? 'Voulez-vous commencer maintenant cette réservation ?'
     : 'Voulez-vous confirmer que le massage est terminé ?';
   const actionLabel = isStart ? 'Commencer' : 'Terminer';
-  const actionColor = isStart ? PRIMARY_GREEN : '#2E7D32';
+  const actionColor = isStart ? PRIMARY_GREEN : '#2E8B57';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -2295,7 +2295,7 @@ const CalendarScreen = ({ navigation }) => {
                     onPress={() => handleStartMassage(booking)}
                     style={[
                       styles.cardActionButton,
-                      { backgroundColor: '#2E7D32' },
+                      { backgroundColor: '#2E8B57' },
                     ]}
                     accessibilityRole="button"
                     accessibilityLabel="Commencer le massage"

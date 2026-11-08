@@ -14,7 +14,7 @@ import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import SavedCardsManager from './SavedCardsManager';
 
-const GREEN = '#1F6B45';
+const GREEN = '#2E8B57';
 
 const SWITCHES = [
   ['Paiement clients', null],

@@ -535,9 +535,9 @@ const getStatusUI = (booking, isDark = false) => {
       return {
         key: 'completed',
         label: 'Terminée',
-        color: isDark ? '#7FD989' : '#2E7D32',
+        color: isDark ? '#7FD989' : '#2E8B57',
         background: isDark ? '#173821' : '#E7F3E8',
-        dot: isDark ? '#7FD989' : '#2E7D32',
+        dot: isDark ? '#7FD989' : '#2E8B57',
         icon: 'checkmark-done-outline',
       };
     case 'cancelled_by_client':

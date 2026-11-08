@@ -42,8 +42,8 @@ import {
 
 const IS_WEB = Platform.OS === 'web';
 
-const PRIMARY = colors.primary || '#168A55';
-const PRIMARY_DARK = '#0B633C';
+const PRIMARY = colors.primary || '#2E8B57';
+const PRIMARY_DARK = '#2E8B57';
 
 // ≈ 2 mm : 8 px sur le web (96 dpi), 12 dp sur mobile (160 dpi)
 const SIDE_GAP = IS_WEB ? 16 : 14;

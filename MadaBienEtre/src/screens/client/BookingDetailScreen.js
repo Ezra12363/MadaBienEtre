@@ -178,7 +178,7 @@ const getStatusInfo = (status) => {
     completed: {
       label: 'Terminée',
       description: 'Cette réservation est terminée.',
-      color: '#2E7D32',
+      color: '#2E8B57',
       icon: 'checkmark-done-outline',
     },
 
@@ -1795,7 +1795,7 @@ const BookingDetailScreen = ({
                   <Ionicons
                     name="checkmark-done-outline"
                     size={20}
-                    color="#2E7D32"
+                    color="#2E8B57"
                   />
                 </View>
 
@@ -1969,7 +1969,7 @@ const BookingDetailScreen = ({
                     style={[
                       styles.finalPriceValue,
                       {
-                        color: '#2E7D32',
+                        color: '#2E8B57',
                       },
                     ]}
                   >

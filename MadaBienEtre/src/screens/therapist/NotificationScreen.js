@@ -2987,12 +2987,12 @@ const NotificationScreen = ({
       default:
         return {
           icon: 'checkmark-circle',
-          iconColor: '#2E7D32',
+          iconColor: '#2E8B57',
           background:
             isDark
               ? '#172D20'
               : '#FFFFFF',
-          accent: '#2E7D32',
+          accent: '#2E8B57',
         };
 
     }

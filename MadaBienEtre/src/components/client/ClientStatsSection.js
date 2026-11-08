@@ -22,7 +22,7 @@ const ClientStatsSection = ({
   onRetry,
   onBook,
   isWide = false,
-  primary = '#1F6B45',
+  primary = '#2E8B57',
   surface = '#FFFFFF',
   text = '#172019',
   textSecondary = '#737985',
@@ -63,7 +63,7 @@ const ClientStatsSection = ({
 
   const tiles = [
     { label: 'Réservations', value: formatCount(b.total), color: primary },
-    { label: 'Terminées', value: formatCount(b.completed), color: '#2E7D32' },
+    { label: 'Terminées', value: formatCount(b.completed), color: '#2E8B57' },
     { label: 'À venir', value: formatCount(b.upcoming), color: BLUE },
     { label: 'En attente', value: formatCount(b.pending), color: '#B45309' },
     { label: 'Panier moyen', value: formatAr(sp.average), color: primary },

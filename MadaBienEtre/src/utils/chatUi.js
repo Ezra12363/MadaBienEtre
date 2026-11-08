@@ -5,6 +5,7 @@ import { Alert, Platform } from 'react-native';
 
 import { API_URL } from '../config/env';
 import { parseServerDate } from './wsUrl';
+import { normalizeMediaUrl } from './mediaUrl';
 
 /* ------------------------------ identité ------------------------------ */
 
@@ -18,13 +19,8 @@ export const getFirstName = (name) => {
   return value ? value.split(/\s+/)[0] : '';
 };
 
-/** URL absolue d'une photo de profil (le backend peut renvoyer un chemin relatif). */
-export const resolvePhotoUrl = (value) => {
-  if (!value || typeof value !== 'string') return null;
-  if (/^(https?:|data:|blob:|file:)/i.test(value)) return value;
-  const base = String(API_URL || '').replace(/\/+$/, '');
-  return `${base}${value.startsWith('/') ? '' : '/'}${value}`;
-};
+/** URL absolue d'une photo de profil, toujours basée sur l'API_URL ACTUELLE. */
+export const resolvePhotoUrl = (value) => normalizeMediaUrl(value) || null;
 
 /* -------------------------------- dates -------------------------------- */
 

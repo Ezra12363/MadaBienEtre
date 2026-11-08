@@ -12,6 +12,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../theme';
 import adminService from '../../services/adminService';
 import AdminSpecialtiesManager from '../../components/admin/AdminSpecialtiesManager';
+import { normalizeMediaUrl } from '../../utils/mediaUrl';
 import {
   ActionButton,
   ActionRow,
@@ -222,7 +223,7 @@ const ApprovalDetailScreen = ({ navigation, route }) => {
     <ProfileHero
       avatar={
         <DetailAvatar
-          uri={therapist.profile_image}
+          uri={normalizeMediaUrl(therapist.profile_image)}
           name={therapist.fullname}
           color={colors.primary}
           size={88}

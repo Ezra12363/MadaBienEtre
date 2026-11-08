@@ -42,6 +42,20 @@ def detect_file_type(contents: bytes):
         return ("pdf", "application/pdf")
     return None
 
+def to_relative_upload_path(url: Optional[str]) -> Optional[str]:
+    """
+    Transforme une URL locale « http://<ip>:8000/uploads/profiles/x.jpg »
+    en chemin RELATIF « /uploads/profiles/x.jpg » (indépendant de l'IP).
+    Les URLs externes (Cloudinary...) sont renvoyées telles quelles.
+    """
+    if not url or not isinstance(url, str):
+        return url
+    match = re.search(r"/uploads/.+$", url.replace("\\", "/"))
+    if match and "cloudinary" not in url:
+        return match.group(0)
+    return url
+
+
 # ✅ Configuration Cloudinary — ampiasaina raha vonona tanteraka izy
 # (cloud_name, api_key, api_secret rehetra tsy banga)
 CLOUDINARY_CONFIGURED = bool(
@@ -314,7 +328,8 @@ def delete_image(url: str) -> bool:
 
         match = re.search(r"/uploads/.*$", url)
         if match:
-            local_path = match.group(0).lstrip("/")
+            # chemin ABSOLU (UPLOAD_ROOT) : indépendant du dossier de lancement
+            local_path = str(UPLOAD_ROOT.parent / match.group(0).lstrip("/"))
             if os.path.exists(local_path):
                 os.remove(local_path)
                 print(f"🗑️ Fichier local supprimé: {local_path}")

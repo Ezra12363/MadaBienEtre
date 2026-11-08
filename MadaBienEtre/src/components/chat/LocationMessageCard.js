@@ -110,8 +110,8 @@ const LocationMessageCard = ({ message, isOwn, textColor, onLongPress }) => {
           accessibilityRole="button"
           accessibilityLabel="Suivre le thérapeute en route"
         >
-          <Ionicons name="navigate" size={16} color={isOwn ? '#2E7D32' : '#FFFFFF'} />
-          <Text style={[styles.trackBtnText, { color: isOwn ? '#2E7D32' : '#FFFFFF' }]}>
+          <Ionicons name="navigate" size={16} color={isOwn ? '#2E8B57' : '#FFFFFF'} />
+          <Text style={[styles.trackBtnText, { color: isOwn ? '#2E8B57' : '#FFFFFF' }]}>
             Suivre le thérapeute en route
           </Text>
         </TouchableOpacity>

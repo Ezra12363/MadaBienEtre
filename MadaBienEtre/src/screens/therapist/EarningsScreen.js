@@ -36,7 +36,7 @@ import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import { colors } from '../../theme';
 
-const PRIMARY = colors.primary || '#1F6B45';
+const PRIMARY = colors.primary || '#2E8B57';
 
 const WITHDRAWAL_STATUS = {
   pending: { label: 'En attente', color: '#B45309', bg: '#FEF3C7' },
@@ -70,7 +70,7 @@ const METHOD_NAMES = {
   cash: 'Espèces',
   mobile_money: 'Mobile Money',
 };
-const METHOD_COLORS = ['#1F6B45', '#B8924A', '#2F6DB5', '#C0562F', '#7A5CB5', '#4A9B9B'];
+const METHOD_COLORS = ['#2E8B57', '#B8924A', '#2F6DB5', '#C0562F', '#7A5CB5', '#4A9B9B'];
 
 const COMMISSION_MODES = [
   { id: 'wallet', label: 'Depuis mon wallet', icon: 'wallet-outline' },
@@ -856,7 +856,7 @@ const styles = StyleSheet.create({
   errorText: { color: '#B91C1C', flex: 1, fontSize: 13, fontWeight: '400' },
   noticeBox: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#D1FAE5', borderRadius: 12, padding: 12 },
   noticeText: { color: '#047857', flex: 1, fontSize: 13, fontWeight: '400' },
-  balanceCard: { backgroundColor: '#1F6B45', borderRadius: 18, padding: 18, gap: 6 },
+  balanceCard: { backgroundColor: '#2E8B57', borderRadius: 18, padding: 18, gap: 6 },
   balRow: { flexDirection: 'row', gap: 28, marginTop: 4, marginBottom: 2 },
   balSmallLabel: { color: '#CFE5D8', fontSize: 12, fontWeight: '600' },
   balSmallValue: { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 1 },

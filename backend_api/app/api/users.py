@@ -48,7 +48,12 @@ from ..schemas.user import (
     UserBulkActionRequest,
     UserPasswordResetRequest,
 )
-from ..services.upload_service import upload_image, upload_identity_document
+from ..services.upload_service import (
+    upload_image,
+    upload_identity_document,
+    delete_image,
+    to_relative_upload_path,
+)
 from ..services.account_notifications import (
     notify_account_activated,
     notify_account_created_by_admin,
@@ -586,10 +591,23 @@ async def upload_profile_photo(
         base_url = str(request.base_url).rstrip("/")
 
         image_url = upload_image(file, "profiles", base_url=base_url)
-        current_user.profile_image = image_url
+
+        # ✅ FIX « photo disparaît » : en base on garde le CHEMIN RELATIF
+        # (/uploads/profiles/xxx.jpg) et NON l'URL avec l'IP du moment.
+        # Cloudinary (https://res.cloudinary.com/...) reste inchangé.
+        stored_url = to_relative_upload_path(image_url)
+
+        # supprime l'ancienne photo locale (évite d'accumuler des fichiers)
+        old_image = current_user.profile_image
+        current_user.profile_image = stored_url
         current_user.updated_at = datetime.utcnow()
         db.commit()
-        return {"profile_image": image_url}
+        if old_image and old_image != stored_url:
+            try:
+                delete_image(old_image)
+            except Exception:
+                pass
+        return {"profile_image": stored_url}
     except Exception as e:
         logger.error(f"Upload error: {e}")
         db.rollback()

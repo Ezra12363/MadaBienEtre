@@ -20,7 +20,7 @@ const ChatImagePreviewModal = ({ visible, asset, onCancel, onConfirm }) => {
   const { width, height } = useWindowDimensions();
   const boxWidth = Math.min(width - 32, 520);
   const imageHeight = Math.min(height * 0.55, 420);
-  const primary = colors?.primary || '#168A55';
+  const primary = colors?.primary || '#2E8B57';
 
   return (
     <Modal

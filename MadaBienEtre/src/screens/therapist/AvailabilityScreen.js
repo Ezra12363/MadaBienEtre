@@ -35,7 +35,7 @@ import availabilityService from '../../services/availabilityService';
 
 const IS_WEB = Platform.OS === 'web';
 
-const PRIMARY = colors.primary || '#168A55';
+const PRIMARY = colors.primary || '#2E8B57';
 const DANGER = colors.error || '#DC2626';
 const WARNING = '#D97706';
 

@@ -25,7 +25,7 @@ import { useAuth } from '../../context/AuthContext';
 import cardService from '../../services/cardService';
 import StripeCardForm, { inlineCardFormSupported } from './StripeCardForm';
 
-const GREEN = '#1F6B45';
+const GREEN = '#2E8B57';
 const POLL_MS = 4000;
 const POLL_MAX_MS = 3 * 60 * 1000;
 

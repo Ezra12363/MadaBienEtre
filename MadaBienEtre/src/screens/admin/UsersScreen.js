@@ -33,6 +33,7 @@ import useResponsive from '../../hooks/useResponsive';
 import { API_URL } from '../../config/env';
 import { exportToExcel } from '../../utils/exportExcel';
 
+import { normalizeMediaUrl } from '../../utils/mediaUrl';
 const IS_WEB = Platform.OS === 'web';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -1011,7 +1012,7 @@ const UsersScreen = () => {
       >
         {avatarUser?.profile_image ? (
           <Image
-            source={{ uri: avatarUser.profile_image }}
+            source={{ uri: normalizeMediaUrl(avatarUser.profile_image) }}
             style={{
               width: size,
               height: size,
@@ -1706,7 +1707,7 @@ const UsersScreen = () => {
                 style={[
                   styles.actionButton,
                   {
-                    backgroundColor: '#1D6F42',
+                    backgroundColor: '#2E8B57',
                     marginRight: 8,
                     opacity: exportingExcel ? 0.6 : 1,
                   },

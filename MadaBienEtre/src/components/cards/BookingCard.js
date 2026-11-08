@@ -13,7 +13,7 @@ const BookingCard = ({ booking, onPress, compact = false }) => {
       negotiating: '#2196F3',
       confirmed: '#4CAF50',
       in_progress: '#FF9800',
-      completed: '#2E7D32',
+      completed: '#2E8B57',
       cancelled_by_client: '#D32F2F',
       cancelled_by_therapist: '#D32F2F',
       expired: '#757575',

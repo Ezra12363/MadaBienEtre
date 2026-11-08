@@ -65,8 +65,8 @@ const { width } = Dimensions.get('window');
 const IS_WEB = Platform.OS === 'web';
 
 // ✅ Thème harmonisé avec HomeScreen.js (même vert PRIMARY partout)
-const PRIMARY = colors.primary || '#168A55';
-const PRIMARY_DARK = '#0B633C';
+const PRIMARY = colors.primary || '#2E8B57';
+const PRIMARY_DARK = '#2E8B57';
 
 // Alias conservés pour ne pas casser les usages existants dans ce
 // fichier (carte, marqueurs...) — pointent maintenant vers le thème.

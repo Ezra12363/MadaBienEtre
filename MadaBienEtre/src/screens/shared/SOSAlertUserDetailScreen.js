@@ -316,7 +316,7 @@ const styles = StyleSheet.create({
   replyMeta: { fontSize: typography.fontSize.xs, marginTop: 4 },
   empty: { fontSize: typography.fontSize.sm, lineHeight: 20 },
   resolvedBox: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: 14, backgroundColor: '#27AE6015', marginBottom: spacing.md },
-  resolvedText: { flex: 1, color: '#1E8E4E', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, lineHeight: 20 },
+  resolvedText: { flex: 1, color: '#2E8B57', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, lineHeight: 20 },
   cancelBtn: { alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: spacing.md, borderRadius: 10, borderWidth: 1, borderColor: '#999', marginBottom: spacing.md },
   cancelBtnText: { fontSize: typography.fontSize.sm, color: '#666', fontFamily: typography.fontFamily.medium },
   callBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#D32F2F', padding: spacing.md, borderRadius: 14 },

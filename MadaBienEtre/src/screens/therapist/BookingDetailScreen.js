@@ -65,7 +65,7 @@ import {
 // CONSTANTES
 // ============================================================
 
-const PRIMARY_COLOR = colors.primary || '#168A55';
+const PRIMARY_COLOR = colors.primary || '#2E8B57';
 
 const NEGOTIABLE_STATUSES = [
   'pending',
@@ -168,7 +168,7 @@ const getStatusInfo = (status) => {
       label: 'Terminée',
       description:
         'Cette prestation est terminée.',
-      color: '#2E7D32',
+      color: '#2E8B57',
       icon: 'checkmark-done-outline',
     },
 
@@ -1496,7 +1496,7 @@ const BookingDetailScreen = ({
                   <Ionicons
                     name="checkmark-done-outline"
                     size={20}
-                    color="#2E7D32"
+                    color="#2E8B57"
                   />
                 </View>
 
@@ -1713,7 +1713,7 @@ const BookingDetailScreen = ({
                     style={[
                       styles.finalPriceValue,
                       {
-                        color: '#2E7D32',
+                        color: '#2E8B57',
                       },
                     ]}
                   >
