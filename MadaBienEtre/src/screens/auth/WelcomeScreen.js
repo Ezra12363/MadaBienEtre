@@ -31,9 +31,9 @@ const ANDROID_APK_URL =
 ========================================================= */
 
 const LIGHT_COLORS = {
-  primary: '#2E8B57',
-  primaryDark: '#1B5C36',
-  primaryMid: '#2E8B57',
+  primary: '#2E7D32',
+  primaryDark: '#164B2A',
+  primaryMid: '#1F6B38',
   primaryLight: '#EAF5EC',
 
   background: '#F7FAF7',
@@ -55,7 +55,7 @@ const DARK_COLORS = {
   primary: '#34A853',
   primaryDark: '#0E2415',
   primaryMid: '#1E5C33',
-  primaryLight: 'rgba(109, 184, 138,0.16)',
+  primaryLight: 'rgba(76,175,80,0.16)',
 
   background: '#0B0F0C',
   surface: '#161D19',
@@ -1243,7 +1243,7 @@ export default function WelcomeScreen({ navigation }) {
           colors={[
             COLORS.primaryDark,
             COLORS.primary,
-            '#4FA06F',
+            '#3C9147',
           ]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -2273,7 +2273,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     ...Platform.select({
       web: {
         boxShadow:
-          '0px 25px 50px rgba(27, 92, 54,0.18)',
+          '0px 25px 50px rgba(22,75,42,0.18)',
       },
     }),
   },

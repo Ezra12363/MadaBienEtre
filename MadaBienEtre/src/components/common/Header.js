@@ -31,8 +31,8 @@ import { useLiveSharing } from '../../context/LiveSharingContext';
    soit la taille de l'écran ou la plateforme.
 ========================================================= */
 
-const GREEN = colors.primary || '#2E8B57';
-const GREEN_DARK = '#2E8B57';
+const GREEN = colors.primary || '#168A55';
+const GREEN_DARK = '#0B633C';
 
 // Doit correspondre au seuil "isMobile" utilisé ailleurs
 // dans l'application (ex: OffersScreen) pour rester cohérent.
@@ -63,13 +63,13 @@ const getHeaderColors = (isLargeWebScreen, isDark = false) => {
       borderColor: '#E3E7E4',
 
       titleColor: GREEN_DARK,
-      subtitleColor: 'rgba(46, 139, 87,0.65)',
+      subtitleColor: 'rgba(11,99,60,0.65)',
       iconColor: GREEN_DARK,
 
       backButtonBg: 'transparent',
       backButtonBorder: 'transparent',
 
-      logoBoxBg: 'rgba(46, 139, 87,0.08)',
+      logoBoxBg: 'rgba(11,99,60,0.08)',
     };
   }
 
