@@ -48,13 +48,34 @@ from ..schemas.user import (
     UserBulkActionRequest,
     UserPasswordResetRequest,
 )
-from ..services.upload_service import upload_image
+from ..services.upload_service import upload_image, upload_identity_document
+from ..services.account_notifications import (
+    notify_account_activated,
+    notify_account_created_by_admin,
+    notify_account_deactivated,
+    notify_account_updated,
+    notify_password_reset,
+)
+from ..services.user_purge import purge_user, remove_certificate_files
 from ..core.security import get_password_hash, verify_password, generate_secure_token
 from ..core.config import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Users"])
+
+# Champs dont la modification par un admin est signalée par email à l'utilisateur
+ADMIN_EDIT_LABELS = {
+    "fullname": "Nom",
+    "email": "Email",
+    "phone": "Téléphone",
+    "address": "Adresse",
+    "bio": "Biographie",
+    "cin_number": "Numéro CIN",
+    "experience_years": "Années d'expérience",
+    "base_price": "Tarif de base",
+    "service_radius": "Rayon d'intervention (km)",
+}
 
 # ✅ Racine du projet (même convention que certificate_service.py) —
 # utilisée pour résoudre les chemins relatifs des fichiers certificats
@@ -230,6 +251,9 @@ async def create_user(
             f"{new_user.email} ({new_user.role})"
         )
 
+        # ✉️ Email au propriétaire du compte : toutes les informations + mot de passe
+        notify_account_created_by_admin(new_user, user_data.password, admin=current_user)
+
         return new_user
 
     except HTTPException:
@@ -317,6 +341,16 @@ async def update_user(
 
         update_data = user_data.dict(exclude_unset=True)
 
+        # ✉️ Modification faite PAR UN ADMIN sur le compte d'un autre : on garde
+        # l'ancien état pour prévenir l'utilisateur de ce qui a changé.
+        edited_by_admin = current_user.id != user_id and current_user.role == "ADMIN"
+        previous_email = user.email
+        changes = []
+        if edited_by_admin:
+            for key, label in ADMIN_EDIT_LABELS.items():
+                if key in update_data and str(getattr(user, key, None) or "") != str(update_data[key] or ""):
+                    changes.append((label, getattr(user, key, None), update_data[key]))
+
         # ✅ Traiter tous les champs, y compris cin_number
         for key, value in update_data.items():
             setattr(user, key, value)
@@ -324,6 +358,11 @@ async def update_user(
         user.updated_at = datetime.utcnow()
         db.commit()
         db.refresh(user)
+
+        if edited_by_admin and changes:
+            notify_account_updated(
+                user, admin=current_user, changes=changes, previous_email=previous_email
+            )
 
         logger.info(f"✅ Utilisateur {user_id} mis à jour avec succès")
         logger.info(f"   - cin_number: {user.cin_number}")
@@ -400,70 +439,14 @@ async def delete_user(
                 f"{current_user.fullname}"
             )
 
-            # ----------------------------------------------------
-            # 3.1 Nettoyer les données liées au thérapeute AVANT de
-            # supprimer l'utilisateur. Ces tables ont une colonne
-            # therapist_id NOT NULL sans cascade ORM configurée :
-            # SQLAlchemy tenterait sinon de mettre therapist_id=NULL
-            # au lieu de supprimer les lignes, ce qui provoque une
-            # erreur NotNullViolation (voir traceback certificats).
-            # ----------------------------------------------------
-
-            # Certificats professionnels : on supprime aussi les
-            # fichiers PDF associés sur le disque.
-            certificates = (
-                db.query(TherapistCertificate)
-                .filter(TherapistCertificate.therapist_id == user.id)
-                .all()
-            )
-            certificate_files_to_delete = [
-                cert.certificate_path for cert in certificates if cert.certificate_path
-            ]
-            for cert in certificates:
-                db.delete(cert)
-
-            # Spécialités du thérapeute
-            db.query(TherapistSpecialty).filter(
-                TherapistSpecialty.therapist_id == user.id
-            ).delete(synchronize_session=False)
-
-            # Évaluation agrégée du thérapeute
-            db.query(TherapistRating).filter(
-                TherapistRating.therapist_id == user.id
-            ).delete(synchronize_session=False)
-
-            # Retraits (withdrawals) AVANT earnings, car ils
-            # référencent aussi therapist_id directement.
-            db.query(Withdrawal).filter(
-                Withdrawal.therapist_id == user.id
-            ).delete(synchronize_session=False)
-
-            # Gains du thérapeute
-            db.query(TherapistEarnings).filter(
-                TherapistEarnings.therapist_id == user.id
-            ).delete(synchronize_session=False)
-
-            # ----------------------------------------------------
-            # 3.2 Supprimer l'utilisateur lui-même
-            # ----------------------------------------------------
-            db.delete(user)
+            # Nettoyage générique de TOUTES les données liées (réservations, paiements,
+            # notifications, jetons push, avis, SOS, disponibilités, gains, certificats...)
+            # puis suppression de l'utilisateur — voir services/user_purge.py
+            certificate_files_to_delete = purge_user(db, user)
             db.commit()
 
-            # ----------------------------------------------------
-            # 3.3 Supprimer les fichiers PDF des certificats sur le
-            # disque, une fois la transaction DB validée avec succès.
-            # ----------------------------------------------------
-            for relative_path in certificate_files_to_delete:
-                try:
-                    file_path = BASE_DIR / relative_path
-                    if file_path.is_file():
-                        os.remove(file_path)
-                        logger.info(f"🗑️ Fichier certificat supprimé : {file_path}")
-                except Exception as file_error:
-                    logger.warning(
-                        f"⚠️ Impossible de supprimer le fichier certificat "
-                        f"'{relative_path}' : {file_error}"
-                    )
+            # Fichiers PDF des certificats : supprimés après le commit réussi
+            remove_certificate_files(certificate_files_to_delete, BASE_DIR)
 
             logger.info(
                 f"✅ Utilisateur {user_id} supprimé définitivement "
@@ -627,18 +610,15 @@ async def upload_cin_document(
     ✅ Uploader la photo du CIN (recto/verso)
     """
     try:
-        allowed_types = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
-        if file.content_type not in allowed_types:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Format non supporté (jpg, png, webp, pdf)",
-            )
+        # ✅ Le type (jpg / png / webp / pdf) est vérifié sur le contenu réel
+        # du fichier dans upload_identity_document (pas sur le Content-Type,
+        # qui est faux/vide selon Android ou navigateur).
 
         # ✅ Même correctif que upload-profile-photo : hôte réel de la
         # requête, pas settings.BASE_URL figé.
         base_url = str(request.base_url).rstrip("/")
 
-        image_url = upload_image(file, "cin", base_url=base_url)
+        image_url = upload_identity_document(file, "cin", base_url=base_url)
         current_user.identity_document_url = image_url
         current_user.updated_at = datetime.utcnow()
         db.commit()
@@ -646,6 +626,9 @@ async def upload_cin_document(
         logger.info(f"✅ CIN uploadé pour l'utilisateur {current_user.id}")
 
         return {"identity_document_url": image_url}
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         logger.error(f"Erreur upload_cin_document: {e}")
         db.rollback()
@@ -670,12 +653,7 @@ async def upload_certificate_professionnel(
     automatiquement par la plateforme après validation admin.
     """
     try:
-        allowed_types = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
-        if file.content_type not in allowed_types:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Format non supporté (jpg, png, webp, pdf)",
-            )
+        # ✅ Type vérifié sur le contenu réel (voir upload_identity_document).
 
         # ✅ FIXÉ : même correctif que upload-profile-photo et upload-cin —
         # on utilise désormais l'hôte RÉEL de la requête reçue
@@ -692,7 +670,7 @@ async def upload_certificate_professionnel(
         # laquelle se raccrocher), donc pas concerné par ce correctif.
         base_url = str(request.base_url).rstrip("/")
 
-        file_url = upload_image(file, "certificates_pro", base_url=base_url)
+        file_url = upload_identity_document(file, "certificates_pro", base_url=base_url)
         current_user.certificate_professionnel = file_url
         current_user.updated_at = datetime.utcnow()
         db.commit()
@@ -858,6 +836,7 @@ async def toggle_user_status(
                 detail="Vous ne pouvez pas désactiver votre propre compte",
             )
 
+        was_active = bool(user.is_active)
         user.is_active = request.is_active
         user.updated_at = datetime.utcnow()
 
@@ -867,6 +846,13 @@ async def toggle_user_status(
             user.deleted_at = None
 
         db.commit()
+
+        # Activation d'un compte jusque-là désactivé : email + notification à l'utilisateur
+        if request.is_active and not was_active:
+            notify_account_activated(user, admin=current_user)
+        # Désactivation d'un compte actif : email + notification (avec motif)
+        elif not request.is_active and was_active:
+            notify_account_deactivated(user, admin=current_user, reason=request.reason)
 
         status_text = "activé" if request.is_active else "désactivé"
         logger.info(f"Utilisateur {user_id} {status_text} par {current_user.fullname}")
@@ -909,11 +895,21 @@ async def reset_user_password(
                 detail="Utilisateur non trouvé",
             )
 
-        new_password = generate_secure_token(8)
+        # Mot de passe choisi par l'admin, sinon généré automatiquement
+        new_password = (request.new_password or "").strip() or generate_secure_token(8)
+        if len(new_password) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Le mot de passe doit contenir au moins 8 caractères",
+            )
 
         user.password = get_password_hash(new_password)
         user.updated_at = datetime.utcnow()
         db.commit()
+
+        # ✉️ Le nouveau mot de passe est envoyé par email à l'utilisateur
+        if request.send_email:
+            notify_password_reset(user, new_password, admin=current_user)
 
         logger.info(
             f"Mot de passe réinitialisé pour l'utilisateur {user_id} "
@@ -970,16 +966,26 @@ async def bulk_user_action(
             )
 
         processed = 0
+        files_to_remove = []
+
+        activated_users = []
+        deactivated_users = []
 
         for user in users:
+            if request.action == "delete":
+                files_to_remove += purge_user(db, user)
+                processed += 1
+                continue
             if request.action == "activate":
+                if not user.is_active:
+                    activated_users.append(user)
                 user.is_active = True
                 user.deleted_at = None
             elif request.action == "deactivate":
+                if user.is_active:
+                    deactivated_users.append(user)
                 user.is_active = False
                 user.deleted_at = datetime.utcnow()
-            elif request.action == "delete":
-                db.delete(user)
             else:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -990,6 +996,13 @@ async def bulk_user_action(
             processed += 1
 
         db.commit()
+        remove_certificate_files(files_to_remove, BASE_DIR)
+
+        # ✉️ Email + notification à chaque utilisateur dont le statut a changé
+        for u in activated_users:
+            notify_account_activated(u, admin=current_user)
+        for u in deactivated_users:
+            notify_account_deactivated(u, admin=current_user, reason=request.reason)
 
         return {
             "message": f"Action '{request.action}' effectuée sur {processed} utilisateur(s)",

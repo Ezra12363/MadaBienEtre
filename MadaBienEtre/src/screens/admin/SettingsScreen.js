@@ -50,6 +50,7 @@ import {
 
 import Header from '../../components/common/Header';
 import PaymentSettingsPanel from '../../components/payment/PaymentSettingsPanel';
+import CertificateSettingsPanel from '../../components/admin/CertificateSettingsPanel';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import useResponsive from '../../hooks/useResponsive';
 import adminService from '../../services/adminService';
@@ -146,6 +147,8 @@ const SettingsScreen = ({ navigation }) => {
     emailNotifications: true,
     smsNotifications: false,
     autoApprove: false,
+    autoActivateTherapists: false,
+    autoActivateClients: false,
 
     commissionRate: 10,
     minPrice: 25000,
@@ -907,7 +910,19 @@ const SettingsScreen = ({ navigation }) => {
       items: [
         {
           id: 'autoApprove',
-          label: 'Approbation automatique',
+          label: 'Approuver automatiquement les thérapeutes (compte activé + certificat PDF envoyé par email)',
+          type: 'switch',
+        },
+
+        {
+          id: 'autoActivateTherapists',
+          label: 'Activer automatiquement les comptes thérapeutes (profil à valider ensuite)',
+          type: 'switch',
+        },
+
+        {
+          id: 'autoActivateClients',
+          label: 'Activer automatiquement les comptes clients',
           type: 'switch',
         },
       ],
@@ -1658,6 +1673,9 @@ const SettingsScreen = ({ navigation }) => {
                 PAIEMENTS & COMMISSIONS
             ================================================= */}
             <PaymentSettingsPanel />
+
+            {/* CERTIFICAT THÉRAPEUTE : logo, signature, textes, couleurs */}
+            <CertificateSettingsPanel />
 
             {/* =================================================
                 SETTINGS GRID

@@ -115,6 +115,27 @@ export const AuthProvider = ({ children }) => {
   }, [refreshUser]);
 
   /**
+   * Connexion via Google / Apple — appelle authService.socialLogin()
+   */
+  const socialLogin = useCallback(async (provider, idToken, options = {}) => {
+    try {
+      const result = await authService.socialLogin(provider, idToken, options);
+
+      if (result.success) {
+        setToken(result.data.access_token);
+        setUser(result.data.user);
+        setIsAuthenticated(true);
+        await refreshUser();
+        return { success: true, data: result.data };
+      }
+
+      return { success: false, error: result.error };
+    } catch (error) {
+      return { success: false, error: error.message || 'Erreur de connexion' };
+    }
+  }, [refreshUser]);
+
+  /**
    * Inscription — appelle authService.register()
    */
   const register = useCallback(async (userData) => {
@@ -240,6 +261,7 @@ export const AuthProvider = ({ children }) => {
       isLoading,
       isAuthenticated,
       login,
+      socialLogin,
       register,
       verifyOTP,
       resendOTP,
@@ -257,6 +279,7 @@ export const AuthProvider = ({ children }) => {
       isLoading,
       isAuthenticated,
       login,
+      socialLogin,
       register,
       verifyOTP,
       resendOTP,
@@ -281,4 +304,4 @@ export const useAuth = () => {
   return context;
 };
 
-export default AuthContext;
+export default AuthContext;

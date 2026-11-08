@@ -40,84 +40,9 @@ import therapistService from '../../services/therapistService';
 import { API_URL } from '../../config/env';
 // ✅ Sélecteur de fichier multi-plateforme (corrige l'upload sur le web)
 import { pickImageOrPdf } from '../../utils/crossPlatformFilePicker';
-
-// ============================================================
-// BUILD FORMDATA
-// ============================================================
-
-const buildFileFormData = async (
-  asset,
-  fieldName,
-  defaultBaseName
-) => {
-  const formData = new FormData();
-
-  const sourceName = asset?.name || asset?.uri || '';
-
-  const uriParts = sourceName.split('.');
-
-  const rawExt =
-    (uriParts[uriParts.length - 1] || 'jpg')
-      .split('?')[0]
-      .toLowerCase();
-
-  const ext = [
-    'jpg',
-    'jpeg',
-    'png',
-    'webp',
-    'pdf',
-  ].includes(rawExt)
-    ? rawExt
-    : 'jpg';
-
-  const mimeType =
-    asset?.mimeType ||
-    (ext === 'pdf'
-      ? 'application/pdf'
-      : `image/${ext === 'jpg' ? 'jpeg' : ext}`);
-
-  const filename = `${defaultBaseName}.${ext}`;
-
-  // ----------------------------------------------------------
-  // WEB
-  // ----------------------------------------------------------
-
-  if (Platform.OS === 'web') {
-    const response = await fetch(asset.uri);
-
-    if (!response.ok) {
-      throw new Error(
-        "Impossible de lire le fichier sélectionné."
-      );
-    }
-
-    const blob = await response.blob();
-
-    formData.append(
-      fieldName,
-      blob,
-      filename
-    );
-  }
-
-  // ----------------------------------------------------------
-  // ANDROID / IOS
-  // ----------------------------------------------------------
-
-  else {
-    formData.append(
-      fieldName,
-      {
-        uri: asset.uri,
-        type: mimeType,
-        name: filename,
-      }
-    );
-  }
-
-  return formData;
-};
+import { buildDocumentFormData } from '../../utils/documentUtils';
+import { openDocument } from '../../utils/downloadFile';
+import DocumentPreview from '../../components/common/DocumentPreview';
 
 // ============================================================
 // CARTE DOCUMENT
@@ -134,12 +59,6 @@ const DocumentCard = ({
   themeColors,
   disabledNote,
 }) => {
-  const isPdf =
-    documentUrl &&
-    documentUrl
-      .toLowerCase()
-      .endsWith('.pdf');
-
   return (
     <View
       style={[
@@ -217,55 +136,14 @@ const DocumentCard = ({
       ------------------------------------------------------ */}
 
       {documentUrl ? (
-        <TouchableOpacity
-          onPress={onView}
-          activeOpacity={0.85}
-          style={styles.previewWrapper}
-        >
-
-          {isPdf ? (
-
-            <View
-              style={[
-                styles.pdfPreview,
-                {
-                  backgroundColor:
-                    themeColors.background,
-                },
-              ]}
-            >
-              <Ionicons
-                name="document-text-outline"
-                size={36}
-                color={colors.primary}
-              />
-
-              <Text
-                style={[
-                  styles.pdfPreviewText,
-                  {
-                    color:
-                      themeColors.textSecondary,
-                  },
-                ]}
-              >
-                Document PDF — Appuyer pour ouvrir
-              </Text>
-            </View>
-
-          ) : (
-
-            <Image
-              source={{
-                uri: documentUrl,
-              }}
-              style={styles.previewImage}
-              resizeMode="cover"
-            />
-
-          )}
-
-        </TouchableOpacity>
+        <View style={styles.previewWrapper}>
+          <DocumentPreview
+            url={documentUrl}
+            height={220}
+            onPress={onView}
+            themeColors={themeColors}
+          />
+        </View>
       ) : null}
 
       {/* ------------------------------------------------------
@@ -519,11 +397,7 @@ const UploadDocumentsScreen = ({
       setIsUploadingCin(true);
 
       const formData =
-        await buildFileFormData(
-          asset,
-          'file',
-          'cin'
-        );
+        await buildDocumentFormData(asset, 'cin');
 
       const result =
         await therapistService
@@ -632,11 +506,7 @@ const UploadDocumentsScreen = ({
       setIsUploadingCertificatePro(true);
 
       const formData =
-        await buildFileFormData(
-          asset,
-          'file',
-          'certificate_professionnel'
-        );
+        await buildDocumentFormData(asset, 'certificat');
 
       const result =
         await therapistService
@@ -717,31 +587,12 @@ const UploadDocumentsScreen = ({
   // VOIR DOCUMENT
   // ==========================================================
 
-  const handleViewDocument = (
-    url
-  ) => {
-
-    if (!url) {
-      return;
+  const handleViewDocument = async (url) => {
+    if (!url) return;
+    const res = await openDocument(url);
+    if (!res.success) {
+      Alert.alert('❌ Erreur', res.error);
     }
-
-    if (
-      Platform.OS === 'web'
-    ) {
-
-      window.open(
-        url,
-        '_blank'
-      );
-
-    } else {
-
-      Linking.openURL(
-        url
-      );
-
-    }
-
   };
 
   // ==========================================================

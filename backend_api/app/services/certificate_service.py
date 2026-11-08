@@ -1,21 +1,29 @@
-import os
 import io
-from pathlib import Path
+import logging
+import os
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from reportlab.lib.pagesizes import A4, landscape
-from reportlab.lib.units import cm, mm
-from reportlab.lib.colors import HexColor, white
-from reportlab.pdfgen import canvas
-from reportlab.lib.utils import ImageReader
+from reportlab.graphics import renderPDF
 from reportlab.graphics.barcode import code128
+from reportlab.graphics.barcode.qr import QrCodeWidget
+from reportlab.graphics.shapes import Drawing
+from reportlab.lib.colors import HexColor
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase.pdfmetrics import stringWidth
+from reportlab.pdfgen import canvas
 
 from sqlalchemy.orm import Session
-import qrcode
 
 from ..models.therapist_certificate import TherapistCertificate
 from ..models.user import User
 from ..core.config import settings
+from . import certificate_settings as cert_cfg
+from .mg_time import to_mg
+
+logger = logging.getLogger(__name__)
 
 # ============================================================
 # CHEMIN DU PROJET
@@ -24,15 +32,18 @@ from ..core.config import settings
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 CERTIFICATES_DIR = BASE_DIR / "uploads" / "certificates"
-
-# ✅ Chemin du logo Zebutech (apetrakao amin'ny toerana mety)
-LOGO_PATH = BASE_DIR / "assets" / "logo" / "logo.png"
-
-# ============================================================
-# CRÉER LE DOSSIER SI NÉCESSAIRE
-# ============================================================
-
 CERTIFICATES_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def resolve_certificate_path(stored_path: Optional[str]) -> Optional[str]:
+    """Chemin absolu du PDF, quel que soit le dossier de lancement du serveur
+    (en base on stocke un chemin relatif « uploads/certificates/xxx.pdf »)."""
+    if not stored_path:
+        return None
+    p = Path(stored_path)
+    if not p.is_absolute():
+        p = BASE_DIR / p
+    return str(p) if p.is_file() else None
 
 
 # ============================================================
@@ -63,413 +74,377 @@ def _generate_certificate_number(db: Session) -> str:
 
 
 # ============================================================
-# QR CODE
+# UTILITAIRES DE DESSIN
 # ============================================================
 
-def _build_qr_image(certificate_number: str):
-    """✅ QR code pointant vers la page de vérification publique."""
-    base_url = getattr(settings, "BASE_URL", "https://madabienetre.com").rstrip('/')
-    verify_url = f"{base_url}/certificates/verify/{certificate_number}"
+# Modèle « certificat_style9 » : A4 paysage, 841.89 x 595.28 pt.
+PAGE_W, PAGE_H = landscape(A4)
 
-    # box_size plus élevé => image plus nette, car la boîte QR est plus grande sur ce nouveau design
-    qr = qrcode.QRCode(box_size=9, border=2)
-    qr.add_data(verify_url)
-    qr.make(fit=True)
+PANEL_W = 290          # panneau vert à gauche
+STRIP_W = 3            # filet doré
+RIGHT_X = 330          # début de la colonne de droite
+RIGHT_END = PAGE_W - 40
+VALUE_X = 480          # colonne des valeurs
+VALUE_W = RIGHT_END - VALUE_X
 
-    img = qr.make_image(fill_color="#0D2B7E", back_color="white")
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
-    buffer.seek(0)
+# Couleurs fixes du modèle (le vert / l'or / le fond sont paramétrables)
+C_MUTED = "#8A8578"    # libellés, mentions
+C_DARK = "#2B2B2B"     # valeurs
+C_ROW_LINE = "#E3DCCB" # filets entre les lignes
+C_LIGHT_TXT = "#D6E6DC"  # texte clair sur le vert
+C_BADGE_BG = "#E1EFE7"
+C_QR = "#0D2B7E"
 
-    return ImageReader(buffer)
+
+def _t(value: Any) -> str:
+    """Texte compatible police Helvetica (WinAnsi) : un caractère non géré
+    devient « ? » au lieu de faire échouer toute la génération."""
+    return str(value if value is not None else "").encode("cp1252", "replace").decode("cp1252")
 
 
-# ============================================================
-# UTILITAIRE — RETOUR À LA LIGNE AUTOMATIQUE
-# ============================================================
-
-def _wrap_text(pdf, text, font_name, font_size, max_width):
-    words = text.split()
-    lines = []
-    line = ""
-
-    for word in words:
-        test_line = f"{line} {word}".strip()
-        if pdf.stringWidth(test_line, font_name, font_size) <= max_width:
-            line = test_line
+def _split_long_word(word: str, font: str, size: float, max_w: float) -> List[str]:
+    parts, cur = [], ""
+    for ch in word:
+        if stringWidth(cur + ch, font, size) <= max_w or not cur:
+            cur += ch
         else:
-            if line:
+            parts.append(cur)
+            cur = ch
+    if cur:
+        parts.append(cur)
+    return parts
+
+
+def _wrap(text: str, font: str, size: float, max_w: float) -> List[str]:
+    """Retour à la ligne glouton ; respecte les « \\n » ; coupe les mots trop longs."""
+    lines: List[str] = []
+    for paragraph in str(text).split("\n"):
+        line = ""
+        for word in paragraph.split():
+            if stringWidth(word, font, size) > max_w:
+                if line:
+                    lines.append(line)
+                    line = ""
+                chunks = _split_long_word(word, font, size, max_w)
+                lines.extend(chunks[:-1])
+                line = chunks[-1]
+                continue
+            test = f"{line} {word}".strip()
+            if stringWidth(test, font, size) <= max_w:
+                line = test
+            else:
                 lines.append(line)
-            line = word
-
-    if line:
+                line = word
         lines.append(line)
-
     return lines
 
 
+def _spaced_width(text: str, font: str, size: float, char_space: float) -> float:
+    return stringWidth(text, font, size) + char_space * max(len(text) - 1, 0)
+
+
+def _text(pdf, x, y, text, font, size, color, char_space=0.0):
+    t = pdf.beginText(x, y)
+    t.setFont(font, size)
+    t.setFillColor(color)
+    t.setCharSpace(char_space)
+    t.textOut(text)
+    pdf.drawText(t)
+
+
+def _text_centered(pdf, cx, y, text, font, size, color, char_space=0.0):
+    w = _spaced_width(text, font, size, char_space)
+    _text(pdf, cx - w / 2, y, text, font, size, color, char_space)
+
+
+def _draw_image_contain(pdf, path, x, y, w, h, align="center", valign="center"):
+    """Dessine une image dans la boîte (x, y, w, h) sans la déformer."""
+    try:
+        img = ImageReader(str(path))
+        iw, ih = img.getSize()
+        if not iw or not ih:
+            return
+        scale = min(w / iw, h / ih)
+        dw, dh = iw * scale, ih * scale
+        dx = x + (w - dw) / 2 if align == "center" else x
+        dy = y + (h - dh) / 2 if valign == "center" else y
+        pdf.drawImage(img, dx, dy, width=dw, height=dh, mask="auto")
+    except Exception:  # noqa: BLE001
+        logger.warning("Image du certificat illisible : %s", path)
+
+
+def _draw_qr(pdf, data: str, x: float, y: float, size: float, color: str):
+    """QR code vectoriel (ReportLab) — net à tous les zooms, sans dépendance externe."""
+    widget = QrCodeWidget(data)
+    widget.barFillColor = HexColor(color)
+    widget.barBorder = 2
+    x0, y0, x1, y1 = widget.getBounds()
+    bw, bh = x1 - x0, y1 - y0
+    drawing = Drawing(size, size, transform=[size / bw, 0, 0, size / bh, 0, 0])
+    drawing.add(widget)
+    renderPDF.draw(drawing, pdf, x, y)
+
+
+def _verify_url(certificate_number: str) -> str:
+    base_url = str(getattr(settings, "BASE_URL", "https://madabienetre.com")).rstrip("/")
+    return f"{base_url}/certificates/verify/{certificate_number}"
+
+
 # ============================================================
-# DESSIN DU PDF — FORMAT PAYSAGE, CALQUÉ SUR LE MODÈLE MADA BIEN-ÊTRE
+# DESSIN DU PDF — IDENTIQUE AU MODÈLE « certificat_style9 »
 # ============================================================
 
 def _draw_certificate_pdf(
-    path: str,
-    therapist: User,
+    path,
+    therapist,
     certificate_number: str,
     issued_at: datetime,
     admin_fullname: str,
-    specialty: str = None,
+    specialty: Optional[str] = None,
+    config: Optional[Dict[str, Any]] = None,
 ):
     """
-    ✅ Génère le certificat professionnel PDF au format PAYSAGE (A4 landscape),
-    avec la même mise en page, les mêmes proportions de police et la même
-    disposition que le modèle officiel Mada Bien-être (cadre double,
-    en-tête MADA BIEN-ÊTRE / CERTIFICAT / PROFESSIONNEL DE THÉRAPEUTE,
-    tableau d'informations à pointillés, bloc numéro/date/validation,
-    badge "THÉRAPEUTE VÉRIFIÉ", signatures, code-barres + QR code à droite).
+    Génère le certificat professionnel (A4 paysage) avec EXACTEMENT la mise en
+    page du modèle fourni : panneau vert à gauche (logo rond, titre, texte,
+    QR code, code-barres), colonne d'informations à droite, badge « THÉRAPEUTE
+    VÉRIFIÉ », signatures, mention légale.
+
+    `path` peut être un chemin de fichier ou un buffer (BytesIO).
+    Textes, couleurs, logo et signature viennent des paramètres admin.
     """
+    cfg = config or cert_cfg.get_config()
 
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    green = HexColor(cfg["color_primary"])
+    gold = HexColor(cfg["color_accent"])
+    cream = HexColor(cfg["color_background"])
+    muted = HexColor(C_MUTED)
+    dark = HexColor(C_DARK)
+    row_line = HexColor(C_ROW_LINE)
+    light_txt = HexColor(C_LIGHT_TXT)
+    white = HexColor("#FFFFFF")
 
-    pdf = canvas.Canvas(path, pagesize=landscape(A4))
-    width, height = landscape(A4)
+    if isinstance(path, (str, Path)):
+        os.makedirs(os.path.dirname(str(path)), exist_ok=True)
 
-    # --------------------------------------------------------
-    # COULEURS (identiques au modèle)
-    # --------------------------------------------------------
+    fullname = _t(getattr(therapist, "fullname", None) or "N/A")
+    admin_name = _t(admin_fullname or "Administration Mada Bien-être")
 
-    dark_green = HexColor("#1B5E3A")    # Vert titre / cadre principal
-    mid_green = HexColor("#1B7A3D")     # Vert cadre intérieur + badge vérifié
-    gold = HexColor("#C8892E")          # Or/orange du sous-titre plateforme
-    dark = HexColor("#222222")          # Texte principal
-    gray = HexColor("#5A5A5A")          # Texte secondaire (mention légale)
-    dotted_line = HexColor("#B8B8B8")   # Pointillés sous les valeurs
-    box_gray = HexColor("#9A9A9A")      # Contour des encadrés code-barres/QR
-
-    # --------------------------------------------------------
-    # FOND BLANC
-    # --------------------------------------------------------
-
-    pdf.setFillColor(white)
-    pdf.rect(0, 0, width, height, fill=1, stroke=0)
+    pdf = canvas.Canvas(path, pagesize=(PAGE_W, PAGE_H))
+    pdf.setTitle(f"Certificat professionnel de thérapeute - {certificate_number}")
+    pdf.setAuthor("Zebutech")
+    pdf.setSubject("Certificat professionnel de thérapeute")
 
     # --------------------------------------------------------
-    # DOUBLE CADRE (vert + or, comme le modèle)
+    # FONDS
     # --------------------------------------------------------
-
-    outer_margin = 0.45 * cm
-    pdf.setStrokeColor(dark_green)
-    pdf.setLineWidth(1.1)
-    pdf.roundRect(outer_margin, outer_margin, width - 2 * outer_margin, height - 2 * outer_margin, 8, stroke=1, fill=0)
-
-    inner_margin = outer_margin + 0.32 * cm
-    pdf.setStrokeColor(gold)
-    pdf.setLineWidth(0.9)
-    pdf.roundRect(inner_margin, inner_margin, width - 2 * inner_margin, height - 2 * inner_margin, 6, stroke=1, fill=0)
-
-    content_left = inner_margin + 0.85 * cm
-    content_right = width - inner_margin - 0.85 * cm
-    right_col_w = 5.15 * cm
-    text_right = content_right - right_col_w - 0.5 * cm
-    text_width = text_right - content_left
-
-    center_x = (content_left + text_right) / 2
-
-    # Centre réel de la page, utilisé pour l'en-tête (titres) comme dans le modèle
-    page_center_x = width / 2
-    intro_max_width = 2 * ((content_right - right_col_w) - page_center_x - 0.4 * cm)
-
-    top = height - inner_margin - 0.85 * cm
-
-    # --------------------------------------------------------
-    # LOGO ZEBUTECH (haut gauche)
-    # --------------------------------------------------------
-
-    logo_w = 4.9 * cm
-    logo_h = 2.35 * cm
-    if os.path.exists(LOGO_PATH):
-        try:
-            pdf.drawImage(
-                str(LOGO_PATH),
-                content_left,
-                top - logo_h + 0.4 * cm,
-                width=logo_w,
-                height=logo_h,
-                preserveAspectRatio=True,
-                anchor='sw',
-                mask='auto',
-            )
-        except Exception:
-            pass
-
-    # --------------------------------------------------------
-    # EN-TÊTE
-    # --------------------------------------------------------
-
-    y = top
-
-    pdf.setFont("Helvetica-Bold", 27)
-    pdf.setFillColor(dark_green)
-    pdf.drawCentredString(page_center_x, y, "MADA BIEN-ÊTRE")
-
-    y -= 0.72 * cm
-    pdf.setFont("Helvetica-Bold", 11.5)
+    pdf.setFillColor(cream)
+    pdf.rect(0, 0, PAGE_W, PAGE_H, stroke=0, fill=1)
+    pdf.setFillColor(green)
+    pdf.rect(0, 0, PANEL_W, PAGE_H, stroke=0, fill=1)
     pdf.setFillColor(gold)
-    pdf.drawCentredString(page_center_x, y, "Plateforme de réservation de massages à domicile")
+    pdf.rect(PANEL_W, 0, STRIP_W, PAGE_H, stroke=0, fill=1)
 
     # --------------------------------------------------------
-    # TITRE PRINCIPAL
+    # LOGO ROND (centre 72, 523.28, rayon 36)
     # --------------------------------------------------------
+    cx, cy = 72, PAGE_H - 72
+    pdf.setFillColor(white)
+    pdf.circle(cx, cy, 36, stroke=0, fill=1)
+    logo = cert_cfg.image_path("logo", cfg)
+    if logo:
+        _draw_image_contain(pdf, logo, cx - 29.16, cy - 29.16, 58.32, 58.32)
 
-    y -= 1.3 * cm
-    pdf.setFont("Helvetica-Bold", 36)
-    pdf.setFillColor(dark_green)
-    pdf.drawCentredString(page_center_x, y, "CERTIFICAT")
-
-    y -= 0.78 * cm
-    pdf.setFont("Helvetica-Bold", 17)
-    pdf.setFillColor(HexColor("#333333"))
-    pdf.drawCentredString(page_center_x, y, "PROFESSIONNEL DE THÉRAPEUTE")
-
-    # --------------------------------------------------------
-    # TEXTE D'INTRODUCTION (centré sur la page, comme le modèle)
-    # --------------------------------------------------------
-
-    y -= 0.95 * cm
-
-    intro_text = (
-        "Le présent certificat atteste que la personne désignée ci-dessous est "
-        "enregistrée comme thérapeute / masseur sur la plateforme Mada Bien-être, "
-        "sous réserve de la vérification et de la validation de ses informations "
-        "et documents par l'administrateur."
-    )
-
-    pdf.setFont("Helvetica", 11)
-    pdf.setFillColor(dark)
-    for line in _wrap_text(pdf, intro_text, "Helvetica", 11, intro_max_width):
-        pdf.drawCentredString(page_center_x, y, line)
-        y -= 0.5 * cm
+    # Nom de la plateforme + slogan
+    _text(pdf, 124, PAGE_H - 66, _t(cfg["platform_name"]), "Helvetica", 13, white)
+    ty = PAGE_H - 80
+    for line in _wrap(_t(cfg["platform_tagline"]), "Helvetica", 8, 130)[:3]:
+        _text(pdf, 124, ty, line, "Helvetica", 8, light_txt)
+        ty -= 10.5
 
     # --------------------------------------------------------
-    # BLOC INFORMATIONS — libellé + valeur + ligne pointillée
+    # TITRE (34 pt) + filet doré + texte d'introduction
     # --------------------------------------------------------
+    y = 423.2756
+    title_lines = _wrap(_t(cfg["title"]), "Helvetica", 34, 218)[:4]
+    for line in title_lines:
+        _text(pdf, 36, y, line, "Helvetica", 34, white)
+        y += -38
+    y += 38                      # retour sur la dernière ligne du titre
+    bar_y = y - 16
+    pdf.setStrokeColor(gold)
+    pdf.setLineWidth(1.8)
+    pdf.line(36, bar_y, 76, bar_y)
 
-    y -= 0.5 * cm
+    # Intro : taille réduite si le texte est long (pour ne pas toucher le QR code)
+    intro = _t(cfg["intro_text"])
+    for size in (9, 8.5, 8, 7.5, 7, 6.5):
+        lines = _wrap(intro, "Helvetica", size, 218)
+        lead = size * 1.3889       # 9 pt -> interligne 12.5 (modèle)
+        last_y = bar_y - 22 - lead * (len(lines) - 1)
+        if last_y >= 252:
+            break
+    iy = bar_y - 22
+    for line in lines:
+        _text(pdf, 36, iy, line, "Helvetica", size, light_txt)
+        iy -= lead
 
-    rows = [
-        ("N° UTILISATEUR", getattr(therapist, "id", None) or "N/A"),
-        ("NOM ET PRÉNOM", therapist.fullname or "N/A"),
-        ("EMAIL", therapist.email or "N/A"),
-        ("TÉLÉPHONE", therapist.phone or "N/A"),
-        ("NUMÉRO CIN", therapist.cin_number or "Non renseigné"),
-        ("ADRESSE", (therapist.address or "N/A")[:70]),
-        # ✅ Peut contenir plusieurs spécialités séparées par des virgules
-        # (ex: "Massage Suédois, Deep Tissue, Shiatsu") — tronquée pour
-        # rester sur une seule ligne dans la mise en page du certificat.
-        ("SPÉCIALITÉ(S)", (specialty or "Massage à domicile")[:75] + ("…" if specialty and len(specialty) > 75 else "")),
-    ]
+    # --------------------------------------------------------
+    # CARTE QR CODE (77..213 x 100..240)
+    # --------------------------------------------------------
+    pdf.setFillColor(white)
+    pdf.roundRect(77, 100, 136, 140, 10, stroke=0, fill=1)
+    _draw_qr(pdf, _verify_url(certificate_number), 93, 124, 104, C_QR)
+    _text_centered(pdf, 145, 112, "SCANNEZ POUR VÉRIFIER", "Helvetica", 6.5, muted, 0.4)
 
-    label_x = content_left
-    colon_x = content_left + 4.3 * cm
-    value_x = colon_x + 0.4 * cm
-    row_h = 0.75 * cm
-    label_font = 11
-    value_font = 11.5
-
-    pdf.setDash(1, 2)
-    for label, value in rows:
-        pdf.setFont("Helvetica-Bold", label_font)
+    # --------------------------------------------------------
+    # CARTE CODE-BARRES (77..213 x 30..90)
+    # --------------------------------------------------------
+    pdf.setFillColor(white)
+    pdf.roundRect(77, 30, 136, 60, 10, stroke=0, fill=1)
+    try:
+        bc = code128.Code128(
+            certificate_number, barHeight=26, barWidth=0.367491, lquiet=18, rquiet=18
+        )
+        scale = min(1.0, 112 / bc.width) if bc.width else 1.0
+        pdf.saveState()
+        pdf.translate(145 - bc.width * scale / 2, 52)
+        pdf.scale(scale, 1)
         pdf.setFillColor(dark)
-        pdf.drawString(label_x, y, label)
+        pdf.setStrokeColor(dark)
+        bc.drawOn(pdf, 0, 0)
+        pdf.restoreState()
+    except Exception:  # noqa: BLE001
+        logger.warning("Code-barres du certificat impossible pour %s", certificate_number)
+    _text_centered(pdf, 145, 40, certificate_number, "Helvetica", 7, muted)
 
-        pdf.setFont("Helvetica-Bold", value_font)
-        pdf.setFillColor(dark)
-        pdf.drawString(colon_x, y, ":")
-        pdf.drawString(value_x, y, str(value))
+    # --------------------------------------------------------
+    # EN-TÊTE DE DROITE
+    # --------------------------------------------------------
+    _text(pdf, RIGHT_X, PAGE_H - 46, "CERTIFICAT", "Helvetica", 17, green, 3)
+    _text(pdf, RIGHT_X, PAGE_H - 72, f"N° {certificate_number}", "Helvetica", 10.5, dark)
+    issued_mg = to_mg(issued_at) or issued_at
+    _text(pdf, RIGHT_X, PAGE_H - 90, f"Validé le {issued_mg.strftime('%d/%m/%Y')}", "Helvetica", 10.5, muted)
 
-        val_w = pdf.stringWidth(str(value), "Helvetica-Bold", value_font)
-        line_y = y - 0.10 * cm
-        pdf.setStrokeColor(dotted_line)
-        pdf.setLineWidth(0.6)
-        pdf.line(value_x + val_w + 0.15 * cm, line_y, text_right, line_y)
-
-        y -= row_h
-    pdf.setDash()
-
-    y -= 0.14 * cm
-    pdf.setStrokeColor(dark_green)
+    top_line = PAGE_H - 112
+    pdf.setStrokeColor(dark)
     pdf.setLineWidth(1.2)
-    pdf.line(content_left, y, text_right, y)
-    y -= 0.7 * cm
+    pdf.line(RIGHT_X, top_line, RIGHT_END, top_line)
 
     # --------------------------------------------------------
-    # NUMÉRO, DATE, VALIDATION
+    # TABLEAU D'INFORMATIONS
     # --------------------------------------------------------
-
-    meta_rows = [
-        ("N° DU CERTIFICAT", certificate_number),
-        ("DATE DE VALIDATION", issued_at.strftime('%d/%m/%Y')),
-        ("VALIDÉ PAR (ADMIN)", admin_fullname or "Administration Mada Bien-être"),
+    rows = [
+        ("N° UTILISATEUR", str(getattr(therapist, "id", None) or "N/A"), dark),
+        ("NOM ET PRÉNOM", fullname, dark),
+        ("EMAIL", _t(getattr(therapist, "email", None) or "N/A"), dark),
+        ("TÉLÉPHONE", _t(getattr(therapist, "phone", None) or "N/A"), dark),
+        ("NUMÉRO CIN", _t(getattr(therapist, "cin_number", None) or "Non renseigné"), dark),
+        ("ADRESSE", _t(getattr(therapist, "address", None) or "N/A"), dark),
+        ("SPÉCIALITÉ(S)", _t(specialty or "Massage à domicile"), dark),
+        ("VALIDÉ PAR (ADMIN)", admin_name, green),
     ]
-    for label, value in meta_rows:
-        pdf.setFont("Helvetica-Bold", 11)
-        pdf.setFillColor(dark)
-        pdf.drawString(label_x, y, label)
-        pdf.drawString(colon_x, y, ":")
 
-        pdf.setFont("Helvetica-Bold", 11.5)
-        pdf.setFillColor(dark_green)
-        pdf.drawString(value_x, y, str(value))
+    # Taille de police adaptée : le tableau ne doit pas descendre sur le badge
+    # ni sur les signatures, même avec une adresse / une liste de spécialités longue.
+    MIN_LAST_SEP = 188.0
+    chosen = None
+    for font_size in (12, 11, 10.5, 10, 9.5, 9, 8.5, 8):
+        lead = font_size * 14.5 / 12
+        wrapped = [_wrap(v, "Helvetica", font_size, VALUE_W) for _, v, _ in rows]
+        yy = top_line
+        for lines in wrapped:
+            yy -= 20 + lead * (len(lines) - 1) + 10
+        chosen = (font_size, lead, wrapped)
+        if yy >= MIN_LAST_SEP:
+            break
+    font_size, lead, wrapped = chosen
 
-        y -= 0.66 * cm
-
-    # --------------------------------------------------------
-    # BADGE "THÉRAPEUTE VÉRIFIÉ" (coche verte + texte, comme le modèle)
-    # --------------------------------------------------------
-
-    y -= 0.3 * cm
-    check_r = 0.34 * cm
-    cx0 = label_x + check_r
-    cy0 = y + check_r * 0.35
-
-    pdf.setFillColor(mid_green)
-    pdf.circle(cx0, cy0, check_r, stroke=0, fill=1)
-
-    pdf.setStrokeColor(white)
-    pdf.setLineWidth(1.6)
-    p = pdf.beginPath()
-    p.moveTo(cx0 - 0.14 * cm, cy0 - 0.02 * cm)
-    p.lineTo(cx0 - 0.03 * cm, cy0 - 0.13 * cm)
-    p.lineTo(cx0 + 0.16 * cm, cy0 + 0.14 * cm)
-    pdf.drawPath(p, stroke=1, fill=0)
-
-    pdf.setFont("Helvetica-Bold", 13)
-    pdf.setFillColor(mid_green)
-    pdf.drawString(label_x + check_r * 2 + 0.25 * cm, y, "THÉRAPEUTE VÉRIFIÉ")
-
-    y -= 0.85 * cm
+    y = top_line
+    last_sep = top_line
+    for i, ((label, _value, vcolor), lines) in enumerate(zip(rows, wrapped)):
+        base = y - 20
+        _text(pdf, RIGHT_X, base, label, "Helvetica", 7.5, muted, 0.8)
+        for k, line in enumerate(lines):
+            _text(pdf, VALUE_X, base - k * lead, line, "Helvetica", font_size, vcolor)
+        sep = base - lead * (len(lines) - 1) - 10
+        is_last = i == len(rows) - 1
+        pdf.setStrokeColor(dark if is_last else row_line)
+        pdf.setLineWidth(0.6)
+        pdf.line(RIGHT_X, sep, RIGHT_END, sep)
+        y = sep
+        last_sep = sep
 
     # --------------------------------------------------------
-    # MENTION LÉGALE
+    # BADGE « THÉRAPEUTE VÉRIFIÉ »
     # --------------------------------------------------------
-
-    legal_text = (
-        "Ce document est destiné à l'identification et à la validation du profil professionnel "
-        "dans le cadre du service Mada Bien-être. Il ne constitue pas, à lui seul, "
-        "une licence d'exercice délivrée par une autorité publique."
-    )
-
-    pdf.setFont("Helvetica", 9.5)
-    pdf.setFillColor(gray)
-    for line in _wrap_text(pdf, legal_text, "Helvetica", 9.5, text_width):
-        pdf.drawString(label_x, y, line)
-        y -= 0.42 * cm
+    badge_text = _t(cfg["badge_text"])
+    badge_w = max(170, _spaced_width(badge_text, "Helvetica", 9, 1) + 56)
+    badge_top = last_sep - 21
+    pdf.setFillColor(HexColor(C_BADGE_BG))
+    pdf.setStrokeColor(cream)
+    pdf.setLineWidth(2)
+    pdf.roundRect(RIGHT_X, badge_top - 20, badge_w, 20, 10, stroke=1, fill=1)
+    _text_centered(pdf, RIGHT_X + badge_w / 2, badge_top - 13.2, badge_text, "Helvetica", 9, green, 1)
 
     # --------------------------------------------------------
     # SIGNATURES
     # --------------------------------------------------------
+    sig_y = 88
+    pdf.setStrokeColor(muted)
+    pdf.setLineWidth(0.8)
+    pdf.line(330, sig_y, 520, sig_y)
+    pdf.line(610, sig_y, 800, sig_y)
 
-    y -= 0.95 * cm
-    sig_label_y = y
-    line_y = y - 0.42 * cm
-    name_y = line_y - 0.42 * cm
+    # Signature / cachet de l'administrateur (au-dessus du trait de droite)
+    signature = cert_cfg.image_path("signature", cfg)
+    if signature:
+        _draw_image_contain(pdf, signature, 642.5, sig_y + 2, 125, 58, valign="bottom")
 
-    sig1_x1, sig1_x2 = content_left, content_left + 6.4 * cm
-    sig2_x1, sig2_x2 = content_left + 8.6 * cm, text_right
-
-    pdf.setFont("Helvetica-Bold", 9.5)
-    pdf.setFillColor(dark)
-    pdf.drawCentredString((sig1_x1 + sig1_x2) / 2, sig_label_y, "SIGNATURE DU THÉRAPEUTE")
-    pdf.drawCentredString((sig2_x1 + sig2_x2) / 2, sig_label_y, "VALIDATION ADMINISTRATEUR")
-
-    pdf.setStrokeColor(dark)
-    pdf.setLineWidth(0.7)
-    pdf.line(sig1_x1, line_y, sig1_x2, line_y)
-    pdf.line(sig2_x1, line_y, sig2_x2, line_y)
-
-    pdf.setFont("Helvetica-Oblique", 9.5)
-    pdf.setFillColor(dark)
-    pdf.drawCentredString((sig1_x1 + sig1_x2) / 2, name_y, f"( {therapist.fullname or 'Thérapeute'} )")
-    pdf.drawCentredString((sig2_x1 + sig2_x2) / 2, name_y, f"( {admin_fullname or 'Administrateur'} )")
+    _text_centered(pdf, 425, 76, _t(f"( {fullname} )"), "Helvetica-Oblique", 9, muted)
+    _text_centered(pdf, 705, 76, _t(f"( {admin_name} )"), "Helvetica-Oblique", 9, muted)
+    _text_centered(pdf, 425, 62, _t(cfg["therapist_signature_label"]), "Helvetica", 8, gold, 1)
+    _text_centered(pdf, 705, 62, _t(cfg["admin_signature_label"]), "Helvetica", 8, gold, 1)
 
     # --------------------------------------------------------
-    # PIED DE PAGE
+    # MENTION LÉGALE (pied de page)
     # --------------------------------------------------------
-
-    pdf.setFont("Helvetica", 8)
-    pdf.setFillColor(dark_green)
-    footer = (
-        f"Mada Bien-être  •  Certificat N° {certificate_number}  •  "
-        f"Plateforme de réservation de massages à domicile  •  Généré par Zebutech"
-    )
-    pdf.drawCentredString(width / 2, inner_margin + 0.35 * cm, footer)
-
-    # --------------------------------------------------------
-    # COLONNE DROITE : CODE-BARRES (haut) + QR CODE (bas)
-    # --------------------------------------------------------
-
-    box_w = right_col_w
-    box_x = content_right - box_w
-    box_border = dark_green
-
-    # --- Encadré code-barres ---
-    barcode_box_h = 3.8 * cm
-    barcode_box_top = top - 6.36 * cm
-    barcode_box_y = barcode_box_top - barcode_box_h
-
-    pdf.setStrokeColor(box_border)
-    pdf.setLineWidth(0.9)
-    pdf.roundRect(box_x, barcode_box_y, box_w, barcode_box_h, 8, stroke=1, fill=0)
-
-    try:
-        barcode = code128.Code128(certificate_number, barHeight=1.4 * cm, barWidth=0.24 * mm)
-        bw = barcode.width
-        available_w = box_w - 0.9 * cm
-        scale = available_w / bw if bw else 1.0
-        draw_x = box_x + (box_w - bw * scale) / 2
-        barcode_y = barcode_box_y + barcode_box_h - 2.0 * cm
-
-        pdf.saveState()
-        pdf.setFillColor(HexColor("#000000"))
-        pdf.setStrokeColor(HexColor("#000000"))
-        pdf.translate(draw_x, barcode_y)
-        pdf.scale(scale, 1)
-        barcode.drawOn(pdf, 0, 0)
-        pdf.restoreState()
-    except Exception:
-        pass
-
-    pdf.setFont("Helvetica-Bold", 9.5)
-    pdf.setFillColor(dark)
-    pdf.drawCentredString(box_x + box_w / 2, barcode_box_y + 0.65 * cm, certificate_number)
-
-    # --- Encadré QR code ---
-    qr_box_h = 5.8 * cm
-    qr_box_y = barcode_box_y - 0.5 * cm - qr_box_h
-
-    pdf.setStrokeColor(box_border)
-    pdf.setLineWidth(0.9)
-    pdf.roundRect(box_x, qr_box_y, box_w, qr_box_h, 8, stroke=1, fill=0)
-
-    try:
-        qr_img = _build_qr_image(certificate_number)
-        qr_size = 3.9 * cm
-        pdf.drawImage(
-            qr_img,
-            box_x + (box_w - qr_size) / 2,
-            qr_box_y + qr_box_h - qr_size - 0.4 * cm,
-            width=qr_size,
-            height=qr_size,
-        )
-    except Exception:
-        pass
-
-    pdf.setFont("Helvetica-Bold", 9)
-    pdf.setFillColor(dark)
-    pdf.drawCentredString(box_x + box_w / 2, qr_box_y + 0.55 * cm, "SCANNEZ POUR VÉRIFIER")
+    ly = 40
+    legal_lines: List[str] = []
+    for paragraph in _t(cfg["legal_text"]).split("\n"):
+        legal_lines.extend(_wrap(paragraph, "Helvetica", 7, RIGHT_END - RIGHT_X))
+    for line in legal_lines[:4]:
+        _text(pdf, RIGHT_X, ly, line, "Helvetica", 7, muted)
+        ly -= 9
 
     pdf.showPage()
     pdf.save()
+
+
+def build_demo_certificate_pdf(config: Optional[Dict[str, Any]] = None) -> bytes:
+    """Aperçu : certificat factice généré avec les paramètres courants (ou fournis)."""
+
+    class _Demo:
+        id = 0
+        fullname = "RASOANANDRASANA Marie Céléstine"
+        email = "exemple@madabienetre.mg"
+        phone = "0386470015"
+        cin_number = None
+        address = "Lot II M 45 Bis Ambohimanarina, près de l'école publique, Antananarivo 101, Madagascar"
+
+    buf = io.BytesIO()
+    _draw_certificate_pdf(
+        buf,
+        _Demo(),
+        "MBE-TH-APERCU-000000",
+        datetime.utcnow(),
+        "Administrateur",
+        specialty=(
+            "Massage à domicile, massage californien, massage suédois, "
+            "massage relaxant, massage sportif et réflexologie plantaire"
+        ),
+        config=config,
+    )
+    return buf.getvalue()
 
 
 # ============================================================
@@ -542,6 +517,57 @@ def generate_certificate_for_therapist(
     db.refresh(certificate)
 
     return certificate
+
+
+# ============================================================
+# FICHIER PDF INTROUVABLE => RÉGÉNÉRATION AUTOMATIQUE
+# ============================================================
+
+def ensure_certificate_pdf(certificate: TherapistCertificate, db: Session) -> Optional[str]:
+    """
+    Retourne le chemin absolu du PDF du certificat. Si le fichier a disparu du
+    disque (hébergement à disque éphémère, déploiement, nettoyage...), il est
+    régénéré à l'identique : même numéro, même date, même validateur.
+    """
+    path = resolve_certificate_path(certificate.certificate_path)
+    if path:
+        return path
+
+    therapist = certificate.therapist
+    if therapist is None:
+        return None
+
+    specialty_str = None
+    try:
+        from ..models.massage import MassageType
+        from ..models.therapist import TherapistSpecialty
+
+        rows = (
+            db.query(MassageType.name)
+            .join(TherapistSpecialty, TherapistSpecialty.massage_type_id == MassageType.id)
+            .filter(TherapistSpecialty.therapist_id == therapist.id)
+            .all()
+        )
+        names = [n for (n,) in rows]
+        specialty_str = ", ".join(names) if names else None
+    except Exception:  # noqa: BLE001
+        logger.exception("Spécialités introuvables pour la régénération du certificat")
+
+    full_path = CERTIFICATES_DIR / f"{certificate.certificate_number}.pdf"
+    admin_name = certificate.verifier.fullname if certificate.verifier else None
+    try:
+        _draw_certificate_pdf(
+            path=str(full_path),
+            therapist=therapist,
+            certificate_number=certificate.certificate_number,
+            issued_at=certificate.issued_at,
+            admin_fullname=admin_name,
+            specialty=specialty_str,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("Régénération du certificat %s impossible", certificate.certificate_number)
+        return None
+    return str(full_path)
 
 
 # ============================================================

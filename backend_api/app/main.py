@@ -40,6 +40,7 @@ from .api import (
     admin,
     massage_public,
     certificates,
+    certificate_settings,  # ✅ paramètres du certificat (admin)
     client_status,
     chat,
     cards,  # ✅ cartes bancaires enregistrées (Stripe)
@@ -79,6 +80,7 @@ UPLOAD_SUBDIRECTORIES = (
     "profiles",
     "documents",
     "certificates",
+    "certificate_assets",
     "massage_types",
 )
 
@@ -427,6 +429,7 @@ app.include_router(admin.router)
 
 app.include_router(certificates.router)
 app.include_router(certificates.public_router)
+app.include_router(certificate_settings.router)
 
 
 # ============================================================

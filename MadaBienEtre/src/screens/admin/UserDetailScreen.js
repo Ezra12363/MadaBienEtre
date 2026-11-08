@@ -586,7 +586,7 @@ const UserDetailScreen = ({ navigation, route }) => {
             <DocumentBlock
               url={user.identity_document_url}
               viewerTitle={`Pièce d'identité (CIN) — ${user.fullname || 'Thérapeute'}`}
-              fileName={`CIN_${user.fullname || 'therapeute'}.jpg`}
+              fileName={`CIN_${user.fullname || 'therapeute'}`}
               downloadLabel="Télécharger la CIN"
               missingText="Aucune photo du CIN n'a été téléversée."
               onOpen={openViewer}
@@ -598,7 +598,7 @@ const UserDetailScreen = ({ navigation, route }) => {
             <DocumentBlock
               url={user.certificate_professionnel}
               viewerTitle={`Certificat professionnel — ${user.fullname || 'Thérapeute'}`}
-              fileName={`Certificat_${user.fullname || 'therapeute'}.jpg`}
+              fileName={`Certificat_${user.fullname || 'therapeute'}`}
               downloadLabel="Télécharger le certificat"
               missingText="Aucun certificat professionnel téléversé par ce thérapeute."
               onOpen={openViewer}

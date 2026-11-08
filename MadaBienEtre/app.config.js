@@ -12,6 +12,7 @@ export default ({ config }) => {
     ios: {
       ...appJson.expo.ios,
       ...config.ios,
+      usesAppleSignIn: true, // Sign in with Apple
       config: {
         ...appJson.expo.ios?.config,
         ...config.ios?.config,
@@ -34,6 +35,7 @@ export default ({ config }) => {
     plugins: [
       ...(appJson.expo.plugins || []),
       "expo-notifications",
+      "expo-apple-authentication",
       // ✅ Stripe : formulaire de carte intégré (CardField) sur Android / iOS
       // ⚠️ Doit être un tableau AVEC un objet d'options (la forme "chaîne seule" fait planter le plugin :
       // « Cannot read properties of undefined (reading 'merchantIdentifier') »).
@@ -58,9 +60,12 @@ export default ({ config }) => {
       googleMapsApiKeyAndroid: process.env.GOOGLE_MAPS_API_KEY_ANDROID,
       googleMapsApiKeyIos: process.env.GOOGLE_MAPS_API_KEY_IOS,
       googleMapsApiKeyWeb: process.env.GOOGLE_MAPS_API_KEY_WEB,
+      googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID,
+      googleAndroidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID,
+      googleIosClientId: process.env.GOOGLE_IOS_CLIENT_ID,
       eas: {
         projectId: "07021e9f-ca4c-41b3-94de-373a5d5a6bc7",
       },
     },
   };
-};
+};

@@ -798,9 +798,9 @@ const OTPVerificationScreen = ({
 
           showToast(
             'success',
-            'Compte vérifié !',
-            'Votre compte a été activé avec succès. Redirection vers la connexion...',
-            2800
+            'Email vérifié !',
+            "Votre compte doit maintenant être activé par un administrateur. Vous recevrez un email dès l'activation.",
+            5200
           );
 
 
@@ -825,7 +825,7 @@ const OTPVerificationScreen = ({
               'Login'
             );
 
-          }, 2800);
+          }, 5200);
 
           return;
         }

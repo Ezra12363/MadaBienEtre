@@ -7,6 +7,9 @@ import { ActivityIndicator, View, Text, StyleSheet, Platform } from 'react-nativ
 import { colors, typography } from '../theme';
 import { saveNavState, loadNavState } from '../utils/lastTab';
 import { LiveSharingProvider } from '../context/LiveSharingContext';
+import { useNotifications } from '../context/NotificationContext';
+import notificationService from '../services/notificationService';
+import { handleNativeNotificationTap } from '../utils/notificationNavigation';
 
 import AuthNavigator from './AuthNavigator';
 import ClientNavigator from './ClientNavigator';
@@ -131,9 +134,31 @@ const usePersistNavigation = (user, isAuthenticated, isLoading) => {
   return restored;
 };
 
+// ✅ Clic sur une notification native (Android / iOS) : redirige vers la bonne page
+// (admin -> ApprovalDetail / UserDetail, thérapeute -> Profil) et marque la notification lue.
+const useNotificationTapNavigation = (user, isAuthenticated) => {
+  const root = useContext(NavigationContainerRefContext);
+  const { setNotificationResponseHandler } = useNotifications();
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || !isAuthenticated || !setNotificationResponseHandler) {
+      return undefined;
+    }
+
+    setNotificationResponseHandler((data) =>
+      handleNativeNotificationTap(root, user?.role, data, (id) =>
+        notificationService.markAsRead(id)
+      )
+    );
+
+    return () => setNotificationResponseHandler(null);
+  }, [root, user?.role, isAuthenticated, setNotificationResponseHandler]);
+};
+
 const RootNavigator = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const restored = usePersistNavigation(user, isAuthenticated, isLoading);
+  useNotificationTapNavigation(user, isAuthenticated);
 
   if (isLoading) {
     return <LoadingScreen />;

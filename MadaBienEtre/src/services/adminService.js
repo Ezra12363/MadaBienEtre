@@ -739,6 +739,20 @@ const adminService = {
   },
 
   /**
+   * Dossier d'un thérapeute quel que soit son statut (en attente, approuvé, refusé).
+   * Utilisé quand la page est ouverte depuis une notification.
+   */
+  async getTherapistApplication(therapistId) {
+    try {
+      const response = await api.get(`/admin/therapist-application/${therapistId}`);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error getTherapistApplication:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Approuver un thérapeute
    * @param {number} therapistId - ID du thérapeute
    */

@@ -120,7 +120,7 @@ class TherapistService {
    */
   async uploadCIN(formData) {
     try {
-      const response = await uploadFile('/therapists/upload-cin', formData);
+      const response = await uploadFile('/users/upload-cin', formData);
       if (response.error) {
         return { success: false, error: response.error.message };
       }

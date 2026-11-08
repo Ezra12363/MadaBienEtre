@@ -37,6 +37,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import notificationService from '../../services/notificationService';
+import useSocialAuth from '../../hooks/useSocialAuth';
 import AppHeader from '../../components/common/AppHeader';
 
 /* ============================================================
@@ -329,7 +330,7 @@ export default function LoginScreen({
      AUTH
   ========================================================== */
 
-  const { login } = useAuth();
+  const { login, socialLogin } = useAuth();
 
   /* ==========================================================
      STATES
@@ -750,6 +751,16 @@ export default function LoginScreen({
     ]);
 
   /* ==========================================================
+     GOOGLE / APPLE
+  ========================================================== */
+
+  const { signInWithGoogle, signInWithApple, socialBusy } =
+    useSocialAuth({
+      socialLogin,
+      onMessage: showToast,
+    });
+
+  /* ==========================================================
      NAVIGATION
   ========================================================== */
 
@@ -1162,13 +1173,8 @@ export default function LoginScreen({
           style={
             styles.socialButton
           }
-          onPress={() =>
-            showToast(
-              'info',
-              'La connexion avec Google sera bientôt disponible.',
-              3000
-            )
-          }
+          onPress={signInWithGoogle}
+          disabled={isLoading || !!socialBusy}
         >
           <View
             style={
@@ -1184,13 +1190,17 @@ export default function LoginScreen({
             </Text>
           </View>
 
-          <Text
-            style={
-              styles.socialText
-            }
-          >
-            Google
-          </Text>
+          {socialBusy === 'google' ? (
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          ) : (
+            <Text
+              style={
+                styles.socialText
+              }
+            >
+              Google
+            </Text>
+          )}
         </Pressable>
 
         <Pressable
@@ -1198,13 +1208,8 @@ export default function LoginScreen({
             styles.socialButton,
             styles.appleButton,
           ]}
-          onPress={() =>
-            showToast(
-              'info',
-              'La connexion avec Apple sera bientôt disponible.',
-              3000
-            )
-          }
+          onPress={signInWithApple}
+          disabled={isLoading || !!socialBusy}
         >
           <Ionicons
             name="logo-apple"
@@ -2815,4 +2820,4 @@ const createStyles = (COLORS) => StyleSheet.create({
 
     alignSelf: 'center',
   },
-});
+});

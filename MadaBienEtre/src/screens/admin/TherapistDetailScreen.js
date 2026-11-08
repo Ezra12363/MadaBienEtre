@@ -21,6 +21,7 @@ import AdminTherapistReviewsCard from '../../components/reviews/AdminTherapistRe
 
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../theme';
+import { downloadAuthenticatedPdf } from '../../utils/downloadFile';
 import adminService from '../../services/adminService';
 import AdminUserAddressModal from '../../components/admin/AdminUserAddressModal';
 import AdminSpecialtiesManager from '../../components/admin/AdminSpecialtiesManager';
@@ -462,7 +463,7 @@ const TherapistDetailScreen = ({ navigation, route }) => {
         <DocumentBlock
           url={therapist.identity_document_url}
           viewerTitle={`Pièce d'identité (CIN) — ${therapist.fullname || 'Thérapeute'}`}
-          fileName={`CIN_${therapist.fullname || 'therapeute'}.jpg`}
+          fileName={`CIN_${therapist.fullname || 'therapeute'}`}
           downloadLabel="Télécharger le CIN"
           missingText="Aucun document CIN téléchargé"
           onOpen={openViewer}
@@ -474,7 +475,7 @@ const TherapistDetailScreen = ({ navigation, route }) => {
         <DocumentBlock
           url={therapist.certificate_professionnel}
           viewerTitle={`Certificat professionnel — ${therapist.fullname || 'Thérapeute'}`}
-          fileName={`Certificat_${therapist.fullname || 'therapeute'}.jpg`}
+          fileName={`Certificat_${therapist.fullname || 'therapeute'}`}
           downloadLabel="Télécharger le certificat"
           missingText="Aucun certificat professionnel téléversé par le thérapeute"
           onOpen={openViewer}
@@ -509,12 +510,15 @@ const TherapistDetailScreen = ({ navigation, route }) => {
             {certificate.download_url ? (
               <TouchableOpacity
                 activeOpacity={0.85}
-                onPress={() =>
-                  download(
+                onPress={async () => {
+                  const res = await downloadAuthenticatedPdf(
                     certificate.download_url,
-                    `${certificate.certificate_number || 'certificat'}.pdf`
-                  )
-                }
+                    `${certificate.certificate_number || 'certificat'}.pdf`,
+                    { dialogTitle: 'Enregistrer ou partager le certificat' }
+                  );
+                  if (res.success) showToast('Certificat prêt', 'success');
+                  else showToast(res.error || 'Échec du téléchargement', 'error');
+                }}
                 style={[styles.addressButton, { backgroundColor: colors.primary }]}
               >
                 <Ionicons name="document-text-outline" size={18} color="#fff" />

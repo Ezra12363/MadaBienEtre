@@ -10,8 +10,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Linking,
-  Platform,
   Alert,
 } from 'react-native';
 
@@ -25,13 +23,16 @@ import {
 
 import therapistService from '../../services/therapistService';
 
-// ✅ Import pour récupérer le token
-import { useAuth } from '../../context/AuthContext';
+// ✅ Téléchargement PDF authentifié (Web + Android + iOS)
+import { downloadAuthenticatedPdf } from '../../utils/downloadFile';
 
 
 const CertificateCard = () => {
 
-  const { token } = useAuth();  // <-- Récupérer le token
+  const [
+    downloading,
+    setDownloading,
+  ] = useState(false);
 
   const [
     loading,
@@ -95,62 +96,36 @@ const CertificateCard = () => {
 
 
   // ==========================================================
-  // DOWNLOAD — AVEC TOKEN DANS L'URL
+  // DOWNLOAD — PDF avec en-tête Authorization (Web + Android + iOS)
+  // Android : téléchargé dans le cache de l'app puis feuille de partage
+  // (Enregistrer dans Fichiers / Drive, ouvrir dans un lecteur PDF...).
   // ==========================================================
 
   const handleDownload = async () => {
 
+    if (downloading) return;
+
+    setDownloading(true);
+
     try {
 
-      // ✅ Récupérer le baseUrl depuis les variables d'environnement
-      const baseUrl =
-        process.env.EXPO_PUBLIC_API_URL ||
-        'http://localhost:8000';
+      const number =
+        verification?.certificate?.number ||
+        'certificat';
 
-      // ✅ S'assurer que le baseUrl n'a pas de slash à la fin
-      const cleanBaseUrl = baseUrl.replace(/\/+$/, '');
+      const result =
+        await downloadAuthenticatedPdf(
+          therapistService.getCertificateDownloadUrl(),
+          `${number}.pdf`,
+          { dialogTitle: 'Enregistrer ou partager mon certificat' }
+        );
 
-      const relativeUrl =
-        therapistService
-          .getCertificateDownloadUrl();
-
-      // ✅ Construire l'URL complète avec le token
-      const url =
-        `${cleanBaseUrl}${relativeUrl}?token=${token}`;
-
-      console.log('📥 Téléchargement du certificat:', url);
-
-      // ✅ Vérifier que le token existe
-      if (!token) {
+      if (!result.success) {
         Alert.alert(
-          'Erreur d\'authentification',
-          'Vous devez être connecté pour télécharger votre certificat.'
+          'Erreur de téléchargement',
+          result.error ||
+            'Une erreur est survenue lors du téléchargement du certificat. Veuillez réessayer.'
         );
-        return;
-      }
-
-      if (Platform.OS === 'web') {
-
-        // ✅ Web : ouvrir dans un nouvel onglet
-        window.open(
-          url,
-          '_blank',
-          'noopener,noreferrer'
-        );
-
-      } else {
-
-        // ✅ Mobile : vérifier si l'URL peut être ouverte
-        const canOpen = await Linking.canOpenURL(url);
-        
-        if (canOpen) {
-          await Linking.openURL(url);
-        } else {
-          Alert.alert(
-            'Erreur',
-            'Impossible d\'ouvrir le lien. Vérifiez votre connexion internet.'
-          );
-        }
       }
 
     } catch (error) {
@@ -164,6 +139,10 @@ const CertificateCard = () => {
         'Erreur de téléchargement',
         'Une erreur est survenue lors du téléchargement du certificat. Veuillez réessayer.'
       );
+
+    } finally {
+
+      setDownloading(false);
     }
   };
 
@@ -393,19 +372,29 @@ const CertificateCard = () => {
         <TouchableOpacity
           style={styles.downloadButton}
           onPress={handleDownload}
+          disabled={downloading}
           activeOpacity={0.85}
         >
 
-          <Ionicons
-            name="download-outline"
-            size={20}
-            color="#FFFFFF"
-          />
+          {downloading ? (
+            <ActivityIndicator
+              size="small"
+              color="#FFFFFF"
+            />
+          ) : (
+            <Ionicons
+              name="download-outline"
+              size={20}
+              color="#FFFFFF"
+            />
+          )}
 
           <Text
             style={styles.downloadText}
           >
-            Télécharger le certificat
+            {downloading
+              ? 'Téléchargement...'
+              : 'Télécharger le certificat (PDF)'}
           </Text>
 
         </TouchableOpacity>

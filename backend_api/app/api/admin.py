@@ -21,6 +21,12 @@ from ..models.sos import SOSAlert
 from ..models.therapist_certificate import TherapistCertificate  # ✅ Ajouté
 from ..schemas.user import UserResponse
 from ..services.notification_service import send_notification
+from ..services.account_notifications import (
+    notify_account_activated,
+    notify_account_deactivated,
+    notify_account_updated,
+    notify_therapist_rejected,
+)
 from pydantic import BaseModel
 
 # ✅ IMPORT DES SERVICES DE CERTIFICATS
@@ -32,6 +38,33 @@ from ..services.certificate_service import (
 # ============================================================
 # SCHEMA — mise à jour adresse/position par l'admin
 # ============================================================
+class RejectTherapistBody(BaseModel):
+    reason: Optional[str] = None
+
+
+def _therapist_payload(t: User) -> dict:
+    """Dossier complet d'un thérapeute (liste des demandes + page de détail)."""
+    return {
+        "id": t.id,
+        "fullname": t.fullname,
+        "email": t.email,
+        "phone": t.phone,
+        "bio": t.bio,
+        "address": t.address,
+        "profile_image": t.profile_image,
+        "cin_number": t.cin_number,
+        "identity_document_url": t.identity_document_url,
+        "certificate_url": t.certificate_url,
+        "certificate_professionnel": t.certificate_professionnel,
+        "experience_years": t.experience_years,
+        "base_price": float(t.base_price) if t.base_price else 0,
+        "created_at": t.created_at,
+        "is_active": bool(t.is_active),
+        "verification_status": t.verification_status,
+        "role": t.role,
+    }
+
+
 class AdminAddressUpdate(BaseModel):
     address: Optional[str] = None
     latitude: Optional[float] = None
@@ -62,37 +95,75 @@ async def get_pending_therapists(
     current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    """Thérapeutes en attente de validation - avec toutes les informations"""
-    therapists = db.query(User).filter(
-        User.role == "THERAPIST",
-        User.verification_status == "pending",
-        User.is_active == True
-    ).all()
+    """Thérapeutes en attente de validation - avec toutes les informations.
 
-    return [
-        {
-            "id": t.id,
-            "fullname": t.fullname,
-            "email": t.email,
-            "phone": t.phone,
-            "bio": t.bio,
-            "address": t.address,
-            "profile_image": t.profile_image,
-            "cin_number": t.cin_number,
-            "identity_document_url": t.identity_document_url,
-            "certificate_url": t.certificate_url,
-            "certificate_professionnel": t.certificate_professionnel,  # ✅ AJOUTÉ : certificat téléversé par le thérapeute
-            "experience_years": t.experience_years,
-            "base_price": float(t.base_price) if t.base_price else 0,
-            "created_at": t.created_at,
-        }
-        for t in therapists
-    ]
+    Les nouveaux comptes sont créés DÉSACTIVÉS : on liste donc aussi les comptes
+    inactifs (sinon un thérapeute fraîchement inscrit n'apparaîtrait jamais ici).
+    """
+    therapists = (
+        db.query(User)
+        .filter(
+            User.role == "THERAPIST",
+            User.verification_status == "pending",
+            User.deleted_at.is_(None),
+        )
+        .order_by(User.created_at.desc())
+        .all()
+    )
+
+    return [_therapist_payload(t) for t in therapists]
+
+
+@router.get("/admin/therapist-application/{therapist_id}")
+async def get_therapist_application(
+    therapist_id: int,
+    current_user: User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """Dossier d'un thérapeute, QUEL QUE SOIT son statut (en attente, approuvé, refusé).
+
+    Sert à la page ApprovalDetailScreen ouverte depuis une notification, même si
+    la demande a déjà été traitée.
+    """
+    therapist = db.query(User).filter(
+        User.id == therapist_id,
+        User.role == "THERAPIST",
+    ).first()
+
+    if not therapist:
+        raise HTTPException(status_code=404, detail="Therapist not found")
+
+    return _therapist_payload(therapist)
 
 
 # ============================================================
 # 2. APPROUVER UN THÉRAPEUTE (AVEC GÉNÉRATION CERTIFICAT)
 # ============================================================
+# ============================================================
+# PARAMÈTRES DE MODÉRATION (approbation / activation automatique)
+# ============================================================
+@router.get("/admin/settings")
+async def get_admin_settings(
+    current_user: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    from ..services.account_settings import get_settings
+    return get_settings(db)
+
+
+@router.put("/admin/settings")
+async def update_admin_settings(
+    body: dict,
+    current_user: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    from ..services.account_settings import save_settings
+    try:
+        return save_settings(db, body, current_user.id)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="Valeurs de paramètres invalides")
+
+
 @router.put("/admin/approve-therapist/{therapist_id}")
 async def approve_therapist(
     therapist_id: int,
@@ -113,6 +184,7 @@ async def approve_therapist(
 
     therapist.verification_status = "approved"
     therapist.is_active = True
+    therapist.deleted_at = None
     db.commit()
     db.refresh(therapist)
 
@@ -149,16 +221,14 @@ async def approve_therapist(
             therapist.id, exc
         )
 
-    _safe_notify(
-        therapist.id,
-        "Compte approuvé",
-        f"Votre compte thérapeute a été approuvé. "
-        f"{'Certificat disponible dans votre profil.' if certificate else ''}",
-        "therapist_approved",
-        {
-            "therapist_id": therapist.id,
-            "certificate_number": certificate.certificate_number if certificate else None
-        }
+    # Notification dans l'app (→ profil) + email détaillé (date, administrateur, certificat)
+    notify_account_activated(
+        therapist,
+        admin=current_user,
+        certificate_number=certificate.certificate_number if certificate else None,
+        notification_type="therapist_approved",
+        certificate=certificate,  # PDF joint à l'email envoyé au thérapeute
+        db=db,
     )
 
     return {
@@ -173,11 +243,17 @@ async def approve_therapist(
 @router.put("/admin/reject-therapist/{therapist_id}")
 async def reject_therapist(
     therapist_id: int,
-    reason: Optional[str] = None,
+    reason: Optional[str] = Query(None),
+    body: Optional[RejectTherapistBody] = None,
     current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    """Rejeter un thérapeute + révoquer le certificat si existant"""
+    """Rejeter un thérapeute + révoquer le certificat si existant.
+
+    Le motif peut arriver en query (?reason=) OU dans le corps JSON {"reason": "..."}
+    (c'est ce que envoie l'application : auparavant le motif était perdu).
+    """
+    reason = (reason or (body.reason if body else None) or "").strip() or None
     therapist = db.query(User).filter(
         User.id == therapist_id,
         User.role == "THERAPIST"
@@ -195,13 +271,8 @@ async def reject_therapist(
     except Exception as exc:
         logger.exception("❌ Erreur lors de la révocation du certificat: %s", exc)
 
-    _safe_notify(
-        therapist.id,
-        "Compte rejeté",
-        f"Votre compte thérapeute a été rejeté. Raison: {reason or 'Non spécifiée'}",
-        "therapist_rejected",
-        {"therapist_id": therapist.id}
-    )
+    # Notification dans l'app (→ profil, avec le motif s'il existe) + email
+    notify_therapist_rejected(therapist, admin=current_user, reason=reason)
 
     return {"message": "Therapist rejected"}
 
@@ -220,8 +291,12 @@ async def activate_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    was_active = bool(user.is_active)
     user.is_active = True
+    user.deleted_at = None
     db.commit()
+    if not was_active:
+        notify_account_activated(user, admin=current_user)
     return {"message": "User activated"}
 
 
@@ -239,8 +314,11 @@ async def deactivate_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    was_active = bool(user.is_active)
     user.is_active = False
     db.commit()
+    if was_active:
+        notify_account_deactivated(user, admin=current_user)
     return {"message": "User deactivated"}
 
 
@@ -511,6 +589,7 @@ async def update_user_address(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    old_address = user.address
     if payload.address is not None:
         user.address = payload.address
     if payload.latitude is not None:
@@ -528,6 +607,14 @@ async def update_user_address(
         "profile_updated",
         {"user_id": user.id}
     )
+    # ✉️ Email (la notification dans l'application est déjà envoyée ci-dessus)
+    if payload.address is not None and (old_address or "") != (payload.address or ""):
+        notify_account_updated(
+            user,
+            admin=current_user,
+            changes=[("Adresse", old_address, payload.address)],
+            in_app=False,
+        )
 
     return {
         "message": "Adresse mise à jour avec succès",
@@ -624,8 +711,10 @@ async def download_therapist_certificate(
     if not certificate:
         raise HTTPException(status_code=404, detail="Aucun certificat valide trouvé pour ce thérapeute")
     
-    pdf_path = certificate.certificate_path
-    if not pdf_path or not os.path.isfile(pdf_path):
+    from ..services.certificate_service import ensure_certificate_pdf
+
+    pdf_path = ensure_certificate_pdf(certificate, db)
+    if not pdf_path:
         raise HTTPException(status_code=404, detail="Fichier PDF introuvable")
     
     return FileResponse(

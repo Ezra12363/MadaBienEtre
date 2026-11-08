@@ -999,7 +999,7 @@ const RegisterScreen = ({ navigation }) => {
 
         showToast(
           'success',
-          'Votre compte a été créé. Vérifiez votre adresse email pour continuer.'
+          'Votre compte a été créé. Vérifiez votre email : après validation du code, un administrateur devra activer votre compte.'
         );
 
         setTimeout(() => {

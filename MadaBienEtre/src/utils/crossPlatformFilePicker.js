@@ -24,6 +24,7 @@
 import { Platform, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
+import { MAX_DOCUMENT_SIZE } from './documentUtils';
 
 /**
  * Ouvre le sélecteur de fichier adapté à la plateforme et retourne
@@ -39,10 +40,16 @@ export async function pickImageOrPdf({
   title = 'Ajouter un document',
   message = 'Choisissez la source du fichier',
 } = {}) {
-  if (Platform.OS === 'web') {
-    return pickFileWeb();
+  const asset =
+    Platform.OS === 'web' ? await pickFileWeb() : await pickFileNative(title, message);
+
+  if (!asset) return null;
+
+  if (asset.size && asset.size > MAX_DOCUMENT_SIZE) {
+    Alert.alert('⚠️ Fichier trop volumineux', 'Le fichier ne doit pas dépasser 10 MB.');
+    return null;
   }
-  return pickFileNative(title, message);
+  return asset;
 }
 
 // ============================================================
@@ -53,7 +60,7 @@ function pickFileWeb() {
     try {
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = 'image/jpeg,image/png,image/webp,application/pdf';
+      input.accept = '.pdf,.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp,application/pdf';
       input.style.display = 'none';
 
       let settled = false;
@@ -72,6 +79,8 @@ function pickFileWeb() {
         resolve(value);
       };
 
+      input.oncancel = () => settle(null);
+
       input.onchange = () => {
         const file = input.files && input.files[0];
         if (!file) {
@@ -84,6 +93,7 @@ function pickFileWeb() {
           uri,
           name: file.name,
           mimeType: file.type,
+          size: file.size,
           file, // conservé au cas où un appelant voudrait le File brut
         });
       };
@@ -118,25 +128,29 @@ async function pickFileNative(title, message) {
       { text: 'Photo (galerie)', onPress: () => resolve('image') },
       { text: 'Fichier PDF', onPress: () => resolve('pdf') },
       { text: 'Annuler', style: 'cancel', onPress: () => resolve(null) },
-    ]);
+    ], { cancelable: true, onDismiss: () => resolve(null) });
   });
 
   if (!choice) return null;
 
   if (choice === 'image') {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission refusée', 'La permission d’accès à la galerie est nécessaire.');
-      return null;
-    }
-
+    // ✅ Pas de requestMediaLibraryPermissionsAsync() : le sélecteur de photos
+    // système (Android 13+/iOS) n'a besoin d'aucune permission, et sur
+    // certains Android la demande renvoyait "refusée" → upload bloqué.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
+      allowsEditing: false, // jamais de recadrage : une CIN est plus large que 4:3
       quality: 0.85,
     });
 
-    if (result.canceled) return null;
-    return result.assets?.[0] || null;
+    if (result.canceled || !result.assets?.[0]) return null;
+    const a = result.assets[0];
+    return {
+      uri: a.uri,
+      name: a.fileName || 'photo.jpg',
+      mimeType: a.mimeType || 'image/jpeg',
+      size: a.fileSize || 0,
+    };
   }
 
   // choice === 'pdf'
@@ -146,7 +160,14 @@ async function pickFileNative(title, message) {
   });
 
   if (result.canceled) return null;
-  return result.assets ? result.assets[0] : result;
+  const a = result.assets ? result.assets[0] : result;
+  if (!a?.uri) return null;
+  return {
+    uri: a.uri,
+    name: a.name || 'document.pdf',
+    mimeType: a.mimeType || 'application/pdf',
+    size: a.size || 0,
+  };
 }
 
 export default pickImageOrPdf;

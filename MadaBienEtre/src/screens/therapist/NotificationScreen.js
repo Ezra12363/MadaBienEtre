@@ -68,6 +68,10 @@ import {
 } from '../../utils/timeAgo';
 
 import notificationService from '../../services/notificationService';
+import {
+  isAccountDecisionNotification,
+  openTherapistProfile,
+} from '../../utils/notificationNavigation';
 
 
 /* ============================================================
@@ -1334,6 +1338,14 @@ const NotificationScreen = ({
             notification
           );
 
+
+        /* ------------------------------------------------------
+           COMPTE : approuvé / refusé / activé par l'admin -> page de profil
+        ------------------------------------------------------ */
+        if (isAccountDecisionNotification(notification)) {
+          openTherapistProfile(navigation);
+          return;
+        }
 
         /* ------------------------------------------------------
            SOS : réponse / résolution de l'équipe -> détails de l'alerte

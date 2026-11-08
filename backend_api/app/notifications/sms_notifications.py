@@ -1,9 +1,26 @@
 from typing import Optional, Dict, Any, List
+import asyncio
+import re
 import requests
 import logging
 from ..core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def normalize_phone(phone: str) -> str:
+    """0341234567 / 034 12 345 67 / 261341234567 -> +261341234567 (E.164)."""
+    p = re.sub(r"[\s().-]", "", phone or "")
+    if p.startswith("+"):
+        return p
+    if p.startswith("00"):
+        return "+" + p[2:]
+    cc = settings.SMS_DEFAULT_COUNTRY_CODE or "+261"
+    if p.startswith(cc.lstrip("+")) and len(p) > 10:
+        return "+" + p
+    if p.startswith("0"):
+        p = p[1:]
+    return f"{cc}{p}"
 
 class SMSNotificationService:
     """Service de notifications par SMS"""
@@ -16,22 +33,30 @@ class SMSNotificationService:
     
     async def send_sms(self, phone: str, message: str) -> bool:
         """Envoyer un SMS via Twilio"""
+        phone = normalize_phone(phone)
         if not self.twilio_enabled:
-            logger.info(f"SMS would be sent to {phone}: {message[:50]}...")
-            return True
-        
+            # Mode développement : le SMS n'est pas envoyé, on l'affiche dans la console
+            logger.info(f"[SMS désactivé] Vers {phone}: {message}")
+            return False
+
+        if not (self.twilio_account_sid and self.twilio_auth_token and self.twilio_from_number):
+            logger.error("SMS_ENABLED=True mais SMS_ACCOUNT_SID / SMS_AUTH_TOKEN / SMS_FROM_NUMBER manquent")
+            return False
+
         try:
-            # Implémentation Twilio
             from twilio.rest import Client
-            
-            client = Client(self.twilio_account_sid, self.twilio_auth_token)
-            message = client.messages.create(
-                body=message,
-                from_=self.twilio_from_number,
-                to=phone
-            )
-            
-            logger.info(f"SMS sent to {phone}: {message.sid}")
+
+            def _send():
+                client = Client(self.twilio_account_sid, self.twilio_auth_token)
+                return client.messages.create(
+                    body=message,
+                    from_=self.twilio_from_number,
+                    to=phone,
+                )
+
+            # Le client Twilio est bloquant : on l'exécute hors de la boucle asyncio
+            result = await asyncio.to_thread(_send)
+            logger.info(f"SMS sent to {phone}: {result.sid}")
             return True
             
         except ImportError:
@@ -66,4 +91,4 @@ class SMSNotificationService:
         return await self.send_sms(phone, message)
 
 # Instance globale
-sms_service = SMSNotificationService()
+sms_service = SMSNotificationService()

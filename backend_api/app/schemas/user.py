@@ -108,6 +108,10 @@ class UserActivateRequest(BaseModel):
 
 class UserPasswordResetRequest(BaseModel):
     send_email: bool = Field(True, description="Envoyer le nouveau mot de passe par email")
+    new_password: Optional[str] = Field(
+        None, min_length=8, max_length=100,
+        description="Mot de passe choisi par l'admin (sinon : généré automatiquement)",
+    )
 
 
 class UserBulkActionRequest(BaseModel):

@@ -40,6 +40,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../theme';
 import Header from '../common/Header';
 import { API_URL } from '../../config/env';
+import { downloadDocument } from '../../utils/downloadFile';
 
 export const IS_WEB = Platform.OS === 'web';
 
@@ -343,7 +344,7 @@ const getAuthToken = async () => {
 
 export const downloadAdminDocument = async (
   url,
-  suggestedFileName = 'document.pdf',
+  suggestedFileName = 'document',
   showToast = () => {}
 ) => {
   if (!url) {
@@ -351,54 +352,15 @@ export const downloadAdminDocument = async (
     return;
   }
 
-  try {
-    const fullUrl = url.startsWith('http') ? url : `${API_URL}${url}`;
-
-    if (IS_WEB) {
-      const token = await getAuthToken();
-      const response = await fetch(fullUrl, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          throw new Error(
-            "Accès refusé : vous devez être connecté en tant qu'administrateur"
-          );
-        }
-        throw new Error(`Erreur ${response.status}`);
-      }
-
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-
-      let fileName = suggestedFileName;
-      const disposition = response.headers.get('content-disposition');
-      if (disposition) {
-        const match = disposition.match(/filename="?([^"]+)"?/);
-        if (match && match[1]) fileName = match[1];
-      }
-
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl);
-
-      showToast('Téléchargement démarré', 'success');
-    } else {
-      const canOpen = await Linking.canOpenURL(fullUrl);
-      if (canOpen) {
-        await Linking.openURL(fullUrl);
-      } else {
-        showToast('Impossible d’ouvrir le document', 'error');
-      }
-    }
-  } catch (err) {
-    console.error('Download error:', err);
-    showToast(err?.message || 'Échec du téléchargement', 'error');
+  // ✅ Image OU PDF, Web OU Android/iOS (voir utils/downloadFile.js) :
+  //  - web : téléchargement direct du fichier (blob) ;
+  //  - mobile : fichier téléchargé puis feuille « Enregistrer / Partager ».
+  // L'extension du fichier est toujours celle du vrai document (.pdf, .jpg…).
+  const res = await downloadDocument(url, suggestedFileName);
+  if (res.success) {
+    showToast(IS_WEB ? 'Téléchargement démarré' : 'Document prêt', 'success');
+  } else {
+    showToast(res.error || 'Échec du téléchargement', 'error');
   }
 };
 
@@ -741,6 +703,29 @@ export const ProfileHero = ({ avatar, name, email, badges, deleted }) => {
    DOCUMENT (CIN / certificat) — aperçu + zoom + téléchargement
 ============================================================ */
 
+const AdminDocImage = ({ uri, textColor }) => {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [uri]);
+  if (failed) {
+    return (
+      <View style={styles.pdfBox}>
+        <Ionicons name="image-outline" size={34} color={colors.primary} />
+        <Text style={[styles.pdfText, { color: textColor }]}>
+          Aperçu indisponible — téléchargez le fichier
+        </Text>
+      </View>
+    );
+  }
+  return (
+    <Image
+      source={{ uri }}
+      style={styles.docImage}
+      resizeMode="contain"
+      onError={() => setFailed(true)}
+    />
+  );
+};
+
 export const DocumentBlock = ({
   url,
   viewerTitle,
@@ -776,7 +761,7 @@ export const DocumentBlock = ({
             </Text>
           </View>
         ) : (
-          <Image source={{ uri: url }} style={styles.docImage} resizeMode="contain" />
+          <AdminDocImage uri={url} textColor={themeColors.textSecondary} />
         )}
 
         <View style={styles.zoomBadge}>

@@ -17,7 +17,9 @@ from ..core.database import get_db
 from ..core.dependencies import (
     get_current_therapist,
     get_current_user_optional,
+    _get_user_from_token,
 )
+from ..services.certificate_service import ensure_certificate_pdf
 
 from ..models.user import User
 from ..models.therapist_certificate import (
@@ -160,11 +162,8 @@ async def download_my_certificate(
         pass
 
     if not current_user and token:
-        request.headers.__dict__["_list"].append(
-            (b"authorization", f"Bearer {token}".encode())
-        )
         try:
-            current_user = await get_current_user_optional(request, db)
+            current_user = _get_user_from_token(token=token, db=db)
         except Exception:
             pass
 
@@ -194,9 +193,9 @@ async def download_my_certificate(
             detail="Certificat introuvable.",
         )
 
-    pdf_path = certificate.certificate_path
+    pdf_path = ensure_certificate_pdf(certificate, db)
 
-    if not pdf_path or not os.path.isfile(pdf_path):
+    if not pdf_path:
         raise HTTPException(
             status_code=404,
             detail="Fichier PDF du certificat introuvable sur le serveur.",

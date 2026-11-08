@@ -6,7 +6,41 @@ from typing import Optional, Dict, Any
 import uuid
 import os
 import re
+from pathlib import Path
 from ..core.config import settings
+
+# ✅ Dossier d'upload ABSOLU (même racine que app/main.py : BACKEND_ROOT/uploads).
+# Avant : "uploads/<folder>" relatif au dossier de lancement de uvicorn →
+# si le serveur était lancé depuis un autre dossier, les fichiers étaient
+# écrits ailleurs que là où StaticFiles les sert → 404 → aperçu gris.
+UPLOAD_ROOT = Path(__file__).resolve().parent.parent.parent / "uploads"
+
+# Taille max d'un document (CIN / certificat) : 10 MB
+MAX_DOCUMENT_SIZE = 10 * 1024 * 1024
+
+
+def detect_file_type(contents: bytes):
+    """
+    Détecte le VRAI type d'un fichier à partir de son contenu (magic bytes),
+    sans se fier au Content-Type envoyé par le client (Android envoie parfois
+    "image/jpg" ou "application/octet-stream", le web un type vide).
+
+    Retourne (extension, mime) ou None si le format n'est pas reconnu.
+    """
+    if not contents:
+        return None
+    head = contents[:16]
+    if head.startswith(b"\xff\xd8\xff"):
+        return ("jpg", "image/jpeg")
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ("png", "image/png")
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return ("webp", "image/webp")
+    if head.startswith(b"GIF87a") or head.startswith(b"GIF89a"):
+        return ("gif", "image/gif")
+    if b"%PDF-" in contents[:1024]:
+        return ("pdf", "application/pdf")
+    return None
 
 # ✅ Configuration Cloudinary — ampiasaina raha vonona tanteraka izy
 # (cloud_name, api_key, api_secret rehetra tsy banga)
@@ -37,6 +71,7 @@ def save_locally_from_bytes(
     folder: str,
     filename: str,
     base_url: Optional[str] = None,
+    extension: Optional[str] = None,
 ) -> str:
     """
     Sauvegarder un fichier à partir d'un contenu bytes et retourner
@@ -70,14 +105,20 @@ def save_locally_from_bytes(
        nulle après écriture (détection d'un enregistrement corrompu/vide).
     """
     try:
-        upload_dir = f"uploads/{folder}"
+        upload_dir = str(UPLOAD_ROOT / folder)
         os.makedirs(upload_dir, exist_ok=True)
 
-        file_extension = filename.split(".")[-1] if filename and "." in filename else "jpg"
-        # ✅ FIXÉ : normalise l'extension (certains navigateurs envoient
-        # des noms de fichier bizarres, ex: "blob", "image", sans point)
-        if file_extension.lower() not in ("jpg", "jpeg", "png", "webp", "gif"):
-            file_extension = "jpg"
+        if extension:
+            # ✅ Extension déterminée à partir du CONTENU réel (voir
+            # detect_file_type) : un PDF reste .pdf (avant, tout ce qui
+            # n'était pas une image était renommé .jpg → PDF illisible).
+            file_extension = extension.lower()
+        else:
+            file_extension = filename.split(".")[-1] if filename and "." in filename else "jpg"
+            # ✅ normalise l'extension (certains navigateurs envoient
+            # des noms de fichier bizarres, ex: "blob", "image", sans point)
+            if file_extension.lower() not in ("jpg", "jpeg", "png", "webp", "gif", "pdf"):
+                file_extension = "jpg"
 
         unique_name = f"{uuid.uuid4()}.{file_extension}"
         file_path = os.path.join(upload_dir, unique_name)
@@ -118,6 +159,7 @@ def upload_image(
     public_id: Optional[str] = None,
     transformation: Optional[Dict[str, Any]] = None,
     base_url: Optional[str] = None,
+    allow_pdf: bool = False,
 ) -> str:
     """
     Uploader une image (Cloudinary si configuré, sinon stockage local
@@ -155,6 +197,17 @@ def upload_image(
             ),
         )
 
+    # ✅ Type réel du fichier (magic bytes)
+    detected = detect_file_type(contents)
+    detected_ext = detected[0] if detected else None
+    is_pdf = detected_ext == "pdf"
+
+    if is_pdf and not allow_pdf:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Format non supporté ici : envoyez une image (jpg, png, webp).",
+        )
+
     # 1️⃣ Cloudinary — uniquement s'il est réellement configuré
     if CLOUDINARY_CONFIGURED:
         try:
@@ -164,9 +217,16 @@ def upload_image(
                 "unique_filename": True,
                 "overwrite": True,
             }
-            if public_id:
+            if is_pdf:
+                # PDF : resource_type "raw" + public_id finissant par .pdf,
+                # sinon l'URL renvoyée n'a pas d'extension (ou la livraison
+                # des PDF "image" est bloquée par défaut sur Cloudinary).
+                upload_options["resource_type"] = "raw"
+                upload_options["use_filename"] = False
+                upload_options["public_id"] = f"{uuid.uuid4()}.pdf"
+            elif public_id:
                 upload_options["public_id"] = public_id
-            if transformation:
+            if transformation and not is_pdf:
                 upload_options["transformation"] = transformation
 
             result = cloudinary.uploader.upload(contents, **upload_options)
@@ -182,12 +242,45 @@ def upload_image(
     # 2️⃣ Fallback (ou stockage principal si Cloudinary non configuré) : local
     print(f"🔄 Sauvegarde locale dans uploads/{folder}/ ({len(contents)} octets)")
     try:
-        return save_locally_from_bytes(contents, folder, file.filename, base_url=base_url)
+        return save_locally_from_bytes(
+            contents, folder, file.filename, base_url=base_url, extension=detected_ext
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Impossible d'enregistrer l'image sur le serveur : {str(e)}",
         )
+
+
+def upload_identity_document(
+    file: UploadFile,
+    folder: str,
+    base_url: Optional[str] = None,
+) -> str:
+    """
+    Uploader un document justificatif (CIN, certificat professionnel) :
+    photo (jpg / png / webp) OU PDF, 10 MB max.
+
+    Le type est vérifié sur le CONTENU du fichier, pas sur le Content-Type
+    envoyé par le client (fiable ni sur Android ni sur le web).
+    """
+    contents = file.file.read()
+    file.file.seek(0)
+
+    if len(contents) > MAX_DOCUMENT_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Fichier trop volumineux (10 MB maximum).",
+        )
+
+    detected = detect_file_type(contents)
+    if not detected or detected[0] not in ("jpg", "png", "webp", "pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Format non supporté (jpg, png, webp ou pdf).",
+        )
+
+    return upload_image(file, folder, base_url=base_url, allow_pdf=True)
 
 
 def upload_profile_image(file: UploadFile, user_id: int, base_url: Optional[str] = None) -> str:

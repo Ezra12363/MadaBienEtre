@@ -67,6 +67,43 @@ class AuthService {
   }
 
   /**
+   * Connexion / inscription via Google ou Apple
+   * Backend: POST /google  ou  POST /apple   { id_token, role, full_name }
+   */
+  async socialLogin(provider, idToken, { role = 'CLIENT', fullName } = {}) {
+    try {
+      const endpoint = provider === 'apple' ? '/apple' : '/google';
+      const response = await post(endpoint, {
+        id_token: idToken,
+        role,
+        ...(fullName ? { full_name: fullName } : {}),
+      });
+
+      if (response.error) {
+        return { success: false, error: response.error.message };
+      }
+
+      const { access_token, refresh_token } = response.data;
+      await this.storeTokens(access_token, refresh_token);
+
+      const userResponse = await this.getCurrentUser();
+      if (userResponse.success) {
+        await this.storeUser(userResponse.data);
+      }
+
+      return {
+        success: true,
+        data: {
+          ...response.data,
+          user: userResponse.success ? userResponse.data : null,
+        },
+      };
+    } catch (error) {
+      return { success: false, error: error.message || 'Erreur de connexion' };
+    }
+  }
+
+  /**
    * Vérification OTP
    * Backend: POST /verify-otp
    */
@@ -269,4 +306,4 @@ async forgotPassword(email) {
   }
 }
 
-export default new AuthService();
+export default new AuthService();

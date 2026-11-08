@@ -36,7 +36,10 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
-import { navigateToAdminDetail } from '../../components/admin/AdminDetailKit';
+import {
+  navigateToAdminDetail,
+  downloadAdminDocument,
+} from '../../components/admin/AdminDetailKit';
 import { API_URL } from '../../config/env';
 
 const IS_WEB = Platform.OS === 'web';
@@ -625,76 +628,9 @@ const ApprovalsScreen = () => {
     return null;
   };
 
-  const handleDownload = async (
-    url,
-    suggestedFileName = 'document.pdf'
-  ) => {
-    if (!url) {
-      showToast('Document indisponible', 'error');
-      return;
-    }
-
-    try {
-      const fullUrl = url.startsWith('http')
-        ? url
-        : `${API_URL}${url}`;
-
-      if (IS_WEB) {
-        // Sur le web, window.open() ne joint pas le header
-        // Authorization : on récupère le fichier en blob nous-même.
-        const token = await getAuthToken();
-
-        const response = await fetch(fullUrl, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-
-        if (!response.ok) {
-          if (response.status === 401 || response.status === 403) {
-            throw new Error(
-              "Accès refusé : vous devez être connecté en tant qu'administrateur"
-            );
-          }
-
-          throw new Error(`Erreur ${response.status}`);
-        }
-
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-
-        let fileName = suggestedFileName;
-        const disposition = response.headers.get('content-disposition');
-
-        if (disposition) {
-          const match = disposition.match(/filename="?([^"]+)"?/);
-
-          if (match && match[1]) {
-            fileName = match[1];
-          }
-        }
-
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        window.URL.revokeObjectURL(blobUrl);
-
-        showToast('Téléchargement démarré', 'success');
-      } else {
-        const canOpen = await Linking.canOpenURL(fullUrl);
-
-        if (canOpen) {
-          await Linking.openURL(fullUrl);
-        } else {
-          showToast("Impossible d'ouvrir le document", 'error');
-        }
-      }
-    } catch (err) {
-      console.error('Download error:', err);
-      showToast(err?.message || 'Échec du téléchargement', 'error');
-    }
+  // ✅ Image OU PDF, Web OU Android/iOS — même utilitaire que les pages de détails.
+  const handleDownload = async (url, suggestedFileName = 'document') => {
+    await downloadAdminDocument(url, suggestedFileName, showToast);
   };
 
   /* ==========================================================

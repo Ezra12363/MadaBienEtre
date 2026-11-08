@@ -32,6 +32,7 @@ import ReasonModal from '../../components/common/ReasonModal';
 import notificationService from '../../services/notificationService';
 import { confirmAsync } from '../../utils/chatImage';
 import { notifyInfo } from '../../utils/chatUi';
+import { openAdminAccountNotification } from '../../utils/notificationNavigation';
 
 import { colors, typography, spacing } from '../../theme';
 
@@ -300,6 +301,10 @@ const NotificationScreen = ({ navigation }) => {
 
   // Ouvre l'écran concerné (et l'onglet / la ligne exacte de la page Paiements).
   const openTarget = (item) => {
+    // Nouveau compte à activer / thérapeute à valider : page de détail du compte concerné
+    // (ApprovalDetailScreen / UserDetailScreen) avec l'identifiant du compte.
+    if (openAdminAccountNotification(navigation, item)) return;
+
     // Destination fournie par le backend, sinon déduite du type
     const target = item?.targetScreen || getTargetScreen(item?.type);
     if (target) {

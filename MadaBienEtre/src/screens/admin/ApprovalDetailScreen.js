@@ -38,7 +38,9 @@ const ApprovalDetailScreen = ({ navigation, route }) => {
   const { colors: themeColors } = useTheme();
 
   const initialTherapist = route?.params?.therapist || null;
-  const therapistId = route?.params?.therapistId ?? initialTherapist?.id;
+  // L'identifiant peut venir de la liste, d'une notification (therapistId) ou d'un userId
+  const therapistId =
+    route?.params?.therapistId ?? initialTherapist?.id ?? route?.params?.userId;
 
   const [therapist, setTherapist] = useState(initialTherapist);
   const [loading, setLoading] = useState(!initialTherapist);
@@ -85,7 +87,16 @@ const ApprovalDetailScreen = ({ navigation, route }) => {
         }
       }
 
-      // Plus dans la liste des demandes en attente (déjà traitée ailleurs)
+      // Plus dans la liste « en attente » (déjà traitée) : on charge le dossier
+      // directement par son identifiant pour afficher son statut actuel.
+      const application = await adminService.getTherapistApplication(therapistId);
+      if (!mounted.current) return null;
+      if (application) {
+        setTherapist(application);
+        setNotFound(false);
+        return application;
+      }
+
       if (!therapistRef.current) setNotFound(true);
     } catch (err) {
       console.error('Erreur chargement demande:', err);
@@ -194,6 +205,17 @@ const ApprovalDetailScreen = ({ navigation, route }) => {
   }
 
   const displayName = therapist.fullname || 'Nom non renseigné';
+
+  // Statut du dossier : les actions disponibles dépendent de lui
+  const status = String(therapist.verification_status || 'pending').toLowerCase();
+  const statusBadge =
+    status === 'approved'
+      ? { label: 'Approuvé', color: '#16A34A' }
+      : status === 'rejected'
+      ? { label: 'Refusé', color: '#DC2626' }
+      : { label: 'En attente', color: '#F59E0B' };
+  const canApprove = status !== 'approved';
+  const canReject = status !== 'rejected';
   const hasCin = !!therapist.identity_document_url;
 
   const hero = (
@@ -208,32 +230,47 @@ const ApprovalDetailScreen = ({ navigation, route }) => {
       }
       name={displayName}
       email={therapist.email || 'Email non renseigné'}
-      badges={<Badge label="En attente" color="#F59E0B" dot />}
+      badges={
+        <>
+          <Badge label={statusBadge.label} color={statusBadge.color} dot />
+          <Badge
+            label={therapist.is_active ? 'Compte actif' : 'Compte inactif'}
+            color={therapist.is_active ? '#16A34A' : '#6B7280'}
+          />
+        </>
+      }
     />
   );
 
   const side = (
     <DetailCard title="Décision" icon="checkmark-done-outline">
       <Text style={[styles.hint, { color: themeColors.textSecondary }]}>
-        Vérifiez le dossier puis approuvez ou rejetez la candidature. Un motif est obligatoire
-        en cas de rejet.
+        {status === 'pending'
+          ? "Vérifiez le dossier puis approuvez ou rejetez la candidature. Approuver active le compte ; un motif est obligatoire en cas de rejet."
+          : status === 'approved'
+          ? 'Ce thérapeute a déjà été approuvé. Vous pouvez encore révoquer la validation.'
+          : 'Cette demande a été refusée. Vous pouvez encore l’approuver.'}
       </Text>
 
       <ActionRow>
-        <ActionButton
-          icon="close-circle-outline"
-          label="Rejeter"
-          color="#DC2626"
-          disabled={processing}
-          onPress={() => setConfirm('reject')}
-        />
-        <ActionButton
-          icon="checkmark-circle-outline"
-          label="Approuver"
-          color="#16A34A"
-          disabled={processing}
-          onPress={() => setConfirm('approve')}
-        />
+        {canReject && (
+          <ActionButton
+            icon="close-circle-outline"
+            label="Rejeter"
+            color="#DC2626"
+            disabled={processing}
+            onPress={() => setConfirm('reject')}
+          />
+        )}
+        {canApprove && (
+          <ActionButton
+            icon="checkmark-circle-outline"
+            label="Approuver"
+            color="#16A34A"
+            disabled={processing}
+            onPress={() => setConfirm('approve')}
+          />
+        )}
       </ActionRow>
     </DetailCard>
   );
@@ -277,7 +314,7 @@ const ApprovalDetailScreen = ({ navigation, route }) => {
         <DocumentBlock
           url={therapist.identity_document_url}
           viewerTitle="Pièce d'identité (CIN)"
-          fileName={`CIN_${therapist.fullname || 'therapeute'}.jpg`}
+          fileName={`CIN_${therapist.fullname || 'therapeute'}`}
           downloadLabel="Télécharger la CIN"
           missingText="Aucun document CIN n'a été téléchargé."
           onOpen={openViewer}
@@ -297,7 +334,7 @@ const ApprovalDetailScreen = ({ navigation, route }) => {
         <DocumentBlock
           url={therapist.certificate_professionnel}
           viewerTitle={`Certificat professionnel — ${therapist.fullname || 'Thérapeute'}`}
-          fileName={`Certificat_${therapist.fullname || 'therapeute'}.jpg`}
+          fileName={`Certificat_${therapist.fullname || 'therapeute'}`}
           downloadLabel="Télécharger le certificat"
           missingText="Aucun certificat professionnel n'a été téléchargé."
           onOpen={openViewer}

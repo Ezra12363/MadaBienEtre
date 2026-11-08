@@ -112,6 +112,18 @@ class Token(BaseModel):
     refresh_token: Optional[str] = None
 
 
+class SocialLoginRequest(BaseModel):
+    """Connexion / inscription via Google ou Apple (jeton d'identité)."""
+    id_token: str = Field(..., min_length=20, description="id_token Google ou identityToken Apple")
+    role: str = Field("CLIENT", pattern="^(CLIENT|THERAPIST)$")
+    full_name: Optional[str] = Field(None, max_length=100)
+
+
+class SocialToken(Token):
+    is_new_user: bool = False
+    needs_phone: bool = False
+
+
 class TokenData(BaseModel):
     user_id: int
     role: Optional[str] = None
@@ -122,4 +134,4 @@ class LogoutResponse(BaseModel):
 
 
 class RefreshTokenRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str

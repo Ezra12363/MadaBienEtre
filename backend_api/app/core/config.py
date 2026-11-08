@@ -37,17 +37,27 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 40
     
     # Email
-    EMAIL_HOST: str = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+    # SMTP — par défaut Brevo (smtp-relay.brevo.com:587 STARTTLS)
+    EMAIL_HOST: str = os.getenv("EMAIL_HOST", "smtp-relay.brevo.com")
     EMAIL_PORT: int = int(os.getenv("EMAIL_PORT", 587))
-    EMAIL_USER: str = os.getenv("EMAIL_USER", "")
-    EMAIL_PASSWORD: str = os.getenv("EMAIL_PASSWORD", "")
-    EMAIL_FROM: str = os.getenv("EMAIL_FROM", "noreply@mada-bienetre.com")
+    EMAIL_USER: str = os.getenv("EMAIL_USER", "")          # Connexion SMTP Brevo (xxxx@smtp-brevo.com)
+    EMAIL_PASSWORD: str = os.getenv("EMAIL_PASSWORD", "")  # Clé SMTP Brevo (xsmtpsib-...)
+    EMAIL_FROM: str = os.getenv("EMAIL_FROM", "noreply@mada-bienetre.com")  # adresse VÉRIFIÉE dans Brevo
+    EMAIL_FROM_NAME: str = os.getenv("EMAIL_FROM_NAME", "Mada Bien-être")
+    EMAIL_USE_SSL: bool = os.getenv("EMAIL_USE_SSL", "False").lower() == "true"  # True seulement pour le port 465
+    EMAIL_TIMEOUT: int = int(os.getenv("EMAIL_TIMEOUT", 15))
     
     # SMS
     SMS_ENABLED: bool = os.getenv("SMS_ENABLED", "False").lower() == "true"
     SMS_ACCOUNT_SID: Optional[str] = os.getenv("SMS_ACCOUNT_SID")
     SMS_AUTH_TOKEN: Optional[str] = os.getenv("SMS_AUTH_TOKEN")
     SMS_FROM_NUMBER: Optional[str] = os.getenv("SMS_FROM_NUMBER")
+    # Indicatif pays ajouté aux numéros locaux (0341234567 -> +261341234567)
+    SMS_DEFAULT_COUNTRY_CODE: str = os.getenv("SMS_DEFAULT_COUNTRY_CODE", "+261")
+
+    # Connexion sociale (Client IDs séparés par des virgules : web, android, ios)
+    GOOGLE_CLIENT_IDS: str = os.getenv("GOOGLE_CLIENT_IDS", "")
+    APPLE_CLIENT_IDS: str = os.getenv("APPLE_CLIENT_IDS", "")
     
     # Cloudinary
     CLOUDINARY_CLOUD_NAME: str = os.getenv("CLOUDINARY_CLOUD_NAME", "")
