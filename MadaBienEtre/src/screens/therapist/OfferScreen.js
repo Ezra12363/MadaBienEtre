@@ -58,6 +58,7 @@ import {
 } from '../../services/routing';
 
 import Header from '../../components/common/Header';
+import { ViewableImage } from '../../components/common/ImageViewerModal';
 import { useTheme } from '../../context/ThemeContext';
 import {
   parseServerDate,
@@ -1193,11 +1194,18 @@ export default function OfferScreen({ route, navigation }) {
               <View style={styles.profileHeader}>
                 <View style={styles.profileAvatarFrame}>
                   {clientPhoto ? (
-                    <Image
-                      source={{ uri: clientPhoto }}
+                    <ViewableImage
+                      uri={clientPhoto}
+                      title={clientName}
                       style={styles.profileAvatarImage}
-                      resizeMode="cover"
-                    />
+                      accessibilityLabel="Agrandir la photo du client"
+                    >
+                      <Image
+                        source={{ uri: clientPhoto }}
+                        style={styles.profileAvatarImage}
+                        resizeMode="cover"
+                      />
+                    </ViewableImage>
                   ) : (
                     <Ionicons
                       name="person"
@@ -1758,7 +1766,8 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: 'transparent',
-      borderWidth: 0,
+      borderWidth: 0,
+
     },
 
     // --------------------------------------------------------

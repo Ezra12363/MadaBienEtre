@@ -40,6 +40,7 @@ from .api import (
     admin,
     massage_public,
     certificates,
+    certificate_settings,  # ✅ Admin : paramètres du certificat thérapeute
     client_status,
     chat,
     messenger,
@@ -444,6 +445,8 @@ app.include_router(admin.router)
 
 app.include_router(certificates.router)
 app.include_router(certificates.public_router)
+# Admin → Paramètres → « Certificat thérapeute » (GET/PUT /admin/certificate-settings ...)
+app.include_router(certificate_settings.router)
 
 
 # ============================================================

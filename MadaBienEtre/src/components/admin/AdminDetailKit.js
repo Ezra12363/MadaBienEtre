@@ -17,6 +17,7 @@
 //   - AdminConfirmDialog (confirmation, avec motif optionnel)
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ViewableImage } from '../common/ImageViewerModal';
 import {
   ActivityIndicator,
   Image,
@@ -638,10 +639,17 @@ export const DetailAvatar = ({ uri, name, color = colors.primary, size = 84, onl
   return (
     <View style={{ width: size, height: size }}>
       {uri ? (
-        <Image
-          source={{ uri }}
-          style={{ width: size, height: size, borderRadius: radius, backgroundColor: color + '18' }}
-        />
+        <ViewableImage
+          uri={uri}
+          title={name}
+          style={{ width: size, height: size, borderRadius: radius, overflow: 'hidden' }}
+          accessibilityLabel={`Agrandir la photo de ${name || 'profil'}`}
+        >
+          <Image
+            source={{ uri }}
+            style={{ width: size, height: size, borderRadius: radius, backgroundColor: color + '18' }}
+          />
+        </ViewableImage>
       ) : (
         <View
           style={{

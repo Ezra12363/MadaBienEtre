@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..core.dependencies import (
     get_current_therapist,
+    get_current_user,
     get_current_user_optional,
     _get_user_from_token,
 )
@@ -241,4 +242,63 @@ async def verify_certificate_public(
         therapist_fullname=certificate.therapist.fullname if certificate.therapist else None,
         issued_at=certificate.issued_at,
         status=certificate.status,
+    )
+
+
+# ============================================================
+# ✅ CLIENT : CONSULTATION (lecture seule) DU CERTIFICAT D'UN THÉRAPEUTE
+# ============================================================
+
+@public_router.get("/therapist/{therapist_id}/view")
+async def view_therapist_certificate(
+    therapist_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Permet à un utilisateur connecté (client, thérapeute, admin) de CONSULTER
+    le certificat officiel d'un thérapeute vérifié.
+
+    - Authentification obligatoire (Bearer).
+    - Le PDF est servi « inline » (affichage), jamais en pièce jointe, et
+      sans mise en cache : l'application l'affiche dans une visionneuse
+      sans bouton de téléchargement. Seul le thérapeute (et l'admin) peut
+      télécharger son certificat via /therapists/me/certificate/download.
+    """
+    therapist = (
+        db.query(User)
+        .filter(User.id == therapist_id, User.role == "THERAPIST")
+        .first()
+    )
+
+    if not therapist or therapist.verification_status != "approved":
+        raise HTTPException(
+            status_code=404,
+            detail="Ce thérapeute n'a pas encore de certificat.",
+        )
+
+    certificate = _get_valid_certificate(therapist.id, db)
+
+    if not certificate:
+        raise HTTPException(
+            status_code=404,
+            detail="Ce thérapeute n'a pas encore de certificat.",
+        )
+
+    pdf_path = ensure_certificate_pdf(certificate, db)
+
+    if not pdf_path:
+        raise HTTPException(
+            status_code=404,
+            detail="Fichier du certificat introuvable sur le serveur.",
+        )
+
+    return FileResponse(
+        path=pdf_path,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": "inline",
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
     )

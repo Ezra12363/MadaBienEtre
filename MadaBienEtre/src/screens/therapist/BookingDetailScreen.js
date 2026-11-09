@@ -49,6 +49,7 @@ import {
 } from '../../theme';
 
 import Header from '../../components/common/Header';
+import { ViewableImage } from '../../components/common/ImageViewerModal';
 import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
 
 import bookingService from '../../services/bookingService';
@@ -453,22 +454,35 @@ const ClientAvatar = ({
       ]}
     >
       {showImage ? (
-        <Image
-          source={{ uri: photoUrl }}
-          resizeMode="cover"
-          onError={() => setImageFailed(true)}
-          accessibilityLabel={`Photo de profil de ${
+        <ViewableImage
+          uri={photoUrl}
+          title={name || 'Client'}
+          style={{
+            width: size,
+            height: size,
+            borderRadius: radius,
+          }}
+          accessibilityLabel={`Agrandir la photo de profil de ${
             name || 'client'
           }`}
-          style={[
-            avatarStyles.image,
-            {
-              width: size,
-              height: size,
-              borderRadius: radius,
-            },
-          ]}
-        />
+        >
+          <Image
+            source={{ uri: photoUrl }}
+            resizeMode="cover"
+            onError={() => setImageFailed(true)}
+            accessibilityLabel={`Photo de profil de ${
+              name || 'client'
+            }`}
+            style={[
+              avatarStyles.image,
+              {
+                width: size,
+                height: size,
+                borderRadius: radius,
+              },
+            ]}
+          />
+        </ViewableImage>
       ) : (
         <View
           style={[

@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { colors, typography } from '../../theme';
 import massageTypeService from '../../services/massageTypeService';
+import { ViewableImage } from '../../components/common/ImageViewerModal';
 
 const PRIMARY = colors.primary || '#2E8B57';
 const PRIMARY_DARK = '#2E8B57';
@@ -209,13 +210,22 @@ export const normalizeTherapistPost = (raw, index, massageTypes) => {
 };
 
 /* ---------- Image d'un type de massage (avec repli dégradé + icône) ---------- */
-const PostMassageTile = ({ spec, style, overlay, textSize = 11 }) => {
+const PostMassageTile = ({ spec, style, overlay, textSize = 11, gallery, galleryIndex = 0 }) => {
   const [failed, setFailed] = useState(false);
   const gradient = getCategoryGradient(spec?.category);
   const icon = getMassageTypeFallbackIcon(spec?.category);
 
+  const viewable = Boolean(spec?.imageUrl) && !failed;
+
   return (
-    <View style={[postStyles.tile, style]}>
+    <ViewableImage
+      style={[postStyles.tile, style]}
+      images={viewable ? gallery : undefined}
+      uri={viewable && !gallery ? spec.imageUrl : undefined}
+      index={galleryIndex}
+      title={spec?.name}
+      accessibilityLabel={`Agrandir la photo ${spec?.name || ''}`.trim()}
+    >
       {spec?.imageUrl && !failed ? (
         <Image
           source={{ uri: spec.imageUrl }}
@@ -245,7 +255,7 @@ const PostMassageTile = ({ spec, style, overlay, textSize = 11 }) => {
           <Text style={postStyles.tileMoreText}>{overlay}</Text>
         </View>
       ) : null}
-    </View>
+    </ViewableImage>
   );
 };
 
@@ -270,9 +280,21 @@ const PostMedia = ({ specialties }) => {
   const extra = Math.max(0, specialties.length - list.length);
   const rest = list.slice(1, 5);
 
+  // Toutes les images de la publication : un appui ouvre la galerie plein écran
+  const gallery = withImg.map((s) => ({ uri: s.imageUrl, title: s.name }));
+  const indexOf = (spec) => Math.max(0, withImg.indexOf(spec));
+
   // Un seul type : une seule grande image (même hauteur totale)
   if (rest.length === 0) {
-    return <PostMassageTile spec={list[0]} style={{ height: MEDIA_HEIGHT }} textSize={13} />;
+    return (
+      <PostMassageTile
+        spec={list[0]}
+        style={{ height: MEDIA_HEIGHT }}
+        textSize={13}
+        gallery={gallery}
+        galleryIndex={indexOf(list[0])}
+      />
+    );
   }
 
   return (
@@ -281,6 +303,8 @@ const PostMedia = ({ specialties }) => {
         spec={list[0]}
         style={{ height: MEDIA_HEIGHT - MOSAIC_HEIGHT - 2 }}
         textSize={13}
+        gallery={gallery}
+        galleryIndex={indexOf(list[0])}
       />
       <View style={postStyles.mosaicRow}>
         {rest.map((s, i) => (
@@ -290,6 +314,8 @@ const PostMedia = ({ specialties }) => {
             style={{ flex: 1, height: MOSAIC_HEIGHT }}
             overlay={i === rest.length - 1 && extra > 0 ? `+${extra}` : null}
             textSize={9.5}
+            gallery={gallery}
+            galleryIndex={indexOf(s)}
           />
         ))}
       </View>
@@ -307,11 +333,18 @@ const PostAvatar = ({ uri, name }) => {
 
   if (uri && !failed) {
     return (
-      <Image
-        source={{ uri }}
+      <ViewableImage
+        uri={uri}
+        title={name}
         style={postStyles.avatar}
-        onError={() => setFailed(true)}
-      />
+        accessibilityLabel={`Agrandir la photo de profil de ${name || 'thérapeute'}`}
+      >
+        <Image
+          source={{ uri }}
+          style={postStyles.avatar}
+          onError={() => setFailed(true)}
+        />
+      </ViewableImage>
     );
   }
 

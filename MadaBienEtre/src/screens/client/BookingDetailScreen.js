@@ -64,6 +64,8 @@ import Header from '../../components/common/Header';
 import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
 import { confirmAsync } from '../../utils/chatImage';
 import SOSButton from '../../components/sos/SOSButton';
+import { ViewableImage } from '../../components/common/ImageViewerModal';
+import SecurePdfViewerModal from '../../components/common/SecurePdfViewerModal';
 
 import bookingService from '../../services/bookingService';
 import therapistService from '../../services/therapistService';
@@ -538,18 +540,27 @@ const TherapistAvatar = ({
   return (
     <View style={avatarStyles.wrapper}>
       {showImage ? (
-        <Image
-          source={{ uri: photoUrl }}
-          style={[
-            avatarStyles.image,
-            dimension,
-          ]}
-          resizeMode="cover"
-          onError={() => setFailed(true)}
-          accessibilityLabel={`Photo de profil de ${
+        <ViewableImage
+          uri={photoUrl}
+          title={name || 'Thérapeute'}
+          style={dimension}
+          accessibilityLabel={`Agrandir la photo de profil de ${
             name || 'thérapeute'
           }`}
-        />
+        >
+          <Image
+            source={{ uri: photoUrl }}
+            style={[
+              avatarStyles.image,
+              dimension,
+            ]}
+            resizeMode="cover"
+            onError={() => setFailed(true)}
+            accessibilityLabel={`Photo de profil de ${
+              name || 'thérapeute'
+            }`}
+          />
+        </ViewableImage>
       ) : (
         <View
           style={[
@@ -730,10 +741,11 @@ const BookingDetailScreen = ({
     setCertificateModalVisible,
   ] = useState(false);
 
+  // Liste des sources du certificat (officiel, puis repli)
   const [
     certificateModalUrl,
     setCertificateModalUrl,
-  ] = useState('');
+  ] = useState([]);
 
   // ==========================================================
   // TOAST (notification centrée, alignée sous le header)
@@ -1035,9 +1047,20 @@ const BookingDetailScreen = ({
   // ==========================================================
 
   const handleViewCertificate = (
-    certificateUrl
+    fallbackUrl
   ) => {
-    if (!certificateUrl) {
+    // Le client peut CONSULTER le certificat (lecture seule, sans
+    // téléchargement) : le certificat officiel du thérapeute est
+    // affiché dans une visionneuse ; à défaut, son certificat
+    // professionnel téléversé.
+    const sources = [
+      assignedTherapistId
+        ? `/certificates/therapist/${assignedTherapistId}/view`
+        : null,
+      fallbackUrl || null,
+    ].filter(Boolean);
+
+    if (sources.length === 0) {
       showToast(
         'Le certificat professionnel de ce thérapeute n’est pas encore disponible.',
         'error'
@@ -1046,36 +1069,13 @@ const BookingDetailScreen = ({
       return;
     }
 
-    // Affiche le certificat directement dans une modale
-    // (aperçu image, ou bouton "Ouvrir" pour les PDF), au lieu
-    // de quitter l'application via Linking.openURL.
-    setCertificateModalUrl(certificateUrl);
+    setCertificateModalUrl(sources);
     setCertificateModalVisible(true);
   };
 
   const closeCertificateModal = useCallback(() => {
     setCertificateModalVisible(false);
   }, []);
-
-  const isCertificateImage = /\.(png|jpe?g|webp|gif|heic|heif)(\?.*)?$/i.test(
-    certificateModalUrl || ''
-  );
-
-  const handleOpenCertificateExternally = async () => {
-    try {
-      await Linking.openURL(certificateModalUrl);
-    } catch (error) {
-      console.error(
-        '❌ [CLIENT BOOKING DETAIL] Certificat impossible à ouvrir:',
-        error
-      );
-
-      showToast(
-        "Impossible d'ouvrir le certificat pour le moment.",
-        'error'
-      );
-    }
-  };
 
   // ==========================================================
   // LOADING
@@ -1357,6 +1357,8 @@ const BookingDetailScreen = ({
   );
 
   const therapistCertificateUrl =
+    therapistProfile?.certificate_professionnel ??
+    therapistFromBooking?.certificate_professionnel ??
     therapistProfile?.certificate_url ??
     therapistProfile?.certificate_pro_url ??
     therapistProfile?.professional_certificate_url ??
@@ -2620,107 +2622,16 @@ const BookingDetailScreen = ({
       )}
 
       {/* ==================================================
-          CERTIFICAT — modale d'aperçu
+          CERTIFICAT — visionneuse en lecture seule
+          (aucun bouton de téléchargement pour le client)
       ================================================== */}
 
-      <Modal
+      <SecurePdfViewerModal
         visible={certificateModalVisible}
-        transparent
-        animationType="fade"
-        // Android : sans ça, la modale peut être partiellement
-        // masquée par la barre de statut sur certains téléphones.
-        statusBarTranslucent={Platform.OS === 'android'}
-        onRequestClose={closeCertificateModal}
-      >
-        <Pressable
-          style={styles.certificateBackdrop}
-          onPress={closeCertificateModal}
-        >
-          <Pressable
-            style={[
-              styles.certificateCard,
-              { backgroundColor: themeColors.card },
-            ]}
-            onPress={() => {}}
-          >
-            <View style={styles.certificateHeaderRow}>
-              <Text
-                style={[
-                  styles.certificateTitle,
-                  { color: themeColors.text },
-                ]}
-              >
-                Certificat professionnel
-              </Text>
-
-              <TouchableOpacity
-                onPress={closeCertificateModal}
-                hitSlop={{
-                  top: 8,
-                  bottom: 8,
-                  left: 8,
-                  right: 8,
-                }}
-              >
-                <Ionicons
-                  name="close"
-                  size={22}
-                  color={themeColors.textSecondary}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              style={styles.certificateBody}
-              contentContainerStyle={
-                styles.certificateBodyContent
-              }
-            >
-              {isCertificateImage ? (
-                <Image
-                  source={{ uri: certificateModalUrl }}
-                  style={styles.certificateImage}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View style={styles.certificateFileBox}>
-                  <MaterialCommunityIcons
-                    name="file-certificate-outline"
-                    size={48}
-                    color={colors.primary}
-                  />
-
-                  <Text
-                    style={[
-                      styles.certificateFileText,
-                      { color: themeColors.textSecondary },
-                    ]}
-                  >
-                    Ce document ne peut pas être prévisualisé
-                    directement. Ouvrez-le pour le consulter.
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
-
-            <TouchableOpacity
-              style={styles.certificateOpenButton}
-              onPress={handleOpenCertificateExternally}
-              activeOpacity={0.85}
-            >
-              <Ionicons
-                name="open-outline"
-                size={18}
-                color="#FFFFFF"
-              />
-
-              <Text style={styles.certificateOpenButtonText}>
-                Ouvrir le document complet
-              </Text>
-            </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        title={`Certificat de ${therapistName || 'thérapeute'}`}
+        sources={certificateModalUrl}
+        onClose={closeCertificateModal}
+      />
     </View>
   );
 };
