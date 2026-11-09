@@ -24,6 +24,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AdminTherapistReviewsCard from '../../components/reviews/AdminTherapistReviewsCard';
 
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import { colors } from '../../theme';
 import adminService from '../../services/adminService';
 import AdminUserAddressModal from '../../components/admin/AdminUserAddressModal';
@@ -69,6 +70,13 @@ const getRoleLabel = (role) => {
   return map[role] || role || 'N/A';
 };
 
+// Rôles que l'admin peut assigner
+const ROLE_OPTIONS = [
+  { value: 'CLIENT', label: 'Client', icon: 'person-outline' },
+  { value: 'THERAPIST', label: 'Thérapeute', icon: 'fitness-outline' },
+  { value: 'ADMIN', label: 'Admin', icon: 'shield-checkmark-outline' },
+];
+
 const getStatusColor = (isActive) => (isActive ? '#27AE60' : '#E74C3C');
 const getStatusLabel = (isActive) => (isActive ? 'Actif' : 'Inactif');
 
@@ -84,6 +92,7 @@ const getVerification = (status) => {
 
 const UserDetailScreen = ({ navigation, route }) => {
   const { colors: themeColors, isDark } = useTheme();
+  const { user: authUser } = useAuth();
 
   const initialUser = route?.params?.user || null;
   const userId = route?.params?.userId ?? initialUser?.id;
@@ -295,6 +304,36 @@ const UserDetailScreen = ({ navigation, route }) => {
   };
 
   /* ----------------------------------------------------------
+     MODIFIER / ASSIGNER LE RÔLE
+  ---------------------------------------------------------- */
+
+  const requestChangeRole = (newRole) => {
+    if (!user?.id || newRole === user.role) return;
+
+    const name = user.fullname || 'cet utilisateur';
+    const extra =
+      newRole === 'ADMIN'
+        ? '\n\n⚠️ Ce compte aura un accès complet à l\'administration.'
+        : user.role === 'ADMIN'
+          ? '\n\n⚠️ Ce compte perdra ses accès d\'administration.'
+          : '';
+
+    setConfirm({
+      title: 'Modifier le rôle',
+      message: `Passer le rôle de ${name} de « ${getRoleLabel(user.role)} » à « ${getRoleLabel(newRole)} » ?${extra}`,
+      confirmText: 'Confirmer',
+      destructive: newRole === 'ADMIN' || user.role === 'ADMIN',
+      errorPrefix: 'Impossible de modifier le rôle',
+      run: async () => {
+        await adminService.changeUserRole(user.id, newRole, 'Action par admin');
+        setUser((prev) => (prev ? { ...prev, role: newRole } : prev));
+        await fetchUser();
+        showToast(`Rôle modifié : ${getRoleLabel(newRole)}`, 'success');
+      },
+    });
+  };
+
+  /* ----------------------------------------------------------
      RÉINITIALISER LE MOT DE PASSE
   ---------------------------------------------------------- */
 
@@ -388,6 +427,8 @@ const UserDetailScreen = ({ navigation, route }) => {
   }
 
   const isTherapist = user.role === 'THERAPIST';
+  const isSelf = !!authUser?.id && String(authUser.id) === String(user.id);
+  const canChangeRole = !isSelf && !user.deleted_at;
   const roleColor = getRoleColor(user.role);
   const verification = getVerification(user.verification_status);
   const hasCin = !!(user.cin_number && String(user.cin_number).trim() !== '');
@@ -429,6 +470,50 @@ const UserDetailScreen = ({ navigation, route }) => {
 
   const side = editMode ? null : (
     <>
+      <DetailCard title="Rôle du compte" icon="shield-checkmark-outline">
+        <View style={styles.roleRow}>
+          {ROLE_OPTIONS.map((opt) => {
+            const active = user.role === opt.value;
+            const optColor = getRoleColor(opt.value);
+
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                activeOpacity={0.85}
+                disabled={!canChangeRole || active}
+                onPress={() => requestChangeRole(opt.value)}
+                style={[
+                  styles.roleOption,
+                  {
+                    borderColor: active ? optColor : themeColors.border || '#E0E0E0',
+                    backgroundColor: active ? optColor + '18' : 'transparent',
+                    opacity: !canChangeRole && !active ? 0.45 : 1,
+                  },
+                ]}
+              >
+                <Ionicons name={opt.icon} size={18} color={active ? optColor : themeColors.textSecondary} />
+                <Text
+                  style={[
+                    styles.roleOptionText,
+                    { color: active ? optColor : themeColors.text },
+                  ]}
+                >
+                  {opt.label}
+                </Text>
+                {active ? <Ionicons name="checkmark-circle" size={16} color={optColor} /> : null}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <Text style={[styles.roleHint, { color: themeColors.textSecondary }]}>
+          {isSelf
+            ? 'Vous ne pouvez pas modifier votre propre rôle.'
+            : user.deleted_at
+              ? 'Compte supprimé / désactivé : réactivez-le pour modifier son rôle.'
+              : "Choisissez un rôle pour l'assigner à ce compte."}
+        </Text>
+      </DetailCard>
+
       <DetailCard title="Statut du compte" icon="power-outline">
         <View style={styles.switchRow}>
           <View style={styles.switchTextWrap}>
@@ -713,6 +798,22 @@ const UserDetailScreen = ({ navigation, route }) => {
 ============================================================ */
 
 const styles = StyleSheet.create({
+  roleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  roleOption: {
+    flexGrow: 1,
+    flexBasis: 110,
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+  },
+  roleOptionText: { fontSize: 13, fontWeight: '700' },
+  roleHint: { fontSize: 12, lineHeight: 17, marginTop: 10 },
+
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   switchTextWrap: { flex: 1 },
   switchTitle: { fontSize: 14, fontWeight: '700', lineHeight: 20 },

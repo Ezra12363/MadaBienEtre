@@ -106,6 +106,11 @@ class UserPasswordResetRequest(BaseModel):
     )
 
 
+class UserRoleUpdate(BaseModel):
+    role: str = Field(..., description="Nouveau rôle : CLIENT, THERAPIST ou ADMIN")
+    reason: Optional[str] = Field(None, max_length=500, description="Raison du changement de rôle")
+
+
 class UserBulkActionRequest(BaseModel):
     action: str = Field(..., description="Action: activate, deactivate, delete")
     user_ids: List[int] = Field(..., description="Liste des IDs des utilisateurs")

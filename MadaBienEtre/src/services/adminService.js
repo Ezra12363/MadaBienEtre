@@ -127,6 +127,22 @@ const adminService = {
   },
 
   /**
+   * ✅ Modifier / assigner le rôle d'un utilisateur (Admin)
+   * @param {number} userId - ID de l'utilisateur
+   * @param {'CLIENT'|'THERAPIST'|'ADMIN'} role - Nouveau rôle
+   * @param {string} reason - Raison du changement (optionnel)
+   */
+  async changeUserRole(userId, role, reason = '') {
+    try {
+      const response = await api.put(`/users/${userId}/role`, { role, reason });
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error changeUserRole:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Réactiver un utilisateur (seulement si soft delete)
    * @param {number} userId - ID de l'utilisateur
    */

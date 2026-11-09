@@ -52,7 +52,7 @@ const WEB_WRAP = IS_WEB
 
 const UsersScreen = () => {
   const { colors: themeColors, isDark } = useTheme();
-  useAuth();
+  const { user: authUser } = useAuth();
 
   const { isDesktop, horizontalPadding } = useResponsive();
   const navigation = useNavigation();
@@ -79,6 +79,9 @@ const UsersScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showDeleted, setShowDeleted] = useState(false);
+
+  // Sélecteur de rôle (modifier / assigner le rôle d'un utilisateur)
+  const [roleTarget, setRoleTarget] = useState(null);
 
   const [selectedUser, setSelectedUser] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
@@ -907,6 +910,65 @@ const UsersScreen = () => {
   };
 
   /* ==========================================================
+     MODIFIER / ASSIGNER LE RÔLE — SÉLECTEUR + CONFIRMATION
+  ========================================================== */
+
+  const openRoleModal = (targetUser) => {
+    if (!targetUser?.id) {
+      showToast('Utilisateur non trouvé', 'error');
+      return;
+    }
+    if (authUser?.id && String(authUser.id) === String(targetUser.id)) {
+      showToast('Vous ne pouvez pas modifier votre propre rôle', 'warning');
+      return;
+    }
+    if (targetUser.deleted_at) {
+      showToast('Réactivez ce compte avant de modifier son rôle', 'warning');
+      return;
+    }
+    setRoleTarget(targetUser);
+  };
+
+  const handleChangeRole = (targetUser, newRole) => {
+    setRoleTarget(null);
+    if (!targetUser?.id || newRole === targetUser.role) return;
+
+    const name = targetUser.fullname || 'cet utilisateur';
+    const extra =
+      newRole === 'ADMIN'
+        ? "\n\n⚠️ Ce compte aura un accès complet à l'administration."
+        : targetUser.role === 'ADMIN'
+          ? "\n\n⚠️ Ce compte perdra ses accès d'administration."
+          : '';
+
+    showConfirmModal({
+      title: 'Modifier le rôle',
+      message: `Passer le rôle de ${name} de « ${getRoleLabel(targetUser.role)} » à « ${getRoleLabel(newRole)} » ?${extra}`,
+      confirmText: 'Confirmer',
+      cancelText: 'Annuler',
+      destructive: newRole === 'ADMIN' || targetUser.role === 'ADMIN',
+      onConfirm: async () => {
+        try {
+          showToast('Modification du rôle...', 'info');
+
+          await adminService.changeUserRole(targetUser.id, newRole, 'Action par admin');
+
+          setSelectedUser((prev) =>
+            prev && prev.id === targetUser.id ? { ...prev, role: newRole } : prev
+          );
+
+          await loadUsers();
+
+          showToast(`Rôle modifié : ${getRoleLabel(newRole)}`, 'success');
+        } catch (error) {
+          console.error('❌ Error change role:', error);
+          showToast(`Impossible de modifier le rôle: ${error?.message || 'Erreur serveur'}`, 'error');
+        }
+      },
+    });
+  };
+
+  /* ==========================================================
      ACTIONS EN MASSE — AVEC MODAL CENTRÉ
   ========================================================== */
 
@@ -1144,6 +1206,7 @@ const UsersScreen = () => {
     const isTherapist = item.role === 'THERAPIST';
     const isOnline = isTherapist && item.is_online;
     const isDeleted = !!item.deleted_at;
+    const isSelf = !!authUser?.id && String(authUser.id) === String(item.id);
     const hasCin = isTherapist && item.cin_number && item.cin_number.trim() !== '';
     const address = getFullAddress(item);
 
@@ -1155,6 +1218,8 @@ const UsersScreen = () => {
       } else if (action === 'address') {
         setSelectedUserForAddress(item);
         setShowAddressModal(true);
+      } else if (action === 'role') {
+        openRoleModal(item);
       } else if (action === 'reset') {
         await handleResetPassword(item);
       } else if (action === 'toggle') {
@@ -1311,6 +1376,17 @@ const UsersScreen = () => {
               <Ionicons name="create-outline" size={16} color="#2196F3" />
             </TouchableOpacity>
 
+            {/* Rôle */}
+            {!isDeleted && !isSelf && (
+              <TouchableOpacity
+                style={[styles.webActionButton, { backgroundColor: '#00968820' }]}
+                onPress={() => handleRowAction('role')}
+                title="Modifier le rôle"
+              >
+                <Ionicons name="shield-checkmark-outline" size={16} color="#009688" />
+              </TouchableOpacity>
+            )}
+
             {/* Reset */}
             {!isDeleted && (
               <TouchableOpacity
@@ -1462,6 +1538,17 @@ const UsersScreen = () => {
                 />
               )}
             </View>
+
+            {!isDeleted && !(authUser?.id && String(authUser.id) === String(item.id)) && (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => openRoleModal(item)}
+                style={styles.mobileRoleButton}
+              >
+                <Ionicons name="shield-checkmark-outline" size={15} color="#009688" />
+                <Text style={styles.mobileRoleButtonText}>Modifier le rôle</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </TouchableOpacity>
@@ -2394,6 +2481,75 @@ const UsersScreen = () => {
         <ConfirmationModal />
 
         {/* ======================================================
+            SÉLECTEUR DE RÔLE (modifier / assigner)
+        ====================================================== */}
+
+        <Modal
+          visible={!!roleTarget}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setRoleTarget(null)}
+          statusBarTranslucent={!IS_WEB}
+        >
+          <View style={styles.confirmOverlay}>
+            <View style={[styles.confirmModalContainer, { backgroundColor: themeColors.surface }]}>
+              <Text style={[styles.confirmTitle, { color: themeColors.text }]}>
+                Modifier le rôle
+              </Text>
+              <Text style={[styles.confirmMessage, { color: themeColors.textSecondary }]}>
+                {roleTarget?.fullname || 'Utilisateur'} — rôle actuel : {getRoleLabel(roleTarget?.role)}
+              </Text>
+
+              <View style={styles.rolePickerList}>
+                {roles.map((r) => {
+                  const active = roleTarget?.role === r.value;
+                  return (
+                    <TouchableOpacity
+                      key={r.value}
+                      activeOpacity={0.85}
+                      disabled={active}
+                      onPress={() => handleChangeRole(roleTarget, r.value)}
+                      style={[
+                        styles.rolePickerOption,
+                        {
+                          borderColor: active ? r.color : themeColors.border || '#E0E0E0',
+                          backgroundColor: active ? r.color + '18' : 'transparent',
+                        },
+                      ]}
+                    >
+                      <Ionicons name={r.icon} size={20} color={active ? r.color : themeColors.textSecondary} />
+                      <Text
+                        style={[
+                          styles.rolePickerText,
+                          { color: active ? r.color : themeColors.text },
+                        ]}
+                      >
+                        {r.label}
+                      </Text>
+                      {active ? <Ionicons name="checkmark-circle" size={18} color={r.color} /> : null}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={styles.confirmButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.confirmButton,
+                    styles.confirmCancelButton,
+                    { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F1F3F6' },
+                  ]}
+                  onPress={() => setRoleTarget(null)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.confirmButtonText, { color: themeColors.text }]}>Fermer</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ======================================================
             TOAST
         ====================================================== */}
 
@@ -2833,26 +2989,58 @@ const styles = StyleSheet.create({
     gap: 5,
   },
 
+  // Largeur FIXE : 7 boutons x 32px + 6 espaces x 4px = 248px (+ 16px de padding).
+  // Les boutons restent donc toujours sur UNE seule ligne.
   webActionCell: {
-    flex: 1.6,
-    minWidth: 100,
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 268,
+    width: 268,
+    minWidth: 268,
     alignItems: 'center',
   },
 
   webActionGroup: {
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     gap: 4,
-    flexWrap: 'wrap',
     justifyContent: 'center',
+    alignItems: 'center',
   },
 
   webActionButton: {
     width: 32,
     height: 32,
+    flexShrink: 0,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
+
+  rolePickerList: { alignSelf: 'stretch', gap: 8, marginBottom: 16 },
+  rolePickerOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    minHeight: 48,
+  },
+  rolePickerText: { flex: 1, fontSize: 14, fontWeight: '700' },
+
+  mobileRoleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: '#00968818',
+  },
+  mobileRoleButtonText: { color: '#009688', fontSize: 12, fontWeight: '700' },
 
   webBottomSpace: {
     height: 24,

@@ -46,6 +46,7 @@ from ..schemas.user import (
     UserSearchParams,
     TherapistFilters,
     UserActivateRequest,
+    UserRoleUpdate,
     UserBulkActionRequest,
     UserPasswordResetRequest,
 )
@@ -84,6 +85,10 @@ ADMIN_EDIT_LABELS = {
     "base_price": "Tarif de base",
     "service_radius": "Rayon d'intervention (km)",
 }
+
+# Rôles que l'admin peut assigner (même liste que create_user)
+VALID_USER_ROLES = ("CLIENT", "THERAPIST", "ADMIN")
+ROLE_LABELS = {"CLIENT": "Client", "THERAPIST": "Thérapeute", "ADMIN": "Admin"}
 
 # ✅ Racine du projet (même convention que certificate_service.py) —
 # utilisée pour résoudre les chemins relatifs des fichiers certificats
@@ -941,6 +946,106 @@ async def toggle_user_status(
         raise
     except Exception as e:
         logger.error(f"Erreur toggle_user_status: {e}")
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Erreur interne: {str(e)}")
+
+
+# ============================================================
+# 12 bis. ✅ MODIFIER / ASSIGNER LE RÔLE D'UN UTILISATEUR (Admin)
+# ============================================================
+@router.put(
+    "/users/{user_id}/role",
+    summary="Modifier / assigner le rôle d'un utilisateur",
+)
+async def change_user_role(
+    user_id: int,
+    request: UserRoleUpdate,
+    current_user: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Changer le rôle (CLIENT / THERAPIST / ADMIN) d'un compte (Admin uniquement)."""
+    try:
+        new_role = str(request.role or "").strip().upper()
+        if new_role not in VALID_USER_ROLES:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Rôle invalide : choisissez Client, Thérapeute ou Admin.",
+            )
+
+        user = db.query(User).filter(
+            User.id == user_id,
+            User.deleted_at.is_(None),
+        ).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Utilisateur non trouvé",
+            )
+
+        if user.id == current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Vous ne pouvez pas modifier votre propre rôle",
+            )
+
+        old_role = str(user.role or "CLIENT").strip().upper()
+        if old_role == new_role:
+            return {
+                "message": "Le rôle est déjà celui demandé",
+                "user_id": user.id,
+                "role": old_role,
+                "changed": False,
+            }
+
+        # Garde-fou : ne jamais retirer le dernier administrateur actif
+        if old_role == "ADMIN":
+            other_admins = db.query(User).filter(
+                User.role == "ADMIN",
+                User.is_active.is_(True),
+                User.deleted_at.is_(None),
+                User.id != user.id,
+            ).count()
+            if other_admins == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Impossible de retirer le dernier administrateur actif",
+                )
+
+        user.role = new_role
+        # Un administrateur n'a aucun dossier à faire valider (comme à la création)
+        if new_role == "ADMIN":
+            user.verification_status = "approved"
+        user.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(user)
+
+        logger.info(
+            f"Rôle de l'utilisateur {user_id} : {old_role} → {new_role} "
+            f"(par {current_user.fullname})"
+        )
+
+        # ✉️ Email + notification à l'utilisateur concerné (ne doit jamais faire échouer l'action)
+        try:
+            notify_account_updated(
+                user,
+                admin=current_user,
+                changes=[("Rôle", ROLE_LABELS.get(old_role, old_role), ROLE_LABELS.get(new_role, new_role))],
+            )
+        except Exception as notify_error:
+            logger.warning(f"Notification de changement de rôle non envoyée: {notify_error}")
+
+        return {
+            "message": f"Rôle modifié : {ROLE_LABELS.get(new_role, new_role)}",
+            "user_id": user.id,
+            "role": new_role,
+            "previous_role": old_role,
+            "changed": True,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Erreur change_user_role: {e}")
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Erreur interne: {str(e)}")
 
