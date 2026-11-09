@@ -1278,6 +1278,12 @@ const DashboardScreen = ({ navigation }) => {
 
   // ---------- Analyse détaillée : valeurs dérivées (données de la base) ----------
   const wideDash = windowWidth >= 900;
+  // Écart entre cartes = MÊME écart que la grille « Indicateurs principaux »
+  // (4 colonnes : 1.35 %, 2 colonnes : 2 %) => les bords tombent pile
+  // sous les cartes du dessus. Rangée de 3 cartes : 2 % (= Actions rapides).
+  const dashGap2 = columns === 4 ? '1.35%' : '2%';
+  const dashRow2 = wideDash ? [styles.dashRow, { columnGap: dashGap2 }] : styles.dashCol;
+  const dashRow3 = wideDash ? [styles.dashRow, { columnGap: '2%' }] : styles.dashCol;
   const PERIOD_LABELS = { day: '24 heures', week: '7 jours', month: '30 jours', year: '12 mois' };
   const periodLabel = PERIOD_LABELS[stats?.period] || stats?.period || '30 jours';
   const compactAr = (v) => {
@@ -1728,9 +1734,9 @@ const DashboardScreen = ({ navigation }) => {
                 subtitle={`Période : ${periodLabel}`}
               />
 
-              <View style={wideDash ? styles.dashRow : styles.dashCol}>
+              <View style={dashRow3}>
                 {stats ? (
-                  <View style={[styles.dashCard, cardBox, wideDash && { flex: 1 }]}>
+                  <View style={[styles.dashCard, cardBox, wideDash && styles.dashCardWide]}>
                     <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
                       Résumé de la période
                     </Text>
@@ -1795,7 +1801,7 @@ const DashboardScreen = ({ navigation }) => {
                 ) : null}
 
                 {overview ? (
-                  <View style={[styles.dashCard, cardBox, wideDash && { flex: 1 }]}>
+                  <View style={[styles.dashCard, cardBox, wideDash && styles.dashCardWide]}>
                     <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
                       Revenus mensuels
                     </Text>
@@ -1815,7 +1821,7 @@ const DashboardScreen = ({ navigation }) => {
                 ) : null}
 
                 {overview ? (
-                  <View style={[styles.dashCard, cardBox, wideDash && { flex: 1 }]}>
+                  <View style={[styles.dashCard, cardBox, wideDash && styles.dashCardWide]}>
                     <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
                       Réservations et nouveaux comptes
                     </Text>
@@ -1840,8 +1846,8 @@ const DashboardScreen = ({ navigation }) => {
               </View>
 
               {overview ? (
-                <View style={wideDash ? styles.dashRow : styles.dashCol}>
-                  <View style={[styles.dashCard, cardBox, wideDash && { flex: 1 }]}>
+                <View style={dashRow2}>
+                  <View style={[styles.dashCard, cardBox, wideDash && styles.dashCardWide]}>
                     <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
                       Réservations par statut
                     </Text>
@@ -1880,7 +1886,7 @@ const DashboardScreen = ({ navigation }) => {
                     )}
                   </View>
 
-                  <View style={[styles.dashCard, cardBox, wideDash && { flex: 1 }]}>
+                  <View style={[styles.dashCard, cardBox, wideDash && styles.dashCardWide]}>
                     <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
                       Meilleurs thérapeutes
                     </Text>
@@ -2294,9 +2300,10 @@ const styles = StyleSheet.create({
   splitBar: { flexDirection: 'row', height: 8, borderRadius: 2, overflow: 'hidden', marginTop: 4 },
   splitLegend: { fontSize: 11, marginTop: 6 },
   statRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  dashRow: { flexDirection: 'row', gap: 14, alignItems: 'stretch', marginBottom: 14 },
+  dashRow: { flexDirection: 'row', alignItems: 'stretch', marginBottom: 14 },
   dashCol: { gap: 14, marginBottom: 14 },
   dashCard: { borderWidth: 1, borderRadius: 16, padding: 16 },
+  dashCardWide: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 },
   dashCardTitle: { fontSize: 15, fontWeight: '700', fontFamily: typography.fontFamily.bold, marginBottom: 12 },
   miniGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 },
   miniTile: { flexGrow: 1, flexBasis: '45%', borderRadius: 10, padding: 12, gap: 8 },

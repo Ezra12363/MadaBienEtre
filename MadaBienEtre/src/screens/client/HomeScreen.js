@@ -1902,10 +1902,13 @@ const HomeScreen = ({ navigation }) => {
             { flexDirection: isWide ? 'row' : 'column' },
           ]}
         >
+          {/* Colonne gauche : wrapper SANS padding ni bordure => largeur
+              strictement égale à celle de la colonne droite. */}
+          <View style={isWide ? styles.rowColumnWide : null}>
           <View
             style={[
               styles.aiWrap,
-              isWide && { flex: 1, minWidth: 0 },
+              isWide && { flex: 1 },
               { backgroundColor: surface, borderColor: border },
             ]}
           >
@@ -1922,16 +1925,20 @@ const HomeScreen = ({ navigation }) => {
               }
             />
           </View>
+          </View>
 
-          <PopularServicesCard
-            title="Services populaires"
-            subtitle="Massages les plus réservés (réservations terminées)"
-            countLabel="réserv."
-            emptyText="Aucune réservation terminée sur cette période."
-            fetcher={fetchPopularServices}
-            refreshKey={statsRefreshKey}
-            style={isWide ? { flex: 1, minWidth: 0 } : null}
-          />
+          {/* Colonne droite : même wrapper (même largeur). */}
+          <View style={isWide ? styles.rowColumnWide : null}>
+            <PopularServicesCard
+              title="Services populaires"
+              subtitle="Massages les plus réservés (réservations terminées)"
+              countLabel="réserv."
+              emptyText="Aucune réservation terminée sur cette période."
+              fetcher={fetchPopularServices}
+              refreshKey={statsRefreshKey}
+              style={isWide ? { flex: 1 } : null}
+            />
+          </View>
         </Reveal>
 
         {/* ====================================================
@@ -2819,6 +2826,16 @@ const styles = StyleSheet.create({
   rowBlock: {
     gap: 12,
     alignItems: 'stretch',
+  },
+
+  // 2 colonnes de largeur STRICTEMENT égale, alignées sur les cartes d'« Accès
+  // rapide » (même gap : 12). Le wrapper n'a ni padding ni bordure : sinon
+  // flex:1 (basis 0) donne plus de place à la carte qui a du padding.
+  rowColumnWide: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
   },
 
   aiWrap: {

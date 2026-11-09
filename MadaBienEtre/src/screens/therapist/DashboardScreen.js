@@ -1407,32 +1407,37 @@ const DashboardScreen = ({ navigation }) => {
             duration={500}
             style={[rowStyle, { marginTop: 14 }]}
           >
-            <View
-              style={[
-                styles.aiWrapWide,
-                isWide && { flex: 1, minWidth: 0 },
-                {
-                  backgroundColor: surfaceColor,
-                  borderColor,
-                },
-              ]}
-            >
-              <AITherapistHomeBlock
-                showPopular={false}
-                compact
-                onOpenAssistant={(tab) =>
-                  navigation.navigate('AIAssistant', { initialTab: tab })
-                }
-              />
+            {/* Wrapper SANS padding/bordure : 2 colonnes strictement égales */}
+            <View style={isWide ? styles.rowColumnWide : null}>
+              <View
+                style={[
+                  styles.aiWrapWide,
+                  isWide && { flex: 1 },
+                  {
+                    backgroundColor: surfaceColor,
+                    borderColor,
+                  },
+                ]}
+              >
+                <AITherapistHomeBlock
+                  showPopular={false}
+                  compact
+                  onOpenAssistant={(tab) =>
+                    navigation.navigate('AIAssistant', { initialTab: tab })
+                  }
+                />
+              </View>
             </View>
 
-            <PopularServicesCard
-              refreshKey={refreshKey}
-              style={[
-                !isWide && { marginTop: 14 },
-                isWide && { flex: 1, minWidth: 0 },
-              ]}
-            />
+            <View style={isWide ? styles.rowColumnWide : null}>
+              <PopularServicesCard
+                refreshKey={refreshKey}
+                style={[
+                  !isWide && { marginTop: 14 },
+                  isWide && { flex: 1 },
+                ]}
+              />
+            </View>
           </Animatable.View>
 
           {/* ==================================================
@@ -2373,6 +2378,14 @@ const styles = StyleSheet.create({
   // ==========================================================
   // QUICK ACTIONS
   // ==========================================================
+
+  // 2 colonnes de largeur strictement égale (wrapper sans padding ni bordure)
+  rowColumnWide: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
+  },
 
   quickActionsList: {
     paddingHorizontal: 14,
