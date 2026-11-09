@@ -10,7 +10,7 @@ import { typography } from '../../theme';
 import ChatAvatar from './ChatAvatar';
 import { CHAT_MAX_WIDTH, useChatSidePadding } from './chatTheme';
 
-const PeerBar = ({ palette, name, photo, statusText, statusColor, bookingId, onMenu }) => {
+const PeerBar = ({ palette, name, photo, statusText, statusColor, bookingId, onMenu, onCall }) => {
   const side = useChatSidePadding();
   return (
   <View
@@ -34,6 +34,18 @@ const PeerBar = ({ palette, name, photo, statusText, statusColor, bookingId, onM
           </Text>
         </View>
       </View>
+
+      {!!onCall && (
+        <TouchableOpacity
+          onPress={onCall}
+          style={[styles.menu, { backgroundColor: palette.primarySoft }]}
+          accessibilityRole="button"
+          accessibilityLabel="Appel vocal"
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        >
+          <Ionicons name="call" size={20} color={palette.primary} />
+        </TouchableOpacity>
+      )}
 
       {!!onMenu && (
         <TouchableOpacity

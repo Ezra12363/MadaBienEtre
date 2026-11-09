@@ -76,9 +76,10 @@ import MassageTypesScreen from '../screens/admin/MassageTypesScreen';
 const Tab = createBottomTabNavigator();
 import ReceiptScreen from '../screens/shared/ReceiptScreen';
 import Header from '../components/common/Header';
+import { AdminMessengerStack } from './MessengerStack';
 
 // Onglets valides (pour restaurer la page après actualisation du navigateur)
-const ADMIN_TAB_NAMES = ['Tableau de bord', 'Utilisateurs', 'Gestion', 'Analyses', 'Paramètres'];
+const ADMIN_TAB_NAMES = ['Tableau de bord', 'Utilisateurs', 'Gestion', 'Messages', 'Analyses', 'Paramètres'];
 
 const Stack = createNativeStackNavigator();
 
@@ -629,6 +630,11 @@ const getTabIcon = (
         ? 'settings'
         : 'settings-outline';
 
+    case 'Messages':
+      return focused
+        ? 'chatbubbles'
+        : 'chatbubbles-outline';
+
     case 'Analyses':
       return focused
         ? 'bar-chart'
@@ -663,6 +669,9 @@ const getTabLabel = (
 
     case 'Gestion':
       return 'Gestion';
+
+    case 'Messages':
+      return 'Messages';
 
     case 'Analyses':
       return 'Analyses';
@@ -1021,6 +1030,18 @@ const AdminNavigator = () => {
             options={{
               tabBarLabel:
                 'Gestion',
+            }}
+          />
+
+
+          <Tab.Screen
+            name="Messages"
+            component={
+              AdminMessengerStack
+            }
+            options={{
+              tabBarLabel:
+                'Messages',
             }}
           />
 

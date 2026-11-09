@@ -69,6 +69,7 @@ import ChatScreen from '../screens/therapist/ChatScreen';
 import SOSScreen from '../screens/therapist/SOSScreen';
 import SOSAlertUserDetailScreen from '../screens/shared/SOSAlertUserDetailScreen';
 import ConversationsScreen from '../screens/shared/ConversationsScreen';
+import MessengerStack from './MessengerStack';
 
 import WithdrawScreen from '../screens/therapist/WithdrawScreen';
 import AvailabilityScreen from '../screens/therapist/AvailabilityScreen';
@@ -900,7 +901,7 @@ const TherapistTabsScreen = () => {
 
           <Tab.Screen
             name="Messages"
-            component={ConversationsScreen}
+            component={MessengerStack}
             options={{
               tabBarLabel: 'Messages',
             }}

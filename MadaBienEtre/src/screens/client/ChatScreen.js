@@ -2,10 +2,10 @@
 // Écran de discussion du CLIENT (thérapeute <-> client).
 // Toute l'interface et la logique sont dans components/chat/ChatRoomView
 // (partagé avec l'écran thérapeute) : web + Android + iOS.
-import ChatRoomView from '../../components/chat/ChatRoomView';
+import MessengerChatScreen from '../shared/MessengerChatScreen';
 
 const ChatScreen = ({ navigation, route }) => (
-  <ChatRoomView navigation={navigation} route={route} />
+  <MessengerChatScreen navigation={navigation} route={route} />
 );
 
 export default ChatScreen;

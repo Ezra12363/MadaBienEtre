@@ -40,9 +40,10 @@ from .api import (
     admin,
     massage_public,
     certificates,
-    certificate_settings,  # ✅ paramètres du certificat (admin)
     client_status,
     chat,
+    messenger,
+    messenger_ws,
     cards,  # ✅ cartes bancaires enregistrées (Stripe)
 )
 
@@ -80,7 +81,6 @@ UPLOAD_SUBDIRECTORIES = (
     "profiles",
     "documents",
     "certificates",
-    "certificate_assets",
     "massage_types",
 )
 
@@ -119,6 +119,11 @@ async def lifespan(app: FastAPI):
     try:
         init_database()
         logger.info("Database initialized successfully")
+
+        # Messagerie : ajoute les colonnes manquantes de chat_messages (alembic upgrade head)
+        from .core.messenger_schema import ensure_messenger_schema
+
+        ensure_messenger_schema()
 
     except Exception:
         # Conserver ce comportement si l'initialisation
@@ -414,6 +419,16 @@ app.include_router(chat.router)
 
 
 # ============================================================
+# API ROUTERS — MESSAGERIE « MESSENGER » (conversations privées,
+# groupes, annonces, appels vocaux, pièces jointes, réactions...)
+#   REST : /messenger/...      WebSocket : /ws/messenger
+# ============================================================
+
+app.include_router(messenger.router)
+app.include_router(messenger_ws.router)
+
+
+# ============================================================
 # API ROUTERS — SOS, ANALYTICS ET ADMINISTRATION
 # ============================================================
 
@@ -429,7 +444,6 @@ app.include_router(admin.router)
 
 app.include_router(certificates.router)
 app.include_router(certificates.public_router)
-app.include_router(certificate_settings.router)
 
 
 # ============================================================

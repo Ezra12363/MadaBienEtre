@@ -11,7 +11,7 @@
 import { useEffect, useMemo } from 'react';
 import { View } from 'react-native';
 
-import ChatRoomView from '../../components/chat/ChatRoomView';
+import MessengerChatScreen from '../shared/MessengerChatScreen';
 import {
   NavBridgeProvider,
   TopNavBar,
@@ -153,7 +153,7 @@ const ChatScreenInner = ({ navigation, route, embedded }) => {
     <View style={{ flex: 1 }}>
       {isMerged && !embedded ? <TopNavBar brandLabel="Mada Bien-être" /> : null}
 
-      <ChatRoomView navigation={navigation} route={route} />
+      <MessengerChatScreen navigation={navigation} route={route} />
     </View>
   );
 };

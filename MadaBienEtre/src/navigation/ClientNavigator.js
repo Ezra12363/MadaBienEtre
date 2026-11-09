@@ -44,6 +44,8 @@ import ProfileScreen from '../screens/client/ProfileScreen';
 import NotificationScreen from '../screens/client/NotificationScreen';
 import ChatScreen from '../screens/client/ChatScreen';
 import ConversationsScreen from '../screens/shared/ConversationsScreen';
+import MessengerListScreen from '../screens/shared/MessengerListScreen';
+import { messengerScreens } from './MessengerStack';
 import PaymentScreen from '../screens/client/PaymentScreen';
 import RatingScreen from '../screens/client/RatingScreen';
 import MyReviewsScreen from '../screens/client/MyReviewsScreen';
@@ -353,8 +355,15 @@ const ChatStack = () => {
 
   return (
     <Stack.Navigator screenOptions={screenOptions}>
+      {/* ✅ Messagerie complète (privé / groupes / annonces / appels).
+          Les anciens chats par réservation restent accessibles via « BookingConversations ». */}
       <Stack.Screen
         name="ChatList"
+        component={MessengerListScreen}
+      />
+      {messengerScreens(Stack, { withLegacy: false })}
+      <Stack.Screen
+        name="BookingConversations"
         component={ConversationsScreen}
       />
 

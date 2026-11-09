@@ -241,7 +241,25 @@ def _save_message(
     db.add(row)
     db.commit()
     db.refresh(row)
+    _link_to_conversation(db, booking, row)
     return row
+
+
+def _link_to_conversation(db: Session, booking: Booking, row: ChatMessage) -> None:
+    """Rattache le message à la conversation de la réservation (messagerie complète),
+    sans changer le comportement de ce chat. Jamais bloquant."""
+    try:
+        from ..services import messenger_service as msgr  # import tardif : évite un cycle
+
+        conv = msgr.ensure_booking_conversation(db, booking)
+        if conv is not None and row.conversation_id is None:
+            row.conversation_id = conv.id
+            conv.last_message_id = row.id
+            conv.last_message_at = row.created_at
+            db.commit()
+    except Exception:  # noqa: BLE001
+        db.rollback()
+        logger.exception("Chat : rattachement à la conversation impossible")
 
 
 def _ws_payload(row: ChatMessage, sender: User) -> Dict[str, Any]:

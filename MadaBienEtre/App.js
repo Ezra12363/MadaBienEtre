@@ -14,6 +14,7 @@ import { ThemeProvider } from './src/context/ThemeContext';
 import { NotificationProvider } from './src/context/NotificationContext'; // ✅ Import tsara
 import { BookingProvider } from './src/context/BookingContext';
 import { UserProvider } from './src/context/UserContext';
+import { MessengerProvider } from './src/context/MessengerContext';
 
 // Navigation
 import RootNavigator from './src/navigation/RootNavigator';
@@ -64,10 +65,12 @@ export default function App() {
             <UserProvider>
               <BookingProvider>
                 <NotificationProvider>
-                  <NavigationContainer>
-                    <StatusBar style="auto" />
-                    <RootNavigator />
-                  </NavigationContainer>
+                  <MessengerProvider>
+                    <NavigationContainer>
+                      <StatusBar style="auto" />
+                      <RootNavigator />
+                    </NavigationContainer>
+                  </MessengerProvider>
                 </NotificationProvider>
               </BookingProvider>
             </UserProvider>

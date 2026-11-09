@@ -16,6 +16,11 @@ from .availability import TherapistAvailability, BlockedDate, BookingSlot
 from .session import MassageSession
 from .therapist_certificate import TherapistCertificate
 from .finance import PlatformSetting, CommissionPayment, StripeCustomer, PaymentCard
+from .messenger import (
+    MessengerConversation, MessengerMember, MessengerMessage, MessengerReaction,
+    MessengerHidden, MessengerCall, MessengerBlock, MessengerReport,
+    MessengerUserSticker, MessengerPresence,
+)
 
 __all__ = [
     'Base',
@@ -56,5 +61,15 @@ __all__ = [
     'PlatformSetting',
     'CommissionPayment',
     'StripeCustomer',
-    'PaymentCard'
+    'PaymentCard',
+    'MessengerConversation',
+    'MessengerMember',
+    'MessengerMessage',
+    'MessengerReaction',
+    'MessengerHidden',
+    'MessengerCall',
+    'MessengerBlock',
+    'MessengerReport',
+    'MessengerUserSticker',
+    'MessengerPresence',
 ]

@@ -1,6 +1,16 @@
 // app.config.js
 import appJson from "./app.json";
 
+// Plugin facultatif : ignoré tant que le paquet n'est pas installé.
+const optionalPlugin = (name, options) => {
+  try {
+    require.resolve(name);
+    return options ? [name, options] : name;
+  } catch (_e) {
+    return null;
+  }
+};
+
 export default ({ config }) => {
   return {
     ...appJson.expo,
@@ -12,7 +22,6 @@ export default ({ config }) => {
     ios: {
       ...appJson.expo.ios,
       ...config.ios,
-      usesAppleSignIn: true, // Sign in with Apple
       config: {
         ...appJson.expo.ios?.config,
         ...config.ios?.config,
@@ -35,7 +44,14 @@ export default ({ config }) => {
     plugins: [
       ...(appJson.expo.plugins || []),
       "expo-notifications",
-      "expo-apple-authentication",
+      // 🎤 Messages vocaux (expo-audio)
+      optionalPlugin("expo-audio", {
+        microphonePermission: "Mada Bien-être utilise le microphone pour vos messages vocaux et appels.",
+      }),
+      // 📞 Appels vocaux WebRTC (development build requis)
+      optionalPlugin("@config-plugins/react-native-webrtc", {
+        microphonePermission: "Mada Bien-être utilise le microphone pour vos appels vocaux.",
+      }),
       // ✅ Stripe : formulaire de carte intégré (CardField) sur Android / iOS
       // ⚠️ Doit être un tableau AVEC un objet d'options (la forme "chaîne seule" fait planter le plugin :
       // « Cannot read properties of undefined (reading 'merchantIdentifier') »).
@@ -53,19 +69,16 @@ export default ({ config }) => {
           iosGoogleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY_IOS,
         },
       ],
-    ],
+    ].filter(Boolean),
 
     extra: {
       ...appJson.expo.extra,
       googleMapsApiKeyAndroid: process.env.GOOGLE_MAPS_API_KEY_ANDROID,
       googleMapsApiKeyIos: process.env.GOOGLE_MAPS_API_KEY_IOS,
       googleMapsApiKeyWeb: process.env.GOOGLE_MAPS_API_KEY_WEB,
-      googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID,
-      googleAndroidClientId: process.env.GOOGLE_ANDROID_CLIENT_ID,
-      googleIosClientId: process.env.GOOGLE_IOS_CLIENT_ID,
       eas: {
         projectId: "07021e9f-ca4c-41b3-94de-373a5d5a6bc7",
       },
     },
   };
-};
+};
