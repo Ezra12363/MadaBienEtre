@@ -1,6 +1,7 @@
 // src/screens/shared/GroupInfoScreen.js
 // Infos d'un groupe / canal : nom, photo, membres, rôles, réglages.
 // Administrateurs : renommer, photo, mode annonces, ajouter / retirer.
+// ✏️ Propriétaire (client / thérapeute) : renommer, photo, ajouter / retirer, supprimer son groupe.
 // Membres : voir la liste, quitter le groupe.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -63,6 +64,7 @@ const GroupInfoScreen = ({ navigation, route }) => {
   }, [adding, q, detail]);
 
   const manage = detail?.can_manage;
+  const configure = detail?.can_configure; // ✏️ NOUVEAU : annonces / écriture des membres = admin seulement
   const run = async (promise, okMsg) => {
     const res = await promise;
     if (!res.success) notifyInfo('Groupe', res.error); else { if (okMsg) notifyInfo('Groupe', okMsg); load(); }
@@ -111,7 +113,7 @@ const GroupInfoScreen = ({ navigation, route }) => {
           <Text style={{ color: palette.textSecondary }}>{detail.member_count} membres</Text>
         </View>
 
-        {manage && (
+        {configure && ( // ✏️ MODIFIÉ : était {manage &&}
           <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
             <View style={styles.switchRow}>
               <View style={{ flex: 1 }}>

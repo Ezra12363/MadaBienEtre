@@ -18,6 +18,8 @@ import messengerService from '../../services/messengerService';
 import { notifyInfo, resolvePhotoUrl } from '../../utils/chatUi';
 import { isAdminUser, roleLabel } from '../../utils/messengerUtils';
 
+const MAX_USER_GROUP_MEMBERS = 50; // ✏️ NOUVEAU : même limite que le backend (perm.MAX_USER_GROUP_MEMBERS)
+
 const AUDIENCES = [
   ['clients', 'Clients', ['CLIENT']],
   ['therapists', 'Thérapeutes', ['THERAPIST']],
@@ -61,12 +63,14 @@ const MessengerNewScreen = ({ navigation }) => {
   };
 
   const createGroup = async () => {
+    if (saving) return; // ✏️ évite le double envoi
     if (title.trim().length < 2) return notifyInfo('Groupe', 'Donnez un nom au groupe (2 caractères minimum).');
-    setSaving(true);
-    if (!admin && picked.length < 1) {
-      setSaving(false);
-      return notifyInfo('Groupe', 'Choisissez au moins un membre.');
+    // ✏️ MODIFIÉ : validations faites AVANT setSaving (sinon le bouton restait bloqué)
+    if (!admin && picked.length < 1) return notifyInfo('Groupe', 'Choisissez au moins un membre.');
+    if (!admin && picked.length + 1 > MAX_USER_GROUP_MEMBERS) {
+      return notifyInfo('Groupe', `Un groupe est limité à ${MAX_USER_GROUP_MEMBERS} membres.`);
     }
+    setSaving(true);
     const roles = admin && everyone ? (AUDIENCES.find((a) => a[0] === audience)?.[2] || []) : [];
     const res = await messengerService.createGroup(
       admin
@@ -125,6 +129,11 @@ const MessengerNewScreen = ({ navigation }) => {
             </View>
           )}
           <Text style={[styles.label, { color: palette.textSecondary }]}>{admin ? 'Membres supplémentaires' : 'Membres'} ({picked.length})</Text>
+          {!admin && ( // ✏️ NOUVEAU : explication pour client / thérapeute
+            <Text style={{ color: palette.textSecondary, fontSize: 12, marginHorizontal: 2, marginBottom: 4 }}>
+              Vous pouvez ajouter les personnes avec qui vous avez une réservation, ainsi que l'administration.
+            </Text>
+          )}
         </View>
       )}
 

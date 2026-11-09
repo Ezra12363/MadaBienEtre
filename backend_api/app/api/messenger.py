@@ -100,8 +100,8 @@ class GroupCreate(BaseModel):
     title: str = Field(..., min_length=2, max_length=150)
     type: str = Field("group", pattern="^(group|announcement)$")
     audience: Optional[str] = None
-    member_ids: List[int] = []
-    add_roles: List[str] = []
+    member_ids: List[int] = Field(default_factory=list, max_length=5000)  # ✏️ borne ajoutée
+    add_roles: List[str] = Field(default_factory=list, max_length=5)      # ✏️ borne ajoutée
     members_can_chat: bool = True
     description: Optional[str] = Field(None, max_length=500)
 
@@ -435,7 +435,10 @@ def unblock(user_id: int, me: User = Depends(get_current_user), db: Session = De
 
 
 # ---------------------------------------------------------------------------
-# Groupes / annonces (administrateurs)
+# Groupes / annonces
+# ✏️ MODIFIÉ : création ouverte aux clients et thérapeutes (groupe de discussion
+# uniquement) ; canaux d'annonces, audiences et rôles restent réservés aux admins.
+# Toutes les règles sont vérifiées dans services/messenger_groups.py.
 # ---------------------------------------------------------------------------
 @router.post("/groups")
 async def create_group(body: GroupCreate, me: User = Depends(get_current_user), db: Session = Depends(get_db)):

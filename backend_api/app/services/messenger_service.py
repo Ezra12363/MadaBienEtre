@@ -486,6 +486,8 @@ def conversation_detail(db: Session, me: User, conv: MessengerConversation, memb
         "cannot_post_reason": None if can_post else why,
         "can_call": bool(can_call),
         "can_manage": perm.can_manage_group(me, conv),
+        # ✏️ NOUVEAU : réglages avancés (annonces, écriture des membres) = admin seulement
+        "can_configure": bool(perm.can_manage_group(me, conv) and perm.is_admin(me)),
         "can_pin": perm.can_pin(me, conv),
         "blocked_by_me": bool(peer and perm.blocked_by_me(db, me.id, peer.id)),
         "my_role": member.role,

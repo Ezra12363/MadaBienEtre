@@ -216,8 +216,42 @@ def can_pin(user: User, conv: MessengerConversation) -> bool:
     return True if conv.type in PAIR_TYPES else is_admin(user)
 
 
-def can_manage_group(user: User, conv: MessengerConversation) -> bool:
-    return conv.type in ("group", "announcement") and is_admin(user)
+# ✏️ MODIFIÉ ──────────────────────────────────────────────────────────────
+# Avant : seul l'ADMIN pouvait créer / gérer un groupe → un client ou un
+# thérapeute recevait « Action réservée aux administrateurs. »
+# Maintenant :
+#   • ADMIN                → peut tout faire (groupes + canaux d'annonces)
+#   • CLIENT / THÉRAPEUTE  → peut créer un groupe de discussion et le gérer
+#                            (renommer, photo, ajouter / retirer, supprimer)
+#                            UNIQUEMENT s'il en est le propriétaire.
+#   • Canal d'annonces, audience, rôles : réservés à l'ADMIN.
+MAX_USER_GROUP_MEMBERS = 50      # ✏️ limite de membres pour un groupe créé par un client / thérapeute
+MAX_USER_OWNED_GROUPS = 20       # ✏️ limite de groupes créés par un même utilisateur (anti-spam)
+GROUP_CREATOR_ROLES = ("ADMIN", "CLIENT", "THERAPIST")  # ✏️
+
+
+def can_create_group(user: User) -> bool:  # ✏️ NOUVEAU
+    """Qui a le droit de créer un groupe : admin, client, thérapeute (compte actif)."""
+    if not getattr(user, "is_active", False) or getattr(user, "deleted_at", None) is not None:
+        return False
+    return role_of(user) in GROUP_CREATOR_ROLES
+
+
+def is_group_owner(user: User, conv: MessengerConversation) -> bool:  # ✏️ NOUVEAU
+    """Propriétaire = créateur du groupe, encore membre actif avec le rôle « owner »."""
+    return any(
+        m.user_id == user.id and m.left_at is None and m.role == "owner"
+        for m in conv.members
+    )
+
+
+def can_manage_group(user: User, conv: MessengerConversation) -> bool:  # ✏️ MODIFIÉ
+    if conv.type not in ("group", "announcement"):
+        return False
+    if is_admin(user):
+        return True
+    # Un non-admin ne gère que SON groupe de discussion (jamais un canal d'annonces).
+    return conv.type == "group" and is_group_owner(user, conv)
 
 
 def audience_allows(audience: Optional[str], user: User) -> bool:
