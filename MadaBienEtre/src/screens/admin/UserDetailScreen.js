@@ -29,6 +29,9 @@ import adminService from '../../services/adminService';
 import AdminUserAddressModal from '../../components/admin/AdminUserAddressModal';
 import AdminSpecialtiesManager from '../../components/admin/AdminSpecialtiesManager';
 import { normalizeMediaUrl } from '../../utils/mediaUrl';
+import PhoneInput from '../../components/common/PhoneInput';
+import { maskFullname, maskEmail, isValidEmail } from '../../utils/inputMasks';
+import { validatePhoneNumber, formatE164ForDisplay } from '../../utils/phone';
 import {
   IS_WEB,
   ActionButton,
@@ -80,7 +83,7 @@ const getVerification = (status) => {
 ============================================================ */
 
 const UserDetailScreen = ({ navigation, route }) => {
-  const { colors: themeColors } = useTheme();
+  const { colors: themeColors, isDark } = useTheme();
 
   const initialUser = route?.params?.user || null;
   const userId = route?.params?.userId ?? initialUser?.id;
@@ -228,13 +231,30 @@ const UserDetailScreen = ({ navigation, route }) => {
   const handleUpdateUser = async () => {
     if (!user?.id) return;
 
+    // Validation du formulaire (nom, email, téléphone international)
+    const nextName = String(editData.fullname || '').trim();
+    const nextEmail = String(editData.email || '').trim().toLowerCase();
+    if (nextName.length < 2) {
+      showToast('Le nom complet doit contenir au moins 2 caractères.', 'error');
+      return;
+    }
+    if (!isValidEmail(nextEmail)) {
+      showToast("L'adresse email n'est pas valide.", 'error');
+      return;
+    }
+    const phoneError = validatePhoneNumber(editData.phone);
+    if (phoneError) {
+      showToast(phoneError, 'error');
+      return;
+    }
+
     setSaving(true);
 
     try {
       await adminService.updateUser(user.id, {
-        fullname: editData.fullname || user.fullname,
-        email: editData.email || user.email,
-        phone: editData.phone || user.phone,
+        fullname: nextName,
+        email: nextEmail,
+        phone: editData.phone,
         bio: editData.bio || user.bio,
       });
 
@@ -463,30 +483,32 @@ const UserDetailScreen = ({ navigation, route }) => {
       <TextInput
         style={inputStyle}
         value={editData.fullname}
-        onChangeText={(text) => setEditData((prev) => ({ ...prev, fullname: text }))}
+        onChangeText={(text) => setEditData((prev) => ({ ...prev, fullname: maskFullname(text) }))}
         placeholder="Nom complet"
         placeholderTextColor={themeColors.textSecondary}
+        autoCapitalize="words"
+        maxLength={100}
       />
 
       <Text style={[styles.label, { color: themeColors.textSecondary }]}>Email *</Text>
       <TextInput
         style={inputStyle}
         value={editData.email}
-        onChangeText={(text) => setEditData((prev) => ({ ...prev, email: text }))}
-        placeholder="Email"
+        onChangeText={(text) => setEditData((prev) => ({ ...prev, email: maskEmail(text) }))}
+        placeholder="exemple@email.com"
         placeholderTextColor={themeColors.textSecondary}
         keyboardType="email-address"
         autoCapitalize="none"
+        autoCorrect={false}
       />
 
       <Text style={[styles.label, { color: themeColors.textSecondary }]}>Téléphone *</Text>
-      <TextInput
-        style={inputStyle}
+      <PhoneInput
+        variant="admin"
+        isDark={isDark}
+        themeColors={themeColors}
         value={editData.phone}
-        onChangeText={(text) => setEditData((prev) => ({ ...prev, phone: text }))}
-        placeholder="Téléphone"
-        placeholderTextColor={themeColors.textSecondary}
-        keyboardType="phone-pad"
+        onChange={(phone) => setEditData((prev) => ({ ...prev, phone }))}
       />
 
       {isTherapist ? (
@@ -531,7 +553,7 @@ const UserDetailScreen = ({ navigation, route }) => {
     <>
       <DetailCard title="Informations générales" icon="person-outline">
         <InfoGrid>
-          <InfoItem icon="call-outline" label="Téléphone" value={user.phone || 'N/A'} />
+          <InfoItem icon="call-outline" label="Téléphone" value={user.phone ? formatE164ForDisplay(user.phone) : 'N/A'} />
           <InfoItem icon="shield-checkmark-outline" label="Rôle" value={getRoleLabel(user.role)} valueColor={roleColor} />
           <InfoItem
             icon="pulse-outline"

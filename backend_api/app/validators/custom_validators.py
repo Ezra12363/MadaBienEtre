@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional, List, Dict, Any
 import re
 
@@ -69,6 +70,8 @@ def validate_phone_provider(phone: str) -> str:
 
 def validate_booking_slot(booking_id: int, therapist_id: int, date: datetime, db) -> bool:
     """Valider qu'un créneau est disponible"""
+    from ..models.booking import Booking  # import local : évite les imports circulaires
+
     # Vérifier les conflits
     existing_bookings = db.query(Booking).filter(
         Booking.therapist_id == therapist_id,

@@ -21,6 +21,7 @@ from ..core.security import (
 )
 from ..core.dependencies import get_current_user, get_current_active_user
 from ..models.user import User
+from ..validators.phone import phone_variants
 from ..schemas.auth import (
     RegisterRequest, 
     LoginRequest, 
@@ -97,7 +98,7 @@ async def register(user_data: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     # Vérifier si téléphone existe déjà
-    existing_phone = db.query(User).filter(User.phone == user_data.phone).first()
+    existing_phone = db.query(User).filter(User.phone.in_(phone_variants(user_data.phone))).first()
     if existing_phone:
         raise HTTPException(status_code=400, detail="Phone number already registered")
     
@@ -522,5 +523,5 @@ async def check_email(email: str, db: Session = Depends(get_db)):
 @router.get("/check-phone")
 async def check_phone(phone: str, db: Session = Depends(get_db)):
     """Vérifier si un numéro de téléphone est déjà utilisé"""
-    user = db.query(User).filter(User.phone == phone).first()
+    user = db.query(User).filter(User.phone.in_(phone_variants(phone))).first()
     return {"exists": user is not None}

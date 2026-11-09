@@ -3,6 +3,7 @@ from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List
 from datetime import datetime
 import re
+from ..validators.phone import normalize_phone_input
 
 # ============================================================
 # SCHÉMAS DE BASE
@@ -11,16 +12,13 @@ import re
 class UserBase(BaseModel):
     fullname: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
-    phone: str = Field(..., pattern=r'^(\+261|0)[0-9]{9}$')
+    phone: str = Field(..., min_length=8, max_length=25)
     role: Optional[str] = "CLIENT"
 
     @validator('phone')
     def validate_phone(cls, v):
-        if v:
-            v = re.sub(r'[\s\-]', '', v)
-            if not re.match(r'^(\+261|0)[0-9]{9}$', v):
-                raise ValueError('Format de téléphone invalide')
-        return v
+        # Numéro malgache (034…, +261…) ou international (+33…) — nettoyé et validé
+        return normalize_phone_input(v)
 
 
 class UserCreate(UserBase):
@@ -39,7 +37,7 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     fullname: Optional[str] = Field(None, min_length=2, max_length=100)
     email: Optional[EmailStr] = None
-    phone: Optional[str] = Field(None, pattern=r'^(\+261|0)[0-9]{9}$')
+    phone: Optional[str] = Field(None, max_length=25)
     profile_image: Optional[str] = None
     bio: Optional[str] = Field(None, max_length=500)
     experience_years: Optional[int] = Field(None, ge=0, le=50)
@@ -55,11 +53,8 @@ class UserUpdate(BaseModel):
 
     @validator('phone')
     def validate_phone(cls, v):
-        if v:
-            v = re.sub(r'[\s\-]', '', v)
-            if not re.match(r'^(\+261|0)[0-9]{9}$', v):
-                raise ValueError('Format de téléphone invalide')
-        return v
+        # Numéro malgache (034…, +261…) ou international (+33…) — nettoyé et validé
+        return normalize_phone_input(v)
 
 
 # ============================================================
@@ -68,7 +63,7 @@ class UserUpdate(BaseModel):
 class UserProfileUpdate(BaseModel):
     fullname: Optional[str] = Field(None, min_length=2, max_length=100)
     email: Optional[EmailStr] = None
-    phone: Optional[str] = Field(None, pattern=r'^(\+261|0)[0-9]{9}$')
+    phone: Optional[str] = Field(None, max_length=25)
     bio: Optional[str] = Field(None, max_length=500)
     profile_image: Optional[str] = None
     experience_years: Optional[int] = Field(None, ge=0, le=50)
@@ -80,11 +75,8 @@ class UserProfileUpdate(BaseModel):
 
     @validator('phone')
     def validate_phone(cls, v):
-        if v:
-            v = re.sub(r'[\s\-]', '', v)
-            if not re.match(r'^(\+261|0)[0-9]{9}$', v):
-                raise ValueError('Format de téléphone invalide')
-        return v
+        # Numéro malgache (034…, +261…) ou international (+33…) — nettoyé et validé
+        return normalize_phone_input(v)
 
 
 class ChangePasswordRequest(BaseModel):

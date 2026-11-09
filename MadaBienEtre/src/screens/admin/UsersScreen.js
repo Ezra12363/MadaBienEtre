@@ -32,6 +32,10 @@ import { navigateToAdminDetail } from '../../components/admin/AdminDetailKit';
 import useResponsive from '../../hooks/useResponsive';
 import { API_URL } from '../../config/env';
 import { exportToExcel } from '../../utils/exportExcel';
+import PhoneInput from '../../components/common/PhoneInput';
+import PasswordInput from '../../components/common/PasswordInput';
+import { maskFullname, maskEmail, isValidEmail } from '../../utils/inputMasks';
+import { validatePhoneNumber } from '../../utils/phone';
 
 import { normalizeMediaUrl } from '../../utils/mediaUrl';
 const IS_WEB = Platform.OS === 'web';
@@ -94,6 +98,11 @@ const UsersScreen = () => {
     password: '',
     role: 'CLIENT',
   });
+
+  // Erreur affichée DANS la fenêtre de création (le toast de l'écran est
+  // masqué derrière la fenêtre modale) + état d'envoi.
+  const [createError, setCreateError] = useState('');
+  const [creating, setCreating] = useState(false);
 
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -637,39 +646,102 @@ const UsersScreen = () => {
      CRÉER UN UTILISATEUR
   ========================================================== */
 
+  const resetCreateForm = () => {
+    setCreateData({
+      fullname: '',
+      email: '',
+      phone: '',
+      password: '',
+      role: 'CLIENT',
+    });
+    setCreateError('');
+  };
+
+  const closeCreateModal = () => {
+    if (creating) return;
+    setShowCreateModal(false);
+    resetCreateForm();
+  };
+
+  // Message lisible renvoyé par le backend (detail texte ou liste 422)
+  const getApiErrorMessage = (error) => {
+    const detail = error?.response?.data?.detail;
+    if (Array.isArray(detail)) {
+      const joined = detail
+        .map((d) => d?.msg || d?.message)
+        .filter(Boolean)
+        .join(' · ');
+      if (joined) return joined;
+    }
+    if (typeof detail === 'string' && detail) return detail;
+    if (!error?.response) {
+      return 'Impossible de contacter le serveur. Vérifiez votre connexion.';
+    }
+    return error?.message || 'Une erreur est survenue';
+  };
+
   const handleCreateUser = async () => {
+    if (creating) return;
+
+    const fullname = createData.fullname.trim();
+    const email = createData.email.trim().toLowerCase();
+    const phone = createData.phone; // déjà au format international (+261341234567)
+    const password = createData.password;
+
+    if (!fullname || !email || !phone || !password) {
+      setCreateError('Veuillez remplir tous les champs.');
+      return;
+    }
+
+    if (fullname.length < 2) {
+      setCreateError('Le nom complet doit contenir au moins 2 caractères.');
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      setCreateError("L'adresse email n'est pas valide.");
+      return;
+    }
+
+    const phoneError = validatePhoneNumber(phone);
+    if (phoneError) {
+      setCreateError(phoneError);
+      return;
+    }
+
+    if (password.length < 8) {
+      setCreateError('Le mot de passe doit contenir au moins 8 caractères.');
+      return;
+    }
+
+    setCreateError('');
+    setCreating(true);
+
     try {
-      if (!createData.fullname || !createData.email || !createData.phone || !createData.password) {
-        showToast('Veuillez remplir tous les champs', 'error');
-        return;
-      }
-
-      if (createData.password.length < 8) {
-        showToast('Le mot de passe doit contenir au moins 8 caractères', 'error');
-        return;
-      }
-
-      const newUser = {
-        fullname: createData.fullname,
-        email: createData.email,
-        phone: createData.phone,
-        password: createData.password,
+      await adminService.createUser({
+        fullname,
+        email,
+        phone,
+        password,
         role: createData.role,
-      };
-
-      await adminService.createUser(newUser);
-      setShowCreateModal(false);
-      setCreateData({
-        fullname: '',
-        email: '',
-        phone: '',
-        password: '',
-        role: 'CLIENT',
       });
+
+      const createdRole = createData.role;
+
+      setShowCreateModal(false);
+      resetCreateForm();
       await loadUsers();
-      showToast('Utilisateur créé avec succès', 'success');
+
+      showToast(
+        createdRole === 'ADMIN'
+          ? 'Compte administrateur créé avec succès'
+          : 'Utilisateur créé avec succès',
+        'success'
+      );
     } catch (error) {
-      showToast(`Impossible de créer l'utilisateur: ${error.message}`, 'error');
+      setCreateError(getApiErrorMessage(error));
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -1697,7 +1769,10 @@ const UsersScreen = () => {
                     marginRight: 8,
                   },
                 ]}
-                onPress={() => setShowCreateModal(true)}
+                onPress={() => {
+                  resetCreateForm();
+                  setShowCreateModal(true);
+                }}
               >
                 <Ionicons name="add" size={18} color="#fff" />
                 {IS_WEB && <Text style={[styles.actionButtonText, { color: '#fff' }]}>Ajouter</Text>}
@@ -2016,7 +2091,7 @@ const UsersScreen = () => {
           visible={showCreateModal}
           transparent
           animationType={IS_WEB ? 'fade' : 'slide'}
-          onRequestClose={() => setShowCreateModal(false)}
+          onRequestClose={closeCreateModal}
           statusBarTranslucent={!IS_WEB}
         >
           <KeyboardAvoidingView
@@ -2066,7 +2141,7 @@ const UsersScreen = () => {
                 </View>
 
                 <TouchableOpacity
-                  onPress={() => setShowCreateModal(false)}
+                  onPress={closeCreateModal}
                   style={[
                     styles.modalCloseButton,
                     {
@@ -2088,6 +2163,13 @@ const UsersScreen = () => {
                 keyboardShouldPersistTaps="handled"
               >
                 <View style={styles.createForm}>
+                  {createError ? (
+                    <View style={styles.createErrorBox}>
+                      <Ionicons name="alert-circle" size={18} color="#C62828" />
+                      <Text style={styles.createErrorText}>{createError}</Text>
+                    </View>
+                  ) : null}
+
                   <View style={styles.editField}>
                     <Text
                       style={[
@@ -2108,9 +2190,13 @@ const UsersScreen = () => {
                         },
                       ]}
                       value={createData.fullname}
-                      onChangeText={(text) => setCreateData({ ...createData, fullname: text })}
+                      onChangeText={(text) =>
+                        setCreateData({ ...createData, fullname: maskFullname(text) })
+                      }
                       placeholder="Nom complet"
                       placeholderTextColor={themeColors.textSecondary}
+                      autoCapitalize="words"
+                      maxLength={100}
                     />
                   </View>
 
@@ -2134,11 +2220,15 @@ const UsersScreen = () => {
                         },
                       ]}
                       value={createData.email}
-                      onChangeText={(text) => setCreateData({ ...createData, email: text })}
-                      placeholder="Email"
+                      onChangeText={(text) =>
+                        setCreateData({ ...createData, email: maskEmail(text) })
+                      }
+                      placeholder="exemple@email.com"
                       placeholderTextColor={themeColors.textSecondary}
                       keyboardType="email-address"
                       autoCapitalize="none"
+                      autoCorrect={false}
+                      autoComplete="off"
                     />
                   </View>
 
@@ -2153,19 +2243,12 @@ const UsersScreen = () => {
                     >
                       Téléphone *
                     </Text>
-                    <TextInput
-                      style={[
-                        styles.editInput,
-                        {
-                          color: themeColors.text,
-                          borderColor: themeColors.border || '#E0E0E0',
-                        },
-                      ]}
+                    <PhoneInput
+                      variant="admin"
+                      isDark={isDark}
+                      themeColors={themeColors}
                       value={createData.phone}
-                      onChangeText={(text) => setCreateData({ ...createData, phone: text })}
-                      placeholder="0321234567"
-                      placeholderTextColor={themeColors.textSecondary}
-                      keyboardType="phone-pad"
+                      onChange={(phone) => setCreateData((prev) => ({ ...prev, phone }))}
                     />
                   </View>
 
@@ -2180,19 +2263,12 @@ const UsersScreen = () => {
                     >
                       Mot de passe *
                     </Text>
-                    <TextInput
-                      style={[
-                        styles.editInput,
-                        {
-                          color: themeColors.text,
-                          borderColor: themeColors.border || '#E0E0E0',
-                        },
-                      ]}
+                    <PasswordInput
+                      isDark={isDark}
+                      themeColors={themeColors}
                       value={createData.password}
-                      onChangeText={(text) => setCreateData({ ...createData, password: text })}
+                      onChangeText={(text) => setCreateData((prev) => ({ ...prev, password: text }))}
                       placeholder="Minimum 8 caractères"
-                      placeholderTextColor={themeColors.textSecondary}
-                      secureTextEntry
                     />
                   </View>
 
@@ -2246,22 +2322,44 @@ const UsersScreen = () => {
                         </TouchableOpacity>
                       ))}
                     </View>
+
+                    {createData.role === 'ADMIN' ? (
+                      <View style={styles.createAdminNotice}>
+                        <Ionicons name="shield-checkmark-outline" size={16} color="#D32F2F" />
+                        <Text style={styles.createAdminNoticeText}>
+                          Ce compte aura un accès administrateur complet. Il sera actif
+                          immédiatement et l'email de connexion lui sera envoyé.
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
 
                   <View style={styles.editActions}>
                     <TouchableOpacity
                       style={[styles.editButton, styles.editButtonCancel]}
-                      onPress={() => setShowCreateModal(false)}
+                      onPress={closeCreateModal}
+                      disabled={creating}
                     >
                       <Text style={[styles.editButtonText, { color: '#333' }]}>Annuler</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={[styles.editButton, styles.editButtonSave]}
+                      style={[
+                        styles.editButton,
+                        styles.editButtonSave,
+                        creating && { opacity: 0.7 },
+                      ]}
                       onPress={handleCreateUser}
+                      disabled={creating}
                     >
-                      <Ionicons name="person-add-outline" size={18} color="#fff" />
-                      <Text style={[styles.editButtonText, { color: '#fff' }]}>Créer</Text>
+                      {creating ? (
+                        <ActivityIndicator size="small" color="#fff" />
+                      ) : (
+                        <>
+                          <Ionicons name="person-add-outline" size={18} color="#fff" />
+                          <Text style={[styles.editButtonText, { color: '#fff' }]}>Créer</Text>
+                        </>
+                      )}
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -3308,6 +3406,42 @@ const styles = StyleSheet.create({
 
   createForm: {
     marginTop: 4,
+  },
+
+  createErrorBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: 12,
+    marginBottom: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F5B5B5',
+    backgroundColor: '#FDECEC',
+  },
+
+  createErrorText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#B71C1C',
+  },
+
+  createAdminNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#FDECEC',
+  },
+
+  createAdminNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#B71C1C',
   },
 
   editField: {

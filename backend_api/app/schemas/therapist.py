@@ -1,12 +1,18 @@
 # app/schemas/therapist.py
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
+from ..validators.phone import normalize_phone_input
 from typing import Optional, List
 from datetime import datetime
 
 class TherapistBase(BaseModel):
     fullname: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
-    phone: str = Field(..., pattern=r'^(\+261|0)[0-9]{9}$')
+    phone: str = Field(..., min_length=8, max_length=25)
+
+    @field_validator('phone')
+    def validate_phone(cls, v):
+        return normalize_phone_input(v)
+
     bio: Optional[str] = Field(None, max_length=1000)
     experience_years: int = Field(0, ge=0, le=50)
     base_price: Optional[float] = Field(None, ge=0)
@@ -20,7 +26,7 @@ class TherapistCreate(TherapistBase):
 class TherapistUpdate(BaseModel):
     fullname: Optional[str] = Field(None, min_length=2, max_length=100)
     email: Optional[EmailStr] = None
-    phone: Optional[str] = Field(None, pattern=r'^(\+261|0)[0-9]{9}$')
+    phone: Optional[str] = Field(None, max_length=25)
     bio: Optional[str] = Field(None, max_length=1000)
     experience_years: Optional[int] = Field(None, ge=0, le=50)
     base_price: Optional[float] = Field(None, ge=0)
@@ -30,6 +36,10 @@ class TherapistUpdate(BaseModel):
     profile_image: Optional[str] = None
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
+
+    @field_validator('phone')
+    def validate_phone(cls, v):
+        return normalize_phone_input(v)
 
 class TherapistResponse(TherapistBase):
     id: int

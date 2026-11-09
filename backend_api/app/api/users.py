@@ -15,6 +15,7 @@ from sqlalchemy import func, or_
 from datetime import datetime, timedelta
 from typing import Optional, List
 import logging
+from types import SimpleNamespace
 
 import os
 from pathlib import Path
@@ -58,10 +59,12 @@ from ..services.account_notifications import (
     notify_account_activated,
     notify_account_created_by_admin,
     notify_account_deactivated,
+    notify_account_deleted,
     notify_account_updated,
     notify_password_reset,
 )
 from ..services.user_purge import purge_user, remove_certificate_files
+from ..validators.phone import phone_variants
 from ..core.security import get_password_hash, verify_password, generate_secure_token
 from ..core.config import settings
 
@@ -212,10 +215,21 @@ async def create_user(
     current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Créer un nouvel utilisateur (Admin uniquement)"""
+    """Créer un nouvel utilisateur (Admin uniquement) : client, thérapeute ou ADMIN."""
     try:
+        # Rôle validé (CLIENT / THERAPIST / ADMIN) : un admin peut créer
+        # directement un autre compte administrateur.
+        role_value = str(user_data.role or "CLIENT").strip().upper()
+        if role_value not in ("CLIENT", "THERAPIST", "ADMIN"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Rôle invalide : choisissez Client, Thérapeute ou Admin.",
+            )
+
+        email_value = str(user_data.email).strip().lower()
+
         existing_email = db.query(User).filter(
-            User.email == user_data.email,
+            func.lower(User.email) == email_value,
             User.deleted_at.is_(None),
         ).first()
         if existing_email:
@@ -225,7 +239,7 @@ async def create_user(
             )
 
         existing_phone = db.query(User).filter(
-            User.phone == user_data.phone,
+            User.phone.in_(phone_variants(user_data.phone)),
             User.deleted_at.is_(None),
         ).first()
         if existing_phone:
@@ -237,15 +251,20 @@ async def create_user(
         hashed_password = get_password_hash(user_data.password)
 
         new_user = User(
-            fullname=user_data.fullname,
-            email=user_data.email,
+            fullname=user_data.fullname.strip(),
+            email=email_value,
             phone=user_data.phone,
             password=hashed_password,
-            role=user_data.role or "CLIENT",
+            role=role_value,
             is_active=True,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
         )
+
+        # Un administrateur n'a aucun dossier à faire valider : compte
+        # directement actif et « vérifié ».
+        if role_value == "ADMIN":
+            new_user.verification_status = "approved"
 
         db.add(new_user)
         db.commit()
@@ -257,7 +276,10 @@ async def create_user(
         )
 
         # ✉️ Email au propriétaire du compte : toutes les informations + mot de passe
-        notify_account_created_by_admin(new_user, user_data.password, admin=current_user)
+        try:
+            notify_account_created_by_admin(new_user, user_data.password, admin=current_user)
+        except Exception as notify_error:  # l'email ne doit jamais faire échouer la création
+            logger.warning(f"Email de création de compte non envoyé: {notify_error}")
 
         return new_user
 
@@ -345,6 +367,28 @@ async def update_user(
             )
 
         update_data = user_data.dict(exclude_unset=True)
+
+        # Unicité de l'email / du téléphone (message clair au lieu d'une erreur 500)
+        if update_data.get("email"):
+            update_data["email"] = str(update_data["email"]).strip().lower()
+            email_taken = db.query(User).filter(
+                func.lower(User.email) == update_data["email"],
+                User.id != user_id,
+                User.deleted_at.is_(None),
+            ).first()
+            if email_taken:
+                raise HTTPException(status_code=400, detail="Cet email est déjà utilisé")
+        if update_data.get("phone"):
+            phone_taken = db.query(User).filter(
+                User.phone.in_(phone_variants(update_data["phone"])),
+                User.id != user_id,
+                User.deleted_at.is_(None),
+            ).first()
+            if phone_taken:
+                raise HTTPException(status_code=400, detail="Ce numéro de téléphone est déjà utilisé")
+            # 034… et +261 34… = même numéro : ce n'est pas une modification
+            if user.phone and user.phone in phone_variants(update_data["phone"]):
+                update_data["phone"] = user.phone
 
         # ✉️ Modification faite PAR UN ADMIN sur le compte d'un autre : on garde
         # l'ancien état pour prévenir l'utilisateur de ce qui a changé.
@@ -434,6 +478,13 @@ async def delete_user(
                 detail="Vous ne pouvez pas supprimer votre propre compte",
             )
 
+        # Copie des informations AVANT la suppression : l'email de confirmation
+        # est envoyé une fois la suppression réussie (même pour un compte admin).
+        deleted_snapshot = SimpleNamespace(
+            id=user.id, fullname=user.fullname, email=user.email,
+            phone=user.phone, role=user.role,
+        )
+
         # --------------------------------------------------------
         # 3. SUPPRESSION DÉFINITIVE
         # --------------------------------------------------------
@@ -458,6 +509,8 @@ async def delete_user(
                 f"({len(certificate_files_to_delete)} certificat(s) supprimé(s))"
             )
 
+            notify_account_deleted(deleted_snapshot, admin=current_user, permanent=True)
+
             return {
                 "status": "success",
                 "status_code": 200,
@@ -480,6 +533,8 @@ async def delete_user(
             f"🗑️ Utilisateur {user_id} désactivé "
             f"(suppression logique) par {current_user.fullname}"
         )
+
+        notify_account_deleted(deleted_snapshot, admin=current_user, permanent=False)
 
         return {
             "status": "success",
@@ -988,9 +1043,14 @@ async def bulk_user_action(
 
         activated_users = []
         deactivated_users = []
+        deleted_snapshots = []
 
         for user in users:
             if request.action == "delete":
+                deleted_snapshots.append(SimpleNamespace(
+                    id=user.id, fullname=user.fullname, email=user.email,
+                    phone=user.phone, role=user.role,
+                ))
                 files_to_remove += purge_user(db, user)
                 processed += 1
                 continue
@@ -1021,6 +1081,8 @@ async def bulk_user_action(
             notify_account_activated(u, admin=current_user)
         for u in deactivated_users:
             notify_account_deactivated(u, admin=current_user, reason=request.reason)
+        for snap in deleted_snapshots:
+            notify_account_deleted(snap, admin=current_user, permanent=True)
 
         return {
             "message": f"Action '{request.action}' effectuée sur {processed} utilisateur(s)",

@@ -51,6 +51,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { typography } from '../../theme';
 import AppHeader from '../../components/common/AppHeader';
+import PhoneInput from '../../components/common/PhoneInput';
+import { maskFullname, maskEmail, isValidEmail, getPasswordRuleError } from '../../utils/inputMasks';
+import { validatePhoneNumber } from '../../utils/phone';
 
 // ============================================================
 // CONSTANTES
@@ -757,31 +760,20 @@ const RegisterScreen = ({ navigation }) => {
           return '';
 
         case 'email': {
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
           if (!clean.trim()) return "L'adresse email est requise.";
-          if (!emailRegex.test(clean.trim())) {
+          if (!isValidEmail(clean)) {
             return 'Veuillez saisir une adresse email valide.';
           }
           return '';
         }
 
-        case 'phone': {
-          const phone = clean.replace(/\s/g, '');
-
-          if (!phone) return 'Le numéro de téléphone est requis.';
-          if (!/^[0-9+()-]{8,15}$/.test(phone)) {
-            return 'Veuillez saisir un numéro de téléphone valide.';
-          }
-          return '';
-        }
+        case 'phone':
+          // Numéro international (E.164) : « +261341234567 », « +33612345678 »…
+          return validatePhoneNumber(clean);
 
         case 'password':
-          if (!clean) return 'Le mot de passe est requis.';
-          if (clean.length < 8) {
-            return 'Le mot de passe doit contenir au moins 8 caractères.';
-          }
-          return '';
+          // Mêmes règles que le serveur (sinon l'inscription échoue après l'envoi)
+          return getPasswordRuleError(clean);
 
         case 'confirmPassword':
           if (!clean) return 'Veuillez confirmer votre mot de passe.';
@@ -1096,7 +1088,7 @@ const RegisterScreen = ({ navigation }) => {
         label="Nom complet"
         icon="person-outline"
         value={formData.fullname}
-        onChangeText={text => updateField('fullname', text)}
+        onChangeText={text => updateField('fullname', maskFullname(text))}
         placeholder="Ex. Jean Rakoto"
         error={errors.fullname}
         onFocus={() => scrollToInput(fullnameRef)}
@@ -1113,7 +1105,7 @@ const RegisterScreen = ({ navigation }) => {
         label="Adresse email"
         icon="mail-outline"
         value={formData.email}
-        onChangeText={text => updateField('email', text)}
+        onChangeText={text => updateField('email', maskEmail(text))}
         placeholder="exemple@email.com"
         error={errors.email}
         onFocus={() => scrollToInput(emailRef)}
@@ -1127,23 +1119,46 @@ const RegisterScreen = ({ navigation }) => {
         onSubmitEditing={() => focusField(phoneRef)}
       />
 
-      <Field
-        inputRef={phoneRef}
-        label="Numéro de téléphone"
-        icon="call-outline"
-        value={formData.phone}
-        onChangeText={text => updateField('phone', text)}
-        placeholder="034 00 000 00"
-        error={errors.phone}
-        onFocus={() => scrollToInput(phoneRef)}
-        onBlur={() =>
-          validateField('phone', formData.phone)
-        }
-        isDark={isDark}
-        keyboardType="phone-pad"
-        returnKeyType="next"
-        onSubmitEditing={() => focusField(passwordRef)}
-      />
+      <View style={styles.fieldGroup}>
+        <View style={styles.fieldLabelRow}>
+          <Text
+            style={[
+              styles.fieldLabel,
+              { color: isDark ? '#E5E7EB' : '#1F2937' },
+            ]}
+          >
+            Numéro de téléphone
+          </Text>
+
+          {errors.phone ? (
+            <Ionicons name="alert-circle" size={14} color="#EF4444" />
+          ) : null}
+        </View>
+
+        <PhoneInput
+          variant="auth"
+          isDark={isDark}
+          inputRef={phoneRef}
+          value={formData.phone}
+          onChange={phone => updateField('phone', phone)}
+          error={errors.phone}
+          onFocus={() => scrollToInput(phoneRef)}
+          onBlur={() => validateField('phone', formData.phone)}
+          returnKeyType="next"
+          onSubmitEditing={() => focusField(passwordRef)}
+        />
+
+        {errors.phone ? (
+          <View style={styles.errorRow}>
+            <Ionicons
+              name="information-circle-outline"
+              size={12}
+              color="#EF4444"
+            />
+            <Text style={styles.errorText}>{errors.phone}</Text>
+          </View>
+        ) : null}
+      </View>
 
       <Field
         inputRef={passwordRef}

@@ -37,9 +37,10 @@ export const validators = {
     }
     return null;
   },
+  // Numéro malgache (034 12 345 67) ou international (+33 6 12 34 56 78)
   phone: (value) => {
-    const regex = /^(\+261|0)[0-9]{9}$/;
-    if (!regex.test(value)) {
+    const cleaned = String(value || '').replace(/[\s\-.()]/g, '');
+    if (!/^(0[0-9]{9}|\+[1-9][0-9]{7,14})$/.test(cleaned)) {
       return 'Numéro de téléphone invalide';
     }
     return null;

@@ -66,6 +66,20 @@ def _email_layout(
 
 def _profile_steps_html(user: User) -> str:
     """Consigne : se connecter puis compléter TOUT le profil (en français)."""
+    if str(user.role).upper() == "ADMIN":
+        items = [
+            "Photo de profil, nom et numéro de téléphone",
+            "Vérifiez que votre adresse email est correcte",
+        ]
+        lis = "".join(f"<li style='margin:3px 0'>{_e(i)}</li>" for i in items)
+        return (
+            "<p><strong>Pour commencer :</strong> connectez-vous à l'application avec votre adresse email "
+            "et votre mot de passe, puis ouvrez la page <strong>« Profil »</strong> et "
+            "<strong>renseignez soigneusement vos informations</strong> :</p>"
+            f"<ul style='padding-left:20px;margin:8px 0 14px'>{lis}</ul>"
+            "<p>Ce compte dispose d'un <strong>accès administrateur complet</strong> : "
+            "ne partagez jamais vos identifiants.</p>"
+        )
     if str(user.role).upper() == "THERAPIST":
         items = [
             "Photo de profil, nom et numéro de téléphone",
@@ -539,3 +553,44 @@ def notify_account_created_by_admin(
         "informations. Changez votre mot de passe dès la première connexion.\n\nMada Bien-être"
     )
     _in_background(send_email, user.email, "Mada Bien-être - Votre compte a été créé", body, text)
+
+
+# ------------------------------------------------------------
+# 9. SUPPRESSION par l'admin -> email (compte client, thérapeute OU admin)
+# ------------------------------------------------------------
+def notify_account_deleted(user: Any, admin: Optional[User] = None, permanent: bool = True) -> None:
+    """Email de confirmation de suppression.
+
+    `user` peut être une simple copie (SimpleNamespace avec fullname, email, phone, role)
+    prise AVANT la suppression : après une suppression définitive l'objet SQLAlchemy
+    n'est plus utilisable. Pas de notification dans l'application (le compte n'existe plus).
+    """
+    try:
+        email = getattr(user, "email", None)
+        if not email:
+            return
+        when = fmt_mg(datetime.utcnow())
+        admin_name = getattr(admin, "fullname", None) or "Un administrateur"
+
+        rows = _account_rows(user)
+        rows["Supprimé le"] = when
+        rows["Supprimé par"] = admin_name
+        rows["Statut du compte"] = "Supprimé définitivement" if permanent else "Supprimé"
+
+        body = _email_layout(
+            "Votre compte a été supprimé",
+            f"<p>Bonjour {_e(user.fullname)},</p>"
+            "<p>Nous vous informons que <strong>votre compte Mada Bien-être a été supprimé</strong> "
+            "par un administrateur. Vous ne pouvez plus vous connecter avec ces identifiants.</p>",
+            rows,
+            "<p>Si vous pensez qu'il s'agit d'une erreur, ou pour toute question, "
+            "contactez l'équipe Mada Bien-être.</p>",
+            alert=True,
+        )
+        text = (
+            f"Bonjour {user.fullname},\n\nVotre compte Mada Bien-être ({role_label(user.role)}) a été supprimé "
+            f"le {when} par {admin_name}.\n\nPour toute question, contactez l'équipe Mada Bien-être.\n\nMada Bien-être"
+        )
+        _in_background(send_email, email, "Mada Bien-être - Votre compte a été supprimé", body, text)
+    except Exception:  # noqa: BLE001
+        logger.exception("Email de suppression échoué (%s)", getattr(user, "email", None))

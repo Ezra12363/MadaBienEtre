@@ -2,6 +2,7 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator
 from typing import Optional
 import re
+from ..validators.phone import normalize_phone_input
 
 class LoginRequest(BaseModel):
     """Schéma pour la connexion - accepte email"""
@@ -30,9 +31,14 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     fullname: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
-    phone: str = Field(..., pattern=r'^(\+261|0)[0-9]{9}$')
+    phone: str = Field(..., min_length=8, max_length=25)
     password: str = Field(..., min_length=8)
     role: str = Field("CLIENT", pattern="^(CLIENT|THERAPIST)$")
+
+    @field_validator('phone')
+    def validate_phone(cls, v):
+        # Numéro malgache (034…, +261…) ou international (+33…)
+        return normalize_phone_input(v)
     
     @field_validator('password')
     def validate_password(cls, v):
