@@ -89,6 +89,13 @@ class PushNotificationService:
             db.close()
 
     # ----------------------------- envoi ----------------------------------
+    # Canaux Android « _v2 » (créés avec un son par l'application). Les anciens canaux
+    # (sans son) ne peuvent plus être modifiés sur les téléphones déjà installés.
+    @staticmethod
+    def _channel(channel_id: str) -> str:
+        cid = channel_id or "default"
+        return cid if cid.endswith("_v2") else f"{cid}_v2"
+
     def send_sync(self, user_id: int, title: str, body: str,
                   data: Optional[Dict[str, Any]] = None,
                   channel_id: str = "default") -> int:
@@ -100,31 +107,34 @@ class PushNotificationService:
 
         messages = [{
             "to": t, "title": title, "body": body, "data": data or {},
-            "sound": "default", "priority": "high", "channelId": channel_id,
+            "sound": "default", "priority": "high", "channelId": self._channel(channel_id), "ttl": 86400,
         } for t in tokens]
 
-        try:
-            req = urllib.request.Request(
-                EXPO_URL,
-                data=json.dumps(messages).encode("utf-8"),
-                headers={"Content-Type": "application/json", "Accept": "application/json"},
-                method="POST",
-            )
-            raw = urllib.request.urlopen(req, timeout=8).read()
-            tickets = json.loads(raw).get("data", [])
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Expo push impossible : %r", exc)
-            return 0
-
         ok, dead = 0, []
-        for token, ticket in zip(tokens, tickets):
-            if ticket.get("status") == "ok":
-                ok += 1
-            else:
-                logger.warning("Expo ticket erreur : %s", ticket)
-                if (ticket.get("details") or {}).get("error") == "DeviceNotRegistered":
-                    dead.append(token)
+        for i in range(0, len(messages), 100):          # Expo : 100 messages max par requête
+            chunk = messages[i:i + 100]
+            try:
+                req = urllib.request.Request(
+                    EXPO_URL,
+                    data=json.dumps(chunk).encode("utf-8"),
+                    headers={"Content-Type": "application/json", "Accept": "application/json",
+                             "Accept-Encoding": "identity"},
+                    method="POST",
+                )
+                raw = urllib.request.urlopen(req, timeout=10).read()
+                tickets = json.loads(raw).get("data", [])
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Expo push impossible : %r", exc)
+                continue
+            for msg, ticket in zip(chunk, tickets):
+                if ticket.get("status") == "ok":
+                    ok += 1
+                else:
+                    logger.warning("Expo ticket erreur : %s", ticket)
+                    if (ticket.get("details") or {}).get("error") == "DeviceNotRegistered":
+                        dead.append(msg["to"])
         self._deactivate(dead)
+        logger.info("Push user=%s : %s/%s envoyés", user_id, ok, len(tokens))
         return ok
 
     async def send_to_user(self, user_id: int, title: str, body: str,

@@ -695,31 +695,34 @@ async def publish_new_message(db: Session, conv: MessengerConversation, msg: Mes
 
 
 def _push_offline(db: Session, conv: MessengerConversation, msg: MessengerMessage, recipients: List[int]) -> None:
-    """Push Expo pour les destinataires hors ligne (sauf muets). Jamais bloquant."""
+    """Push Expo (client, thérapeute, admin : même chemin) pour chaque destinataire qui n'a
+    PAS l'appli ouverte au premier plan : hors ligne OU en arrière-plan. Les membres en
+    sourdine / partis et l'expéditeur sont exclus. Jamais bloquant, jamais d'exception."""
     try:
         from .push_notifications import push_service
+        sender_name = getattr(msg.sender, "fullname", None) or "Mada Bien-être"
+        if conv.type in perm.PAIR_TYPES:
+            title, prefix = sender_name, ""
+        else:
+            title, prefix = (conv.title or "Groupe"), f"{sender_name} : "
+        body = (prefix + preview_of(msg))[:160]
+        skip = {m.user_id for m in conv.members if m.is_muted or m.left_at is not None}
+        targets = [
+            uid for uid in dict.fromkeys(recipients)
+            if uid != msg.sender_id and uid not in skip and not hub.is_foreground(uid)
+        ][:200]
+        if not targets:
+            return
+        data = {
+            "kind": "chat_message", "type": "messenger_message",
+            "conversation_id": conv.id, "message_id": msg.id,
+            "conversation_type": conv.type, "booking_id": getattr(conv, "booking_id", None),
+        }
+        loop = asyncio.get_running_loop()
+        for uid in targets:
+            loop.create_task(push_service.send_to_user(uid, title, body, data, channel_id="messages"))
     except Exception:  # noqa: BLE001
-        return
-    sender_name = getattr(msg.sender, "fullname", None) or "Mada Bien-être"
-    title = sender_name if conv.type in perm.PAIR_TYPES else f"{conv.title or 'Groupe'} · {sender_name}"
-    body = preview_of(msg)[:140]
-    muted = {
-        m.user_id for m in conv.members if m.is_muted or m.left_at is not None
-    }
-    targets = [
-        uid for uid in recipients
-        if uid != msg.sender_id and uid not in muted and not hub.is_online(uid)
-    ][:200]
-    for uid in targets:
-        try:
-            asyncio.get_running_loop().create_task(
-                push_service.send_to_user(
-                    uid, title, body,
-                    {"type": "messenger_message", "conversation_id": conv.id, "message_id": msg.id},
-                )
-            )
-        except RuntimeError:
-            pass
+        logger.warning("Messenger : push impossible", exc_info=True)
 
 
 async def send_text(

@@ -4,6 +4,7 @@
 #
 # Client -> serveur
 #   {type:"ping"}
+#   {type:"app_state", active}                        (appli au 1er plan / en arrière-plan : pilote les push)
 #   {type:"typing",   conversation_id, is_typing}
 #   {type:"delivered", conversation_id, up_to_id?}      (reçu ✓✓)
 #   {type:"read",      conversation_id, up_to_id?}      (vu)
@@ -66,6 +67,10 @@ async def _handle(user_id: int, ws: WebSocket, data: dict) -> None:
     kind = data.get("type")
     if kind == "ping":
         await ws.send_json({"type": "pong"})
+        return
+
+    if kind == "app_state":
+        hub.set_active(ws, bool(data.get("active", True)))
         return
 
     db = SessionLocal()

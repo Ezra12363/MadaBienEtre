@@ -12,9 +12,14 @@ import {
 } from 'react';
 import { AppState, Platform, Vibration } from 'react-native';
 
+import { post } from '../services/api';
+
 import CallModal from '../components/messenger/CallModal';
 import messengerService from '../services/messengerService';
-import { createCallPeer, getMicrophone, isCallSupported } from '../utils/webrtc';
+import notificationService from '../services/notificationService';
+import {
+  createCallPeer, getMicrophone, isCallSupported, startRingtone, stopRingtone,
+} from '../utils/webrtc';
 import { buildWsUrl, cleanToken } from '../utils/wsUrl';
 import { useAuth } from './AuthContext';
 
@@ -38,6 +43,12 @@ export const MessengerProvider = ({ children }) => {
   const peerRef = useRef(null);
   const callRef = useRef(null);
   const iceRef = useRef([]);
+  const activeConvRef = useRef(null);            // conversation actuellement ouverte à l'écran
+  const mutedRef = useRef({ ids: new Set(), at: 0 });
+  const userIdRef = useRef(null);
+  userIdRef.current = user?.id;
+
+  const setActiveConversation = useCallback((id) => { activeConvRef.current = id || null; }, []);
 
   const setCallState = useCallback((next) => {
     callRef.current = typeof next === 'function' ? next(callRef.current) : next;
@@ -66,7 +77,8 @@ export const MessengerProvider = ({ children }) => {
 
   /* ------------------------------- appels -------------------------------- */
   const stopRing = () => {
-    if (Platform.OS !== 'web') Vibration.cancel();
+    if (Platform.OS === 'web') stopRingtone();
+    else Vibration.cancel();
   };
 
   const clearTick = () => {
@@ -125,6 +137,7 @@ export const MessengerProvider = ({ children }) => {
       return { ok: false, error: 'Connexion en cours, réessayez dans un instant.' };
     }
     setCallState({ id: null, conversationId, peer: peerUser, direction: 'outgoing', status: 'ringing', seconds: 0, muted: false });
+    if (Platform.OS === 'web') startRingtone();
     return { ok: true };
   }, [send, setCallState]);
 
@@ -170,7 +183,8 @@ export const MessengerProvider = ({ children }) => {
         id: msg.call_id, conversationId: msg.conversation_id, peer: msg.caller,
         direction: 'incoming', status: 'ringing', seconds: 0, muted: false,
       });
-      if (Platform.OS !== 'web') Vibration.vibrate([0, 600, 900], true);
+      if (Platform.OS === 'web') startRingtone();
+      else Vibration.vibrate([0, 600, 900], true);
       return;
     }
 
@@ -182,6 +196,7 @@ export const MessengerProvider = ({ children }) => {
         return;
       }
       if (msg.status === 'accepted' && c && c.direction === 'outgoing') {
+        stopRing();
         setCallState({ ...c, id: msg.call_id, status: 'connecting' });
         try {
           const peer = await buildPeer(msg.call_id);
@@ -223,6 +238,51 @@ export const MessengerProvider = ({ children }) => {
     }
   }, [buildPeer, send, setCallState]);
 
+
+  /* ----------------------- notification « nouveau message » ---------------- */
+  const loadMuted = useCallback(async () => {
+    if (Date.now() - mutedRef.current.at < 20000) return mutedRef.current.ids;
+    const res = await messengerService.conversations(false);
+    if (res.success) {
+      mutedRef.current = {
+        ids: new Set((res.data || []).filter((c) => c.is_muted).map((c) => c.id)),
+        at: Date.now(),
+      };
+    }
+    return mutedRef.current.ids;
+  }, []);
+
+  const notifyNewMessage = useCallback(async (msg) => {
+    try {
+      const m = msg.message;
+      if (!m || m.message_type === 'system' || m.deleted) return;
+      if (m.sender?.id === userIdRef.current) return;              // mes propres messages
+      if (Platform.OS === 'web') {
+        // Web : on ne notifie PAS seulement si l'utilisateur regarde déjà CETTE
+        // conversation (onglet visible + fenêtre active). Sinon la notification
+        // Google Chrome s'affiche, même si l'onglet est ouvert sur une autre page.
+        const watching =
+          activeConvRef.current === msg.conversation_id &&
+          typeof document !== 'undefined' && !document.hidden &&
+          (typeof document.hasFocus !== 'function' || document.hasFocus());
+        if (watching) return;
+        if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      } else if (activeConvRef.current === msg.conversation_id && AppState.currentState === 'active') {
+        return;
+      }
+      const muted = await loadMuted();
+      if (muted.has(msg.conversation_id)) return;
+
+      const labels = { image: '📷 Photo', audio: '🎤 Message vocal', file: '📎 Document', sticker: '🙂 Sticker', location: '📍 Position partagée', call: '📞 Appel' };
+      const body = (m.message_type === 'text' ? m.content : labels[m.message_type]) || m.preview || m.content || 'Nouveau message';
+      await notificationService.sendNotification(
+        m.sender?.fullname || 'Nouveau message',
+        String(body).slice(0, 140),
+        { kind: 'chat_message', type: 'messenger_message', conversation_id: msg.conversation_id, message_id: m.id }
+      );
+    } catch (_e) { /* une notification ratée ne doit jamais bloquer la messagerie */ }
+  }, [loadMuted]);
+
   /* ------------------------------ WebSocket ------------------------------ */
   const handleMessage = useCallback((raw) => {
     let msg;
@@ -235,13 +295,22 @@ export const MessengerProvider = ({ children }) => {
       setPresence((p) => ({ ...p, [msg.user_id]: { is_online: msg.is_online, last_seen_at: msg.last_seen_at } }));
     } else if (['message_new', 'message_deleted', 'receipt', 'conversation_updated', 'conversation_removed'].includes(msg.type)) {
       refreshUnread();
+      if (msg.type === 'message_new') notifyNewMessage(msg);
     }
     if (msg.type.startsWith('call_')) handleCallEvent(msg);
 
     listeners.current.forEach((fn) => {
       try { fn(msg); } catch (_e) { /* un écran en erreur ne bloque pas les autres */ }
     });
-  }, [handleCallEvent, refreshUnread]);
+  }, [handleCallEvent, refreshUnread, notifyNewMessage]);
+
+  // Dit au serveur si l'appli est au premier plan : en arrière-plan, il envoie un PUSH.
+  const sendAppState = useCallback(() => {
+    const active = Platform.OS === 'web'
+      ? (typeof document === 'undefined' || !document.hidden)
+      : AppState.currentState === 'active';
+    send({ type: 'app_state', active });
+  }, [send]);
 
   const connect = useCallback(() => {
     if (!aliveRef.current || !token) return;
@@ -256,6 +325,7 @@ export const MessengerProvider = ({ children }) => {
     ws.onopen = () => {
       retryRef.current = 0;
       setConnected(true);
+      sendAppState();
       clearInterval(timers.current.ping);
       timers.current.ping = setInterval(() => send({ type: 'ping' }), PING_MS);
     };
@@ -271,7 +341,7 @@ export const MessengerProvider = ({ children }) => {
       timers.current.retry = setTimeout(connect, delay);
     };
     ws.onerror = () => { /* onclose suit */ };
-  }, [token, handleMessage, send]);
+  }, [token, handleMessage, send, sendAppState]);
 
   useEffect(() => {
     aliveRef.current = Boolean(token && user);
@@ -298,18 +368,46 @@ export const MessengerProvider = ({ children }) => {
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
+      sendAppState();
       if (state === 'active' && aliveRef.current) {
         connect();
         refreshUnread();
       }
     });
-    return () => sub.remove();
-  }, [connect, refreshUnread]);
+    let onVisibility = null;
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      onVisibility = () => sendAppState();
+      document.addEventListener('visibilitychange', onVisibility);
+    }
+    return () => {
+      sub.remove();
+      if (onVisibility) document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [connect, refreshUnread, sendAppState]);
+
+  // Enregistre le jeton push de CET appareil pour le compte connecté (client, thérapeute ou admin).
+  // Sans cet enregistrement, le serveur ne sait pas où envoyer les notifications.
+  useEffect(() => {
+    if (Platform.OS === 'web' || !token || !user?.id) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!(await notificationService.checkPermission())) {
+          if (!(await notificationService.requestPermission())) return;
+        }
+        await notificationService.ensureChannels();
+        const pushToken = await notificationService.getPushToken();
+        if (cancelled || !pushToken) return;
+        await post('/notifications/register-token', { token: pushToken, platform: Platform.OS });
+      } catch (_e) { /* réessayé à la prochaine connexion */ }
+    })();
+    return () => { cancelled = true; };
+  }, [token, user?.id]);
 
   const value = useMemo(() => ({
     connected, unreadTotal, presence, call, send, subscribe, refreshUnread,
-    startCall, acceptCall, declineCall, toggleMute, callSupported: isCallSupported(),
-  }), [connected, unreadTotal, presence, call, send, subscribe, refreshUnread, startCall, acceptCall, declineCall, toggleMute]);
+    startCall, acceptCall, declineCall, toggleMute, callSupported: isCallSupported(), setActiveConversation,
+  }), [connected, unreadTotal, presence, call, send, subscribe, refreshUnread, startCall, acceptCall, declineCall, toggleMute, setActiveConversation]);
 
   return (
     <MessengerContext.Provider value={value}>
@@ -322,7 +420,7 @@ export const MessengerProvider = ({ children }) => {
 const NOOP = {
   connected: false, unreadTotal: 0, presence: {}, call: null, send: () => false,
   subscribe: () => () => {}, refreshUnread: () => {}, startCall: async () => ({ ok: false }),
-  acceptCall: () => {}, declineCall: () => {}, toggleMute: () => {}, callSupported: false,
+  acceptCall: () => {}, declineCall: () => {}, toggleMute: () => {}, callSupported: false, setActiveConversation: () => {},
 };
 
 export const useMessenger = () => useContext(MessengerContext) || NOOP;

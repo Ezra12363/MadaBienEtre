@@ -63,11 +63,19 @@ const MessengerNewScreen = ({ navigation }) => {
   const createGroup = async () => {
     if (title.trim().length < 2) return notifyInfo('Groupe', 'Donnez un nom au groupe (2 caractères minimum).');
     setSaving(true);
-    const roles = everyone ? (AUDIENCES.find((a) => a[0] === audience)?.[2] || []) : [];
-    const res = await messengerService.createGroup({
-      title: title.trim(), type: kind, audience, member_ids: picked, add_roles: roles,
-      members_can_chat: kind === 'group' ? membersChat : false,
-    });
+    if (!admin && picked.length < 1) {
+      setSaving(false);
+      return notifyInfo('Groupe', 'Choisissez au moins un membre.');
+    }
+    const roles = admin && everyone ? (AUDIENCES.find((a) => a[0] === audience)?.[2] || []) : [];
+    const res = await messengerService.createGroup(
+      admin
+        ? {
+          title: title.trim(), type: kind, audience, member_ids: picked, add_roles: roles,
+          members_can_chat: kind === 'group' ? membersChat : false,
+        }
+        : { title: title.trim(), type: 'group', member_ids: picked, add_roles: [], members_can_chat: true }
+    );
     setSaving(false);
     if (!res.success) return notifyInfo('Groupe', res.error);
     return navigation.replace('MessengerChat', { conversationId: res.data.id, title: title.trim() });
@@ -85,12 +93,10 @@ const MessengerNewScreen = ({ navigation }) => {
     <View style={[styles.screen, { backgroundColor: palette.screenBg }]}>
       <Header title={mode === 'direct' ? 'Nouvelle conversation' : 'Nouveau groupe'} showBack onBackPress={() => navigation.goBack()} />
 
-      {admin && (
-        <View style={styles.chips}>
-          <Chip active={mode === 'direct'} label="Message privé" onPress={() => setMode('direct')} />
-          <Chip active={mode === 'group'} label="Groupe / Annonces" onPress={() => setMode('group')} />
-        </View>
-      )}
+      <View style={styles.chips}>
+        <Chip active={mode === 'direct'} label="Message privé" onPress={() => setMode('direct')} />
+        <Chip active={mode === 'group'} label={admin ? 'Groupe / Annonces' : 'Nouveau groupe'} onPress={() => setMode('group')} />
+      </View>
 
       {mode === 'group' && (
         <View style={styles.form}>
@@ -98,25 +104,27 @@ const MessengerNewScreen = ({ navigation }) => {
             value={title} onChangeText={setTitle} placeholder="Nom du groupe" placeholderTextColor={palette.placeholder} maxLength={150}
             style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.inputBorder, color: palette.inputText }]}
           />
-          <View style={styles.chips}>
-            <Chip active={kind === 'group'} label="Groupe de discussion" onPress={() => setKind('group')} />
-            <Chip active={kind === 'announcement'} label="Annonces uniquement" onPress={() => setKind('announcement')} />
-          </View>
-          <Text style={[styles.label, { color: palette.textSecondary }]}>Audience</Text>
-          <View style={styles.chips}>{AUDIENCES.map(([k, l]) => <Chip key={k} active={audience === k} label={l} onPress={() => setAudience(k)} />)}</View>
-          {(AUDIENCES.find((a) => a[0] === audience)?.[2] || []).length > 0 && (
+          {admin && (
+            <View style={styles.chips}>
+              <Chip active={kind === 'group'} label="Groupe de discussion" onPress={() => setKind('group')} />
+              <Chip active={kind === 'announcement'} label="Annonces uniquement" onPress={() => setKind('announcement')} />
+            </View>
+          )}
+          {admin && <Text style={[styles.label, { color: palette.textSecondary }]}>Audience</Text>}
+          {admin && <View style={styles.chips}>{AUDIENCES.map(([k, l]) => <Chip key={k} active={audience === k} label={l} onPress={() => setAudience(k)} />)}</View>}
+          {admin && (AUDIENCES.find((a) => a[0] === audience)?.[2] || []).length > 0 && (
             <View style={styles.switchRow}>
               <Text style={{ color: palette.text, flex: 1 }}>Ajouter tous les utilisateurs de cette audience</Text>
               <Switch value={everyone} onValueChange={setEveryone} trackColor={{ true: palette.primary }} />
             </View>
           )}
-          {kind === 'group' && (
+          {admin && kind === 'group' && (
             <View style={styles.switchRow}>
               <Text style={{ color: palette.text, flex: 1 }}>Les membres peuvent s'écrire entre eux</Text>
               <Switch value={membersChat} onValueChange={setMembersChat} trackColor={{ true: palette.primary }} />
             </View>
           )}
-          <Text style={[styles.label, { color: palette.textSecondary }]}>Membres supplémentaires ({picked.length})</Text>
+          <Text style={[styles.label, { color: palette.textSecondary }]}>{admin ? 'Membres supplémentaires' : 'Membres'} ({picked.length})</Text>
         </View>
       )}
 

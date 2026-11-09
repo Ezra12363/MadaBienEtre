@@ -62,6 +62,7 @@ import {
 
 import Header from '../../components/common/Header';
 import BookingPaymentSection from '../../components/payment/BookingPaymentSection';
+import { confirmAsync } from '../../utils/chatImage';
 import SOSButton from '../../components/sos/SOSButton';
 
 import bookingService from '../../services/bookingService';
@@ -508,14 +509,14 @@ const FadeSlideIn = ({
 // ============================================================
 // THERAPIST AVATAR
 //
-// Avatar carré avec bords arrondis.
+// Avatar rond, sans bordure visible.
 // ============================================================
 
 const TherapistAvatar = ({
   photoUrl,
   name,
   online,
-  size = 82,
+  size = 62,
 }) => {
   const [failed, setFailed] = useState(false);
 
@@ -525,7 +526,7 @@ const TherapistAvatar = ({
   const dimension = {
     width: size,
     height: size,
-    borderRadius: size * 0.24,
+    borderRadius: size / 2,
   };
 
   const initial =
@@ -561,20 +562,6 @@ const TherapistAvatar = ({
             size={size * 0.38}
             color={colors.primary}
           />
-
-          {name &&
-          name !== 'Thérapeute assigné' ? (
-            <Text
-              style={[
-                avatarStyles.fallbackText,
-                {
-                  fontSize: size * 0.2,
-                },
-              ]}
-            >
-              {initial}
-            </Text>
-          ) : null}
         </View>
       )}
 
@@ -601,8 +588,6 @@ const avatarStyles = StyleSheet.create({
 
   image: {
     backgroundColor: `${colors.primary}15`,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
 
     ...Platform.select({
       web: {
@@ -619,8 +604,6 @@ const avatarStyles = StyleSheet.create({
     backgroundColor: `${colors.primary}18`,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
     gap: 2,
 
     ...Platform.select({
@@ -982,39 +965,14 @@ const BookingDetailScreen = ({
   };
 
   const handleCancel = () => {
-    if (Platform.OS === 'web') {
-      if (
-        typeof window !== 'undefined' &&
-        typeof window.confirm === 'function'
-      ) {
-        const confirmed =
-          window.confirm(
-            'Voulez-vous vraiment annuler cette réservation ?'
-          );
-
-        if (confirmed) {
-          cancelBooking();
-        }
-      }
-
-      return;
-    }
-
-    Alert.alert(
+    confirmAsync(
       'Annuler la réservation',
       'Voulez-vous vraiment annuler cette réservation ?',
-      [
-        {
-          text: 'Non',
-          style: 'cancel',
-        },
-        {
-          text: 'Oui, annuler',
-          style: 'destructive',
-          onPress: cancelBooking,
-        },
-      ]
-    );
+      'Oui, annuler',
+      { tone: 'danger', cancelLabel: 'Non' }
+    ).then((ok) => {
+      if (ok) cancelBooking();
+    });
   };
 
   // ==========================================================
@@ -2092,7 +2050,7 @@ const BookingDetailScreen = ({
                   photoUrl={therapistPhoto}
                   name={therapistName}
                   online={therapistOnline}
-                  size={82}
+                  size={62}
                 />
 
                 <View

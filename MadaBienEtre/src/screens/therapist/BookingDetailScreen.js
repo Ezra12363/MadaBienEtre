@@ -421,7 +421,7 @@ const AnimatedActionButton = ({
 const ClientAvatar = ({
   photoUrl,
   name,
-  size = 86,
+  size = 52,
 }) => {
   const [imageFailed, setImageFailed] =
     useState(false);
@@ -433,7 +433,7 @@ const ClientAvatar = ({
   const showImage =
     validPhoto && !imageFailed;
 
-  const radius = Math.round(size * 0.22);
+  const radius = size / 2;
 
   const initial =
     String(name || 'C')
@@ -485,15 +485,6 @@ const ClientAvatar = ({
             size={size * 0.42}
             color={PRIMARY_COLOR}
           />
-
-          <Text
-            style={[
-              avatarStyles.initial,
-              { fontSize: size * 0.18 },
-            ]}
-          >
-            {initial}
-          </Text>
         </View>
       )}
     </View>
@@ -509,36 +500,12 @@ const avatarStyles = StyleSheet.create({
 
   image: {
     backgroundColor: '#E8F5EE',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-
-    ...Platform.select({
-      web: {
-        boxShadow:
-          '0 4px 12px rgba(0,0,0,0.15)',
-      },
-      default: {
-        elevation: 4,
-      },
-    }),
   },
 
   fallback: {
     backgroundColor: '#E8F5EE',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-
-    ...Platform.select({
-      web: {
-        boxShadow:
-          '0 4px 12px rgba(0,0,0,0.12)',
-      },
-      default: {
-        elevation: 4,
-      },
-    }),
   },
 
   initial: {
@@ -1849,7 +1816,7 @@ const BookingDetailScreen = ({
                 <ClientAvatar
                   photoUrl={clientPhoto}
                   name={clientName}
-                  size={86}
+                  size={52}
                 />
 
                 <View style={styles.clientMainDetails}>

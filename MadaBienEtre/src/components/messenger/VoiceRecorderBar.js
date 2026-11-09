@@ -1,7 +1,7 @@
 // Barre d'enregistrement d'un message vocal (expo-audio, web inclus).
 // Démarre dès l'affichage ; ✕ annule, ➤ envoie.
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -15,6 +15,28 @@ try {
 
 const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 const MAX_SECONDS = 300;
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Le fichier enregistré n'a pas le même format partout : m4a (Android/iOS, Safari),
+// webm/ogg (Chrome/Firefox). On déduit nom + type réels pour que le serveur l'accepte.
+const describeRecording = async (uri) => {
+  if (Platform.OS === 'web') {
+    try {
+      const blob = await (await fetch(uri)).blob();
+      const t = (blob.type || '').toLowerCase();
+      if (t.includes('webm')) return { name: 'vocal.webm', mimeType: 'audio/webm' };
+      if (t.includes('ogg')) return { name: 'vocal.ogg', mimeType: 'audio/ogg' };
+      if (t.includes('mp4') || t.includes('aac')) return { name: 'vocal.m4a', mimeType: 'audio/mp4' };
+      if (t.includes('wav')) return { name: 'vocal.wav', mimeType: 'audio/wav' };
+    } catch (_e) { /* repli ci-dessous */ }
+    return { name: 'vocal.webm', mimeType: 'audio/webm' };
+  }
+  const ext = (uri.split('?')[0].split('.').pop() || '').toLowerCase();
+  if (ext === 'wav') return { name: 'vocal.wav', mimeType: 'audio/wav' };
+  if (ext === 'mp3') return { name: 'vocal.mp3', mimeType: 'audio/mpeg' };
+  return { name: 'vocal.m4a', mimeType: 'audio/mp4' };
+};
 
 const VoiceRecorderInner = ({ palette, onCancel, onDone, onError }) => {
   const { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder } = ExpoAudio;
@@ -64,11 +86,23 @@ const VoiceRecorderInner = ({ palette, onCancel, onDone, onError }) => {
     try {
       await recorder.stop();
     } catch (_e) { /* noop */ }
-    if (!send || secondsRef.current < 1 || !recorder.uri) {
+    if (!send || secondsRef.current < 1) {
       onCancel();
       return;
     }
-    onDone({ uri: recorder.uri, name: 'vocal.m4a', mimeType: 'audio/mp4', duration: secondsRef.current });
+    // Sur le web (et parfois Android) l'URI n'est disponible qu'un instant après stop().
+    let uri = recorder.uri;
+    for (let i = 0; !uri && i < 15; i += 1) {
+      await wait(100);
+      uri = recorder.uri || recorder.getStatus?.().url;
+    }
+    if (!uri) {
+      onError?.("L'enregistrement n'a pas pu être récupéré.");
+      onCancel();
+      return;
+    }
+    const info = await describeRecording(uri);
+    onDone({ uri, ...info, duration: secondsRef.current });
   };
 
   return (

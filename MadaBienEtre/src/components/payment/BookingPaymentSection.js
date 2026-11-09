@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ReasonModal from '../common/ReasonModal';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
+import { confirmAsync } from '../../utils/chatImage';
 import PaymentStatusBadge from './PaymentStatusBadge';
 import { formatAr, formatDateTime, isPayableBooking, stateOf, useBookingPayment } from './paymentUtils';
 
@@ -100,15 +101,11 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
       if (!hasPreloaded) await reload();
       onChanged?.();
     };
-    if (Platform.OS === 'web') {
-      // eslint-disable-next-line no-alert
-      if (window.confirm("Confirmer que vous avez bien reçu les espèces ?")) run();
-      return;
-    }
-    Alert.alert('Espèces reçues ?', 'Confirmez uniquement si le client vous a bien remis la somme.', [
-      { text: 'Annuler', style: 'cancel' },
-      { text: 'Oui, reçu', onPress: run },
-    ]);
+    confirmAsync('Espèces reçues ?', 'Confirmez uniquement si le client vous a bien remis la somme.', 'Oui, reçu', {
+      tone: 'info',
+    }).then((ok) => {
+      if (ok) run();
+    });
   };
 
   const notifyTherapist = async () => {

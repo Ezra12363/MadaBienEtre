@@ -6,12 +6,15 @@
 # permissions côté serveur — l'interface n'est jamais la seule protection.
 # ============================================================================
 import logging
+import re
 from typing import List, Optional
 
 from fastapi import (
     APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile, status,
 )
-from fastapi.responses import FileResponse
+import os
+
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -289,9 +292,42 @@ def _clean_token(token: Optional[str]) -> str:
 _INLINE_MIME = ("image/", "audio/", "application/pdf")
 
 
+def _range_response(path, mime: str, range_header: str, display_name: str):
+    """Réponse 206 (HTTP Range) : indispensable au lecteur audio Android (ExoPlayer),
+    qui lit les .m4a en sautant à la fin du fichier (atome « moov »)."""
+    size = os.path.getsize(path)
+    m = re.match(r"bytes=(\d*)-(\d*)", range_header or "")
+    if not m or (m.group(1) == "" and m.group(2) == ""):
+        return None
+    if m.group(1) == "":                      # bytes=-N : les N derniers octets
+        start = max(0, size - int(m.group(2)))
+        end = size - 1
+    else:
+        start = int(m.group(1))
+        end = int(m.group(2)) if m.group(2) else size - 1
+    end = min(end, size - 1)
+    if start >= size or start > end:
+        return Response(status_code=416, headers={"Content-Range": f"bytes */{size}"})
+    with open(path, "rb") as fh:
+        fh.seek(start)
+        data = fh.read(end - start + 1)
+    return Response(
+        content=data, status_code=206, media_type=mime,
+        headers={
+            "Content-Range": f"bytes {start}-{end}/{size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(len(data)),
+            "Content-Disposition": "inline",
+            "Cache-Control": "private, max-age=86400",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @router.get("/files/{conversation_id}/{filename}")
 def get_file(
     conversation_id: int, filename: str,
+    range: Optional[str] = Header(None),
     token: Optional[str] = Query(None),
     download: bool = Query(False),
     authorization: Optional[str] = Header(None),
@@ -317,11 +353,16 @@ def get_file(
     mime = (msg.file_mime if msg else None) or "image/jpeg"
     display_name = (msg.file_name if msg else None) or filename
     inline = (not download) and mime.startswith(_INLINE_MIME)
+    if range and mime.startswith("audio/"):
+        partial = _range_response(path, mime, range, display_name)
+        if partial is not None:
+            return partial
     return FileResponse(
         path, media_type=mime,
         filename=display_name,
         content_disposition_type="inline" if inline else "attachment",
         headers={
+            "Accept-Ranges": "bytes",
             "Cache-Control": "private, max-age=86400",
             "X-Content-Type-Options": "nosniff",
             "Content-Security-Policy": "default-src 'none'; sandbox",

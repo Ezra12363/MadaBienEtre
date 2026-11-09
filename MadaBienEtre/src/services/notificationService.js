@@ -120,10 +120,6 @@ class NotificationService {
 
       console.log('⚠️ Web notification permission not granted');
 
-      // ✅ Fallback: Alert
-
-      Alert.alert(title, body);
-
       return false;
 
     }
@@ -140,9 +136,15 @@ class NotificationService {
 
         data: data,
 
-        tag: String(data.notificationId || data.id || Math.random()),
+        // Un message de la même conversation REMPLACE la notification précédente
+        // (et `renotify` la fait quand même sonner / réapparaître).
+        tag: data.conversation_id
+          ? `conv-${data.conversation_id}`
+          : String(data.notificationId || data.id || Math.random()),
 
-        requireInteraction: true,
+        renotify: true,
+
+        requireInteraction: false,
 
         vibrate: [200, 100, 200],
 
@@ -195,8 +197,6 @@ class NotificationService {
     } catch (error) {
 
       console.error('Error sending web notification:', error);
-
-      Alert.alert(title, body);
 
       return false;
 
@@ -308,7 +308,7 @@ class NotificationService {
 
       // (voir ensureChannels). Les messages de chat ont leur propre canal.
 
-      const channelId = data?.kind === 'chat_message' ? 'messages' : 'default';
+      const channelId = data?.kind === 'chat_message' ? 'messages_v2' : 'default_v2';
 
       await Notifications.scheduleNotificationAsync({
 
@@ -402,34 +402,55 @@ class NotificationService {
 
     try {
 
-      await Notifications.setNotificationChannelAsync('default', {
+      // ⚠️ Un canal Android ne peut plus être modifié une fois créé (le son, entre
+      // autres) : d'où les ids « _v2 », créés AVEC un son. Les anciens canaux
+      // (sans son) sont supprimés. Le backend envoie les mêmes ids (_v2).
+      for (const old of ['default', 'messages', 'calls', 'sos']) {
+        try {
+          await Notifications.deleteNotificationChannelAsync(old);
+        } catch (_e) { /* no-op */ }
+      }
 
+      const base = {
+        // Pas de `sound` ici : 'default' serait lu comme un fichier son personnalisé
+        // (erreur « Custom sound 'default' not found »). Sans cette clé, Android
+        // utilise le son de notification par défaut du téléphone.
+        enableVibrate: true,
+        enableLights: true,
+        lightColor: '#168A55',
+        lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+        audioAttributes: {
+          usage: Notifications.AndroidAudioUsage.NOTIFICATION,
+          contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+        },
+      };
+
+      await Notifications.setNotificationChannelAsync('default_v2', {
+        ...base,
         name: 'Général',
-
         importance: Notifications.AndroidImportance.HIGH,
-
         vibrationPattern: [0, 250, 250, 250],
-
       });
 
-      await Notifications.setNotificationChannelAsync('messages', {
-
+      await Notifications.setNotificationChannelAsync('messages_v2', {
+        ...base,
         name: 'Messages',
-
         importance: Notifications.AndroidImportance.HIGH,
-
         vibrationPattern: [0, 200, 100, 200],
-
       });
 
-      await Notifications.setNotificationChannelAsync('sos', {
-
-        name: 'SOS',
-
+      await Notifications.setNotificationChannelAsync('calls_v2', {
+        ...base,
+        name: 'Appels',
         importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 600, 300, 600],
+      });
 
+      await Notifications.setNotificationChannelAsync('sos_v2', {
+        ...base,
+        name: 'SOS',
+        importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 500, 250, 500],
-
       });
 
     } catch (error) {
@@ -598,6 +619,8 @@ class NotificationService {
 
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
 
+          ...(Platform.OS === 'android' ? { channelId: 'default_v2' } : {}),
+
         },
 
       });
@@ -644,11 +667,9 @@ class NotificationService {
 
           priority: Notifications.AndroidNotificationPriority.MAX,
 
-          channelId: 'sos',
-
         },
 
-        trigger: null,
+        trigger: Platform.OS === 'android' ? { channelId: 'sos_v2' } : null,
 
       });
 

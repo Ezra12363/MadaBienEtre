@@ -16,11 +16,18 @@ import { BookingProvider } from './src/context/BookingContext';
 import { UserProvider } from './src/context/UserContext';
 import { MessengerProvider } from './src/context/MessengerContext';
 
+// Toast global (remplace window.alert / Alert.alert d'information)
+import GlobalToastHost from './src/components/common/GlobalToastHost';
+import GlobalConfirmHost from './src/components/common/GlobalConfirmHost';
+import { installGlobalAlertOverrides } from './src/utils/toast';
+
 // Navigation
 import RootNavigator from './src/navigation/RootNavigator';
 
 // Theme
 import { theme } from './src/theme';
+
+installGlobalAlertOverrides();
 
 SplashScreen.preventAutoHideAsync();
 
@@ -70,6 +77,8 @@ export default function App() {
                       <StatusBar style="auto" />
                       <RootNavigator />
                     </NavigationContainer>
+                    <GlobalToastHost />
+                    <GlobalConfirmHost />
                   </MessengerProvider>
                 </NotificationProvider>
               </BookingProvider>

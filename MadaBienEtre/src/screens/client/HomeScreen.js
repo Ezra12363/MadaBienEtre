@@ -2997,11 +2997,11 @@ const styles = StyleSheet.create({
 
   notificationBadge: {
     position: 'absolute',
-    top: -7,
-    left: 13,
+    top: -8,
+    right: -9,
     minWidth: 18,
     height: 18,
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
     borderRadius: 9,
     backgroundColor: DANGER,
     alignItems: 'center',
@@ -3012,7 +3012,11 @@ const styles = StyleSheet.create({
 
   notificationBadgeText: {
     color: '#FFFFFF',
-    fontSize: 8,
+    fontSize: 10,
+    lineHeight: 14,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
     fontFamily: typography.fontFamily.bold,
   },
 

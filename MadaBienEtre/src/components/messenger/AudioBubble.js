@@ -1,5 +1,6 @@
 // Lecteur de message vocal (expo-audio) : lecture / pause + progression.
-import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -15,17 +16,46 @@ try {
 const fmt = (s = 0) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 const AudioPlayerInner = ({ uri, duration, color, trackColor }) => {
-  const player = ExpoAudio.useAudioPlayer(uri ? { uri } : null);
+  // Source stable (sinon le lecteur Android est recréé à chaque rendu) + en-tête utile à ExoPlayer
+  const source = useMemo(() => (uri ? { uri } : null), [uri]);
+  const player = ExpoAudio.useAudioPlayer(source, { updateInterval: 250 });
   const status = ExpoAudio.useAudioPlayerStatus(player);
   const total = status.duration || duration || 0;
   const ratio = total ? Math.min(1, (status.currentTime || 0) / total) : 0;
+
+  const guard = useRef(null);
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  useEffect(() => () => clearTimeout(guard.current), []);
+
+  // Mode lecture dès l'affichage (Android : sortie haut-parleur, pas d'enregistreur actif).
+  useEffect(() => {
+    ExpoAudio.setAudioModeAsync?.({ playsInSilentMode: true, allowsRecording: false })?.catch?.(() => {});
+  }, []);
+  useEffect(() => {
+    if (status.playing || status.currentTime) clearTimeout(guard.current);
+  }, [status.playing, status.currentTime]);
+
+  // Si rien ne démarre en 5 s (format/réseau), on ouvre le vocal dans le lecteur du téléphone.
+  const armFallback = () => {
+    clearTimeout(guard.current);
+    guard.current = setTimeout(() => {
+      const st = statusRef.current || {};
+      // Encore en chargement (réseau lent) : on laisse faire, on ne quitte pas l'appli.
+      if (st.playing || st.currentTime || st.isBuffering) return;
+      if (uri && Platform.OS !== 'web') Linking.openURL(uri).catch(() => {});
+    }, 10000);
+  };
 
   const toggle = () => {
     try {
       if (status.playing) player.pause();
       else {
+        // après un enregistrement, remet le téléphone en mode lecture (haut-parleur, mode silencieux)
+        ExpoAudio.setAudioModeAsync?.({ playsInSilentMode: true, allowsRecording: false })?.catch?.(() => {});
         if (total && status.currentTime >= total - 0.2) player.seekTo(0);
         player.play();
+        armFallback();
       }
     } catch (_e) { /* lecture impossible */ }
   };

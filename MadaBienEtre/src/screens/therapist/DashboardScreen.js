@@ -2134,14 +2134,14 @@ const styles = StyleSheet.create({
 
   headerNotificationBadge: {
     position: 'absolute',
-    top: -7,
-    left: 15,
+    top: -8,
+    right: -9,
     minWidth: 19,
     height: 19,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
     backgroundColor: '#E45858',
     borderWidth: 2,
     borderColor: '#FFFFFF',
@@ -2149,8 +2149,12 @@ const styles = StyleSheet.create({
 
   headerNotificationText: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 10,
+    lineHeight: 15,
     fontWeight: '800',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
 
   // ==========================================================

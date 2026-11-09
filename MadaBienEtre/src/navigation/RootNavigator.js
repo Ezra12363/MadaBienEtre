@@ -141,7 +141,24 @@ const useNotificationTapNavigation = (user, isAuthenticated) => {
   const { setNotificationResponseHandler } = useNotifications();
 
   useEffect(() => {
-    if (Platform.OS === 'web' || !isAuthenticated || !setNotificationResponseHandler) {
+    if (Platform.OS === 'web') {
+      // Clic sur une notification Google Chrome : message -> liste de la messagerie.
+      if (!isAuthenticated) return undefined;
+      const previous = notificationService.onWebNotificationClick;
+      notificationService.onWebNotificationClick = (data) => {
+        try {
+          if (data?.kind === 'chat_message' || data?.type === 'messenger_message') {
+            const list = user?.role === 'CLIENT' ? 'ChatList' : 'MessengerList';
+            root?.navigate?.('Messages', { screen: list });
+          }
+        } catch (_e) { /* no-op */ }
+      };
+      return () => {
+        notificationService.onWebNotificationClick = previous || null;
+      };
+    }
+
+    if (!isAuthenticated || !setNotificationResponseHandler) {
       return undefined;
     }
 

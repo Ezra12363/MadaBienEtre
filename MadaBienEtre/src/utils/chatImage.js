@@ -157,6 +157,15 @@ export const pickChatImage = () => (Platform.OS === 'web' ? pickWeb() : pickNati
 // Un « hôte » est monté par chaque écran qui en a besoin et s'enregistre ici ;
 // sans hôte, on retombe sur window.confirm / Alert (ancien comportement).
 let confirmHandler = null;
+// Hôte GLOBAL (monté une fois dans App.js) : sert quand aucun écran n'a monté le sien.
+let globalConfirmHandler = null;
+
+export const registerGlobalConfirmHandler = (handler) => {
+  globalConfirmHandler = handler;
+  return () => {
+    if (globalConfirmHandler === handler) globalConfirmHandler = null;
+  };
+};
 
 export const registerConfirmHandler = (handler) => {
   confirmHandler = handler;
@@ -170,8 +179,9 @@ export const registerConfirmHandler = (handler) => {
  * options : { tone: 'danger' | 'info' | 'warning', cancelLabel, icon }
  */
 export const confirmAsync = (title, message, confirmLabel = 'Supprimer', options = {}) => {
-  if (confirmHandler) {
-    return confirmHandler({ title, message, confirmLabel, ...options });
+  const handler = confirmHandler || globalConfirmHandler;
+  if (handler) {
+    return handler({ title, message, confirmLabel, ...options });
   }
   if (Platform.OS === 'web') {
     // eslint-disable-next-line no-alert

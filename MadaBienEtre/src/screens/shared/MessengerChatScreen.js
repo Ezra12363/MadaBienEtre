@@ -75,7 +75,7 @@ const MessengerChatScreen = ({ navigation, route }) => {
   const { colors: themeColors, isDark } = useTheme();
   const palette = useMemo(() => getChatPalette(themeColors, isDark), [themeColors, isDark]);
   const { token, user } = useAuth();
-  const { send, subscribe, presence, startCall, connected } = useMessenger();
+  const { send, subscribe, presence, startCall, connected, setActiveConversation } = useMessenger();
   const { setActiveChatBookingId } = useNotifications();
   const side = useChatSidePadding();
   const insets = useSafeAreaInsets();
@@ -138,6 +138,12 @@ const MessengerChatScreen = ({ navigation, route }) => {
       messengerService.markRead(conversationId);
     }
   }, [send, conversationId]);
+
+  // Conversation visible à l'écran : pas de notification pour elle
+  useFocusEffect(useCallback(() => {
+    setActiveConversation(conversationId);
+    return () => setActiveConversation(null);
+  }, [conversationId, setActiveConversation]));
 
   // Ouverture depuis une réservation : on retrouve (ou crée) sa conversation.
   useEffect(() => {

@@ -1,18 +1,17 @@
 // src/utils/confirm.js
-// Alert.alert avec boutons ne fait RIEN sur le web (react-native-web) :
-// sur le web on utilise window.confirm, sur mobile Alert.alert.
+// Confirmation = modale de l'application (GlobalConfirmHost), web et mobile.
 import { Alert, Platform } from 'react-native';
 
+import { confirmAsync } from './chatImage';
+
 export const confirmAction = ({ title, message, confirmText = 'Confirmer', cancelText = 'Annuler', destructive = false, onConfirm }) => {
-  if (Platform.OS === 'web') {
-    // eslint-disable-next-line no-undef
-    if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${message || ''}`)) onConfirm && onConfirm();
-    return;
-  }
-  Alert.alert(title, message, [
-    { text: cancelText, style: 'cancel' },
-    { text: confirmText, style: destructive ? 'destructive' : 'default', onPress: onConfirm },
-  ]);
+  // Modale de l'application (web + mobile) au lieu de window.confirm / Alert.alert.
+  confirmAsync(title, message || '', confirmText, {
+    cancelLabel: cancelText,
+    tone: destructive ? 'danger' : 'info',
+  }).then((ok) => {
+    if (ok && onConfirm) onConfirm();
+  });
 };
 
 export const notify = (title, message) => {

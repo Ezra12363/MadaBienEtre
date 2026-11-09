@@ -75,6 +75,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import useChatUnread from '../../hooks/useChatUnread';
+import { useMessenger } from '../../context/MessengerContext';
 import { colors, typography, spacing } from '../../theme';
 
 import BottomTabBar from './BottomTabBar';
@@ -305,9 +306,13 @@ const AI_TARGET_BY_ROLE = {
   ADMIN: { tab: 'Tableau de bord', screen: 'AIInsights' },
 };
 
+// `list` = écran liste DANS la pile de l'onglet Messages (le nom diffère
+// selon le rôle). Naviguer vers { screen: list } ramène à la liste même si
+// une conversation est déjà ouverte (sinon le bouton « ne fait rien »).
 const MESSAGES_ROUTE_BY_ROLE = {
-  THERAPIST: 'Messages',
-  CLIENT: 'Messages',
+  THERAPIST: { tab: 'Messages', list: 'MessengerList' },
+  CLIENT: { tab: 'Messages', list: 'ChatList' },
+  ADMIN: { tab: 'Messages', list: 'MessengerList' },
 };
 
 // ============================================================
@@ -329,7 +334,8 @@ export const TopNavBar = ({
   const { unreadCount: notificationsUnreadCount } = useNotifications();
   // Badge « messages non lus » (GET /chat/unread + temps réel)
   const { unreadCount: chatUnreadCount } = useChatUnread();
-  const messagesBadge = messagesUnreadCount || chatUnreadCount;
+  const { unreadTotal: messengerUnread } = useMessenger();
+  const messagesBadge = Math.max(messagesUnreadCount || 0, chatUnreadCount || 0, messengerUnread || 0);
   const [profileOpen, setProfileOpen] = useState(false);
 
   if (!isMerged || !bridge || !bridge.tabData) {
@@ -373,8 +379,16 @@ export const TopNavBar = ({
   };
 
   const openMessages = () => {
-    if (messagesRoute) {
-      navigation.navigate(messagesRoute);
+    if (!messagesRoute) {
+      return;
+    }
+
+    try {
+      navigation.navigate(messagesRoute.tab, { screen: messagesRoute.list });
+    } catch (_e) {
+      try {
+        navigation.navigate(messagesRoute.tab);
+      } catch (_e2) { /* no-op */ }
     }
   };
 
@@ -520,23 +534,26 @@ export const TopNavBar = ({
                   hovered && styles.headerActionButtonHovered,
                 ]}
               >
-                <Ionicons
-                  name={
-                    messagesBadge > 0
-                      ? 'chatbubble-ellipses'
-                      : 'chatbubble-ellipses-outline'
-                  }
-                  size={21}
-                  color="#FFFFFF"
-                />
+                {/* Badge ancré à l'ICÔNE (comme la cloche) : toujours collé à l'icône message */}
+                <View style={styles.bellIconWrap}>
+                  <Ionicons
+                    name={
+                      messagesBadge > 0
+                        ? 'chatbubble-ellipses'
+                        : 'chatbubble-ellipses-outline'
+                    }
+                    size={21}
+                    color="#FFFFFF"
+                  />
 
-                {messagesBadge > 0 && (
-                  <View style={styles.headerActionBadge}>
-                    <Text style={styles.headerActionBadgeText}>
-                      {messagesBadge > 99 ? '99+' : messagesBadge}
-                    </Text>
-                  </View>
-                )}
+                  {messagesBadge > 0 && (
+                    <View style={styles.msgBadge}>
+                      <Text style={styles.msgBadgeText}>
+                        {messagesBadge > 99 ? '99+' : messagesBadge}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </Pressable>
             )}
 
@@ -1041,27 +1058,64 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // Badge collé au coin haut-droit de la cloche
+  // Badge rond rouge, IDENTIQUE pour la cloche et le message, ancré au coin
+  // haut-droit de l'icône. Hauteur fixe (18) = cercle parfait pour 1 chiffre ;
+  // le chiffre est centré horizontalement ET verticalement (lineHeight = hauteur
+  // intérieure, sans padding de police Android).
   bellBadge: {
     position: 'absolute',
-    top: -7,
-    left: 13,
-    minWidth: 17,
-    height: 17,
+    top: -8,
+    right: -9,
+    minWidth: 18,
+    height: 18,
     borderRadius: 9,
     paddingHorizontal: 3,
     backgroundColor: '#E53935',
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: PRIMARY,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 5,
+    elevation: 5,
+  },
+
+  msgBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -9,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 3,
+    backgroundColor: '#E53935',
+    borderWidth: 2,
+    borderColor: PRIMARY,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 5,
+    elevation: 5,
+  },
+
+  msgBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    lineHeight: 14,
+    fontWeight: '800',
+    fontFamily: typography.fontFamily.bold,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
 
   headerActionBadgeText: {
     color: '#FFFFFF',
-    fontSize: 9,
+    fontSize: 10,
+    lineHeight: 14,
     fontWeight: '800',
     fontFamily: typography.fontFamily.bold,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
 
   // ---------- profil rond ----------

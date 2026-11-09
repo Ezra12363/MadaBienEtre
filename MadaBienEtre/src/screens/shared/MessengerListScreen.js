@@ -20,6 +20,15 @@ import { useTheme } from '../../context/ThemeContext';
 import messengerService, { buildFileUrl } from '../../services/messengerService';
 import { formatListTime, resolvePhotoUrl } from '../../utils/chatUi';
 import { isAdminUser } from '../../utils/messengerUtils';
+import { typography } from '../../theme';
+
+// Couleurs des icônes de l'en-tête « Discussions »
+const ICON_COLORS = {
+  search: '#16A34A',
+  call: '#2563EB',
+  admin: '#7C3AED',
+  archive: '#F59E0B',
+};
 
 const MessengerListScreen = ({ navigation }) => {
   const { colors: themeColors, isDark } = useTheme();
@@ -55,6 +64,17 @@ const MessengerListScreen = ({ navigation }) => {
     const q = query.trim().toLowerCase();
     return q ? items.filter((c) => (c.title || '').toLowerCase().includes(q)) : items;
   }, [items, query]);
+
+  // Retour : écran précédent, sinon premier onglet (ex. Accueil)
+  const goBack = () => {
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+      return;
+    }
+    const tabs = navigation?.getParent?.();
+    const first = tabs?.getState?.()?.routeNames?.[0];
+    if (first) tabs.navigate(first);
+  };
 
   const open = (c) => navigation.navigate('MessengerChat', { conversationId: c.id, title: c.title });
 
@@ -112,17 +132,23 @@ const MessengerListScreen = ({ navigation }) => {
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.screenBg }]}>
-      <Header title={archived ? 'Archives' : 'Messages'} />
+      <Header title={archived ? 'Archives' : 'Messages'} showBack onBackPress={goBack} />
       <View style={styles.top}>
-        <Text style={[styles.h1, { color: palette.text }]}>{archived ? 'Archives' : 'Discussions'}</Text>
-        <View style={{ flexDirection: 'row', gap: 4 }}>
-          <TouchableOpacity style={styles.hBtn} onPress={() => navigation.navigate('MessengerSearch')} accessibilityLabel="Rechercher"><Ionicons name="search" size={22} color={palette.text} /></TouchableOpacity>
-          <TouchableOpacity style={styles.hBtn} onPress={() => navigation.navigate('CallHistory')} accessibilityLabel="Appels"><Ionicons name="call-outline" size={22} color={palette.text} /></TouchableOpacity>
+        <Text style={[styles.h1, { color: palette.text }]} numberOfLines={1}>{archived ? 'Archives' : 'Discussions'}</Text>
+        <View style={styles.actions}>
+          <TouchableOpacity style={[styles.hBtn, { backgroundColor: `${ICON_COLORS.search}1A` }]} onPress={() => navigation.navigate('MessengerSearch')} accessibilityLabel="Rechercher">
+            <Ionicons name="search" size={20} color={ICON_COLORS.search} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.hBtn, { backgroundColor: `${ICON_COLORS.call}1A` }]} onPress={() => navigation.navigate('CallHistory')} accessibilityLabel="Appels">
+            <Ionicons name="call" size={20} color={ICON_COLORS.call} />
+          </TouchableOpacity>
           {isAdminUser(user) && (
-            <TouchableOpacity style={styles.hBtn} onPress={() => navigation.navigate('MessengerAdmin')} accessibilityLabel="Modération"><Ionicons name="shield-checkmark-outline" size={22} color={palette.text} /></TouchableOpacity>
+            <TouchableOpacity style={[styles.hBtn, { backgroundColor: `${ICON_COLORS.admin}1A` }]} onPress={() => navigation.navigate('MessengerAdmin')} accessibilityLabel="Modération">
+              <Ionicons name="shield-checkmark" size={20} color={ICON_COLORS.admin} />
+            </TouchableOpacity>
           )}
-          <TouchableOpacity style={styles.hBtn} onPress={() => setArchived((a) => !a)} accessibilityLabel="Archives">
-            <Ionicons name={archived ? 'chatbubbles-outline' : 'archive-outline'} size={22} color={palette.text} />
+          <TouchableOpacity style={[styles.hBtn, { backgroundColor: `${ICON_COLORS.archive}1A` }]} onPress={() => setArchived((a) => !a)} accessibilityLabel="Archives">
+            <Ionicons name={archived ? 'chatbubbles' : 'archive'} size={20} color={ICON_COLORS.archive} />
           </TouchableOpacity>
         </View>
       </View>
@@ -178,9 +204,10 @@ const MessengerListScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 6 },
-  h1: { fontSize: 26, fontWeight: '800' },
-  hBtn: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
+  top: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 6, gap: 8 },
+  h1: { flex: 1, fontSize: 20, fontWeight: '700', fontFamily: typography?.fontFamily?.bold },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  hBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   search: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginTop: 4, paddingHorizontal: 12, height: 42, borderRadius: 21, borderWidth: 1 },
   searchInput: { flex: 1, fontSize: 15 },
   offline: { textAlign: 'center', fontSize: 12, marginTop: 6 },

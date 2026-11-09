@@ -38,6 +38,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../theme';
 import useChatUnread from '../../hooks/useChatUnread';
+import { useMessenger } from '../../context/MessengerContext';
 
 const ANIMATION_DURATION = 220;
 const HIDE_TRANSLATE_Y = 100;
@@ -45,7 +46,9 @@ const HIDE_TRANSLATE_Y = 100;
 // Pastille « messages non lus » sur l'onglet Messages (le hook n'est donc
 // appelé que pour cet onglet : Admin et autres onglets ne sont pas concernés).
 const ChatTabBadge = () => {
-  const { unreadCount } = useChatUnread();
+  const { unreadCount: legacyCount } = useChatUnread();
+  const { unreadTotal } = useMessenger();
+  const unreadCount = Math.max(legacyCount || 0, unreadTotal || 0);
   if (!unreadCount) return null;
 
   return (
@@ -291,21 +294,27 @@ const styles = StyleSheet.create({
 
   badge: {
     position: 'absolute',
-    top: -2,
-    right: 0,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 4,
+    top: -6,
+    right: -6,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
     backgroundColor: '#E53935',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
+  // Chiffre centré dans le cercle (hauteur 20 - bordures 2×1.5 = 17)
   badgeText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 11,
+    lineHeight: 14,
     fontWeight: '800',
+    textAlign: 'center',
+    textAlignVertical: 'center',
     includeFontPadding: false,
   },
 

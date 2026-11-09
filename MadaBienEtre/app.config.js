@@ -1,4 +1,6 @@
 // app.config.js
+import fs from "fs";
+import path from "path";
 import appJson from "./app.json";
 
 // Plugin facultatif : ignoré tant que le paquet n'est pas installé.
@@ -11,7 +13,23 @@ const optionalPlugin = (name, options) => {
   }
 };
 
+// google-services.json (Firebase / notifications push Android) : n'est utilisé que s'il existe,
+// sinon « expo prebuild » échoue (ENOENT). Les notifications push Android ne marcheront
+// qu'une fois ce fichier ajouté à la racine du projet.
+const googleServicesPath = (p) => (p ? path.resolve(__dirname, p) : null);
+const hasGoogleServices = (p) => {
+  const full = googleServicesPath(p);
+  return !!full && fs.existsSync(full);
+};
+
 export default ({ config }) => {
+  const gsFile = appJson.expo.android?.googleServicesFile || config.android?.googleServicesFile;
+  const gsOk = hasGoogleServices(gsFile);
+  if (gsFile && !gsOk) {
+    // eslint-disable-next-line no-console
+    console.warn(`[app.config] ${gsFile} introuvable : build sans Firebase (push Android désactivé).`);
+  }
+
   return {
     ...appJson.expo,
     ...config,
@@ -32,6 +50,7 @@ export default ({ config }) => {
     android: {
       ...appJson.expo.android,
       ...config.android,
+      googleServicesFile: gsOk ? gsFile : undefined,
       config: {
         ...appJson.expo.android?.config,
         ...config.android?.config,
@@ -81,4 +100,4 @@ export default ({ config }) => {
       },
     },
   };
-};
+};

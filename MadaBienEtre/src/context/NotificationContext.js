@@ -146,8 +146,27 @@ export const NotificationProvider = ({ children }) => {
       setPermissionStatus(hasPermission);
 
       if (!hasPermission) {
-        const granted = await notificationService.requestPermission();
-        setPermissionStatus(granted);
+        if (
+          Platform.OS === 'web' &&
+          typeof window !== 'undefined' &&
+          'Notification' in window
+        ) {
+          // Chrome ignore (ou bloque) une demande faite sans geste de l'utilisateur :
+          // on demande l'autorisation au PREMIER clic / touche dans la page.
+          if (window.Notification.permission === 'default') {
+            const askOnce = async () => {
+              window.removeEventListener('pointerdown', askOnce, true);
+              window.removeEventListener('keydown', askOnce, true);
+              const granted = await notificationService.requestPermission();
+              setPermissionStatus(granted);
+            };
+            window.addEventListener('pointerdown', askOnce, true);
+            window.addEventListener('keydown', askOnce, true);
+          }
+        } else {
+          const granted = await notificationService.requestPermission();
+          setPermissionStatus(granted);
+        }
       }
 
       if (Platform.OS !== 'web') {

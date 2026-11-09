@@ -1,11 +1,11 @@
 // src/utils/chatUi.js
 // Helpers d'affichage partagés par la liste des conversations et l'écran de
 // discussion (client ET thérapeute) : photos, heures, dates, lignes de liste.
-import { Alert, Platform } from 'react-native';
 
 import { API_URL } from '../config/env';
 import { parseServerDate } from './wsUrl';
 import { normalizeMediaUrl } from './mediaUrl';
+import { showToast } from './toast';
 
 /* ------------------------------ identité ------------------------------ */
 
@@ -137,12 +137,7 @@ export const getMapsUrl = (latitude, longitude, address) => {
 
 /* ------------------------------ messages UI ------------------------------ */
 
-/** Information compatible web + mobile (Alert.alert n'existe pas sur react-native-web). */
+/** Information compatible web + mobile : affichée en TOAST (plus de fenêtre « localhost indique »). */
 export const notifyInfo = (title, message) => {
-  if (Platform.OS === 'web') {
-    // eslint-disable-next-line no-alert
-    window.alert(message ? `${title}\n\n${message}` : title);
-    return;
-  }
-  Alert.alert(title, message);
+  showToast(undefined, title, message);
 };

@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 class MessengerHub:
     def __init__(self) -> None:
         self._conns: Dict[int, Set[WebSocket]] = defaultdict(set)
+        # connexions dont l'application est en ARRIÈRE-PLAN (le client le signale : {type:"app_state"})
+        self._background: Set[WebSocket] = set()
         self._lock = asyncio.Lock()
 
     # ------------------------------------------------------------- connexions
@@ -37,6 +39,7 @@ class MessengerHub:
             if not conns:
                 return False
             conns.discard(ws)
+            self._background.discard(ws)
             if not conns:
                 self._conns.pop(user_id, None)
                 return True
@@ -44,6 +47,16 @@ class MessengerHub:
 
     def is_online(self, user_id: int) -> bool:
         return bool(self._conns.get(user_id))
+
+    def set_active(self, ws: WebSocket, active: bool) -> None:
+        if active:
+            self._background.discard(ws)
+        else:
+            self._background.add(ws)
+
+    def is_foreground(self, user_id: int) -> bool:
+        """True si l'utilisateur a l'appli OUVERTE au premier plan (un push serait redondant)."""
+        return any(ws not in self._background for ws in self._conns.get(user_id, ()))
 
     def online_user_ids(self) -> List[int]:
         return list(self._conns.keys())

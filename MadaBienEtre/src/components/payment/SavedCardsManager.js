@@ -24,6 +24,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import cardService from '../../services/cardService';
 import StripeCardForm, { inlineCardFormSupported } from './StripeCardForm';
+import { confirmAsync as sharedConfirmAsync } from '../../utils/chatImage';
 
 const GREEN = '#2E8B57';
 const POLL_MS = 4000;
@@ -40,17 +41,7 @@ const BRAND_COLORS = {
 };
 
 const confirmAsync = (title, message, okLabel) =>
-  new Promise((resolve) => {
-    if (Platform.OS === 'web') {
-      // eslint-disable-next-line no-alert
-      resolve(typeof window !== 'undefined' ? window.confirm(`${title}\n\n${message}`) : true);
-      return;
-    }
-    Alert.alert(title, message, [
-      { text: 'Annuler', style: 'cancel', onPress: () => resolve(false) },
-      { text: okLabel, style: 'destructive', onPress: () => resolve(true) },
-    ]);
-  });
+  sharedConfirmAsync(title, message, okLabel, { tone: 'danger' });
 
 /**
  * @param {{
