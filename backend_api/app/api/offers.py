@@ -25,6 +25,7 @@ from ..models.booking import Booking
 from ..models.negotiation import Negotiation
 from ..models.user import User
 from ..services.notification_service import send_notification
+from ..services import booking_notifications as bnotif
 
 
 logger = logging.getLogger(__name__)
@@ -566,7 +567,17 @@ async def create_offer(
                 {
                     "booking_id": booking.id,
                     "offer_id": offer.id,
+                    "status": "negotiating",
+                    "event": "new_offer",
+                    "target_role": (
+                        "client"
+                        if user_type == "therapist"
+                        else "therapist"
+                    ),
+                    "price": float(data.price_offered),
                 },
+                "high",
+                booking.id,
             )
 
         except Exception:
@@ -971,6 +982,13 @@ async def accept_offer(
     # REJETER LES AUTRES OFFRES ACTIVE
     # ========================================================
 
+    # Thérapeutes dont l'offre va être écartée : à prévenir ensuite.
+    rejected_therapist_ids = bnotif.negotiating_therapist_ids(
+        db,
+        booking.id,
+        exclude=[offer.user_id, current_user.id],
+    )
+
     db.query(Negotiation).filter(
         Negotiation.booking_id == booking.id,
         Negotiation.id != offer.id,
@@ -993,22 +1011,12 @@ async def accept_offer(
 
     try:
 
-        send_notification(
-            offer.user_id,
-            "Offre acceptée",
-            (
-                f"Votre offre de "
-                f"{float(offer.price_offered):,.0f} Ar "
-                "a été acceptée."
-            ),
-            "offer_accepted",
-            {
-                "booking_id": booking.id,
-                "offer_id": offer.id,
-                "final_price": float(
-                    offer.price_offered
-                ),
-            },
+        bnotif.notify_offer_accepted(
+            db,
+            booking,
+            offer,
+            current_user,
+            rejected_therapist_ids,
         )
 
     except Exception:
@@ -1136,12 +1144,23 @@ async def reject_offer(
         send_notification(
             offer.user_id,
             "Offre refusée",
-            "Votre offre a été refusée.",
+            f"{current_user.fullname} a refusé votre offre. Vous pouvez en proposer une autre.",
             "offer_rejected",
             {
                 "booking_id": booking.id,
                 "offer_id": offer.id,
+                "status": str(
+                    getattr(booking.status, "value", booking.status)
+                ),
+                "event": "offer_rejected",
+                "target_role": (
+                    "client"
+                    if offer.user_type == "client"
+                    else "therapist"
+                ),
             },
+            "normal",
+            booking.id,
         )
 
     except Exception:
@@ -1456,7 +1475,17 @@ async def counter_offer(
                 "booking_id": booking.id,
                 "offer_id": new_offer.id,
                 "original_offer_id": original.id,
+                "status": "negotiating",
+                "event": "counter_offer",
+                "target_role": (
+                    "client"
+                    if original.user_type == "client"
+                    else "therapist"
+                ),
+                "price": float(data.counter_price),
             },
+            "high",
+            booking.id,
         )
 
     except Exception:

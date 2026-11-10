@@ -18,6 +18,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useNavBridge, useTopNavLayout } from './AppNavigation';
 import LiveShareChip from './LiveShareChip';
 import { useLiveSharing } from '../../context/LiveSharingContext';
+import { useAuth } from '../../context/AuthContext';
 
 /* =========================================================
    COLORS — thème RESPONSIVE du header
@@ -89,6 +90,60 @@ const getHeaderColors = (isLargeWebScreen, isDark = false) => {
   };
 };
 
+/* =========================================================
+   RETOUR ROBUSTE (toutes les pages)
+   ---------------------------------------------------------
+   1) revient à l'écran précédent s'il existe (pile courante OU
+      pile parente) ;
+   2) sinon (page ouverte directement, rafraîchissement du
+      navigateur, notification, lien…) : va à l'accueil du rôle
+      au lieu de ne rien faire.
+========================================================= */
+const HOME_BY_ROLE = {
+  THERAPIST: ['Tableau de bord', 'DashboardScreen'],
+  CLIENT: ['HomeScreen', 'Accueil'],
+  ADMIN: ['DashboardMain', 'Dashboard'],
+};
+
+const navigateToRoleHome = (navigation, role) => {
+  const candidates = HOME_BY_ROLE[String(role || '').toUpperCase()] || HOME_BY_ROLE.CLIENT;
+  let nav = navigation;
+  while (nav) {
+    const names = nav.getState?.()?.routeNames || [];
+    const target = candidates.find((n) => names.includes(n));
+    if (target) {
+      try {
+        nav.navigate(target);
+        return true;
+      } catch (_e) {
+        /* on essaie le navigateur parent */
+      }
+    }
+    nav = nav.getParent?.();
+  }
+  return false;
+};
+
+const goBackSafe = (navigation, role) => {
+  try {
+    if (navigation?.canGoBack?.()) {
+      navigation.goBack();
+      return;
+    }
+    let parent = navigation?.getParent?.();
+    while (parent) {
+      if (parent.canGoBack?.()) {
+        parent.goBack();
+        return;
+      }
+      parent = parent.getParent?.();
+    }
+  } catch (_e) {
+    /* on passe au repli */
+  }
+  navigateToRoleHome(navigation, role);
+};
+
 const Header = ({
   title,
   subtitle,
@@ -104,6 +159,8 @@ const Header = ({
   mergeWithTopNav = false,
 }) => {
   const navigation = useNavigation();
+  const { user: authUser } = useAuth() || {};
+  const userRole = authUser?.role;
 
   // Thème clair / sombre (ThemeContext). Repli sur clair si absent.
   const themeCtx = useTheme();
@@ -125,10 +182,7 @@ const Header = ({
       onBackPress();
       return;
     }
-
-    if (navigation?.canGoBack?.()) {
-      navigation.goBack();
-    }
+    goBackSafe(navigation, userRole);
   };
   const stableBack = useCallback(() => backRef.current?.(), []);
 
@@ -181,10 +235,7 @@ const Header = ({
       onBackPress();
       return;
     }
-
-    if (navigation?.canGoBack?.()) {
-      navigation.goBack();
-    }
+    goBackSafe(navigation, userRole);
   };
 
   return (

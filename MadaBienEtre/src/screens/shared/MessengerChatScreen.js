@@ -619,19 +619,25 @@ const MessengerChatScreen = ({ navigation, route }) => {
                 onEndReached={loadOlder} onEndReachedThreshold={0.4} style={styles.flex}
                 contentContainerStyle={{ paddingVertical: 8, paddingHorizontal: sideList }}
                 ListFooterComponent={loadingMore ? <ActivityIndicator color={palette.primary} style={{ margin: 12 }} /> : null}
-                ListEmptyComponent={
-                  <View style={styles.emptyWrap}>
-                    <View style={[styles.emptyIcon, { backgroundColor: palette.primarySoft }]}>
-                      <Ionicons name="chatbubble-ellipses-outline" size={34} color={palette.primary} />
-                    </View>
-                    <Text style={{ color: palette.text, fontWeight: '700', fontSize: 17 }}>Aucun message</Text>
-                    <Text style={{ color: palette.textSecondary, textAlign: 'center' }}>Commencez la conversation{detail?.title && !isGroup ? ` avec ${detail.title}` : ''}.</Text>
-                  </View>
-                }
                 onScrollToIndexFailed={(info) => setTimeout(() => listRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: true }), 100)}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
               />
+            )}
+
+            {/* État vide : affiché HORS de la liste inversée (sinon il apparaît à l'envers) */}
+            {!loading && !error && rows.length === 0 && (
+              <View style={styles.emptyOverlay} pointerEvents="none">
+                <View style={styles.emptyWrap}>
+                  <View style={[styles.emptyIcon, { backgroundColor: palette.primarySoft }]}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={34} color={palette.primary} />
+                  </View>
+                  <Text style={{ color: palette.text, fontWeight: '700', fontSize: 17 }}>Aucun message</Text>
+                  <Text style={{ color: palette.textSecondary, textAlign: 'center' }}>
+                    Commencez la conversation{detail?.title && !isGroup ? ` avec ${detail.title}` : ''}.
+                  </Text>
+                </View>
+              </View>
             )}
           </View>
 
@@ -709,7 +715,8 @@ const styles = StyleSheet.create({
   pinBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   dayWrap: { alignItems: 'center', marginVertical: 10 },
   day: { fontSize: 12, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
-  emptyWrap: { alignItems: 'center', paddingHorizontal: 24, gap: 8, paddingVertical: 40, transform: [{ scaleY: -1 }] },
+  emptyWrap: { alignItems: 'center', paddingHorizontal: 24, gap: 8, paddingVertical: 40 },
+  emptyOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   emptyIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
   backdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   msgMenu: { borderRadius: 18, padding: 10, width: '100%', maxWidth: 360 },

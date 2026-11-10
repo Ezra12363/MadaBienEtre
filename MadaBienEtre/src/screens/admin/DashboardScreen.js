@@ -40,6 +40,7 @@ import {
   formatAr,
   formatCount,
 } from '../../components/charts/SimpleCharts';
+import CountBadge from '../../components/common/CountBadge';
 
 const IS_WEB = Platform.OS === 'web';
 
@@ -1214,13 +1215,10 @@ const DashboardScreen = ({ navigation }) => {
                     color="#FFFFFF"
                   />
 
-                  {unreadCount > 0 && (
-                    <View style={styles.headerNotificationBadge}>
-                      <Text style={styles.headerNotificationText}>
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </Text>
-                    </View>
-                  )}
+                  <CountBadge
+                    count={unreadCount}
+                    borderColor={colors.primary || '#2E8B57'}
+                  />
                 </View>
               </TouchableOpacity>
             )
@@ -1368,13 +1366,10 @@ const DashboardScreen = ({ navigation }) => {
                     color="#FFFFFF"
                   />
 
-                  {unreadCount > 0 && (
-                    <View style={styles.headerNotificationBadge}>
-                      <Text style={styles.headerNotificationText}>
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </Text>
-                    </View>
-                  )}
+                  <CountBadge
+                    count={unreadCount}
+                    borderColor={colors.primary || '#2E8B57'}
+                  />
                 </View>
               </TouchableOpacity>
             )

@@ -8,8 +8,8 @@ import { useEffect, useState } from 'react';
 import { Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import useBottomInset from '../../hooks/useBottomInset';
 import { typography } from '../../theme';
 import { CHAT_MAX_WIDTH, useChatSidePadding } from './chatTheme';
 
@@ -35,7 +35,6 @@ const TypingLine = ({ label, color }) => {
 };
 
 const ChatComposer = ({ palette, value, onChangeText, onSend, onAttach, onShareLocation, typingLabel }) => {
-  const insets = useSafeAreaInsets();
   const side = useChatSidePadding();
   const [height, setHeight] = useState(MIN_INPUT_HEIGHT);
   const hasText = value.trim().length > 0;
@@ -53,7 +52,8 @@ const ChatComposer = ({ palette, value, onChangeText, onSend, onAttach, onShareL
     }
   };
 
-  const bottomPad = Platform.OS === 'web' ? 10 : Math.max(insets.bottom, 10);
+  // Barre de navigation Android : marge sous le champ (0 quand le clavier est ouvert)
+  const bottomPad = useBottomInset(10);
 
   return (
     <View

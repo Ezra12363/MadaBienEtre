@@ -72,6 +72,7 @@ import {
   isAccountDecisionNotification,
   openTherapistProfile,
 } from '../../utils/notificationNavigation';
+import { getStatusVisual, opensBookingDetail } from '../../utils/notificationVisuals';
 
 
 /* ============================================================
@@ -1391,6 +1392,19 @@ const NotificationScreen = ({
           moneyKind.startsWith('payment') ||
           String(notification?.type || '').toLowerCase().includes('payment');
 
+        /* ------------------------------------------------------
+           STATUT : offre acceptée, annulée par le client, terminée,
+           expirée, RAPPEL CALENDRIER -> détail de la réservation
+           (écran « BookingDetail » du stack Calendrier)
+        ------------------------------------------------------ */
+        if (opensBookingDetail(notification?.type) && bookingId) {
+          navigation.navigate('Calendrier', {
+            screen: 'BookingDetail',
+            params: { bookingId },
+          });
+          return;
+        }
+
         console.log(
           '🔔 [THERAPIST NOTIFICATION]',
           {
@@ -2131,6 +2145,12 @@ const NotificationScreen = ({
     useCallback(
       (type) => {
 
+        const statusVisual = getStatusVisual(type);
+
+        if (statusVisual) {
+          return statusVisual.icon;
+        }
+
         const category =
           resolveCategory(
             type
@@ -2174,6 +2194,12 @@ const NotificationScreen = ({
   const getColor =
     useCallback(
       (type) => {
+
+        const statusVisual = getStatusVisual(type);
+
+        if (statusVisual) {
+          return statusVisual.color;
+        }
 
         const category =
           resolveCategory(

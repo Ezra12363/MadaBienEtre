@@ -108,11 +108,22 @@ export default function LiveShareChip({ variant = 'onDark', compact = false, nav
           clientLatitude: s.clientLatitude,
           clientLongitude: s.clientLongitude,
         };
-        // « Navigation » existe dans l'onglet Demandes ; repli : pile courante
-        try {
+        // ✅ Si la pile courante possède « Navigation », on l'ouvre DANS cette
+        // pile : « Retour » revient alors à la page d'où l'on vient. Sinon on
+        // passe par l'onglet Demandes.
+        let nav = navigation;
+        let inCurrentStack = false;
+        while (nav) {
+          if ((nav.getState?.()?.routeNames || []).includes('Navigation')) {
+            inCurrentStack = true;
+            break;
+          }
+          nav = nav.getParent?.();
+        }
+        if (inCurrentStack) {
+          nav.navigate('Navigation', params);
+        } else {
           navigation.navigate('Demandes', { screen: 'Navigation', params });
-        } catch (_e) {
-          navigation.navigate('Navigation', params);
         }
       } else if (live.bookingId) {
         navigation.navigate('Tracking', { bookingId: live.bookingId });

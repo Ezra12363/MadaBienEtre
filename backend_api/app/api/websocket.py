@@ -197,66 +197,21 @@ def _resolve_type_value(column, wanted: str):
 
 
 def _notify_client_en_route(db: Session, booking, therapist_name: str, eta, distance) -> bool:
+    """« Votre thérapeute est en route » -> CLIENT (liste + signal temps réel + push)."""
     try:
-        cols = Notification.__table__.columns
-        names = set(cols.keys())
-        type_value = _resolve_type_value(cols["type"], EN_ROUTE_TYPE) if "type" in names else None
-
         # Déjà notifié pour cette réservation ? (évite les doublons après
         # un redémarrage du serveur : le dict en mémoire est alors vide)
-        if type_value is not None and "booking_id" in names:
-            exists = db.query(Notification).filter(
-                Notification.user_id == booking.client_id,
-                Notification.booking_id == booking.id,
-                Notification.type == type_value,
-            ).first()
-            if exists:
-                return False
+        exists = db.query(Notification).filter(
+            Notification.user_id == booking.client_id,
+            Notification.booking_id == booking.id,
+            Notification.type == EN_ROUTE_TYPE,
+        ).first()
+        if exists:
+            return False
 
-        details = []
-        if eta:
-            details.append(f"arrivée estimée : {str(eta)[:40]}")
-        if distance:
-            details.append(f"à {str(distance)[:30]}")
-        body = f"{therapist_name or 'Votre thérapeute'} a démarré le trajet vers vous"
-        body += f" ({', '.join(details)})." if details else "."
+        from ..services import booking_notifications as bnotif
 
-        values = {"user_id": booking.client_id}
-        if "title" in names:
-            values["title"] = "Votre thérapeute est en route 🚗"
-        if "body" in names:
-            values["body"] = body
-        if "message" in names:
-            values["message"] = body
-        if type_value is not None:
-            values["type"] = type_value
-        if "booking_id" in names:
-            values["booking_id"] = booking.id
-        if "is_read" in names:
-            values["is_read"] = False
-
-        payload = {
-            "booking_id": booking.id,
-            "therapist_id": booking.therapist_id,
-            "screen": "Tracking",
-            "eta": eta,
-            "distance": distance,
-        }
-        for key in ("data", "payload"):
-            if key in names:
-                values[key] = payload if isinstance(cols[key].type, SAJSON) else json.dumps(payload)
-                break
-
-        db.add(Notification(**values))
-        db.commit()
-
-        # Push Expo (app fermée) en arrière-plan : ne bloque pas le WebSocket
-        threading.Thread(
-            target=push_service.send_sync,
-            args=(booking.client_id, values.get("title", "Votre thérapeute est en route 🚗"),
-                  body, {**payload, "kind": "booking_en_route"}),
-            daemon=True,
-        ).start()
+        bnotif.notify_en_route(booking, therapist_name, eta, distance)
         return True
     except Exception:
         db.rollback()
@@ -313,6 +268,58 @@ async def tracking_active(
     return out
 
 
+# ------------------------------------------------------------------
+# ✅ DROIT D'ACCÈS AU SUIVI (FIX « Not authorized » sur le bouton
+#    « Envoyer ma position au client »)
+#
+# Avant : seul booking.therapist_id / booking.client_id étaient acceptés.
+# Or tant que le client n'a pas accepté l'offre, booking.therapist_id est
+# NULL (le thérapeute n'a fait que négocier) -> « Not authorized ».
+#
+# Maintenant, est autorisé :
+#   - le client propriétaire de la réservation ;
+#   - le thérapeute assigné ;
+#   - un thérapeute (role THERAPIST) qui a participé à la négociation d'une
+#     réservation encore NON assignée et non terminée (pending/negotiating…).
+# Retourne "client" | "therapist" | None.
+# ------------------------------------------------------------------
+_TRACKING_CLOSED_STATUSES = {
+    "completed", "cancelled", "cancelled_by_client",
+    "cancelled_by_therapist", "expired", "rejected",
+}
+
+
+def _tracking_role(db: Session, user, booking) -> Optional[str]:
+    uid = getattr(user, "id", None)
+    if uid is None:
+        return None
+    if uid == booking.client_id:
+        return "client"
+    if booking.therapist_id is not None:
+        return "therapist" if uid == booking.therapist_id else None
+
+    # Réservation non assignée : thérapeute ayant déjà fait une offre
+    role = str(getattr(getattr(user, "role", None), "value", getattr(user, "role", "")) or "").upper()
+    status = str(getattr(booking.status, "value", booking.status) or "").lower()
+    if role != "THERAPIST" or status in _TRACKING_CLOSED_STATUSES:
+        return None
+    try:
+        from ..models.negotiation import Negotiation  # import local : évite un import circulaire
+        offer = (
+            db.query(Negotiation)
+            .filter(
+                Negotiation.booking_id == booking.id,
+                Negotiation.user_id == uid,
+                Negotiation.user_type == "therapist",
+            )
+            .first()
+        )
+        return "therapist" if offer is not None else None
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("tracking: vérification de la négociation impossible: %r", exc)
+        return None
+
+
 @router.websocket("/ws/tracking/{booking_id}")
 async def websocket_tracking(
     websocket: WebSocket,
@@ -348,14 +355,24 @@ async def websocket_tracking(
             await websocket.close()
             return
 
-        if user.id not in [booking.client_id, booking.therapist_id]:
-            await websocket.send_json({"error": "Not authorized"})
+        tracking_role = _tracking_role(db, user, booking)
+        if tracking_role is None:
+            logger.warning(
+                "WS tracking refusé: user_id=%s role=%s booking_id=%s client_id=%s therapist_id=%s status=%s",
+                user.id, getattr(user, "role", None), booking_id,
+                booking.client_id, booking.therapist_id, booking.status,
+            )
+            await websocket.send_json({
+                "error": "Not authorized",
+                "reason": "not_assigned",
+                "booking_id": booking_id,
+            })
             await websocket.close()
             return
 
         # viewer=1 : connexion en lecture seule (écran web du thérapeute qui reçoit
         # la position de son téléphone) -> n'envoie rien, et sa fermeture n'arrête pas le suivi.
-        is_therapist = user.id == booking.therapist_id and not viewer
+        is_therapist = tracking_role == "therapist" and not viewer
         await manager.join_room(websocket, room_id)
 
         # ✅ Envoie l'état courant au nouvel arrivant : le client sait tout de

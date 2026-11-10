@@ -53,6 +53,7 @@ import {
 } from '../../components/payment/paymentUtils';
 
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 import MapViewWrapper from '../../components/map/MapViewWrapper';
 import { DEFAULT_REGION, MAP_TYPES } from '../../config/googleMaps';
 import {
@@ -482,7 +483,28 @@ const normalizeStatus = booking => {
   return raw || 'pending';
 };
 
-const isDisplayedBooking = () => true;
+// Règle de visibilité (thérapeute connecté = myId) :
+//  - réservation attribuée à CE thérapeute  -> toujours visible
+//  - réservation attribuée à un AUTRE        -> jamais visible
+//    (prix final confirmé : les autres thérapeutes ne la voient plus)
+//  - non attribuée et encore ouverte (en attente / négociation) -> visible
+const getAssignedTherapistId = booking => {
+  const v =
+    booking?.therapist_id ??
+    booking?.therapistId ??
+    booking?.therapist?.id ??
+    null;
+  return v === null || v === undefined || v === '' ? null : String(v);
+};
+
+const isDisplayedBooking = (booking, myId) => {
+  const assigned = getAssignedTherapistId(booking);
+  if (assigned !== null) {
+    return myId === null || myId === undefined || assigned === String(myId);
+  }
+  const status = normalizeStatus(booking);
+  return status === 'pending' || status === 'negotiating';
+};
 
 const isCancelledStatus = status =>
   status === 'cancelled_by_client' || status === 'cancelled_by_therapist';
@@ -1176,7 +1198,8 @@ function ClientAvatar({ photoUrl, name, size = 52, isOnline = false }) {
 
   const [failed, setFailed] = useState(false);
   const showImage = !!photoUrl && !failed;
-  const radius = Math.max(10, Math.round(size * 0.3));
+  // ✅ Avatar rond, sans cadre ni bordure
+  const radius = size / 2;
 
   return (
     <View
@@ -1223,6 +1246,10 @@ function ClientAvatar({ photoUrl, name, size = 52, isOnline = false }) {
 // ============================================================
 
 export default function OffersScreen({ navigation, route }) {
+  // Thérapeute connecté : sert à masquer les réservations confirmées d'un autre thérapeute
+  const { user: authUser } = useAuth();
+  const myIdRef = useRef(authUser?.id ?? null);
+  myIdRef.current = authUser?.id ?? null;
   // ✅ Heure actuelle réelle (rafraîchie toutes les 30 s)
   const now = useNow(30000);
   const { width, height } = useWindowDimensions();
@@ -1358,7 +1385,7 @@ export default function OffersScreen({ navigation, route }) {
       });
 
       const merged = Array.from(mergedMap.values())
-        .filter(isDisplayedBooking)
+        .filter(booking => isDisplayedBooking(booking, myIdRef.current))
         .sort((a, b) => {
           const da = toTimestamp(
             getScheduledDate(a) || a?.created_at
@@ -2180,6 +2207,244 @@ export default function OffersScreen({ navigation, route }) {
       const plannedDateLabel = formatScheduledDateLong(plannedAt);
       const plannedTimeLabel = formatScheduledTime(plannedAt);
 
+      // ✅ ANDROID : carte compacte (hauteur réduite). Web / iOS inchangés.
+      const isCompact = Platform.OS === 'android';
+
+      if (isCompact) {
+        return (
+          <Pressable
+            onPress={() =>
+              onPressOverride ? onPressOverride() : openBooking(booking)
+            }
+            style={({ pressed }) => [
+              styles.card,
+              styles.cCard,
+              pressed && styles.cardPressed,
+            ]}
+          >
+            <View style={styles.cTopRow}>
+              <View style={styles.cAvatarWrap}>
+                <ClientAvatar
+                  photoUrl={getClientPhoto(booking)}
+                  name={getClientName(booking)}
+                  size={44}
+                  isOnline={getClientOnline(booking)}
+                />
+                {badgeCount > 1 ? (
+                  <View style={styles.cCountBadge}>
+                    <Text style={styles.cCountBadgeText}>{badgeCount}</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={styles.cardTopInfo}>
+                <View style={styles.cardNameRow}>
+                  <Text style={styles.cardName} numberOfLines={1}>
+                    {getClientName(booking)}
+                  </Text>
+                  <View
+                    style={[
+                      styles.cardStatusPill,
+                      { backgroundColor: statusUI.background },
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.cardStatusDot,
+                        { backgroundColor: statusUI.dot },
+                      ]}
+                    />
+                    <Text
+                      style={[styles.cardStatusText, { color: statusUI.color }]}
+                      numberOfLines={1}
+                    >
+                      {statusUI.label}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.cLineRow}>
+                  <Text
+                    style={[styles.cardMetaText, styles.cMetaFlex]}
+                    numberOfLines={1}
+                  >
+                    #{booking.id} · {getMassageName(booking)} ·{' '}
+                    {getDuration(booking)} min
+                  </Text>
+                  <Text
+                    style={[
+                      styles.cardPrice,
+                      displayPrice.kind === 'final' && styles.cardPriceFinal,
+                      displayPrice.kind === 'negotiation' && {
+                        color: COLORS.orange,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {formatPrice(displayPrice.amount)}
+                  </Text>
+                </View>
+
+                <View style={styles.cLineRow}>
+                  <Ionicons
+                    name="location-outline"
+                    size={11}
+                    color={colors.textSecondary}
+                  />
+                  <Text style={styles.cardSubText} numberOfLines={1}>
+                    {getAddress(booking)}
+                  </Text>
+                  {distance !== null ? (
+                    <Text style={styles.cardDistanceText} numberOfLines={1}>
+                      ~{formatDistance(distance)}
+                    </Text>
+                  ) : null}
+                </View>
+
+                {plannedDateLabel ? (
+                  <View style={styles.cLineRow}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={11}
+                      color={colors.textSecondary}
+                    />
+                    <Text style={styles.cardDateText} numberOfLines={1}>
+                      {plannedDateLabel}
+                      {plannedTimeLabel ? ` · ${plannedTimeLabel}` : ''}
+                    </Text>
+                  </View>
+                ) : null}
+
+                {showExpiry ? (
+                  <View style={styles.cLineRow}>
+                    <Ionicons
+                      name={expired ? 'alert-circle-outline' : 'hourglass-outline'}
+                      size={11}
+                      color={expired ? COLORS.red : COLORS.orange}
+                    />
+                    <Text
+                      style={[
+                        styles.cardExpiryText,
+                        expired && styles.cardExpiryTextUrgent,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {expired ? 'Expirée le ' : 'Expire le '}
+                      {formatScheduledDateLong(expiresAt)}
+                      {formatScheduledTime(expiresAt)
+                        ? ` · ${formatScheduledTime(expiresAt)}`
+                        : ''}
+                    </Text>
+                  </View>
+                ) : null}
+
+                <BookingPaymentSection
+                  flat
+                  booking={booking}
+                  role="therapist"
+                  navigation={navigation}
+                />
+              </View>
+            </View>
+
+            <View style={styles.cActionsBar}>
+              <View style={styles.cardActionsLeft}>
+                {getPhone(booking) ? (
+                  <Pressable
+                    style={styles.cIconAction}
+                    accessibilityLabel="Appeler"
+                    onPress={event => {
+                      event?.stopPropagation?.();
+                      handleCallClient(booking);
+                    }}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="call-outline" size={19} color={COLORS.primary} />
+                  </Pressable>
+                ) : null}
+
+                <Pressable
+                  style={styles.cIconAction}
+                  accessibilityLabel="Itinéraire"
+                  onPress={event => {
+                    event?.stopPropagation?.();
+                    handleOpenDirections(booking);
+                  }}
+                  hitSlop={8}
+                >
+                  <Ionicons name="navigate-outline" size={19} color={COLORS.primary} />
+                </Pressable>
+
+                {actionState.showAcceptReject ? (
+                  <>
+                    <Pressable
+                      style={[styles.cardSmallAction, busy && styles.disabled]}
+                      disabled={busy}
+                      onPress={event => {
+                        event?.stopPropagation?.();
+                        handleAccept(booking);
+                      }}
+                      hitSlop={6}
+                    >
+                      {busy ? (
+                        <ActivityIndicator size="small" color={COLORS.primary} />
+                      ) : (
+                        <>
+                          <Ionicons name="checkmark" size={14} color={COLORS.primary} />
+                          <Text style={styles.cardSmallActionText}>Accepter</Text>
+                        </>
+                      )}
+                    </Pressable>
+                    <Pressable
+                      style={[styles.cardSmallAction, busy && styles.disabled]}
+                      disabled={busy}
+                      onPress={event => {
+                        event?.stopPropagation?.();
+                        handleReject(booking);
+                      }}
+                      hitSlop={6}
+                    >
+                      <Ionicons name="close" size={14} color={COLORS.red} />
+                      <Text style={[styles.cardSmallActionText, { color: COLORS.red }]}>
+                        Refuser
+                      </Text>
+                    </Pressable>
+                  </>
+                ) : actionState.showNegotiation ? (
+                  <Pressable
+                    style={styles.cardSmallAction}
+                    onPress={event => {
+                      event?.stopPropagation?.();
+                      handleNegotiation(booking);
+                    }}
+                    hitSlop={6}
+                  >
+                    <Ionicons name="swap-horizontal" size={14} color={COLORS.primary} />
+                    <Text style={styles.cardSmallActionText}>Négocier</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+
+              <Pressable
+                style={[styles.cIconAction, styles.cardSmallActionRight]}
+                accessibilityLabel="Plus"
+                onPress={event => {
+                  event?.stopPropagation?.();
+                  setActionSheetBooking(booking);
+                }}
+                hitSlop={8}
+              >
+                <Ionicons
+                  name="ellipsis-horizontal"
+                  size={19}
+                  color={colors.textSecondary}
+                />
+              </Pressable>
+            </View>
+          </Pressable>
+        );
+      }
+
       return (
         <Pressable
           onPress={() =>
@@ -2198,7 +2463,7 @@ export default function OffersScreen({ navigation, route }) {
               <ClientAvatar
                 photoUrl={getClientPhoto(booking)}
                 name={getClientName(booking)}
-                size={46}
+                size={54}
                 isOnline={getClientOnline(booking)}
               />
 
@@ -4432,13 +4697,63 @@ const createStyles = (colors, isDark) => {
     },
 
     // ========================================================
+    // CARTE COMPACTE (Android)
+    // ========================================================
+    cCard: { borderRadius: 12, marginBottom: 8 },
+    cTopRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      paddingHorizontal: 10,
+      paddingTop: 8,
+      paddingBottom: 4,
+      gap: 10,
+    },
+    cAvatarWrap: { position: 'relative', flexShrink: 0 },
+    cCountBadge: {
+      position: 'absolute',
+      top: -4,
+      right: -6,
+      minWidth: 16,
+      height: 16,
+      paddingHorizontal: 3,
+      borderRadius: 8,
+      backgroundColor: COLORS.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cCountBadgeText: { fontSize: 9, fontWeight: '800', color: '#FFFFFF' },
+    cLineRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 2,
+    },
+    cMetaFlex: { flex: 1, minWidth: 0, maxWidth: '100%' },
+    cActionsBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      backgroundColor: colors.card,
+      gap: 4,
+    },
+    cIconAction: {
+      paddingVertical: 6,
+      paddingHorizontal: 8,
+      flexShrink: 0,
+    },
+
+    // ========================================================
     // AVATAR
     // ========================================================
 
     avatarFrame: {
       position: 'relative',
       flexShrink: 0,
-      backgroundColor: avatarBg,
+      backgroundColor: 'transparent',
+      borderWidth: 0,
       overflow: 'visible',
     },
 

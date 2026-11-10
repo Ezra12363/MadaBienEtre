@@ -1,4 +1,5 @@
 # app/services/notification_service.py
+import asyncio
 import logging
 import threading
 from datetime import datetime
@@ -11,6 +12,7 @@ from ..models.user import User
 from ..core.database import SessionLocal
 from ..core.config import settings
 from .push_notifications import push_service
+from .websocket_manager import manager as ws_manager
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +45,49 @@ _PREF_KEYWORDS = (
     ("promo", "promotion_notifications"),
     ("booking", "booking_notifications"),
     ("reservation", "booking_notifications"),
+    ("reminder", "booking_notifications"),
 )
+
+# ---------------------------------------------------------------------------
+# Signal temps réel (/ws/notifications) : le téléphone relit GET /notifications
+# IMMÉDIATEMENT au lieu d'attendre le polling de 10 s.
+# main.py enregistre la boucle asyncio au démarrage (set_main_loop).
+# ---------------------------------------------------------------------------
+_main_loop: Optional[asyncio.AbstractEventLoop] = None
+
+
+def set_main_loop(loop: asyncio.AbstractEventLoop) -> None:
+    global _main_loop
+    _main_loop = loop
+
+
+def signal_user_realtime(user_id: int, notification_id: int, title: str, body: str,
+                         notification_type: str, data: Optional[Dict[str, Any]] = None) -> None:
+    """Pousse un signal « nouvelle notification » vers les sockets de l'utilisateur.
+    Utilisable depuis le thread principal (endpoint async) ou un thread."""
+    message = {
+        "type": "notification",
+        "kind": notification_type,
+        "notification_id": notification_id,
+        "booking_id": (data or {}).get("booking_id"),
+        "title": title,
+        "body": body,
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
+    try:
+        coro = ws_manager.broadcast_to_room(f"user_{user_id}", message)
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+        if running is not None:
+            running.create_task(coro)
+        elif _main_loop is not None and _main_loop.is_running():
+            asyncio.run_coroutine_threadsafe(coro, _main_loop)
+        else:
+            coro.close()
+    except Exception:  # noqa: BLE001
+        logger.debug("Signal temps réel impossible", exc_info=True)
 
 
 def preference_column(notification_type: Optional[str]) -> Optional[str]:
@@ -283,6 +327,9 @@ def send_notification(
             booking_id=booking_id,
         )
         nid = notification.id
+
+        # Affichage immédiat côté application (bannière + badge)
+        signal_user_realtime(user_id, nid, title, body, notification_type, data)
 
         if send_push:
             threading.Thread(

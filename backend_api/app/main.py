@@ -131,7 +131,24 @@ async def lifespan(app: FastAPI):
         # de la base est gérée ailleurs dans le projet.
         logger.exception("Database initialization error")
 
+    # Notifications : boucle temps réel + planificateur (rappels calendrier,
+    # expiration des demandes sans réponse)
+    scheduler_task = None
+    try:
+        import asyncio
+
+        from .services.notification_service import set_main_loop
+        from .services.booking_notifications import booking_scheduler_loop
+
+        set_main_loop(asyncio.get_running_loop())
+        scheduler_task = asyncio.create_task(booking_scheduler_loop(60))
+    except Exception:
+        logger.exception("Planificateur de notifications non démarré")
+
     yield
+
+    if scheduler_task is not None:
+        scheduler_task.cancel()
 
     logger.info(
         "Shutting down %s",

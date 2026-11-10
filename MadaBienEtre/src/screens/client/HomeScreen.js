@@ -58,6 +58,7 @@ import AIBestTherapists from '../../components/ai/AIBestTherapists';
 import PopularServicesCard from '../../components/therapist/PopularServicesCard';
 import useClientStats from '../../hooks/useClientStats';
 import aiService from '../../services/aiService';
+import CountBadge from '../../components/common/CountBadge';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -1586,18 +1587,10 @@ const HomeScreen = ({ navigation }) => {
                   color={headerTheme.iconColor}
                 />
 
-                {unreadCount > 0 && (
-                  <View
-                    style={[
-                      styles.notificationBadge,
-                      { borderColor: headerTheme.headerBg },
-                    ]}
-                  >
-                    <Text style={styles.notificationBadgeText}>
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </Text>
-                  </View>
-                )}
+                <CountBadge
+                  count={unreadCount}
+                  borderColor={headerTheme.headerBg}
+                />
               </View>
             </TouchableOpacity>
           )

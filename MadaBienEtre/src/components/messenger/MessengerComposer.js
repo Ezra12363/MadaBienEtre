@@ -5,6 +5,7 @@ import { Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'r
 
 import { Ionicons } from '@expo/vector-icons';
 
+import useBottomInset from '../../hooks/useBottomInset';
 import EmojiStickerPanel from './EmojiStickerPanel';
 import VoiceRecorderBar from './VoiceRecorderBar';
 
@@ -16,6 +17,9 @@ const MessengerComposer = ({
   const [panel, setPanel] = useState(false);
   const [menu, setMenu] = useState(false);
   const [recording, setRecording] = useState(false);
+  // Marge sous la barre de saisie : évite que la barre de navigation Android
+  // (◀ ● ■ / geste) recouvre le champ « Écrire un message… ».
+  const bottomInset = useBottomInset(8);
   const inputRef = useRef(null);
   const typingRef = useRef(false);
   const typingTimer = useRef(null);
@@ -30,7 +34,7 @@ const MessengerComposer = ({
 
   if (disabledReason) {
     return (
-      <View style={[styles.locked, { backgroundColor: palette.surface, borderTopColor: palette.border }]}>
+      <View style={[styles.locked, { backgroundColor: palette.surface, borderTopColor: palette.border, paddingBottom: 14 + bottomInset }]}>
         <Ionicons name="lock-closed" size={16} color={palette.textSecondary} />
         <Text style={{ color: palette.textSecondary, flex: 1, fontSize: 13 }}>{disabledReason}</Text>
       </View>
@@ -61,7 +65,7 @@ const MessengerComposer = ({
   const attach = (kind) => { setMenu(false); onAttach(kind); };
 
   return (
-    <View style={[styles.wrap, { backgroundColor: palette.surface, borderTopColor: palette.border }]}>
+    <View style={[styles.wrap, { backgroundColor: palette.surface, borderTopColor: palette.border, paddingBottom: bottomInset }]}>
       {(replyTo || editing) && (
         <View style={[styles.context, { backgroundColor: palette.primarySoft, borderLeftColor: palette.primary }]}>
           <View style={{ flex: 1 }}>
@@ -115,7 +119,7 @@ const MessengerComposer = ({
             <View style={[styles.inputBox, { backgroundColor: palette.inputBg, borderColor: palette.inputBorder }]}>
               <TextInput
                 ref={inputRef} value={text} onChangeText={changeText} multiline maxLength={4000}
-                placeholder="Écrire un message…" placeholderTextColor={palette.placeholder}
+                placeholder="Écrire un message…" placeholderTextColor={palette.placeholder || palette.textSecondary}
                 style={[styles.input, { color: palette.inputText }, Platform.OS === 'web' && { outlineStyle: 'none' }]}
                 onFocus={() => { setPanel(false); setMenu(false); }}
                 onKeyPress={(e) => {

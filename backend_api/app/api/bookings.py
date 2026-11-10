@@ -37,6 +37,7 @@ from ..schemas.booking import (
 from ..services.notification_service import (
     send_notification,
 )
+from ..services import booking_notifications as bnotif
 
 
 logger = logging.getLogger(__name__)
@@ -860,8 +861,9 @@ async def create_booking(
                 User.verification_status
                 == "approved",
 
-                User.is_online == True,
-
+                # NB : on ne filtre PLUS sur is_online. Un thérapeute
+                # hors-ligne (application fermée) doit justement recevoir
+                # le PUSH de la nouvelle demande.
                 User.is_available == True,
             ).all()
 
@@ -977,8 +979,29 @@ async def create_booking(
 
                     {
                         "booking_id":
-                        new_booking.id
+                        new_booking.id,
+
+                        "status":
+                        "pending",
+
+                        "event":
+                        "new_booking",
+
+                        "target_role":
+                        "therapist",
+
+                        "client_id":
+                        current_user.id,
+
+                        "price":
+                        float(
+                            new_booking.client_price_proposed
+                        ),
                     },
+
+                    "high",
+
+                    new_booking.id,
                 )
 
                 notified += 1
@@ -995,6 +1018,12 @@ async def create_booking(
         logger.info(
             "BOOKING %s -> %s therapists notified",
             new_booking.id,
+            notified,
+        )
+
+        # Accusé de réception pour le client (statut : pending)
+        bnotif.notify_booking_created_client(
+            new_booking,
             notified,
         )
 
@@ -1063,6 +1092,28 @@ async def get_available_bookings(
             detail="Therapist access required",
         )
 
+    # --------------------------------------------------------
+    # Seuls les thérapeutes CERTIFIÉS (compte approuvé et actif)
+    # voient les demandes ouvertes.
+    # --------------------------------------------------------
+
+    if (
+        str(
+            getattr(
+                current_user,
+                "verification_status",
+                "",
+            ) or ""
+        ).strip().lower() != "approved"
+        or getattr(
+            current_user,
+            "is_active",
+            True,
+        ) is False
+    ):
+
+        return []
+
     now = utc_now()
 
     service_radius = (
@@ -1113,6 +1164,29 @@ async def get_available_bookings(
     # Une offre ne bloque PAS les autres thérapeutes.
     # ========================================================
 
+    # --------------------------------------------------------
+    # RÈGLE DE VISIBILITÉ
+    #
+    #  - pending / negotiating : visible par TOUS les thérapeutes
+    #    certifiés (chacun peut proposer son prix).
+    #  - dès que client et thérapeute se sont accordés sur le prix
+    #    final (offre acceptée -> status confirmed + therapist_id),
+    #    la réservation DISPARAÎT pour tous les autres thérapeutes :
+    #    elle n'apparaît plus que chez le thérapeute assigné
+    #    (via GET /bookings).
+    #  - garde-fou : une réservation qui a une offre « accepted » est
+    #    toujours masquée ici, même si therapist_id est incohérent.
+    # --------------------------------------------------------
+
+    accepted_offer_exists = (
+        db.query(Negotiation.id)
+        .filter(
+            Negotiation.booking_id == Booking.id,
+            Negotiation.status == "accepted",
+        )
+        .exists()
+    )
+
     bookings = db.query(
         Booking
     ).filter(
@@ -1125,6 +1199,8 @@ async def get_available_bookings(
                 "negotiating",
             ]
         ),
+
+        ~accepted_offer_exists,
 
         or_(
             Booking.expires_at.is_(None),
@@ -2352,6 +2428,32 @@ async def cancel_booking(
             detail="Booking not found",
         )
 
+    # Statuts qui ne peuvent plus être annulés
+    if booking.status in (
+        "cancelled_by_client",
+        "cancelled_by_therapist",
+        "completed",
+        "expired",
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Cette réservation ne peut plus "
+                "être annulée."
+            ),
+        )
+
+    # Thérapeutes avec une offre OUVERTE : lus AVANT que les offres
+    # ne soient passées à « rejected » (ils doivent être prévenus).
+    open_offer_therapists = (
+        bnotif.negotiating_therapist_ids(
+            db,
+            booking.id,
+            exclude=[current_user.id],
+        )
+    )
+
     if (
         current_user.id
         == booking.client_id
@@ -2408,45 +2510,20 @@ async def cancel_booking(
 
     db.commit()
 
-    other_user_id = (
+    # Notification selon le statut (annulé par le client / le thérapeute)
+    try:
 
-        booking.therapist_id
+        bnotif.notify_booking_cancelled(
+            booking,
+            current_user,
+            open_offer_therapists,
+        )
 
-        if current_user.id
-        == booking.client_id
+    except Exception:
 
-        else booking.client_id
-    )
-
-    if other_user_id:
-
-        try:
-
-            send_notification(
-
-                other_user_id,
-
-                "Réservation annulée",
-
-                (
-                    f"La réservation "
-                    f"#{booking.id} "
-                    f"a été annulée."
-                ),
-
-                "booking_cancelled",
-
-                {
-                    "booking_id":
-                        booking.id
-                },
-            )
-
-        except Exception:
-
-            logger.exception(
-                "Cancel notification failed"
-            )
+        logger.exception(
+            "Cancel notification failed"
+        )
 
     return {
 
@@ -2532,23 +2609,9 @@ async def start_booking(
 
     try:
 
-        send_notification(
-
-            booking.client_id,
-
-            "Massage en cours",
-
-            (
-                f"{current_user.fullname} "
-                f"a commencé votre massage."
-            ),
-
-            "booking_started",
-
-            {
-                "booking_id":
-                    booking.id
-            },
+        bnotif.notify_massage_started(
+            booking,
+            current_user,
         )
 
     except Exception:
@@ -2644,6 +2707,8 @@ async def complete_booking(
             ),
         )
 
+    previous_status = booking.status
+
     if not booking.therapist_id:
         booking.therapist_id = current_user.id
 
@@ -2664,25 +2729,22 @@ async def complete_booking(
 
     try:
 
-        send_notification(
+        if previous_status == "in_progress":
 
-            booking.client_id,
+            bnotif.notify_massage_completed(
+                booking,
+                current_user,
+            )
 
-            "Massage terminé",
+        else:
 
-            (
-                f"Votre massage avec "
-                f"{current_user.fullname} "
-                f"est terminé."
-            ),
-
-            "booking_completed",
-
-            {
-                "booking_id":
-                    booking.id
-            },
-        )
+            # Ce endpoint sert aussi à ACCEPTER directement une demande
+            # (pending / negotiating / confirmed) : le client reçoit alors
+            # « Réservation acceptée », pas « Massage terminé ».
+            bnotif.notify_booking_accepted_directly(
+                booking,
+                current_user,
+            )
 
     except Exception:
 

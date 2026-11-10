@@ -19,6 +19,7 @@ import {
   RefreshControl,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
   useWindowDimensions,
@@ -1213,7 +1214,7 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
         { backgroundColor: themeColors.card, borderColor: themeColors.border },
       ]}
     >
-      <View style={styles.cardTopRow}>
+      <View style={[styles.cardTopRow, columns > 1 && styles.cardTopRowGrid]}>
         {/* PHOTO */}
         <View
           style={[
@@ -1229,7 +1230,7 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
               resizeMode="cover"
             />
           ) : (
-            <Ionicons name={typeVisual.icon} size={30} color={typeVisual.color} />
+            <Ionicons name={typeVisual.icon} size={24} color={typeVisual.color} />
           )}
         </View>
 
@@ -1254,6 +1255,13 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
               </Text>
             </View>
           </View>
+
+          {/* ✏️ NOUVEAU : numéro de réservation */}
+          {booking.bookingId ? (
+            <Text numberOfLines={1} style={[styles.bookingNumber, { color: themeColors.textSecondary }]}>
+              Réservation #{booking.bookingId}
+            </Text>
+          ) : null}
 
           <View style={styles.addressRow}>
             <Ionicons name="location-outline" size={13} color={themeColors.textSecondary} />
@@ -1450,6 +1458,7 @@ const HistoryScreen = ({ navigation }) => {
 
   const [bookings, setBookings] = useState([]);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState(''); // ✏️ NOUVEAU : barre de recherche
 
   // ---------- PAIEMENTS (filtres « En attente de paiement » / « Payé ») ----------
   // Seules les réservations confirmées / en cours / terminées ont un paiement.
@@ -1719,8 +1728,18 @@ const HistoryScreen = ({ navigation }) => {
       });
     }
 
+    // ✏️ NOUVEAU : recherche (n° de réservation, massage, adresse, thérapeute)
+    const q = searchQuery.trim().toLowerCase().replace(/^#/, '');
+    if (q) {
+      result = result.filter((booking) =>
+        [booking.bookingId, booking.massageType, booking.address, booking.therapist?.name]
+          .filter((v) => v !== null && v !== undefined)
+          .some((v) => String(v).toLowerCase().includes(q)),
+      );
+    }
+
     return result;
-  }, [bookings, activeFilter, appliedRange, paymentsByBooking]);
+  }, [bookings, activeFilter, appliedRange, paymentsByBooking, searchQuery]);
 
   // ---------- CALENDAR HANDLERS ----------
 
@@ -1956,12 +1975,35 @@ const HistoryScreen = ({ navigation }) => {
       <View style={styles.content}>
         {/* PAGE HEADER COMPACT */}
         <View style={styles.pageHeader}>
-          <Text style={[styles.pageTitle, { color: themeColors.text }]}>
-            Historique
-            <Text style={[styles.pageCount, { color: themeColors.textSecondary }]}>
-              {`  ${filteredBookings.length}`}
-            </Text>
-          </Text>
+          {/* ✏️ MODIFIÉ : la barre de recherche remplace le titre « Historique » */}
+          <View
+            style={[
+              styles.searchBar,
+              { backgroundColor: themeColors.card, borderColor: themeColors.border },
+            ]}
+          >
+            <Ionicons name="search-outline" size={16} color={themeColors.textSecondary} />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Rechercher (n°, massage, adresse…)"
+              placeholderTextColor={themeColors.textSecondary}
+              style={[styles.searchInput, { color: themeColors.text }]}
+              returnKeyType="search"
+              autoCorrect={false}
+              accessibilityLabel="Rechercher une réservation"
+            />
+            {!!searchQuery && (
+              <TouchableOpacity
+                onPress={() => setSearchQuery('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel="Effacer la recherche"
+              >
+                <Ionicons name="close-circle" size={16} color={themeColors.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
 
           <View style={styles.pageHeaderActions}>
             <TouchableOpacity
@@ -2174,6 +2216,28 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
 
+  searchBar: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 36,
+    marginRight: 10,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderRadius: 18,
+  },
+
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    paddingVertical: 0,
+    fontSize: 13,
+    fontFamily: typography.fontFamily.regular,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : null),
+  },
+
   pageTitle: {
     fontSize: 17,
     lineHeight: 22,
@@ -2270,17 +2334,24 @@ const styles = StyleSheet.create({
   // alignItems 'stretch' : toutes les cartes d'une ligne ont la même hauteur
   // (avec ou sans bloc paiement).
   gridColumnWrapper: {
-    gap: 12,
-    alignItems: 'stretch',
+    gap: 10,
+    alignItems: 'stretch', // ✏️ MODIFIÉ : les 3 cartes d'une ligne ont EXACTEMENT la même hauteur
   },
 
   bookingCardGrid: {
+    // ✏️ MODIFIÉ : la carte remplit toute la hauteur de sa case (= hauteur de la plus grande de la ligne)
+    flex: 1,
+  },
+
+  // ✏️ NOUVEAU : en grille, le contenu haut prend la place restante → le pied (tags/actions) reste collé en bas
+  cardTopRowGrid: {
     flexGrow: 1,
   },
 
   gridItem: {
     flex: 1,
     minWidth: 0,
+    alignSelf: 'stretch', // ✏️ MODIFIÉ : s'étire sur toute la hauteur de la ligne
   },
 
   // ---------- BOOKING CARD ----------
@@ -2288,9 +2359,10 @@ const styles = StyleSheet.create({
   bookingCard: {
     width: '100%',
     borderWidth: 1,
-    borderRadius: 16,
-    padding: Platform.OS === 'web' ? 14 : 10,
-    marginBottom: 10,
+    borderRadius: 14,
+    // ✏️ MODIFIÉ (carte compacte) : moins de marge intérieure/extérieure
+    padding: Platform.OS === 'web' ? 10 : 8,
+    marginBottom: 8,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.04,
@@ -2302,24 +2374,25 @@ const styles = StyleSheet.create({
   cardTopRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
-    gap: 10,
+    gap: 8, // ✏️ MODIFIÉ (10 → 8)
   },
 
+  // ✏️ MODIFIÉ : vignette plus petite, hauteur FIXE (avant : 78×104)
   thumbnailWrapper: {
-    width: 78,
-    height: 104,
+    width: Platform.OS === 'web' ? 64 : 56,
+    height: Platform.OS === 'web' ? 84 : 76,
     alignSelf: 'flex-start',
-    borderRadius: 12,
+    borderRadius: 10,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   thumbnailWrapperWide: {
-    width: 96,
-    height: 128,
+    width: 72, // ✏️ MODIFIÉ (96×128 → 72×92)
+    height: 92,
     alignSelf: 'flex-start',
-    borderRadius: 14,
+    borderRadius: 12,
   },
 
   thumbnailImage: {
@@ -2348,8 +2421,8 @@ const styles = StyleSheet.create({
   },
 
   cardMainTitleWide: {
-    fontSize: 16,
-    lineHeight: 21,
+    fontSize: 15, // ✏️ MODIFIÉ (16 → 15)
+    lineHeight: 19,
   },
 
   statusPill: {
@@ -2374,11 +2447,18 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.bold,
   },
 
+  bookingNumber: {
+    fontSize: 11,
+    lineHeight: 14,
+    marginTop: 2,
+    fontFamily: typography.fontFamily.regular,
+  },
+
   addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 4,
+    marginTop: 2, // ✏️ MODIFIÉ (4 → 2)
   },
 
   addressText: {
@@ -2394,7 +2474,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
-    marginTop: 8,
+    marginTop: 4, // ✏️ MODIFIÉ (8 → 4)
   },
 
   // Chip « avis » compact, intégré à la ligne du thérapeute
@@ -2458,7 +2538,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 8,
+    marginTop: 4, // ✏️ MODIFIÉ (8 → 4)
   },
 
   priceBox: {
@@ -2470,8 +2550,8 @@ const styles = StyleSheet.create({
   },
 
   priceText: {
-    fontSize: 16,
-    lineHeight: 20,
+    fontSize: 15, // ✏️ MODIFIÉ (16 → 15)
+    lineHeight: 19,
     color: COLORS.price,
     fontFamily: typography.fontFamily.bold,
   },
@@ -2482,9 +2562,9 @@ const styles = StyleSheet.create({
   },
 
   menuButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28, // ✏️ MODIFIÉ (32 → 28)
+    height: 28,
+    borderRadius: 14,
     backgroundColor: 'transparent',
     borderWidth: 1,
     alignItems: 'center',
@@ -2496,7 +2576,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
-    marginTop: 10,
+    marginTop: 6, // ✏️ MODIFIÉ (10 → 6)
   },
 
   tagsWrap: {
@@ -2504,7 +2584,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 4, // ✏️ MODIFIÉ (6 → 4)
   },
 
   footerActions: {
@@ -2517,10 +2597,10 @@ const styles = StyleSheet.create({
   shareButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    height: 32,
-    paddingHorizontal: 12,
-    borderRadius: 16,
+    gap: 4,
+    height: 28, // ✏️ MODIFIÉ (32 → 28)
+    paddingHorizontal: 10,
+    borderRadius: 14,
     backgroundColor: COLORS.primarySoft,
   },
 
@@ -2531,14 +2611,14 @@ const styles = StyleSheet.create({
   },
 
   tag: {
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2, // ✏️ MODIFIÉ (4 → 2)
+    borderRadius: 7,
   },
 
   tagText: {
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 10.5,
+    lineHeight: 14,
     fontFamily: typography.fontFamily.medium,
   },
 

@@ -39,6 +39,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { colors } from '../../theme';
 import useChatUnread from '../../hooks/useChatUnread';
 import { useMessenger } from '../../context/MessengerContext';
+import CountBadge from './CountBadge';
 
 const ANIMATION_DURATION = 220;
 const HIDE_TRANSLATE_Y = 100;
@@ -49,13 +50,7 @@ const ChatTabBadge = () => {
   const { unreadCount: legacyCount } = useChatUnread();
   const { unreadTotal } = useMessenger();
   const unreadCount = Math.max(legacyCount || 0, unreadTotal || 0);
-  if (!unreadCount) return null;
-
-  return (
-    <View style={styles.badge} pointerEvents="none">
-      <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-    </View>
-  );
+  return <CountBadge count={unreadCount} borderColor="#FFFFFF" />;
 };
 
 const BottomTabBar = ({

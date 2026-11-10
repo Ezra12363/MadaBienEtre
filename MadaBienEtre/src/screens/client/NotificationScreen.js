@@ -86,6 +86,7 @@ import {
 } from '../../utils/timeAgo';
 
 import notificationService from '../../services/notificationService';
+import { getStatusVisual, opensBookingDetail } from '../../utils/notificationVisuals';
 
 
 /* ============================================================
@@ -972,6 +973,15 @@ const NotificationScreen = ({
 
 
         /* ------------------------------------------------------
+           STATUT : offre acceptée, annulée, démarrée, terminée,
+           expirée, rappel calendrier -> détail de la réservation
+        ------------------------------------------------------ */
+        if (opensBookingDetail(notification?.type) && bookingId) {
+          navigation.navigate('BookingDetail', { bookingId });
+          return;
+        }
+
+        /* ------------------------------------------------------
            MESSAGE DE CHAT
         ------------------------------------------------------ */
 
@@ -1774,6 +1784,13 @@ const NotificationScreen = ({
     useCallback(
       (type) => {
 
+        // Icône selon le STATUT (accepté, annulé, en route, rappel...)
+        const statusVisual = getStatusVisual(type);
+
+        if (statusVisual) {
+          return statusVisual.icon;
+        }
+
         const category =
           resolveCategory(
             type
@@ -1815,6 +1832,12 @@ const NotificationScreen = ({
   const getColor =
     useCallback(
       (type) => {
+
+        const statusVisual = getStatusVisual(type);
+
+        if (statusVisual) {
+          return statusVisual.color;
+        }
 
         const category =
           resolveCategory(

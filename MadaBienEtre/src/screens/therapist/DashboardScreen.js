@@ -59,6 +59,7 @@ import { useTopNavLayout } from '../../components/common/AppNavigation';
 import {
   colors,
 } from '../../theme';
+import CountBadge from '../../components/common/CountBadge';
 
 
 // ============================================================
@@ -938,22 +939,10 @@ const DashboardScreen = ({ navigation }) => {
                     color={headerTheme.iconColor}
                   />
 
-                  {unreadCount > 0 && (
-                    <View
-                      style={[
-                        styles.headerNotificationBadge,
-                        { borderColor: headerTheme.headerBg },
-                      ]}
-                    >
-                      <Text
-                        style={styles.headerNotificationText}
-                      >
-                        {unreadCount > 99
-                          ? '99+'
-                          : unreadCount}
-                      </Text>
-                    </View>
-                  )}
+                  <CountBadge
+                    count={unreadCount}
+                    borderColor={headerTheme.headerBg}
+                  />
                 </View>
               </TouchableOpacity>
             )

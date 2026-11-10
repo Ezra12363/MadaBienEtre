@@ -101,6 +101,46 @@ export const openTherapistProfile = (navigation) => {
   }
 };
 
+const bookingIdOf = (notification) => {
+  const data = getNotificationData(notification);
+  return pickId(data.booking_id, data.bookingId, notification?.booking_id);
+};
+
+/**
+ * Réservation / offre / négociation / en route / rappel calendrier :
+ * ouvre l'écran adapté au rôle et au type (clic sur une notification NATIVE).
+ * Retourne true si la notification a été gérée.
+ */
+export const openBookingNotification = (root, role, notification) => {
+  const type = typeOf(notification);
+  const bookingId = bookingIdOf(notification);
+  const data = getNotificationData(notification);
+  if (!bookingId || !type) return false;
+  // Seulement les notifications de réservation / offre (pas chat, paiement, avis, SOS…)
+  if (data.kind === 'chat_message' || !(type.includes('booking') || type.includes('offer'))) return false;
+
+  const isNegotiation = type === 'counter_offer' || type === 'new_offer' || type === 'offer_rejected';
+  const go = (name, params) => {
+    try {
+      root.navigate(name, params);
+      return true;
+    } catch (e) {
+      console.warn('Navigation notification impossible :', e?.message || e);
+      return false;
+    }
+  };
+
+  if (role === 'CLIENT') {
+    if (type === 'booking_en_route') return go('Tracking', { bookingId });
+    if (isNegotiation) return go('Negotiation', { bookingId, offerId: data.offer_id });
+    return go('BookingDetail', { bookingId });
+  }
+
+  // THERAPIST
+  if (isNegotiation) return go('Negotiation', { bookingId, offerId: data.offer_id });
+  return go('Calendrier', { screen: 'BookingDetail', params: { bookingId } });
+};
+
 /**
  * Clic sur une notification NATIVE (Android / iOS), app ouverte, en arrière-plan
  * ou lancée à froid. `root` = référence du NavigationContainer.
@@ -131,6 +171,8 @@ export const handleNativeNotificationTap = (root, role, data, markAsRead) => {
       openAdminAccountNotification(root, notification);
     } else if (r === 'THERAPIST' && isAccountDecisionNotification(notification)) {
       openTherapistProfile(root);
+    } else if (r === 'THERAPIST' || r === 'CLIENT') {
+      openBookingNotification(root, r, notification);
     }
   };
   run();

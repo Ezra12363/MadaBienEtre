@@ -80,6 +80,7 @@ import { colors, typography, spacing } from '../../theme';
 
 import BottomTabBar from './BottomTabBar';
 import LiveShareChip from './LiveShareChip';
+import CountBadge from './CountBadge';
 
 // ============================================================
 // SEUIL RESPONSIVE
@@ -546,13 +547,7 @@ export const TopNavBar = ({
                     color="#FFFFFF"
                   />
 
-                  {messagesBadge > 0 && (
-                    <View style={styles.msgBadge}>
-                      <Text style={styles.msgBadgeText}>
-                        {messagesBadge > 99 ? '99+' : messagesBadge}
-                      </Text>
-                    </View>
-                  )}
+                  <CountBadge count={messagesBadge} borderColor={PRIMARY} />
                 </View>
               </Pressable>
             )}
@@ -580,15 +575,7 @@ export const TopNavBar = ({
                     color="#FFFFFF"
                   />
 
-                  {notificationsUnreadCount > 0 && (
-                    <View style={styles.bellBadge}>
-                      <Text style={styles.headerActionBadgeText}>
-                        {notificationsUnreadCount > 99
-                          ? '99+'
-                          : notificationsUnreadCount}
-                      </Text>
-                    </View>
-                  )}
+                  <CountBadge count={notificationsUnreadCount} borderColor={PRIMARY} />
                 </View>
               </Pressable>
             )}

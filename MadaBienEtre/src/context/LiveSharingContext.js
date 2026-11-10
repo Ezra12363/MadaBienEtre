@@ -187,7 +187,16 @@ function SharingEngine({ session, token, apiRef, reportedRef, onStatus, onSent, 
           missing_token: 'token manquant',
           invalid_token: 'token invalide ou expiré',
         };
-        const text = reasons[msg.reason] ? `${msg.error} (${reasons[msg.reason]})` : msg.error;
+        // ✅ Messages clairs (au lieu du « Not authorized » brut du serveur)
+        let text;
+        if (msg.error === 'Not authorized') {
+          text =
+            "Cette réservation ne vous est pas attribuée. Faites d'abord une offre ou attendez l'acceptation du client, puis réessayez.";
+        } else if (msg.error === 'Booking not found') {
+          text = 'Réservation introuvable.';
+        } else {
+          text = reasons[msg.reason] ? `${msg.error} (${reasons[msg.reason]})` : msg.error;
+        }
         if (FATAL_ERRORS.includes(msg.error)) {
           cbRef.current.onFatal(text);
         }

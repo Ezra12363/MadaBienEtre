@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
+import { getStatusVisual } from '../../utils/notificationVisuals';
 
 const NotificationItem = ({ notification, onPress, onDelete }) => {
   const { colors: themeColors } = useTheme();
@@ -11,6 +12,8 @@ const NotificationItem = ({ notification, onPress, onDelete }) => {
   const normalize = (t) => (String(t || '').startsWith('sos') ? 'sos' : t);
 
   const getIcon = (rawType) => {
+    const visual = getStatusVisual(rawType);
+    if (visual) return visual.icon;
     const type = normalize(rawType);
     const map = {
       booking: 'calendar-outline',
@@ -27,6 +30,8 @@ const NotificationItem = ({ notification, onPress, onDelete }) => {
   };
 
   const getColor = (rawType) => {
+    const visual = getStatusVisual(rawType);
+    if (visual) return visual.color;
     const type = normalize(rawType);
     const map = {
       booking: '#4CAF50',

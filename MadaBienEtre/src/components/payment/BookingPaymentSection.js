@@ -1,16 +1,18 @@
 // src/components/payment/BookingPaymentSection.js
 //
 // Bloc « Statut du paiement » à placer SOUS LE PRIX d'une réservation.
-//   - repliable (toggle) : badge de statut + chevron ;
+//   - ✏️ MODIFIÉ : la ligne (badge de statut + chevron) ouvre une FENÊTRE MODALE qui monte du bas
+//     (BottomSheetModal) sur Web, Android et iOS — la carte ne grandit plus jamais ;
 //   - client, en attente  -> bouton « Payer maintenant » ;
 //   - client, payé        -> bouton « Voir le reçu » (reçu + téléchargement PDF) ;
 //   - thérapeute          -> voit seulement Payé / En attente (+ montant net, mode,
 //                           date et heure) et peut ouvrir le reçu ; espèces : bouton
 //                           « Confirmer la réception ».
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, LayoutAnimation, Platform, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, StyleSheet, Text, TouchableOpacity, UIManager, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import BottomSheetModal from '../common/BottomSheetModal'; // ✏️ NOUVEAU
 import ReasonModal from '../common/ReasonModal';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
@@ -51,7 +53,7 @@ function Line({ label, value, tc }) {
  *  defaultOpen?: boolean, style?: object
  * }} props
  */
-export default function BookingPaymentSection({ booking, role = 'client', navigation, payment: preloaded, onChanged, defaultOpen = false, flat = false, style }) {
+export default function BookingPaymentSection({ booking, role = 'client', navigation, payment: preloaded, onChanged, defaultOpen = false, flat = false, style, onOpenChange }) {  // ✏️ onOpenChange : prévient la carte parente (ouvert / fermé)
   const theme = useTheme?.() || {};
   const tc = { text: '#222', textSecondary: '#777', border: '#E5E5E5', card: '#FFFFFF', ...(theme.colors || {}) };
 
@@ -64,6 +66,13 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
   const [open, setOpen] = useState(defaultOpen);
   const [busy, setBusy] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
+
+  // ✏️ NOUVEAU : informe la carte parente quand la boîte « Statut du paiement » s'ouvre / se ferme
+  // (la grille web s'en sert pour passer la carte sur toute la ligne quand elle est ouverte).
+  useEffect(() => {
+    onOpenChange?.(open);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // Ouvert automatiquement quand on arrive depuis une notification de paiement.
   useEffect(() => {
@@ -84,9 +93,14 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
   const amount = payment?.amount || bookingAmount(booking);
   const view = isTherapist ? 'therapist' : 'client';
 
-  const toggle = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setOpen((v) => !v);
+  // ✏️ MODIFIÉ : ouvre la fenêtre modale (avant : dépliait la carte sur place)
+  const openSheet = () => setOpen(true);
+  const closeSheet = () => setOpen(false);
+
+  // ✏️ NOUVEAU : ferme la fenêtre avant de changer d'écran (reçu, paiement)
+  const go = (screen, params) => {
+    setOpen(false);
+    navigation?.navigate?.(screen, params);
   };
 
   const confirmCash = () => {
@@ -152,7 +166,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
 
   return (
     <View style={[styles.wrap, { borderColor: tc.border, backgroundColor: tc.card }, flat && styles.wrapFlat, style]}>
-      <TouchableOpacity style={[styles.head, flat && styles.headFlat]} onPress={toggle} activeOpacity={0.8}>
+      <TouchableOpacity style={[styles.head, flat && styles.headFlat]} onPress={openSheet} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Voir le détail du paiement">
         <View style={styles.headLeft}>
           <Ionicons name="wallet-outline" size={15} color={GREEN} />
           {/* UNE seule ligne : le détail (summary) est affiché une fois ouvert */}
@@ -162,13 +176,20 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
         </View>
         <View style={styles.headRight}>
           <PaymentStatusBadge state={state} small />
-          <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={15} color={tc.textSecondary} />
+          <Ionicons name="chevron-forward" size={15} color={tc.textSecondary} />
         </View>
       </TouchableOpacity>
 
-      {open ? (
-        <View style={[styles.body, { borderTopColor: tc.border }, flat && styles.bodyFlat]}>
+      <BottomSheetModal
+        visible={open}
+        onClose={closeSheet}
+        title="Statut du paiement"
+        right={<PaymentStatusBadge state={state} small />}
+      >
+        <View style={styles.sheetBody}>
           <Text style={[styles.summary, { color: tc.textSecondary }]}>{summary}</Text>
+          {/* ✏️ NOUVEAU : numéro de réservation */}
+          <Line tc={tc} label="N° de réservation" value={booking?.id ? `#${booking.id}` : null} />
           <Line tc={tc} label={pending ? 'Montant à payer' : isTherapist ? 'Montant payé par le client' : 'Montant payé'} value={formatAr(amount)} />
           {!pending ? <Line tc={tc} label="Mode de paiement" value={payment?.method_label} /> : null}
           {payment?.created_at ? <Line tc={tc} label="Paiement initié le" value={formatDateTime(payment.created_at)} /> : null}
@@ -183,7 +204,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
 
           {/* ----- Actions ----- */}
           {state === 'paid' ? (
-            <TouchableOpacity style={styles.primary} onPress={() => navigation?.navigate?.('Receipt', { kind: 'payment', id: payment.id, view })} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.primary} onPress={() => go('Receipt', { kind: 'payment', id: payment.id, view })} activeOpacity={0.85}>
               <Ionicons name="receipt-outline" size={15} color="#fff" />
               <Text style={styles.primaryText}>{isTherapist ? 'Voir le reçu du client' : 'Voir le reçu'}</Text>
             </TouchableOpacity>
@@ -202,7 +223,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
             </Text>
           ) : null}
           {state === 'paid' && !isTherapist && refundStatus !== 'pending' ? (
-            <TouchableOpacity style={[styles.primary, styles.secondary]} onPress={() => setRefundOpen(true)} disabled={busy} activeOpacity={0.85}>
+            <TouchableOpacity style={[styles.primary, styles.secondary]} onPress={() => { setOpen(false); setTimeout(() => setRefundOpen(true), 350); }} disabled={busy} activeOpacity={0.85}>
               {busy ? <ActivityIndicator size="small" color={GREEN} /> : <Ionicons name="return-down-back-outline" size={15} color={GREEN} />}
               <Text style={[styles.primaryText, { color: GREEN }]}>Demander un remboursement</Text>
             </TouchableOpacity>
@@ -211,7 +232,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
           {pending && !isTherapist ? (
             <TouchableOpacity
               style={styles.primary}
-              onPress={() => navigation?.navigate?.('Payment', { bookingId: booking.id })}
+              onPress={() => go('Payment', { bookingId: booking.id })}
               activeOpacity={0.85}
             >
               <Ionicons name="card-outline" size={15} color="#fff" />
@@ -256,7 +277,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
             </Text>
           ) : null}
         </View>
-      ) : null}
+      </BottomSheetModal>
 
       <ReasonModal
         visible={refundOpen}
@@ -284,6 +305,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 12, fontWeight: '400', flexShrink: 1, minWidth: 0 },
   summary: { fontSize: 11, paddingVertical: 6, fontWeight: '400' },
   body: { borderTopWidth: 1, paddingHorizontal: 12, paddingBottom: 12, paddingTop: 6 },
+  sheetBody: { paddingBottom: 4 }, // ✏️ NOUVEAU : contenu de la fenêtre modale
   line: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 6, gap: 12 },
   lineLabel: { fontSize: 11.5, fontWeight: '400', flexShrink: 0 },
   lineValue: { fontSize: 12, fontWeight: '400', flex: 1, textAlign: 'right' },
