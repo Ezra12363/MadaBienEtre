@@ -33,6 +33,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import Header from '../../components/common/Header';
 import SavedCardsManager from '../../components/payment/SavedCardsManager';
+import PaymentLogo from '../../components/payment/PaymentLogo';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import { colors } from '../../theme';
@@ -287,7 +288,7 @@ const PaymentScreen = ({ navigation, route }) => {
         const enabled = isEnabled(opt);
         return (
           <View key={opt.id} style={[styles.option, card, !enabled && { opacity: 0.55 }]}>
-            <Text style={styles.optionIcon}>{opt.icon}</Text>
+            <PaymentLogo id={opt.id} size={48} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.optionLabel, { color: theme.text }]}>{opt.label}</Text>
               <Text style={[styles.muted, { color: theme.textSecondary }]}>{opt.hint}</Text>
@@ -522,7 +523,7 @@ const PaymentScreen = ({ navigation, route }) => {
                 (!enabled || !quote.can_pay) && { opacity: 0.45 },
               ]}
             >
-              <Text style={styles.optionIcon}>{opt.icon}</Text>
+              <PaymentLogo id={opt.id} size={48} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.optionLabel, { color: theme.text }]}>{opt.label}</Text>
                 <Text style={[styles.muted, { color: theme.textSecondary }]}>
