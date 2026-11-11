@@ -8,10 +8,22 @@ from pydantic import BaseModel, Field
 
 
 class AIRecommendationRequest(BaseModel):
-    user_id: int = Field(..., gt=0)
+    """Requête de recommandation (Tableau 45).
+
+    Champs du mémoire : massage_type_id, budget, max_distance_km, latitude,
+    longitude. Les anciens noms (massage_type, budget_max, distance_max) restent
+    acceptés pour ne pas casser les clients existants.
+    """
+
+    user_id: Optional[int] = Field(None, gt=0)
+    massage_type_id: Optional[int] = Field(None, gt=0)
     massage_type: Optional[str] = None
+    budget: Optional[float] = Field(None, gt=0)
     budget_max: Optional[float] = Field(None, gt=0)
-    distance_max: Optional[int] = Field(10, ge=1, le=50)
+    max_distance_km: Optional[float] = Field(None, gt=0, le=200)
+    distance_max: Optional[int] = Field(None, ge=1, le=200)
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
     preferred_gender: Optional[str] = Field(
         None,
         pattern="^(male|female|any)$",
@@ -24,20 +36,49 @@ class AIRecommendationRequest(BaseModel):
         le=180,
     )
 
+    @property
+    def effective_budget(self) -> Optional[float]:
+        return self.budget if self.budget is not None else self.budget_max
+
+    @property
+    def effective_max_distance(self) -> Optional[float]:
+        if self.max_distance_km is not None:
+            return float(self.max_distance_km)
+        return float(self.distance_max) if self.distance_max is not None else None
+
 
 class AIRecommendationResponse(BaseModel):
     therapist_id: int
-    fullname: str
-    rating: float
-    total_reviews: int
-    distance_km: float
-    price_suggested: float
-    availability: bool
     score: float
+    price: float
+    distance_km: float
+    rating: float
+    availability: bool
+    # Champs complémentaires (affichage)
+    fullname: Optional[str] = None
+    total_reviews: int = 0
+    price_suggested: Optional[float] = None
+    available_in_min: Optional[int] = None
     reason: Optional[str] = None
     profile_image: Optional[str] = None
-    experience_years: int
+    experience_years: int = 0
     base_price: Optional[float] = None
+    sub_scores: Optional[Dict[str, float]] = None
+    rank: Optional[int] = None
+
+
+class AIRecommendationSuggestion(BaseModel):
+    message: str
+    suggested_max_distance_km: Optional[float] = None
+    suggested_budget: Optional[float] = None
+
+
+class AIRecommendationEmpty(BaseModel):
+    """Aucun masseur ne satisfait la demande : on propose d'élargir rayon / budget."""
+
+    items: List[AIRecommendationResponse] = Field(default_factory=list)
+    suggestion: AIRecommendationSuggestion
+    message: str
 
 
 class AIPricingRequest(BaseModel):
@@ -53,6 +94,7 @@ class AIPricingRequest(BaseModel):
         pattern="^(morning|afternoon|evening|night)$",
     )
     day_of_week: Optional[int] = Field(None, ge=0, le=6)
+    scheduled_at: Optional[datetime] = None
 
 
 class AIPricingResponse(BaseModel):
@@ -62,6 +104,36 @@ class AIPricingResponse(BaseModel):
     confidence: float
     factors: Dict[str, float]
     breakdown: Optional[Dict[str, float]] = None
+    acceptance_probability: Optional[float] = None
+    model_version: Optional[str] = None
+
+
+class AIPredictPriceRequest(BaseModel):
+    """Corps de POST /ai/predict-price.
+
+    * {booking_id, proposed_price}  -> probabilité d'acceptation (Tableau 45) ;
+    * {massage_type, duration, distance, …} -> estimation de prix (ancien format).
+    """
+
+    booking_id: Optional[int] = Field(None, gt=0)
+    proposed_price: Optional[float] = Field(None, gt=0)
+    reference_price: Optional[float] = Field(None, gt=0)
+    massage_type: Optional[str] = None
+    duration: Optional[int] = Field(None, ge=30, le=180)
+    distance: Optional[float] = Field(None, ge=0)
+    demand_level: str = Field("medium", pattern="^(low|medium|high)$")
+    scheduled_at: Optional[datetime] = None
+
+
+class AIAcceptanceResponse(BaseModel):
+    booking_id: int
+    proposed_price: float
+    acceptance_probability: float
+    recommended_price: float
+    model_version: str
+    reference_price: Optional[float] = None
+    price_ratio: Optional[float] = None
+    model_used: Optional[str] = None
 
 
 class AIAcceptancePrediction(BaseModel):

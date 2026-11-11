@@ -874,9 +874,9 @@ const adminService = {
   /**
    * Récupérer les insights IA
    */
-  async getAIInsights() {
+  async getAIInsights(period = 'month') {
     try {
-      const response = await api.get('/ai/insights');
+      const response = await api.get('/ai/insights', { params: { period } });
       return response.data;
     } catch (error) {
       console.error('❌ Error getAIInsights:', error);
@@ -944,9 +944,9 @@ const adminService = {
   /**
    * Récupérer les FAQs
    */
-  async getChatbotFAQs() {
+  async getChatbotFAQs(question) {
     try {
-      const response = await api.get('/chatbot/faq');
+      const response = await api.post('/chatbot/faq', null, { params: { question } });
       return response.data;
     } catch (error) {
       console.error('❌ Error getChatbotFAQs:', error);
@@ -999,7 +999,8 @@ const adminService = {
    */
   async suggestPrice(data) {
     try {
-      const response = await api.post('/pricing/suggest', data);
+      // FastAPI lit ces paramètres en QUERY STRING (pas dans le body)
+      const response = await api.post('/pricing/suggest', null, { params: data });
       return response.data;
     } catch (error) {
       console.error('❌ Error suggestPrice:', error);
@@ -1013,7 +1014,7 @@ const adminService = {
    */
   async calculatePrice(data) {
     try {
-      const response = await api.post('/pricing/calculate', data);
+      const response = await api.post('/pricing/calculate', null, { params: data });
       return response.data;
     } catch (error) {
       console.error('❌ Error calculatePrice:', error);
@@ -1040,22 +1041,8 @@ const adminService = {
   },
 
   /**
-   * Recommander un type de massage
-   * @param {Object} data - { symptoms, preferences, budget }
-   */
-  async recommendMassage(data) {
-    try {
-      const response = await api.post('/ai/recommend-massage', data);
-      return response.data;
-    } catch (error) {
-      console.error('❌ Error recommendMassage:', error);
-      throw error;
-    }
-  },
-
-  /**
    * Prédire un prix
-   * @param {Object} data - { massage_type, duration, location, time }
+   * @param {Object} data - { massage_type, duration, distance } ou { booking_id, proposed_price }
    */
   async predictPrice(data) {
     try {

@@ -97,6 +97,7 @@ const AIRecommendationScreen = ({ navigation, route }) => {
   const [error, setError] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
   const [hasSearched, setHasSearched] = useState(false); // ← state manquant
+  const [searchMeta, setSearchMeta] = useState(null); // message + élargissement rayon/budget
   const scrollRef = useRef(null);
 
   const openBooking = useCallback(
@@ -132,9 +133,11 @@ const AIRecommendationScreen = ({ navigation, route }) => {
 
     if (result.success) {
       setRecommendations(Array.isArray(result.data) ? result.data : []);
+      setSearchMeta(result.meta || null);
       setTimeout(() => scrollRef.current?.scrollTo({ y: 360, animated: true }), 250);
     } else {
       setRecommendations([]);
+      setSearchMeta(null);
       setError(result.error);
     }
     setHasSearched(true);
@@ -240,7 +243,10 @@ const AIRecommendationScreen = ({ navigation, route }) => {
                 {noResult && (
                   <AIEmpty
                     icon="search-outline"
-                    text="Aucun thérapeute trouvé pour le moment. Essayez d'augmenter votre budget ou de reformuler votre besoin."
+                    text={
+                      searchMeta?.message ||
+                      "Aucun thérapeute trouvé pour le moment. Essayez d'augmenter votre budget ou de reformuler votre besoin."
+                    }
                   />
                 )}
 

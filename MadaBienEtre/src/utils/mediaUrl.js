@@ -14,6 +14,9 @@
 // ---------------------------------------------------------------------------
 import { API_URL } from '../config/env';
 
+// nom de fichier image sans dossier ni protocole (ex: "therapist_17_profile.jpg")
+const BARE_IMAGE_RE = /^[^/:?#\s]+\.(?:jpe?g|png|gif|webp|heic)$/i;
+
 const UPLOADS_RE = /^(?:https?:\/\/[^/]+)?\/?(uploads\/.*)$/i;
 
 /**
@@ -31,6 +34,12 @@ export const normalizeMediaUrl = (value) => {
   const base = String(API_URL || '').replace(/\/+$/, '');
   const m = v.match(UPLOADS_RE);
   if (m) return `${base}/${m[1]}`;
+
+  // 🐛 FIX 404 « GET /therapist_17_profile.jpg » : certaines lignes de la base
+  // contiennent seulement le NOM du fichier (sans dossier). Sans ce correctif,
+  // l'app interrogeait la racine du serveur (/nom.jpg) qui n'existe pas.
+  // Un nom nu est donc rangé sous /uploads/profiles/.
+  if (BARE_IMAGE_RE.test(v)) return `${base}/uploads/profiles/${v}`;
 
   if (/^https?:\/\//i.test(v)) return v; // externe (Cloudinary...) : on ne touche pas
   return `${base}${v.startsWith('/') ? '' : '/'}${v}`;

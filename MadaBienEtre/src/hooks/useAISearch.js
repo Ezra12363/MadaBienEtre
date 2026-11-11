@@ -3,13 +3,16 @@
 // IA de l'écran « Recherche massage » (client).
 // Endpoints FastAPI existants utilisés (voir aiService) :
 //   POST /ai/recommend-therapist   -> classement + score + raison
-//   POST /ai/predict-price         -> prix estimé du massage choisi
+//   POST /ai/suggest-price         -> prix estimé du massage choisi (modèle ML)
 //   GET  /ai/popular-services      -> massages les plus demandés
 import { useCallback, useEffect, useRef, useState } from 'react';
 import aiService from '../services/aiService';
 
 export default function useAISearch({
   userId,
+  massageTypeId = null,
+  latitude = null,
+  longitude = null,
   massageTypeName = null,
   duration = 60,
   budgetMax = null,
@@ -24,6 +27,8 @@ export default function useAISearch({
   const [rankingLoading, setRankingLoading] = useState(false);
   const [rankingError, setRankingError] = useState(null);
   const [rankingCount, setRankingCount] = useState(0);
+  // { message, expansion } : proposition d'élargir rayon/budget quand aucun résultat
+  const [rankingMeta, setRankingMeta] = useState(null);
 
   const [estimate, setEstimate] = useState(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
@@ -116,9 +121,13 @@ export default function useAISearch({
     const timer = setTimeout(async () => {
       const result = await aiService.recommendTherapists({
         user_id: userId,
-        massage_type: massageTypeName,
-        budget_max: budgetMax,
-        distance_max: distanceMax,
+        massage_type_id: massageTypeId,
+        massage_type: massageTypeId ? null : massageTypeName,
+        budget: budgetMax,
+        max_distance_km: distanceMax,
+        // Sans coordonnées, le backend utilise la position enregistrée du profil.
+        latitude,
+        longitude,
       });
 
       if (!mountedRef.current || callId !== rankingCall.current) return;
@@ -137,9 +146,11 @@ export default function useAISearch({
         });
         setScores(map);
         setRankingCount(list.length);
+        setRankingMeta(result.meta || null);
       } else {
         setScores({});
         setRankingCount(0);
+        setRankingMeta(null);
         setRankingError(result.error);
       }
       setRankingLoading(false);
@@ -150,9 +161,12 @@ export default function useAISearch({
     rankingEnabled,
     userId,
     hasTherapists,
+    massageTypeId,
     massageTypeName,
     budgetMax,
     distanceMax,
+    latitude,
+    longitude,
     reloadKey,
   ]);
 
@@ -163,6 +177,7 @@ export default function useAISearch({
     rankingLoading,
     rankingError,
     rankingCount,
+    rankingMeta,
     estimate,
     estimateLoading,
     estimateError,

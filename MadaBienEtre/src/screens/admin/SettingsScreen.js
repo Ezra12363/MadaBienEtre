@@ -800,23 +800,11 @@ const SettingsScreen = ({ navigation }) => {
 
         await logout();
 
-        setShowLogoutConfirm(
-          false
-        );
-
         // ====================================================
-        // NAVIGATION LOGIN
+        // PAS DE navigation.reset ICI
+        // logout() met isAuthenticated à false : RootNavigator
+        // bascule automatiquement sur l'écran Auth (Login).
         // ====================================================
-
-        navigation.reset({
-          index: 0,
-
-          routes: [
-            {
-              name: 'Login',
-            },
-          ],
-        });
       } catch (err) {
         console.error(
           '❌ Logout error:',
@@ -827,7 +815,11 @@ const SettingsScreen = ({ navigation }) => {
           'Impossible de se déconnecter.',
           'error'
         );
-      } finally {
+
+        setShowLogoutConfirm(
+          false
+        );
+
         setIsLoggingOut(false);
       }
     };

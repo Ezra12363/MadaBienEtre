@@ -1,12 +1,67 @@
+import logging
 from datetime import date, datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
 from ...models.booking import Booking
 from ...models.user import User
 from ...models.analytics import UserAnalytics
-from .recommendation_service import calculate_distance
+from ...ai import ml_models as ml
+from ...ai.pricing_rules import (
+    DEFAULT_EXPERIENCE_YEARS,
+    estimate_demand,
+    round_to_step,
+)
+from ...ai.recommender import haversine_km as calculate_distance
+from ..mg_time import mg_now, to_mg
+from . import model_registry
+from .prediction_log import log_prediction
+
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_DISTANCE_KM = 4.5
+ACCEPTANCE_RULE_VERSION = "heuristic-v1"
+
+
+def heuristic_ratio_probability(ratio: float) -> float:
+    """Repli sans modèle : probabilité grossière selon le rapport prix / référence."""
+    if ratio >= 1.0:
+        return 0.9
+    if ratio >= 0.9:
+        return 0.7
+    if ratio >= 0.8:
+        return 0.5
+    if ratio >= 0.65:
+        return 0.25
+    return 0.08
+
+
+def acceptance_from_ratio(
+    type_name: Optional[str],
+    category: Optional[str],
+    ratio: float,
+    distance: float,
+    hour: int,
+    duration: float,
+    demand: float,
+) -> Tuple[float, str, str]:
+    """Probabilité d'acceptation (0..1) via la régression logistique.
+
+    Renvoie (probabilité, version du modèle, source) ; repli sur l'heuristique
+    si le modèle est absent ou ne reconnaît pas le type.
+    """
+    model = model_registry.get_acceptance_model()
+    if model is not None:
+        resolved = ml.resolve_type(type_name, category, model.known_types)
+        if resolved:
+            try:
+                prob = model.predict_proba(resolved, ratio, distance, hour, duration, demand)
+                return max(0.0, min(1.0, prob)), model.version, "logistic_regression"
+            except Exception:  # noqa: BLE001
+                logger.exception("Modèle d'acceptation en échec : repli sur l'heuristique")
+    return heuristic_ratio_probability(ratio), ACCEPTANCE_RULE_VERSION, "heuristic"
 
 
 def _to_dt(value) -> Optional[datetime]:
@@ -295,4 +350,92 @@ async def predict_booking_success(booking: Booking, db: Session) -> Dict[str, An
         "success_level": level,
         "factors": success_factors,
         "confidence": 0.7,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Acceptation d'un prix proposé (POST /ai/predict-price {booking_id, proposed_price})
+# ---------------------------------------------------------------------------
+
+def _enum_value(value):
+    return getattr(value, "value", value)
+
+
+async def predict_acceptance_for_booking(
+    booking: Booking,
+    proposed_price: float,
+    db: Session,
+    reference_price: Optional[float] = None,
+    viewer: Optional[User] = None,
+    user_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Probabilité d'acceptation d'un prix proposé + prix recommandé.
+
+    Le modèle (régression logistique) travaille sur le rapport
+    prix proposé / prix de référence, où le prix de référence est le prix conseillé
+    par le modèle de prix pour cette réservation. `reference_price` (offre actuelle de
+    l'autre partie) est conservé dans la réponse et sert au repli heuristique.
+    La prédiction est journalisée dans ai_predictions.
+    """
+    from .pricing_service import suggest_price_core  # import tardif
+
+    proposed_price = float(proposed_price or 0)
+    massage_type = getattr(booking, "massage_type", None)
+    duration = int(getattr(booking, "scheduled_duration_minutes", None) or 60)
+
+    therapist = viewer if (viewer is not None and _enum_value(getattr(viewer, "role", "")) == "THERAPIST") else None
+    if therapist is None and booking.therapist_id:
+        therapist = db.query(User).filter(User.id == booking.therapist_id).first()
+
+    distance = DEFAULT_DISTANCE_KM
+    if therapist is not None:
+        t_pos = _coords(therapist, ("latitude", "longitude"))
+        b_pos = _coords(booking, ("client_latitude", "client_longitude"), ("latitude", "longitude"))
+        if t_pos and b_pos:
+            distance = calculate_distance(t_pos[0], t_pos[1], b_pos[0], b_pos[1])
+    experience = float(getattr(therapist, "experience_years", None) or DEFAULT_EXPERIENCE_YEARS)
+
+    scheduled = _to_dt(getattr(booking, "scheduled_date", None))
+    core = suggest_price_core(
+        massage_type=massage_type, duration=duration, distance=distance,
+        scheduled_at=scheduled, experience=experience,
+    )
+    reference = core["suggested_price"]
+    feats = core["features"]
+    ratio = proposed_price / reference if reference > 0 else 1.0
+
+    category = _enum_value(getattr(massage_type, "category", None))
+    prob, version, source = acceptance_from_ratio(
+        feats["type"], category, ratio, feats["distance"], feats["hour"], duration, feats["demand"]
+    )
+    if source == "heuristic":
+        # Repli : heuristique historique à partir de la réservation et de la base
+        try:
+            prob = await predict_acceptance_probability(
+                booking=booking, proposed_price=proposed_price, db=db, reference_price=reference_price,
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("Heuristique d'acceptation en échec")
+
+    recommended = float(round_to_step(reference))
+    prob = round(float(prob), 4)
+
+    log_prediction(
+        db, "acceptance_prediction", user_id=user_id, booking_id=booking.id,
+        predicted_price=proposed_price, recommended_price=recommended, acceptance_probability=prob,
+        confidence_score=None,
+        features={**feats, "price_ratio": round(ratio, 4), "proposed_price": proposed_price},
+        factors={"reference_price": reference, "other_party_offer": reference_price, "source": source},
+        model_version=version, model_used=source,
+    )
+    return {
+        "booking_id": booking.id,
+        "proposed_price": proposed_price,
+        "reference_price": reference,
+        "price_ratio": round(ratio, 4),
+        "acceptance_probability": prob,
+        "recommended_price": recommended,
+        "model_version": version,
+        "model_used": source,
+        "other_party_offer": reference_price,
     }

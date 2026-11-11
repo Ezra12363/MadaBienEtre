@@ -5,7 +5,7 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
@@ -19,21 +19,24 @@ from ..models.booking import Booking
 from ..schemas.ai import (
     AIRecommendationRequest,
     AIRecommendationResponse,
-    AIPricingRequest,
-    AIPricingResponse,
+    AIRecommendationEmpty,
+    AIPredictPriceRequest,
     ChatbotRequest,
     ChatbotResponse,
     AIFraudDetectionRequest,
 )
 
+from ..ai.insights import PERIOD_DAYS
 from ..services.ai.recommendation_service import recommend_therapists
 from ..services.ai.pricing_service import predict_price
 from ..services.ai.fraud_detection import detect_fraud
 from ..services.ai.prediction import (
-    predict_acceptance_probability,
+    predict_acceptance_for_booking,
     predict_revenue,
 )
 from ..services.ai.chatbot_service import get_chatbot_response
+from ..services.ai.insights_service import build_insights
+from ..services.ai.prediction_log import log_prediction
 
 
 logger = logging.getLogger(__name__)
@@ -151,22 +154,32 @@ def _require_booking_access(
 
 # ============================================================
 # 2. RECOMMANDATION DE THERAPEUTES
+# Score pondéré multicritère (ai/recommender.py) — mémoire §6.3.1
 # Accessible au propriétaire des données ou à l'admin
 # ============================================================
 
 @router.post(
     "/recommend-therapist",
-    response_model=List[AIRecommendationResponse],
+    response_model=Union[List[AIRecommendationResponse], AIRecommendationEmpty],
 )
 async def recommend_therapist(
     request: AIRecommendationRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Recommande des thérapeutes adaptés au besoin du client."""
+    """Recommande des masseurs : PostgreSQL -> candidats -> score -> ai_predictions.
+
+    Corps (Tableau 45) : massage_type_id, budget, max_distance_km, latitude,
+    longitude. Réponse : liste classée de {therapist_id, score, price,
+    distance_km, rating, availability, …}. Si aucun masseur ne satisfait la
+    demande, la réponse propose d'élargir le rayon ou le budget au lieu de
+    renvoyer une liste vide.
+    """
+
+    target_user_id = request.user_id or current_user.id
 
     if (
-        not _same_id(current_user.id, request.user_id)
+        not _same_id(current_user.id, target_user_id)
         and not _is_admin(current_user)
     ):
         raise HTTPException(
@@ -175,66 +188,135 @@ async def recommend_therapist(
                    "pour un autre utilisateur.",
         )
 
-    recommendations = await recommend_therapists(
-        user_id=request.user_id,
+    result = await recommend_therapists(
+        user_id=target_user_id,
+        db=db,
+        massage_type_id=request.massage_type_id,
         massage_type=request.massage_type,
-        budget_max=request.budget_max,
-        distance_max=request.distance_max,
+        budget=request.effective_budget,
+        max_distance_km=request.effective_max_distance,
+        latitude=request.latitude,
+        longitude=request.longitude,
         preferred_gender=request.preferred_gender,
         symptoms=request.symptoms,
-        db=db,
     )
 
+    items = result["items"]
+    context = result["context"]
+
     # L'échec de l'historique ne doit pas bloquer la recommandation.
-    if recommendations:
-        try:
-            from ..models.ai_prediction import AIPrediction
+    first = items[0] if items else None
+    log_prediction(
+        db,
+        "therapist_recommendation",
+        user_id=target_user_id,
+        predicted_price=first["price"] if first else None,
+        recommended_therapist_id=first["therapist_id"] if first else None,
+        recommended_massage_type_id=context.get("massage_type_id"),
+        confidence_score=(first["score"] / 100.0) if first else None,
+        features={
+            "massage_type_id": context.get("massage_type_id"),
+            "budget": context.get("budget"),
+            "max_distance_km": context.get("max_distance_km"),
+            "latitude": context.get("latitude"),
+            "longitude": context.get("longitude"),
+            "symptoms": request.symptoms,
+        },
+        factors={
+            "results": len(items),
+            "candidates": context.get("candidates"),
+            "top3": [
+                {"therapist_id": i["therapist_id"], "score": i["score"]}
+                for i in items[:3]
+            ],
+            "expand_suggestion": result["suggestion"],
+        },
+        model_version="weighted-v1",
+        model_used="weighted_score",
+    )
 
-            first = recommendations[0]
+    if not items:
+        suggestion = result["suggestion"] or {
+            "message": "Aucun masseur ne correspond. Essayez d'élargir le rayon ou le budget.",
+        }
+        return AIRecommendationEmpty(
+            items=[],
+            suggestion=suggestion,
+            message=suggestion["message"],
+        )
 
-            db.add(
-                AIPrediction(
-                    booking_id=None,
-                    user_id=request.user_id,
-                    prediction_type="therapist_recommendation",
-                    predicted_price=first.get("price_suggested"),
-                    recommended_therapist_id=first.get("therapist_id"),
-                    confidence_score=85.0,
-                    model_version="1.0",
-                    model_used="rule_based",
-                    factors={
-                        "massage_type": request.massage_type,
-                        "budget_max": request.budget_max,
-                        "symptoms": request.symptoms,
-                    },
-                )
-            )
-            db.commit()
-
-        except Exception:
-            db.rollback()
-            logger.exception(
-                "Impossible d'enregistrer la prédiction de recommandation."
-            )
-
-    return recommendations
+    return items
 
 
 # ============================================================
-# 3. PREDICTION DU PRIX
+# 3. PRIX CONSEILLE / PROBABILITE D'ACCEPTATION
+# POST /ai/predict-price
+#   {booking_id, proposed_price}  -> {acceptance_probability, recommended_price}
+#   {massage_type, duration, …}   -> estimation de prix (ancien format)
 # Accessible à tout utilisateur authentifié
 # ============================================================
 
-@router.post(
-    "/predict-price",
-    response_model=AIPricingResponse,
-)
+@router.post("/predict-price")
 async def predict_price_endpoint(
-    request: AIPricingRequest,
+    request: AIPredictPriceRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Calcule une estimation de prix par IA."""
+    """Probabilité d'acceptation d'un prix proposé, ou estimation du prix conseillé."""
+
+    # --- Mode « acceptation » : booking_id + proposed_price (Tableau 45)
+    if request.booking_id is not None:
+        if request.proposed_price is None:
+            raise HTTPException(
+                status_code=422,
+                detail="proposed_price est requis avec booking_id.",
+            )
+
+        booking = (
+            db.query(Booking)
+            .filter(Booking.id == request.booking_id)
+            .first()
+        )
+
+        if booking is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Réservation introuvable.",
+            )
+
+        _require_booking_access(current_user, booking, db)
+
+        try:
+            result = await predict_acceptance_for_booking(
+                booking=booking,
+                proposed_price=request.proposed_price,
+                db=db,
+                reference_price=request.reference_price,
+                viewer=current_user,
+                user_id=current_user.id,
+            )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.exception(
+                "Erreur de prédiction d'acceptation pour booking_id=%s",
+                request.booking_id,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="La prédiction d'acceptation a échoué.",
+            ) from exc
+
+        result["probability"] = result["acceptance_probability"]  # compatibilité
+        return result
+
+    # --- Mode « prix conseillé » (ancien format)
+    if not request.massage_type or request.duration is None or request.distance is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Fournissez booking_id + proposed_price, "
+                   "ou massage_type + duration + distance.",
+        )
 
     return await predict_price(
         massage_type=request.massage_type,
@@ -242,11 +324,13 @@ async def predict_price_endpoint(
         distance=request.distance,
         demand_level=request.demand_level,
         db=db,
+        user_id=current_user.id,
+        scheduled_at=request.scheduled_at,
     )
 
 
 # ============================================================
-# 4. PREDICTION DE PROBABILITE D'ACCEPTATION
+# 4. PREDICTION DE PROBABILITE D'ACCEPTATION (route historique, QUERY)
 # Accessible aux participants de la réservation ou à l'admin
 # ============================================================
 
@@ -268,6 +352,7 @@ async def predict_acceptance(
     """
     Estime la probabilité d'acceptation d'un prix proposé.
     L'utilisateur doit participer à la réservation.
+    Même calcul que POST /ai/predict-price {booking_id, proposed_price}.
     """
 
     booking = (
@@ -285,11 +370,13 @@ async def predict_acceptance(
     _require_booking_access(current_user, booking, db)
 
     try:
-        probability = await predict_acceptance_probability(
+        result = await predict_acceptance_for_booking(
             booking=booking,
             proposed_price=price,
             db=db,
             reference_price=reference_price,
+            viewer=current_user,
+            user_id=current_user.id,
         )
     except HTTPException:
         raise
@@ -308,7 +395,10 @@ async def predict_acceptance(
         "booking_id": booking_id,
         "price": price,
         "reference_price": reference_price,
-        "probability": probability,
+        "probability": result["acceptance_probability"],
+        "acceptance_probability": result["acceptance_probability"],
+        "recommended_price": result["recommended_price"],
+        "model_version": result["model_version"],
     }
 
 
@@ -537,59 +627,35 @@ async def revenue_prediction(
 
 # ============================================================
 # 10. INSIGHTS IA
-# ADMIN UNIQUEMENT
+# GET /ai/insights?period=day|week|month|quarter|year
+# ADMIN UNIQUEMENT — services populaires, périodes chargées,
+# revenus prévisionnels
 # ============================================================
 
 @router.get("/insights")
 async def get_ai_insights(
+    period: str = Query(
+        "month",
+        description="day, week, month, quarter ou year",
+    ),
     current_user: User = Depends(get_current_admin),
     db: Session = Depends(get_db),
 ):
-    """Statistiques globales réservées à l'administration."""
+    """Indicateurs agrégés réservés à l'administration."""
 
-    since = datetime.utcnow() - timedelta(days=30)
+    period = (period or "month").strip().lower()
 
-    recent_bookings = (
-        db.query(Booking)
-        .filter(Booking.created_at >= since)
-        .count()
-    )
-
-    completed = (
-        db.query(Booking)
-        .filter(
-            Booking.status == "completed",
-            Booking.created_at >= since,
+    if period not in PERIOD_DAYS:
+        raise HTTPException(
+            status_code=400,
+            detail="Période invalide. Utilisez day, week, month, quarter ou year.",
         )
-        .count()
-    )
 
-    completion_rate = (
-        completed / recent_bookings * 100
-        if recent_bookings
-        else 0
-    )
-
-    revenue = (
-        db.query(func.sum(Booking.final_price))
-        .filter(
-            Booking.status == "completed",
-            Booking.created_at >= since,
-        )
-        .scalar()
-        or 0
-    )
-
-    revenue = float(revenue)
-
-    return {
-        "period": "30_days",
-        "total_bookings": recent_bookings,
-        "completion_rate": round(completion_rate, 2),
-        "total_revenue": revenue,
-        "average_booking_value": (
-            revenue / recent_bookings
-            if recent_bookings
-            else 0
-        ),
-    }
+    try:
+        return build_insights(db, period)
+    except Exception as exc:
+        logger.exception("Erreur de calcul des insights IA")
+        raise HTTPException(
+            status_code=500,
+            detail="Impossible de calculer les indicateurs IA.",
+        ) from exc

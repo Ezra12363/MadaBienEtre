@@ -106,6 +106,9 @@ const IS_IOS = Platform.OS === 'ios';
 
 const DESKTOP_BREAKPOINT = 950;
 
+// Couleur unique du header / panneau vert (web + mobile)
+const HEADER_BG = '#2E8A57';
+
 /* ============================================================
    TOAST
 ============================================================ */
@@ -1830,7 +1833,7 @@ export default function LoginScreen({
     >
       <StatusBar
         barStyle="light-content"
-        backgroundColor={COLORS.primaryDark}
+        backgroundColor={HEADER_BG}
         translucent={false}
       />
 
@@ -2530,8 +2533,7 @@ const createStyles = (COLORS) => StyleSheet.create({
 
     minHeight: '100%',
 
-    backgroundColor:
-      COLORS.primaryDark,
+    backgroundColor: HEADER_BG,
 
     overflow: 'hidden',
 
@@ -2820,4 +2822,4 @@ const createStyles = (COLORS) => StyleSheet.create({
 
     alignSelf: 'center',
   },
-});
+});

@@ -59,7 +59,7 @@ import { validatePhoneNumber } from '../../utils/phone';
 // CONSTANTES
 // ============================================================
 
-const GREEN = '#2E8B57';
+const GREEN = '#2E8A57';
 const GREEN_LIGHT = '#EAF5EC';
 const WHITE = '#FFFFFF';
 

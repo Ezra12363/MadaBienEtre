@@ -73,48 +73,94 @@ const cleanParams = (params) =>
 class AIService {
   // ============ /ai ============
 
-  /** POST /ai/recommend-therapist (body JSON) */
-  recommendTherapists({
-    user_id,
+  /**
+   * POST /ai/recommend-therapist (body JSON) — Tableau 45 du mémoire.
+   * Corps : massage_type_id, budget, max_distance_km, latitude, longitude
+   * (les anciens noms massage_type / budget_max / distance_max restent acceptés).
+   *
+   * Résultat normalisé : `data` est TOUJOURS un tableau. Si aucun masseur ne
+   * correspond, `data` est vide et `suggestion` propose d'élargir le rayon / le
+   * budget ({ message, suggested_max_distance_km, suggested_budget }).
+   */
+  async recommendTherapists({
+    user_id = null,
+    massage_type_id = null,
     massage_type = null,
+    budget = null,
     budget_max = null,
+    max_distance_km = null,
     distance_max = null,
+    latitude = null,
+    longitude = null,
     preferred_gender = null,
     symptoms = null,
-  }) {
-    return wrap(
+  } = {}) {
+    const result = await wrap(
       () =>
         post(
           '/ai/recommend-therapist',
           cleanParams({
             user_id,
+            massage_type_id,
             massage_type,
-            budget_max,
-            distance_max,
+            budget: budget ?? budget_max,
+            max_distance_km: max_distance_km ?? distance_max,
+            latitude,
+            longitude,
             preferred_gender,
             symptoms,
           })
         ),
       'Erreur lors de la recommandation'
     );
+    if (!result.success) return { ...result, suggestion: null };
+
+    const payload = result.data;
+    if (Array.isArray(payload)) return { ...result, suggestion: null };
+    return {
+      ...result,
+      data: Array.isArray(payload?.items) ? payload.items : [],
+      suggestion: payload?.suggestion || null,
+    };
   }
 
-  /** POST /ai/predict-price (body JSON) */
+  /** POST /ai/predict-price (body JSON) — estimation du prix conseillé */
   predictPrice({
     massage_type,
     duration = 60,
     distance = 0,
     demand_level = 'medium',
+    scheduled_at = null,
   }) {
     return wrap(
       () =>
-        post('/ai/predict-price', {
-          massage_type,
-          duration,
-          distance,
-          demand_level,
-        }),
+        post(
+          '/ai/predict-price',
+          cleanParams({
+            massage_type,
+            duration,
+            distance,
+            demand_level,
+            scheduled_at,
+          })
+        ),
       "Erreur lors de l'estimation du prix"
+    );
+  }
+
+  /**
+   * POST /ai/predict-price (body JSON) — probabilité d'acceptation d'un prix
+   * proposé sur une réservation (Tableau 45).
+   * Réponse : { acceptance_probability, recommended_price, model_version }
+   */
+  predictAcceptanceForBooking(bookingId, proposedPrice) {
+    return wrap(
+      () =>
+        post('/ai/predict-price', {
+          booking_id: bookingId,
+          proposed_price: proposedPrice,
+        }),
+      "Erreur lors de la prédiction d'acceptation"
     );
   }
 
@@ -210,10 +256,13 @@ class AIService {
     );
   }
 
-  /** GET /ai/insights — ADMIN */
-  getAIInsights() {
+  /**
+   * GET /ai/insights?period=day|week|month|quarter|year — ADMIN
+   * Renvoie : indicateurs + popular_services, busy_periods, forecast.
+   */
+  getAIInsights(period = 'month') {
     return wrap(
-      () => get('/ai/insights'),
+      () => get('/ai/insights', { period }),
       'Erreur lors du chargement des indicateurs'
     );
   }
@@ -250,8 +299,19 @@ class AIService {
 
   // ============ /pricing ============
 
-  /** POST /pricing/suggest (QUERY) */
-  suggestPrice({ massage_type_id, duration, distance = 0, user_id = null }) {
+  /**
+   * POST /pricing/suggest (QUERY)
+   * Réponse : { suggested_price, acceptance_probability, model_version, … }
+   * `proposed_price` : prix saisi, dont on veut la probabilité d'acceptation.
+   */
+  suggestPrice({
+    massage_type_id,
+    duration,
+    distance = 0,
+    user_id = null,
+    scheduled_at = null,
+    proposed_price = null,
+  }) {
     return wrap(
       () =>
         post(
@@ -263,6 +323,8 @@ class AIService {
               duration,
               distance,
               user_id,
+              scheduled_at,
+              proposed_price,
             }),
           }
         ),

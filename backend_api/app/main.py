@@ -131,6 +131,16 @@ async def lifespan(app: FastAPI):
         # de la base est gérée ailleurs dans le projet.
         logger.exception("Database initialization error")
 
+    # Module IA : charge au démarrage les modèles sérialisés (prix conseillé,
+    # acceptation) et les enregistre dans ai_models. S'ils sont absents, les
+    # services retombent sur la règle métier / l'heuristique.
+    try:
+        from .services.ai.model_registry import init_ai_module
+
+        init_ai_module()
+    except Exception:
+        logger.exception("Initialisation du module IA ignorée")
+
     # Notifications : boucle temps réel + planificateur (rappels calendrier,
     # expiration des demandes sans réponse)
     scheduler_task = None

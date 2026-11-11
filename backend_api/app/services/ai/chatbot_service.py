@@ -1,8 +1,10 @@
 """Chatbot IA de Mada Bien-être : FAQ locale + IA (OpenRouter) avec historique."""
 
+import asyncio
 import json
 import logging
 import re
+import time
 from difflib import get_close_matches
 import unicodedata
 import uuid
@@ -17,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 DEFAULT_MODEL = "openai/gpt-4o-mini"
+DEFAULT_TIMEOUT_SECONDS = 20.0
+CATALOG_TTL_SECONDS = 300
 AI_MIN_WORDS = 7
 MAX_HISTORY = 10
 MAX_CONVERSATIONS = 500
@@ -340,11 +344,21 @@ DEFAULT_SUGGESTIONS = [
 ]
 
 SYSTEM_PROMPT = """Tu es l'assistant virtuel de Mada Bien-être, une plateforme de réservation de massages à domicile à Madagascar.
-Réponds dans la langue de l'utilisateur : français par défaut, malgache si l'utilisateur écrit en malgache, et mélange français/malgache si la question mélange les deux. Comprends l'intention même en présence de fautes d'orthographe, de frappe, d'abréviations ou de formulations familières ; ne corrige pas l'utilisateur, réponds directement à ce qu'il veut savoir. Sois professionnel, clair, chaleureux et utile. Donne une réponse directe à la question, puis des étapes concrètes si nécessaire. Évite les réponses génériques qui ne répondent pas à la question précise.
-N'invente jamais des fonctionnalités, des prix, des délais, des disponibilités, des garanties ou des moyens de paiement. Si une information dépend de l'application, invite l'utilisateur à vérifier ce qui est affiché dans l'application ou à contacter le support.
-Informations générales : les utilisateurs peuvent demander des massages, consulter les offres de thérapeutes et, lorsque l'application le permet, négocier le prix. Les moyens de paiement et les conditions affichés dans l'application font foi.
-Sécurité : ne demande jamais de mot de passe, code secret ou code OTP. En cas de danger immédiat, conseille de contacter les services d'urgence locaux. Tu ne poses pas de diagnostic et ne remplaces pas un professionnel de santé ; en cas de douleur sévère, persistante ou de grossesse à risque, conseille de demander un avis médical.
-Garde les réponses concises mais suffisamment précises. Si tu ne connais pas la réponse, dis-le clairement et oriente vers le support."""
+RÈGLE ABSOLUE : réponds UNIQUEMENT à partir du CONTEXTE MÉTIER fourni plus bas (catalogue des massages, fourchettes de prix conseillées, règles de réservation). Si l'information demandée n'y figure pas, ou si tu as le moindre doute, dis-le simplement et renvoie l'utilisateur vers le support de Mada Bien-être (rubrique d'aide de l'application). N'invente jamais de massage, de prix, de délai, de disponibilité, de garantie, de moyen de paiement ni de fonctionnalité.
+Langue : réponds dans la langue de l'utilisateur (français par défaut, malgache si l'utilisateur écrit en malgache, mélange si la question mélange les deux). Comprends l'intention même avec des fautes d'orthographe ou des abréviations, sans corriger l'utilisateur.
+Style : professionnel, chaleureux, clair et concis ; donne d'abord la réponse directe, puis des étapes concrètes si nécessaire.
+Prix : les fourchettes sont des prix CONSEILLÉS, indicatifs ; le client reste libre de proposer son prix (au moins le prix minimum du massage) et de négocier avec le thérapeute. Les montants affichés dans l'application font foi.
+Sécurité : ne demande jamais de mot de passe, code secret ou code OTP. En cas de danger immédiat, conseille de contacter les services d'urgence locaux. Tu ne poses pas de diagnostic et ne remplaces pas un professionnel de santé ; en cas de douleur sévère, persistante ou de grossesse à risque, conseille de demander un avis médical."""
+
+BOOKING_RULES = """RÈGLES DE RÉSERVATION
+- Le client crée une demande : type de massage, durée, date et heure, adresse et prix proposé. Le prix proposé doit être au moins égal au prix minimum du type de massage choisi.
+- Les thérapeutes approuvés, actifs, en ligne, disponibles et situés dans leur rayon d'action (10 km par défaut) sont notifiés de la nouvelle demande.
+- Les thérapeutes envoient des offres ; le client et le thérapeute peuvent négocier le prix par contre-offres. On ne peut pas répondre à sa propre offre.
+- La réservation est confirmée lorsque le client accepte une offre.
+- Une demande qui n'a reçu aucune offre acceptée expire à la date et l'heure prévues.
+- Les moyens de paiement et les conditions d'annulation sont ceux affichés dans l'application.
+- Le prix conseillé par l'IA est indicatif et consultatif : le client peut l'ignorer.
+- Pour un problème de réservation, de paiement ou de sécurité : contacter le support ; bouton SOS en cas de danger."""
 
 _history: "OrderedDict[str, List[Dict[str, str]]]" = OrderedDict()
 _client = None
@@ -355,6 +369,69 @@ def _api_key() -> Optional[str]:
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
+def _timeout_seconds() -> float:
+    value = getattr(settings, "CHATBOT_TIMEOUT_SECONDS", None)
+    try:
+        return float(value) if value else DEFAULT_TIMEOUT_SECONDS
+    except (TypeError, ValueError):
+        return DEFAULT_TIMEOUT_SECONDS
+
+
+APOLOGY_FR = (
+    "Je suis désolé, je mets trop de temps à répondre pour le moment. "
+    "Veuillez réessayer dans quelques instants ou contacter le support de Mada Bien-être."
+)
+APOLOGY_MG = (
+    "Miala tsiny, maharitra loatra ny famalian'ny assistant ankehitriny. "
+    "Andramo indray afaka fotoana fohy na mifandraisa amin'ny support Mada Bien-être."
+)
+
+_catalog_cache: Dict[str, Any] = {"at": 0.0, "text": ""}
+
+
+def build_business_context(db: Optional[Session]) -> str:
+    """Contexte métier injecté dans la consigne : catalogue + fourchettes de prix
+    conseillées (modèle de prix) + règles de réservation. Mis en cache 5 minutes."""
+    now = time.monotonic()
+    if _catalog_cache["text"] and now - _catalog_cache["at"] < CATALOG_TTL_SECONDS:
+        return _catalog_cache["text"]
+
+    lines: List[str] = []
+    if db is not None:
+        try:
+            from ...models.massage import MassageType
+            from .pricing_service import suggest_price_core
+
+            types = (
+                db.query(MassageType)
+                .filter(MassageType.is_active == True)  # noqa: E712
+                .order_by(MassageType.display_order, MassageType.name)
+                .all()
+            )
+            for t in types:
+                d_lo = max(int(t.duration_min or 60), 60)
+                d_hi = min(max(int(t.duration_max or 120), d_lo), 120)
+                lo = suggest_price_core(massage_type=t, duration=d_lo)["suggested_price"]
+                hi = suggest_price_core(massage_type=t, duration=d_hi)["suggested_price"]
+                category = getattr(t.category, "value", t.category)
+                desc = (t.description or "").strip().replace("\n", " ")[:180]
+                lines.append(
+                    f"- {t.name} (catégorie : {category}) : {desc} Durée {t.duration_min}-{t.duration_max} min. "
+                    f"Prix minimum {float(t.min_price or 0):,.0f} Ar ; prix conseillé {lo:,.0f}-{hi:,.0f} Ar "
+                    f"({d_lo}-{d_hi} min)".replace(",", " ")
+                )
+        except Exception:  # noqa: BLE001
+            logger.warning("Catalogue indisponible pour le chatbot", exc_info=True)
+
+    catalog = "CATALOGUE DES MASSAGES ET PRIX CONSEILLÉS\n" + (
+        "\n".join(lines) if lines else "(catalogue indisponible : renvoyer vers le support pour les prix)"
+    )
+    text = f"{catalog}\n\n{BOOKING_RULES}"
+    if lines:
+        _catalog_cache.update(at=now, text=text)
+    return text
+
+
 def _get_client():
     global _client
     if _client is None:
@@ -363,7 +440,7 @@ def _get_client():
         _client = AsyncOpenAI(
             api_key=_api_key(),
             base_url=getattr(settings, "OPENROUTER_BASE_URL", None) or DEFAULT_BASE_URL,
-            timeout=25,
+            timeout=_timeout_seconds() + 5,
         )
     return _client
 
@@ -416,7 +493,9 @@ class ChatbotService:
         user_id: Optional[int] = None,
         conversation_id: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
+        db: Optional[Session] = None,
     ) -> Dict[str, Any]:
+        started = time.monotonic()
         message = (message or "").strip()
         conv_id = conversation_id or f"chat_{user_id or 'anon'}_{uuid.uuid4().hex[:8]}"
 
@@ -424,25 +503,62 @@ class ChatbotService:
             return self._default(conv_id, "Posez-moi votre question, je vous écoute !")
 
         faq = self.match_faq(message)
-        ai_enabled = bool(_api_key())
+        result: Optional[Dict[str, Any]] = None
+        source = "default"
 
-        # Quand l'IA est configurée, elle traite toutes les questions, même courtes,
-        # pour mieux comprendre les fautes, le contexte et les demandes variées.
-        # La FAQ reste le secours si l'API est indisponible ou si elle échoue.
-        if ai_enabled:
-            ai_result = await self.get_ai_response(message, user_id, conv_id, context)
-            if ai_result is not None:
-                return ai_result
+        # Quand l'IA est configurée, elle traite la question avec le contexte métier
+        # (catalogue, fourchettes de prix, règles). La FAQ locale reste le secours si
+        # l'API est indisponible ; en cas de dépassement de délai, un message d'excuse
+        # est renvoyé.
+        if _api_key():
+            result = await self.get_ai_response(message, user_id, conv_id, context, db=db)
+            if result is not None:
+                source = (result.get("data") or {}).get("source", "llm")
 
-        # Sans IA, utiliser les réponses locales avec normalisation tolérante.
-        if faq:
+        if result is None and faq:
             result = dict(faq)
             result["conversation_id"] = conv_id
+            result.setdefault("data", {})["source"] = "faq"
+            source = "faq"
             _remember(conv_id, "user", message)
             _remember(conv_id, "assistant", result["response"])
-            return result
 
-        return self._default(conv_id)
+        if result is None:
+            result = self._default(conv_id)
+
+        self._log(db, user_id, message, result, source, started)
+        return result
+
+    @staticmethod
+    def _log(
+        db: Optional[Session],
+        user_id: Optional[int],
+        message: str,
+        result: Dict[str, Any],
+        source: str,
+        started: float,
+    ) -> None:
+        """Journalise dans ai_predictions (sans conserver le texte de la question)."""
+        try:
+            from .prediction_log import log_prediction
+
+            log_prediction(
+                db,
+                "chatbot_message",
+                user_id=user_id,
+                confidence_score=result.get("confidence"),
+                factors={
+                    "intent": result.get("intent"),
+                    "source": source,
+                    "latency_ms": int((time.monotonic() - started) * 1000),
+                    "message_chars": len(message),
+                    "answer_chars": len(result.get("response") or ""),
+                },
+                model_used=(getattr(settings, "OPENROUTER_MODEL", None) or DEFAULT_MODEL) if source in ("llm", "timeout") else source,
+                model_version="context-v1",
+            )
+        except Exception:  # noqa: BLE001
+            logger.debug("Journalisation chatbot ignorée", exc_info=True)
 
     async def get_ai_response(
         self,
@@ -450,23 +566,31 @@ class ChatbotService:
         user_id: Optional[int],
         conversation_id: str,
         context: Optional[Dict[str, Any]] = None,
+        db: Optional[Session] = None,
     ) -> Optional[Dict[str, Any]]:
-        """Appelle OpenRouter ; renvoie None si l'API est indisponible."""
+        """Appelle OpenRouter avec le contexte métier.
+
+        Renvoie None si l'API est indisponible (la FAQ prend alors le relais) et un
+        message d'excuse si le délai est dépassé.
+        """
         try:
-            system = SYSTEM_PROMPT
+            system = SYSTEM_PROMPT + "\n\nCONTEXTE MÉTIER\n" + build_business_context(db)
             if context:
                 safe_context = json.dumps(context, ensure_ascii=False, default=str)
-                system += f"\nContexte utilisateur non sensible : {safe_context}"
+                system += f"\n\nContexte utilisateur non sensible : {safe_context}"
 
             messages = [{"role": "system", "content": system}]
             messages.extend(_history.get(conversation_id, []))
             messages.append({"role": "user", "content": message})
 
-            response = await _get_client().chat.completions.create(
-                model=getattr(settings, "OPENROUTER_MODEL", None) or DEFAULT_MODEL,
-                messages=messages,
-                temperature=0.35,
-                max_tokens=500,
+            response = await asyncio.wait_for(
+                _get_client().chat.completions.create(
+                    model=getattr(settings, "OPENROUTER_MODEL", None) or DEFAULT_MODEL,
+                    messages=messages,
+                    temperature=0.2,
+                    max_tokens=500,
+                ),
+                timeout=_timeout_seconds(),
             )
             answer = (response.choices[0].message.content or "").strip()
             if not answer:
@@ -484,7 +608,18 @@ class ChatbotService:
                     "Quels sont les tarifs ?",
                     "Comment réserver un massage ?",
                 ],
-                "data": {},
+                "data": {"source": "llm"},
+            }
+        except (asyncio.TimeoutError, TimeoutError):
+            logger.warning("Chatbot IA : délai dépassé (%ss)", _timeout_seconds())
+            apology = APOLOGY_MG if _looks_malagasy(message) else APOLOGY_FR
+            return {
+                "response": apology,
+                "conversation_id": conversation_id,
+                "intent": "timeout",
+                "confidence": 0.0,
+                "suggestions": DEFAULT_SUGGESTIONS,
+                "data": {"source": "timeout"},
             }
         except Exception as exc:  # noqa: BLE001
             logger.warning("Chatbot IA indisponible : %r", exc)
@@ -534,4 +669,5 @@ async def get_chatbot_response(
         user_id=user_id,
         conversation_id=conversation_id,
         context=context or None,
+        db=db,
     )

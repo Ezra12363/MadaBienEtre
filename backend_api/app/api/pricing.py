@@ -4,6 +4,7 @@
 # Permissions : CLIENT / THERAPIST / ADMIN
 
 import logging
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -16,7 +17,7 @@ from ..core.dependencies import (
 from ..models.massage import MassageType
 from ..models.booking import Booking
 from ..models.user import User
-from ..services.ai.pricing_service import calculate_dynamic_price
+from ..services.ai.pricing_service import suggest_price_with_acceptance
 
 
 logger = logging.getLogger(__name__)
@@ -107,6 +108,7 @@ def _get_massage_type(
 
 # ============================================================
 # 1. SUGGESTION DE PRIX
+# Gradient Boosting (règle métier en secours) — mémoire §6.3.2
 # CLIENT / THERAPIST / ADMIN
 # ============================================================
 
@@ -115,30 +117,41 @@ async def suggest_price(
     massage_type_id: int = Query(..., gt=0),
     duration: int = Query(..., gt=0, le=480),
     distance: float = Query(..., ge=0, le=500),
+    scheduled_at: datetime | None = Query(
+        None,
+        description=(
+            "Date/heure prévue (ISO 8601, UTC). Détermine l'heure, le jour "
+            "et l'indice de demande. Par défaut : maintenant."
+        ),
+    ),
+    proposed_price: float | None = Query(
+        None,
+        gt=0,
+        description=(
+            "Prix saisi par le client : la probabilité d'acceptation renvoyée "
+            "porte sur ce prix (sinon sur le prix conseillé)."
+        ),
+    ),
     user_id: int | None = Query(
         None,
         gt=0,
         description=(
             "Identifiant facultatif. "
             "Un utilisateur non-admin ne peut demander "
-            "que son propre historique."
+            "que pour lui-même."
         ),
     ),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """
-    Suggère un prix dynamique.
+    Suggère un prix conseillé arrondi à 500 Ar, avec la probabilité
+    d'acceptation et la version du modèle :
 
-    CLIENT :
-      - peut utiliser son propre historique uniquement.
+        {suggested_price, acceptance_probability, model_version, ...}
 
-    THERAPIST :
-      - peut obtenir une suggestion de prix ;
-      - ne peut pas consulter l'historique privé d'un client.
-
-    ADMIN :
-      - peut demander une suggestion avec un user_id explicite.
+    Le prix est consultatif : le client reste libre de l'ignorer.
+    La prédiction est journalisée dans ai_predictions.
     """
 
     role = _get_role(current_user)
@@ -151,7 +164,7 @@ async def suggest_price(
         raise HTTPException(
             status_code=403,
             detail=(
-                "Vous ne pouvez pas consulter l'historique "
+                "Vous ne pouvez pas consulter les données "
                 "d'un autre utilisateur."
             ),
         )
@@ -161,44 +174,16 @@ async def suggest_price(
         massage_type_id=massage_type_id,
     )
 
-    # Seul l'historique du client lui-même est utilisé.
-    history_user_id = None
-
-    if role == "CLIENT":
-        history_user_id = current_user.id
-
-    elif role == "ADMIN" and user_id is not None:
-        history_user_id = user_id
-
-    user_history = []
-
-    if history_user_id is not None:
-        bookings = (
-            db.query(Booking)
-            .filter(
-                Booking.client_id == history_user_id,
-                Booking.status == "completed",
-            )
-            .order_by(Booking.created_at.desc())
-            .limit(10)
-            .all()
-        )
-
-        user_history = [
-            price
-            for booking in bookings
-            if (price := _get_valid_price(booking)) is not None
-        ]
-
-    base_price = float(massage_type.min_price or 30000)
-
     try:
-        result = calculate_dynamic_price(
-            base_price=base_price,
+        result = suggest_price_with_acceptance(
+            db,
+            massage_type_id=massage_type.id,
+            massage_type_name=getattr(massage_type, "name", None),
             duration=duration,
             distance=distance,
-            user_history=user_history,
-            demand_factor=1.0,
+            scheduled_at=scheduled_at,
+            proposed_price=proposed_price,
+            user_id=current_user.id,
         )
     except Exception as exc:
         logger.exception("Erreur lors de la suggestion de prix.")
@@ -214,11 +199,18 @@ async def suggest_price(
         "massage_type": getattr(massage_type, "name", None),
         "duration": duration,
         "distance": distance,
-        "suggested_price": float(result["price"]),
+        "suggested_price": float(result["suggested_price"]),
+        "acceptance_probability": float(result["acceptance_probability"]),
+        "model_version": result["model_version"],
         "min_price": float(result["min_price"]),
         "max_price": float(result["max_price"]),
         "confidence": float(result["confidence"]),
-        "factors": result.get("factors", {}),
+        "evaluated_price": result["evaluated_price"],
+        "factors": {
+            key: value
+            for key, value in result["features"].items()
+            if isinstance(value, (int, float))
+        },
     }
 
 
