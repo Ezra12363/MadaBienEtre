@@ -225,7 +225,8 @@ const EarningsScreen = ({ navigation, route }) => {
     const base = rules.amount({ min: 1, label: 'Le montant' })(v);
     if (base) return base;
     const n = parseAmount(v);
-    if (cm.method === 'wallet' && n > Number(w?.available || 0)) return `Solde insuffisant (disponible : ${formatAr(w?.available || 0)}).`;
+    const walletAvailable = Number(wallet?.available || 0);
+    if (cm.method === 'wallet' && n > walletAvailable) return `Solde insuffisant (disponible : ${formatAr(walletAvailable)}).`;
     return '';
   };
   const cmErrors = {};
