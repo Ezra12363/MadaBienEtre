@@ -37,6 +37,8 @@ import Header from '../../components/common/Header';
 
 import bookingService from '../../services/bookingService';
 
+import { toastAdapters } from "../../utils/toast";
+
 // ============================================================
 // COLORS
 // ============================================================
@@ -499,106 +501,6 @@ const buildMonthGrid = (viewDate) => {
   }
 
   return cells;
-};
-
-// ============================================================
-// TOAST
-// ============================================================
-
-const TOAST_CONFIG = {
-  success: {
-    icon: 'checkmark-circle',
-    color: '#15803D',
-    background: '#DCFCE7',
-  },
-
-  error: {
-    icon: 'close-circle',
-    color: '#B91C1C',
-    background: '#FEE2E2',
-  },
-
-  info: {
-    icon: 'information-circle',
-    color: '#1D4ED8',
-    background: '#DBEAFE',
-  },
-};
-
-const Toast = ({ visible, type, message, onHide }) => {
-  const translateY = useMemo(
-    () => new Animated.Value(-90),
-    [],
-  );
-
-  useEffect(() => {
-    if (!visible) {
-      return undefined;
-    }
-
-    Animated.spring(translateY, {
-      toValue: 0,
-      useNativeDriver: Platform.OS !== 'web',
-      friction: 8,
-    }).start();
-
-    const timer = setTimeout(() => {
-      Animated.timing(translateY, {
-        toValue: -90,
-        duration: 220,
-        useNativeDriver: Platform.OS !== 'web',
-      }).start(() => {
-        onHide?.();
-      });
-    }, 3200);
-
-    return () => clearTimeout(timer);
-  }, [visible, translateY, onHide]);
-
-  if (!visible) {
-    return null;
-  }
-
-  const config = TOAST_CONFIG[type] || TOAST_CONFIG.info;
-
-  return (
-    <Animated.View
-      pointerEvents="box-none"
-      style={[
-        styles.toastOverlay,
-        {
-          transform: [{ translateY }],
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.toastCard,
-          {
-            backgroundColor: config.background,
-          },
-        ]}
-      >
-        <Ionicons
-          name={config.icon}
-          size={21}
-          color={config.color}
-        />
-
-        <Text
-          numberOfLines={2}
-          style={[
-            styles.toastText,
-            {
-              color: config.color,
-            },
-          ]}
-        >
-          {message}
-        </Text>
-      </View>
-    </Animated.View>
-  );
 };
 
 // ============================================================
@@ -1512,29 +1414,7 @@ const CalendarScreen = ({ navigation }) => {
     booking: null,
   });
 
-  const [toast, setToast] = useState({
-    visible: false,
-    type: 'success',
-    message: '',
-  });
-
-  const showToast = useCallback(
-    (message, type = 'success') => {
-      setToast({
-        visible: true,
-        type,
-        message,
-      });
-    },
-    [],
-  );
-
-  const hideToast = useCallback(() => {
-    setToast((previous) => ({
-      ...previous,
-      visible: false,
-    }));
-  }, []);
+  const showToast = toastAdapters.msgType;
 
   // ==========================================================
   // LOAD BOOKINGS
@@ -2841,12 +2721,7 @@ const CalendarScreen = ({ navigation }) => {
         }}
       />
 
-      <Toast
-        visible={toast.visible}
-        type={toast.type}
-        message={toast.message}
-        onHide={hideToast}
-      />
+
     </View>
   );
 };
@@ -3650,46 +3525,6 @@ const styles = StyleSheet.create({
   },
 
   // ========================================================
-  // TOAST
-  // ========================================================
-
-  toastOverlay: {
-    position: 'absolute',
-    top: Platform.OS === 'android' ? 14 : 58,
-    left: 14,
-    right: 14,
-    zIndex: 9999,
-    elevation: 9999,
-    alignItems: 'center',
-  },
-
-  toastCard: {
-    width: '100%',
-    maxWidth: 540,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 13,
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.13,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-
-  toastText: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 12.5,
-    lineHeight: 17,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  // ========================================================
   // MODALS (menu 3 points + confirmation)
   // ========================================================
 
@@ -4029,7 +3864,7 @@ const styles = StyleSheet.create({
   actionSheetCloseText: {
     fontSize: 13,
     fontFamily: typography.fontFamily.bold,
-  },
+  }
 });
 
 export default CalendarScreen;

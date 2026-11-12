@@ -29,6 +29,8 @@ import { colors, spacing, typography } from '../../theme';
 import Header from '../../components/common/Header';
 import availabilityService from '../../services/availabilityService';
 
+import { toastAdapters } from "../../utils/toast";
+
 // ============================================================
 // CONFIGURATION
 // ============================================================
@@ -292,89 +294,6 @@ const AnimatedActionButton = ({
 };
 
 // ============================================================
-// TOAST
-// ============================================================
-
-const Toast = ({
-  visible,
-  type = 'success',
-  title,
-  message,
-  onHide,
-}) => {
-  if (!visible) return null;
-
-  const isError = type === 'error';
-  const isWarning = type === 'warning';
-
-  const iconName = isError
-    ? 'close-circle'
-    : isWarning
-      ? 'warning'
-      : 'checkmark-circle';
-
-  const iconColor = isError
-    ? DANGER
-    : isWarning
-      ? WARNING
-      : PRIMARY;
-
-  return (
-    <View
-      style={[
-        styles.toastContainer,
-        {
-          borderLeftColor: iconColor,
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.toastIcon,
-          {
-            backgroundColor: `${iconColor}18`,
-          },
-        ]}
-      >
-        <Ionicons
-          name={iconName}
-          size={22}
-          color={iconColor}
-        />
-      </View>
-
-      <View style={styles.toastTextWrap}>
-        <Text style={styles.toastTitle}>
-          {title}
-        </Text>
-
-        {!!message && (
-          <Text style={styles.toastMessage}>
-            {message}
-          </Text>
-        )}
-      </View>
-
-      <TouchableOpacity
-        onPress={onHide}
-        hitSlop={{
-          top: 10,
-          bottom: 10,
-          left: 10,
-          right: 10,
-        }}
-      >
-        <Ionicons
-          name="close"
-          size={19}
-          color="#777"
-        />
-      </TouchableOpacity>
-    </View>
-  );
-};
-
-// ============================================================
 // CONFIRM DELETE MODAL
 // ============================================================
 
@@ -580,15 +499,6 @@ const AvailabilityScreen = () => {
 
   const [blockedDates, setBlockedDates] = useState([]);
 
-  const [toast, setToast] = useState({
-    visible: false,
-    type: 'success',
-    title: '',
-    message: '',
-  });
-
-  const toastTimer = useRef(null);
-
   const [showBlockModal, setShowBlockModal] = useState(false);
 
   const [blockForm, setBlockForm] = useState({
@@ -628,47 +538,7 @@ const AvailabilityScreen = () => {
   // TOAST
   // ==========================================================
 
-  const showToast = useCallback(
-    (type, title, message = '') => {
-      if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
-      }
-
-      setToast({
-        visible: true,
-        type,
-        title,
-        message,
-      });
-
-      toastTimer.current = setTimeout(() => {
-        setToast((previous) => ({
-          ...previous,
-          visible: false,
-        }));
-      }, 3200);
-    },
-    []
-  );
-
-  const hideToast = useCallback(() => {
-    if (toastTimer.current) {
-      clearTimeout(toastTimer.current);
-    }
-
-    setToast((previous) => ({
-      ...previous,
-      visible: false,
-    }));
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
-      }
-    };
-  }, []);
+  const showToast = toastAdapters.typeTitleMsg;
 
   // ==========================================================
   // LOAD AVAILABILITY
@@ -1307,18 +1177,6 @@ const AvailabilityScreen = () => {
         },
       ]}
     >
-      <View
-        pointerEvents="box-none"
-        style={styles.toastWrapper}
-      >
-        <Toast
-          visible={toast.visible}
-          type={toast.type}
-          title={toast.title}
-          message={toast.message}
-          onHide={hideToast}
-        />
-      </View>
 
       <Header
         title="Disponibilité"
@@ -2789,63 +2647,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
   },
 
-  toastWrapper: {
-    position: 'absolute',
-    top: Platform.OS === 'web' ? 20 : 45,
-    left: 12,
-    right: 12,
-    zIndex: 99999,
-    elevation: 99999,
-    alignItems: 'center',
-  },
-
-  toastContainer: {
-    width: '100%',
-    maxWidth: 520,
-    minHeight: 66,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderLeftWidth: 4,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowOpacity: 0.14,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-
-  toastIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-
-  toastTextWrap: {
-    flex: 1,
-    paddingRight: 8,
-  },
-
-  toastTitle: {
-    color: '#111827',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-
-  toastMessage: {
-    color: '#6B7280',
-    fontSize: 12,
-    marginTop: 3,
-    lineHeight: 17,
-  },
 
   scrollContent: {
     paddingHorizontal: spacing.md,
@@ -3394,7 +3195,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
-  },
+  }
 });
 
 export default AvailabilityScreen;

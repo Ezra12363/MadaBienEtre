@@ -38,6 +38,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Animatable from 'react-native-animatable';
 
+import HideAmountsToggle from '../../components/common/HideAmountsToggle';
+import { useHideAmounts } from '../../hooks/useHideAmounts';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import statsService from '../../services/statsService';
@@ -184,6 +186,7 @@ const shortMonth = (label) => String(label || '').split(' ')[0];
 
 const DashboardScreen = ({ navigation }) => {
   const { colors: themeColors } = useTheme();
+  const { show: showAmount } = useHideAmounts();
   const { user, updateProfile } = useAuth();
   const { unreadCount } = useNotifications();
   const { width: windowWidth } = useWindowDimensions();
@@ -1474,6 +1477,8 @@ const DashboardScreen = ({ navigation }) => {
                   </Text>
                 </View>
 
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <HideAmountsToggle color={primaryColor} />
                 <TouchableOpacity
                   activeOpacity={0.75}
                   onPress={openEarnings}
@@ -1496,6 +1501,7 @@ const DashboardScreen = ({ navigation }) => {
                     color={primaryColor}
                   />
                 </TouchableOpacity>
+                </View>
               </View>
 
               <View style={styles.earningsGrid}>
@@ -1543,7 +1549,7 @@ const DashboardScreen = ({ navigation }) => {
                       },
                     ]}
                   >
-                    {formatPrice(stats.totalEarnings)}
+                    {showAmount(formatPrice(stats.totalEarnings))}
                   </Text>
                 </View>
 
@@ -1591,7 +1597,7 @@ const DashboardScreen = ({ navigation }) => {
                       },
                     ]}
                   >
-                    {formatPrice(stats.pendingEarnings)}
+                    {showAmount(formatPrice(stats.pendingEarnings))}
                   </Text>
                 </View>
               </View>

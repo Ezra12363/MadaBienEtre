@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Modal,
@@ -16,29 +15,41 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { colors, spacing, typography } from '../../theme';
+import MaskedField, { FormSummary } from '../common/MaskedField';
+import { maskEmail, maskFullname, maskLabel, maskMgPhone, rules } from '../../utils/inputMasks';
 
 const EMPTY = { name: '', phone: '', relationship: '', email: '', is_primary: false };
-const PHONE_RE = /^(\+261|0)[0-9]{9}$/;
 
 const EmergencyContactForm = ({ visible, contact, saving, error, onSave, onClose }) => {
   const { colors: themeColors } = useTheme();
   const [form, setForm] = useState(EMPTY);
   const [localError, setLocalError] = useState('');
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     if (visible) {
       setForm(contact ? { ...EMPTY, ...contact, email: contact.email || '', relationship: contact.relationship || '' } : EMPTY);
       setLocalError('');
+      setSubmitted(false);
     }
   }, [visible, contact]);
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
+  // Erreurs par champ (affichées en rouge sous chaque champ, vert quand valide)
+  const nameRule = rules.fullname;
+  const fieldErrors = {};
+  const nameErr = nameRule(form.name);
+  const phoneErr = rules.mgPhone(form.phone);
+  const emailErr = rules.emailOptional(form.email);
+  if (nameErr) fieldErrors.name = nameErr;
+  if (phoneErr) fieldErrors.phone = phoneErr;
+  if (emailErr) fieldErrors.email = emailErr;
+
   const submit = () => {
+    setSubmitted(true);
+    if (Object.keys(fieldErrors).length) return;
     const phone = form.phone.replace(/[\s.\-()]/g, '');
-    if (form.name.trim().length < 2) return setLocalError('Entrez le nom du contact');
-    if (!PHONE_RE.test(phone)) return setLocalError('Numéro invalide (ex : 034 12 345 67)');
-    if (form.email && !/^\S+@\S+\.\S+$/.test(form.email.trim())) return setLocalError('Email invalide');
     setLocalError('');
     onSave({
       name: form.name.trim(),
@@ -49,7 +60,6 @@ const EmergencyContactForm = ({ visible, contact, saving, error, onSave, onClose
     });
   };
 
-  const inputStyle = [styles.input, { color: themeColors.text, borderColor: themeColors.border || '#E0E0E0' }];
   const shownError = localError || error;
 
   return (
@@ -69,28 +79,36 @@ const EmergencyContactForm = ({ visible, contact, saving, error, onSave, onClose
           </View>
 
           <ScrollView keyboardShouldPersistTaps="handled">
-            <Text style={[styles.label, { color: themeColors.textSecondary }]}>Nom *</Text>
-            <TextInput style={inputStyle} value={form.name} onChangeText={set('name')}
-              placeholder="Ex : Rakoto Jean" placeholderTextColor="#999" />
-
-            <Text style={[styles.label, { color: themeColors.textSecondary }]}>Téléphone *</Text>
-            <TextInput style={inputStyle} value={form.phone} onChangeText={set('phone')}
-              placeholder="034 12 345 67" placeholderTextColor="#999" keyboardType="phone-pad" />
-
-            <Text style={[styles.label, { color: themeColors.textSecondary }]}>Lien avec vous</Text>
-            <TextInput style={inputStyle} value={form.relationship} onChangeText={set('relationship')}
-              placeholder="Frère, conjoint, ami..." placeholderTextColor="#999" />
-
-            <Text style={[styles.label, { color: themeColors.textSecondary }]}>Email (facultatif)</Text>
-            <TextInput style={inputStyle} value={form.email} onChangeText={set('email')}
-              placeholder="contact@email.com" placeholderTextColor="#999"
-              keyboardType="email-address" autoCapitalize="none" />
+            <MaskedField
+              label="Nom" required value={form.name} onChangeText={set('name')}
+              mask={maskFullname} validate={nameRule} showErrors={submitted}
+              placeholder="Ex : Rakoto Jean" autoCapitalize="words" icon="person-outline"
+              successText="Nom valide" textColor={themeColors.text} surfaceColor={themeColors.surface}
+            />
+            <MaskedField
+              label="Téléphone" required value={form.phone} onChangeText={set('phone')}
+              mask={maskMgPhone} validate={rules.mgPhone} showErrors={submitted}
+              placeholder="034 12 345 67" keyboardType="phone-pad" icon="call-outline"
+              successText="Numéro valide" textColor={themeColors.text} surfaceColor={themeColors.surface}
+            />
+            <MaskedField
+              label="Lien avec vous" value={form.relationship} onChangeText={set('relationship')}
+              mask={maskLabel(40)} placeholder="Frère, conjoint, ami..." icon="people-outline"
+              textColor={themeColors.text} surfaceColor={themeColors.surface}
+            />
+            <MaskedField
+              label="Email (facultatif)" value={form.email} onChangeText={set('email')}
+              mask={maskEmail} validate={rules.emailOptional} showErrors={submitted}
+              placeholder="contact@email.com" keyboardType="email-address" icon="mail-outline"
+              successText="Email valide" textColor={themeColors.text} surfaceColor={themeColors.surface}
+            />
 
             <TouchableOpacity style={styles.primaryRow} onPress={() => set('is_primary')(!form.is_primary)}>
               <Ionicons name={form.is_primary ? 'checkbox' : 'square-outline'} size={22} color={colors.primary} />
               <Text style={[styles.primaryText, { color: themeColors.text }]}>Contact principal</Text>
             </TouchableOpacity>
 
+            <FormSummary errors={fieldErrors} show={submitted} successText="Formulaire valide." />
             {!!shownError && <Text style={styles.error}>{shownError}</Text>}
 
             <TouchableOpacity style={styles.saveButton} onPress={submit} disabled={saving}>

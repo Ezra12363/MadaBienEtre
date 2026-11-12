@@ -43,6 +43,7 @@ import {
 import { API_URL } from '../../config/env';
 
 import { normalizeMediaUrl } from '../../utils/mediaUrl';
+import { toastAdapters } from "../../utils/toast";
 const IS_WEB = Platform.OS === 'web';
 
 // Sur le web : le texte passe à la ligne au lieu d'être coupé ("...")
@@ -509,84 +510,7 @@ const ApprovalsScreen = () => {
      TOAST
   ========================================================== */
 
-  const [toast, setToast] =
-    useState(null);
-
-  const toastOpacity = useRef(
-    new Animated.Value(0)
-  ).current;
-
-  const toastTranslateY = useRef(
-    new Animated.Value(-25)
-  ).current;
-
-  /* ==========================================================
-     TOAST
-  ========================================================== */
-
-  const showToast = useCallback(
-    (message, type = 'info') => {
-      setToast({
-        message,
-        type,
-      });
-
-      toastOpacity.stopAnimation();
-      toastTranslateY.stopAnimation();
-
-      toastOpacity.setValue(0);
-      toastTranslateY.setValue(-25);
-
-      Animated.parallel([
-        Animated.timing(
-          toastOpacity,
-          {
-            toValue: 1,
-            duration: 220,
-            useNativeDriver: true,
-          }
-        ),
-
-        Animated.spring(
-          toastTranslateY,
-          {
-            toValue: 0,
-            tension: 90,
-            friction: 8,
-            useNativeDriver: true,
-          }
-        ),
-      ]).start();
-
-      setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(
-            toastOpacity,
-            {
-              toValue: 0,
-              duration: 180,
-              useNativeDriver: true,
-            }
-          ),
-
-          Animated.timing(
-            toastTranslateY,
-            {
-              toValue: -15,
-              duration: 180,
-              useNativeDriver: true,
-            }
-          ),
-        ]).start(() => {
-          setToast(null);
-        });
-      }, 3200);
-    },
-    [
-      toastOpacity,
-      toastTranslateY,
-    ]
-  );
+  const showToast = toastAdapters.msgType;
 
   /* ==========================================================
      ✅ TÉLÉCHARGEMENT DE DOCUMENT (certificat professionnel, CIN...)
@@ -1073,88 +997,6 @@ const ApprovalsScreen = () => {
           {firstLetter}
         </Text>
       </View>
-    );
-  };
-
-  /* ==========================================================
-     TOAST
-  ========================================================== */
-
-  const Toast = () => {
-    if (!toast) {
-      return null;
-    }
-
-    const configs = {
-      success: {
-        icon: 'checkmark-circle',
-        background:
-          '#16A34A',
-      },
-
-      error: {
-        icon: 'alert-circle',
-        background:
-          '#DC2626',
-      },
-
-      warning: {
-        icon: 'warning',
-        background:
-          '#F59E0B',
-      },
-
-      info: {
-        icon: 'information-circle',
-        background:
-          colors.primary,
-      },
-    };
-
-    const config =
-      configs[toast.type] ||
-      configs.info;
-
-    return (
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.toastWrapper,
-          {
-            opacity:
-              toastOpacity,
-            transform: [
-              {
-                translateY:
-                  toastTranslateY,
-              },
-            ],
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.toast,
-            {
-              backgroundColor:
-                config.background,
-            },
-          ]}
-        >
-          <Ionicons
-            name={config.icon}
-            size={21}
-            color="#FFFFFF"
-          />
-
-          <Text
-            style={styles.toastText}
-            numberOfLines={3}
-          >
-            {toast.message}
-          </Text>
-        </View>
-      </Animated.View>
     );
   };
 
@@ -2152,7 +1994,7 @@ const ApprovalsScreen = () => {
         showBack
       />
 
-      <Toast />
+
 
       <View
         style={styles.page}
@@ -2401,8 +2243,6 @@ const ApprovalsScreen = () => {
         </View>
 
       </View>
-
-
 
       {confirmationModal}
     </SafeAreaView>
@@ -3588,57 +3428,6 @@ const styles = StyleSheet.create({
   },
 
   /* ==========================================================
-     TOAST
-  ========================================================== */
-
-  toastWrapper: {
-    position: 'absolute',
-    top:
-      IS_WEB ? 18 : 14,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 999999,
-    elevation: 999999,
-  },
-
-  toast: {
-    minWidth:
-      IS_WEB
-        ? 330
-        : '80%',
-    maxWidth:
-      IS_WEB
-        ? 540
-        : '92%',
-    minHeight: 49,
-    borderRadius: 14,
-    paddingHorizontal: 15,
-    paddingVertical: 11,
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowOpacity: 0.22,
-    shadowRadius: 13,
-    elevation: 10,
-  },
-
-  toastText: {
-    flex: 1,
-    marginLeft: 9,
-    color: '#FFFFFF',
-    fontSize: 12,
-    lineHeight: 17,
-    fontFamily:
-      typography.fontFamily.semiBold,
-  },
-
-  /* ==========================================================
      ✅ CERTIFICAT PROFESSIONNEL
   ========================================================== */
 
@@ -3809,7 +3598,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     letterSpacing: 0.2,
     fontFamily: typography.fontFamily.bold,
-  },
+  }
 });
 
 export default ApprovalsScreen;

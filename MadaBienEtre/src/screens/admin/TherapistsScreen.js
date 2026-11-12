@@ -37,6 +37,7 @@ import { API_URL } from '../../config/env';
 import { exportToExcel } from '../../utils/exportExcel';
 
 import { normalizeMediaUrl } from '../../utils/mediaUrl';
+import { toastAdapters } from "../../utils/toast";
 const IS_WEB = Platform.OS === 'web';
 
 // Sur le web : le texte passe à la ligne au lieu d'être coupé ("...")
@@ -295,33 +296,7 @@ const TherapistsScreen = () => {
     setShowImageViewer(false);
   };
 
-  /* ==========================================================
-     TOAST
-  ========================================================== */
-
-  const [toast, setToast] = useState(null);
-
-  const showToast = useCallback(
-    (
-      message,
-      type = 'success',
-      duration = 3000
-    ) => {
-      setToast({
-        id: Date.now(),
-        message,
-        type,
-      });
-
-      setTimeout(() => {
-        setToast((current) => {
-          if (!current) return null;
-          return null;
-        });
-      }, duration);
-    },
-    []
-  );
+  const showToast = toastAdapters.msgType;
 
   /* ==========================================================
      FILTERS
@@ -1894,83 +1869,6 @@ const TherapistsScreen = () => {
   );
 
   /* ==========================================================
-     TOAST COMPONENT
-  ========================================================== */
-
-  const Toast = () => {
-    if (!toast) return null;
-
-    const isError =
-      toast.type === 'error';
-
-    const isWarning =
-      toast.type === 'warning';
-
-    const toastColor = isError
-      ? '#E74C3C'
-      : isWarning
-      ? '#F5A623'
-      : '#27AE60';
-
-    const iconName = isError
-      ? 'close-circle'
-      : isWarning
-      ? 'warning'
-      : 'checkmark-circle';
-
-    return (
-      <View
-        pointerEvents="none"
-        style={[
-          styles.toastPosition,
-        ]}
-      >
-        <View
-          style={[
-            styles.toast,
-            {
-              backgroundColor:
-                themeColors.surface,
-              borderLeftColor:
-                toastColor,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.toastIcon,
-              {
-                backgroundColor:
-                  toastColor +
-                  '15',
-              },
-            ]}
-          >
-            <Ionicons
-              name={iconName}
-              size={20}
-              color={toastColor}
-            />
-          </View>
-
-          <Text
-            numberOfLines={3}
-            style={[
-              styles.toastText,
-              {
-                color:
-                  themeColors.text,
-              },
-            ]}
-          >
-            {toast.message}
-          </Text>
-        </View>
-      </View>
-    );
-  };
-
-  /* ==========================================================
      VISIONNEUSE PLEIN ECRAN - certificat professionnel
      Affiche l'image en grand (remplit la modale) et permet
      de la telecharger directement.
@@ -2660,7 +2558,6 @@ const TherapistsScreen = () => {
           )}
         </View>
 
-
         {/* ======================================================
             ADDRESS MODAL
         ====================================================== */}
@@ -2721,7 +2618,7 @@ const TherapistsScreen = () => {
             TOAST
         ====================================================== */}
 
-        <Toast />
+
 
         {/* ======================================================
             CONFIRM MODAL (WEB)
@@ -3760,67 +3657,6 @@ const styles = StyleSheet.create({
   },
 
   /* ============================================================
-     TOAST
-  ============================================================ */
-
-  toastPosition: {
-    position: 'absolute',
-    top: IS_WEB ? 70 : 62,
-    left: 0,
-    right: 0,
-    zIndex: 99999,
-    elevation: 99999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    pointerEvents: 'none',
-  },
-
-  toast: {
-    minHeight: 52,
-    maxWidth: IS_WEB
-      ? 520
-      : '88%',
-    minWidth: IS_WEB
-      ? 300
-      : undefined,
-
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-
-    borderRadius: 13,
-    borderLeftWidth: 4,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowOpacity: 0.14,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-
-  toastIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  toastText: {
-    flex: 1,
-    marginLeft: 9,
-    fontSize: 12,
-    lineHeight: 17,
-    fontFamily:
-      typography.fontFamily.medium,
-  },
-
-  /* ============================================================
      CONFIRM MODAL (WEB)
   ============================================================ */
 
@@ -4033,7 +3869,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontFamily: typography.fontFamily.semiBold,
-  },
+  }
 });
 
 export default TherapistsScreen;

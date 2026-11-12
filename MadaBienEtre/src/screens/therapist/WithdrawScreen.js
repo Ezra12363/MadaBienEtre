@@ -14,7 +14,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -23,7 +22,19 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import Header from '../../components/common/Header';
+import MaskedField, { FormSummary } from '../../components/common/MaskedField';
+import {
+  maskAmount,
+  maskBankAccount,
+  maskFullname,
+  maskLabel,
+  maskMgPhone,
+  parseAmount,
+  rules,
+} from '../../utils/inputMasks';
 import { formatAr, formatDateTime } from '../../components/payment/paymentUtils';
+import HideAmountsToggle from '../../components/common/HideAmountsToggle';
+import { useHideAmounts } from '../../hooks/useHideAmounts';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 
@@ -42,6 +53,7 @@ const PROVIDERS = [
 
 const WithdrawScreen = ({ navigation }) => {
   const { colors: theme } = useTheme();
+  const { show } = useHideAmounts();
 
   const [wallet, setWallet] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -54,6 +66,7 @@ const WithdrawScreen = ({ navigation }) => {
   const [accountHolder, setAccountHolder] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [submitted, setSubmitted] = useState(false);
   const [done, setDone] = useState(null);
 
   const load = useCallback(async () => {
@@ -80,28 +93,43 @@ const WithdrawScreen = ({ navigation }) => {
   const cfg = wallet?.payment_config || {};
   const allowed = METHODS.filter((m) => cfg[m.flag] !== false);
 
-  const value = Number(String(amount).replace(/[^0-9.]/g, '')) || 0;
+  const value = parseAmount(amount);
   const fee = Math.round((value * feePercent) / 100);
   const net = Math.max(value - fee, 0);
 
-  const validate = () => {
-    if (!value || value <= 0) return 'Saisissez un montant valide.';
-    if (value < minWithdrawal) return `Retrait minimum : ${formatAr(minWithdrawal)}.`;
-    if (value > available) return `Solde insuffisant (disponible : ${formatAr(available)}).`;
-    if (!method) return 'Choisissez un mode de retrait.';
-    if (method === 'mobile_money' && String(phone).replace(/\D/g, '').length < 9) {
-      return 'Saisissez le numéro Mobile Money qui recevra l’argent.';
-    }
-    if (method === 'bank_transfer' && (!bankName.trim() || !accountNumber.trim() || !accountHolder.trim())) {
-      return 'Remplissez tous les champs bancaires.';
-    }
+  // Règles par champ (masque + message d'erreur rouge / état valide vert)
+  const validateAmount = (v) => {
+    const base = rules.amount({ min: 1, label: 'Le montant' })(v);
+    if (base) return base;
+    const n = parseAmount(v);
+    if (minWithdrawal && n < minWithdrawal) return `Retrait minimum : ${formatAr(minWithdrawal)}.`;
+    if (n > available) return `Solde insuffisant (disponible : ${formatAr(available)}).`;
     return '';
   };
+  const validateBankName = (v) => rules.minLen(2, 'Le nom de la banque')(v) || rules.required('Le nom de la banque')(v);
+
+  const fieldErrors = {};
+  const amountErr = validateAmount(amount);
+  if (amountErr) fieldErrors.amount = amountErr;
+  if (!method) fieldErrors.method = 'Choisissez un mode de retrait.';
+  if (method === 'mobile_money') {
+    const e = rules.mgPhone(phone);
+    if (e) fieldErrors.phone = e;
+  }
+  if (method === 'bank_transfer') {
+    const e1 = validateBankName(bankName);
+    const e2 = rules.bankAccount(accountNumber);
+    const e3 = rules.fullname(accountHolder);
+    if (e1) fieldErrors.bankName = e1;
+    if (e2) fieldErrors.accountNumber = e2;
+    if (e3) fieldErrors.accountHolder = e3;
+  }
 
   const submit = async () => {
-    const problem = validate();
+    setSubmitted(true);
+    const problem = Object.values(fieldErrors)[0];
     if (problem) {
-      setError(problem);
+      setError('');
       return;
     }
     setError('');
@@ -130,7 +158,6 @@ const WithdrawScreen = ({ navigation }) => {
   const txt = { color: theme.text };
   const sub = { color: theme.textSecondary };
   const box = { backgroundColor: theme.surface, borderColor: theme.border || '#E5E7EB' };
-  const input = { color: theme.text, borderColor: theme.border || '#D1D5DB' };
 
   if (done) {
     return (
@@ -176,8 +203,11 @@ const WithdrawScreen = ({ navigation }) => {
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.balance}>
-            <Text style={styles.balanceLabel}>Solde disponible</Text>
-            <Text style={styles.balanceValue}>{formatAr(available)}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={styles.balanceLabel}>Solde disponible</Text>
+              <HideAmountsToggle color="#FFFFFF" />
+            </View>
+            <Text style={styles.balanceValue}>{show(formatAr(available))}</Text>
             <Text style={styles.balanceHint}>
               Minimum {formatAr(minWithdrawal)}
               {feePercent > 0 ? ` · frais ${feePercent} %` : ''}
@@ -185,22 +215,28 @@ const WithdrawScreen = ({ navigation }) => {
             {value > 0 ? (
               <View style={styles.afterRow}>
                 <Text style={styles.balanceHint}>Solde après cette demande</Text>
-                <Text style={[styles.afterValue, value > available && { color: '#FECACA' }]}>{formatAr(available - value)}</Text>
+                <Text style={[styles.afterValue, value > available && { color: '#FECACA' }]}>{show(formatAr(available - value))}</Text>
               </View>
             ) : null}
           </View>
 
           <View style={[styles.card, box]}>
-            <Text style={[styles.label, sub]}>Montant à retirer (Ar)</Text>
-            <TextInput
-              style={[styles.input, input]}
-              keyboardType="numeric"
+            <MaskedField
+              label="Montant à retirer"
               value={amount}
               onChangeText={setAmount}
-              placeholder="Ex. 50000"
-              placeholderTextColor={theme.placeholder}
+              mask={maskAmount}
+              validate={validateAmount}
+              showErrors={submitted}
+              keyboardType="numeric"
+              placeholder="Ex. 50 000"
+              suffix="Ar"
+              successText="Montant valide"
+              textColor={theme.text}
+              surfaceColor={theme.surface}
+              style={{ marginBottom: 4 }}
             />
-            <TouchableOpacity onPress={() => setAmount(String(Math.floor(available)))}>
+            <TouchableOpacity onPress={() => setAmount(maskAmount(String(Math.floor(available))))}>
               <Text style={[styles.link, { color: GREEN }]}>Tout retirer</Text>
             </TouchableOpacity>
             {value > 0 && feePercent > 0 ? (
@@ -241,26 +277,66 @@ const WithdrawScreen = ({ navigation }) => {
                     </TouchableOpacity>
                   ))}
                 </View>
-                <Text style={[styles.label, sub]}>Numéro qui reçoit l’argent</Text>
-                <TextInput
-                  style={[styles.input, input]}
-                  keyboardType="phone-pad"
+                <MaskedField
+                  label="Numéro qui reçoit l’argent"
                   value={phone}
                   onChangeText={setPhone}
+                  mask={maskMgPhone}
+                  validate={rules.mgPhone}
+                  showErrors={submitted}
+                  keyboardType="phone-pad"
                   placeholder="034 12 345 67"
-                  placeholderTextColor={theme.placeholder}
+                  icon="call-outline"
+                  successText="Numéro valide"
+                  textColor={theme.text}
+                  surfaceColor={theme.surface}
+                  style={{ marginTop: 10 }}
                 />
               </>
             ) : null}
 
             {method === 'bank_transfer' ? (
               <>
-                <Text style={[styles.label, sub]}>Banque</Text>
-                <TextInput style={[styles.input, input]} value={bankName} onChangeText={setBankName} placeholder="BNI, BOA, BFV..." placeholderTextColor={theme.placeholder} />
-                <Text style={[styles.label, sub]}>Numéro de compte</Text>
-                <TextInput style={[styles.input, input]} value={accountNumber} onChangeText={setAccountNumber} keyboardType="numbers-and-punctuation" placeholderTextColor={theme.placeholder} />
-                <Text style={[styles.label, sub]}>Titulaire du compte</Text>
-                <TextInput style={[styles.input, input]} value={accountHolder} onChangeText={setAccountHolder} placeholderTextColor={theme.placeholder} />
+                <MaskedField
+                  label="Banque"
+                  value={bankName}
+                  onChangeText={setBankName}
+                  mask={maskLabel(40)}
+                  validate={validateBankName}
+                  showErrors={submitted}
+                  placeholder="BNI, BOA, BFV..."
+                  autoCapitalize="characters"
+                  successText="Banque valide"
+                  textColor={theme.text}
+                  surfaceColor={theme.surface}
+                  style={{ marginTop: 10 }}
+                />
+                <MaskedField
+                  label="Numéro de compte"
+                  value={accountNumber}
+                  onChangeText={setAccountNumber}
+                  mask={maskBankAccount}
+                  validate={rules.bankAccount}
+                  showErrors={submitted}
+                  keyboardType="numeric"
+                  placeholder="0000 0000 0000"
+                  successText="Numéro de compte valide"
+                  textColor={theme.text}
+                  surfaceColor={theme.surface}
+                />
+                <MaskedField
+                  label="Titulaire du compte"
+                  value={accountHolder}
+                  onChangeText={setAccountHolder}
+                  mask={maskFullname}
+                  validate={rules.fullname}
+                  showErrors={submitted}
+                  autoCapitalize="words"
+                  placeholder="Nom et prénom du titulaire"
+                  successText="Nom valide"
+                  textColor={theme.text}
+                  surfaceColor={theme.surface}
+                />
               </>
             ) : null}
 
@@ -276,6 +352,8 @@ const WithdrawScreen = ({ navigation }) => {
             </Text>
           </View>
 
+          {/* Résumé SOUS le formulaire : rouge s'il reste des erreurs, vert si tout est valide */}
+          <FormSummary errors={fieldErrors} show={submitted} successText="Formulaire valide : la demande peut être envoyée." />
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <TouchableOpacity

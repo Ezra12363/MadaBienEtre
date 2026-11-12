@@ -38,6 +38,7 @@ import { maskFullname, maskEmail, isValidEmail } from '../../utils/inputMasks';
 import { validatePhoneNumber } from '../../utils/phone';
 
 import { normalizeMediaUrl } from '../../utils/mediaUrl';
+import { toastAdapters } from "../../utils/toast";
 const IS_WEB = Platform.OS === 'web';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -150,26 +151,7 @@ const UsersScreen = () => {
     onCancel: null,
   });
 
-  /* ==========================================================
-     TOAST
-  ========================================================== */
-
-  const [toast, setToast] = useState(null);
-
-  const showToast = useCallback((message, type = 'success', duration = 3000) => {
-    setToast({
-      id: Date.now(),
-      message,
-      type,
-    });
-
-    setTimeout(() => {
-      setToast((current) => {
-        if (!current) return null;
-        return null;
-      });
-    }, duration);
-  }, []);
+  const showToast = toastAdapters.msgType;
 
   /* ==========================================================
      CONFIRMATION MODAL — CENTRÉ
@@ -1721,56 +1703,6 @@ const UsersScreen = () => {
   );
 
   /* ==========================================================
-     TOAST COMPONENT
-  ========================================================== */
-
-  const Toast = () => {
-    if (!toast) return null;
-
-    const isError = toast.type === 'error';
-    const isWarning = toast.type === 'warning';
-    const toastColor = isError ? '#E74C3C' : isWarning ? '#F5A623' : '#27AE60';
-    const iconName = isError ? 'close-circle' : isWarning ? 'warning' : 'checkmark-circle';
-
-    return (
-      <View pointerEvents="none" style={[styles.toastPosition]}>
-        <View
-          style={[
-            styles.toast,
-            {
-              backgroundColor: themeColors.surface,
-              borderLeftColor: toastColor,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.toastIcon,
-              {
-                backgroundColor: toastColor + '15',
-              },
-            ]}
-          >
-            <Ionicons name={iconName} size={20} color={toastColor} />
-          </View>
-
-          <Text
-            numberOfLines={3}
-            style={[
-              styles.toastText,
-              {
-                color: themeColors.text,
-              },
-            ]}
-          >
-            {toast.message}
-          </Text>
-        </View>
-      </View>
-    );
-  };
-
-  /* ==========================================================
      MODAL CLOSE
   ========================================================== */
 
@@ -2553,7 +2485,7 @@ const UsersScreen = () => {
             TOAST
         ====================================================== */}
 
-        <Toast />
+
       </View>
     </SafeAreaView>
   );
@@ -3018,6 +2950,7 @@ const styles = StyleSheet.create({
   },
 
   rolePickerList: { alignSelf: 'stretch', gap: 8, marginBottom: 16 },
+
   rolePickerOption: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3027,6 +2960,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     minHeight: 48,
   },
+
   rolePickerText: { flex: 1, fontSize: 14, fontWeight: '700' },
 
   mobileRoleButton: {
@@ -3040,6 +2974,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#00968818',
   },
+
   mobileRoleButtonText: { color: '#009688', fontSize: 12, fontWeight: '700' },
 
   webBottomSpace: {
@@ -3808,63 +3743,7 @@ const styles = StyleSheet.create({
 
   confirmActionText: {
     color: '#FFFFFF',
-  },
-
-  /* ============================================================
-     TOAST
-  ============================================================ */
-
-  toastPosition: {
-    position: 'absolute',
-    top: IS_WEB ? 70 : 62,
-    left: 0,
-    right: 0,
-    zIndex: 99999,
-    elevation: 99999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    pointerEvents: 'none',
-  },
-
-  toast: {
-    minHeight: 52,
-    maxWidth: IS_WEB ? 520 : '88%',
-    minWidth: IS_WEB ? 300 : undefined,
-
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-
-    borderRadius: 13,
-    borderLeftWidth: 4,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowOpacity: 0.14,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-
-  toastIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  toastText: {
-    flex: 1,
-    marginLeft: 9,
-    fontSize: 12,
-    lineHeight: 17,
-    fontFamily: typography.fontFamily.medium,
-  },
+  }
 });
 
 export default UsersScreen;

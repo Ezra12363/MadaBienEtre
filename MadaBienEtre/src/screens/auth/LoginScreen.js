@@ -40,6 +40,8 @@ import notificationService from '../../services/notificationService';
 import useSocialAuth from '../../hooks/useSocialAuth';
 import AppHeader from '../../components/common/AppHeader';
 
+import { toastAdapters } from "../../utils/toast";
+
 /* ============================================================
    COLORS
 ============================================================ */
@@ -110,184 +112,6 @@ const DESKTOP_BREAKPOINT = 950;
 const HEADER_BG = '#2E8A57';
 
 /* ============================================================
-   TOAST
-============================================================ */
-
-const toastStyles = StyleSheet.create({
-  toastOverlay: {
-    position: 'absolute',
-    top: IS_ANDROID
-      ? (StatusBar.currentHeight || 0) + 8
-      : 15,
-    left: 12,
-    right: 12,
-    zIndex: 99999,
-    elevation: 99999,
-    alignItems: 'center',
-    pointerEvents: 'box-none',
-  },
-
-  toastContainer: {
-    width: '100%',
-    maxWidth: 560,
-    minHeight: 60,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-
-  toastIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 10,
-  },
-
-  toastText: {
-    flex: 1,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '600',
-  },
-
-  toastClose: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginLeft: 5,
-  },
-});
-
-const Toast = ({
-  visible,
-  type,
-  message,
-  onDismiss,
-}) => {
-  if (!visible) {
-    return null;
-  }
-
-  const config = {
-    success: {
-      background: '#ECFDF5',
-      border: '#A7F3D0',
-      iconBackground: '#D1FAE5',
-      icon: 'checkmark-circle',
-      iconColor: '#059669',
-      text: '#065F46',
-    },
-
-    error: {
-      background: '#FEF2F2',
-      border: '#FECACA',
-      iconBackground: '#FEE2E2',
-      icon: 'alert-circle',
-      iconColor: '#DC2626',
-      text: '#991B1B',
-    },
-
-    info: {
-      background: '#EFF6FF',
-      border: '#BFDBFE',
-      iconBackground: '#DBEAFE',
-      icon: 'information-circle',
-      iconColor: '#2563EB',
-      text: '#1E40AF',
-    },
-
-    warning: {
-      background: '#FFFBEB',
-      border: '#FDE68A',
-      iconBackground: '#FEF3C7',
-      icon: 'warning',
-      iconColor: '#D97706',
-      text: '#92400E',
-    },
-  };
-
-  const current =
-    config[type] || config.info;
-
-  return (
-    <View
-      pointerEvents="box-none"
-      style={toastStyles.toastOverlay}
-    >
-      <Animated.View
-        style={[
-          toastStyles.toastContainer,
-          {
-            backgroundColor: current.background,
-            borderColor: current.border,
-          },
-        ]}
-      >
-        <View
-          style={[
-            toastStyles.toastIcon,
-            {
-              backgroundColor:
-                current.iconBackground,
-            },
-          ]}
-        >
-          <Ionicons
-            name={current.icon}
-            size={21}
-            color={current.iconColor}
-          />
-        </View>
-
-        <Text
-          style={[
-            toastStyles.toastText,
-            {
-              color: current.text,
-            },
-          ]}
-        >
-          {message}
-        </Text>
-
-        <Pressable
-          onPress={onDismiss}
-          style={toastStyles.toastClose}
-          hitSlop={10}
-        >
-          <Ionicons
-            name="close"
-            size={18}
-            color={current.text}
-          />
-        </Pressable>
-      </Animated.View>
-    </View>
-  );
-};
-
-/* ============================================================
    LOGIN SCREEN
 ============================================================ */
 
@@ -354,13 +178,6 @@ export default function LoginScreen({
   const [errors, setErrors] =
     useState({});
 
-  const [toast, setToast] =
-    useState({
-      visible: false,
-      type: 'info',
-      message: '',
-    });
-
   /* ==========================================================
      REFS
   ========================================================== */
@@ -371,8 +188,6 @@ export default function LoginScreen({
   const passwordRef =
     useRef(null);
 
-  const toastTimer =
-    useRef(null);
 
   /* ==========================================================
      ANIMATION
@@ -420,11 +235,6 @@ export default function LoginScreen({
     requestNotificationPermission();
 
     return () => {
-      if (toastTimer.current) {
-        clearTimeout(
-          toastTimer.current
-        );
-      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -455,54 +265,7 @@ export default function LoginScreen({
   ========================================================== */
 
   const showToast =
-    useCallback(
-      (
-        type,
-        message,
-        duration = 3500
-      ) => {
-        if (toastTimer.current) {
-          clearTimeout(
-            toastTimer.current
-          );
-        }
-
-        setToast({
-          visible: true,
-          type,
-          message,
-        });
-
-        toastTimer.current =
-          setTimeout(() => {
-            setToast(
-              previous => ({
-                ...previous,
-                visible: false,
-              })
-            );
-          }, duration);
-      },
-      []
-    );
-
-  const dismissToast =
-    useCallback(() => {
-      if (toastTimer.current) {
-        clearTimeout(
-          toastTimer.current
-        );
-
-        toastTimer.current = null;
-      }
-
-      setToast(
-        previous => ({
-          ...previous,
-          visible: false,
-        })
-      );
-    }, []);
+    toastAdapters.typeMsg;
 
   /* ==========================================================
      VALIDATION EMAIL
@@ -1837,20 +1600,7 @@ export default function LoginScreen({
         translucent={false}
       />
 
-      <Toast
-        visible={
-          toast.visible
-        }
-        type={
-          toast.type
-        }
-        message={
-          toast.message
-        }
-        onDismiss={
-          dismissToast
-        }
-      />
+
 
       {isDesktop
         ? renderWeb()

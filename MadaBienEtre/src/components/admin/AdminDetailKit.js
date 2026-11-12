@@ -42,6 +42,7 @@ import { colors } from '../../theme';
 import Header from '../common/Header';
 import { API_URL } from '../../config/env';
 import { downloadDocument } from '../../utils/downloadFile';
+import { toastAdapters } from '../../utils/toast';
 
 export const IS_WEB = Platform.OS === 'web';
 
@@ -243,69 +244,11 @@ export const getLongitude = (item) => {
    TOAST
 ============================================================ */
 
-export const useAdminToast = () => {
-  const [toast, setToast] = useState(null);
-  const timer = useRef(null);
+// Toast GLOBAL : le rendu est assuré par <GlobalToastHost /> (App.js), identique sur toutes les pages.
+// `toast` reste null (conservé pour ne pas casser <AdminToast toast={toast} />).
+export const useAdminToast = () => ({ toast: null, showToast: toastAdapters.msgType });
 
-  const showToast = useCallback((message, type = 'success', duration = 3200) => {
-    if (timer.current) clearTimeout(timer.current);
-    setToast({ id: Date.now(), message, type });
-    timer.current = setTimeout(() => setToast(null), duration);
-  }, []);
-
-  useEffect(
-    () => () => {
-      if (timer.current) clearTimeout(timer.current);
-    },
-    []
-  );
-
-  return { toast, showToast };
-};
-
-export const AdminToast = ({ toast }) => {
-  const { colors: themeColors } = useTheme();
-  if (!toast) return null;
-
-  const isError = toast.type === 'error';
-  const isWarning = toast.type === 'warning';
-  const isInfo = toast.type === 'info';
-  const toastColor = isError
-    ? '#E74C3C'
-    : isWarning
-    ? '#F5A623'
-    : isInfo
-    ? '#3B82F6'
-    : '#27AE60';
-  const iconName = isError
-    ? 'close-circle'
-    : isWarning
-    ? 'warning'
-    : isInfo
-    ? 'information-circle'
-    : 'checkmark-circle';
-
-  return (
-    <View pointerEvents="none" style={styles.toastPosition}>
-      <View
-        style={[
-          styles.toast,
-          { backgroundColor: themeColors.surface, borderLeftColor: toastColor },
-        ]}
-      >
-        <View style={[styles.toastIcon, { backgroundColor: toastColor + '15' }]}>
-          <Ionicons name={iconName} size={20} color={toastColor} />
-        </View>
-        <Text
-          numberOfLines={3}
-          style={[styles.toastText, { color: themeColors.text }]}
-        >
-          {toast.message}
-        </Text>
-      </View>
-    </View>
-  );
-};
+export const AdminToast = () => null;
 
 /* ============================================================
    TÉLÉCHARGEMENT (web : fetch + blob avec le token ; mobile : Linking)

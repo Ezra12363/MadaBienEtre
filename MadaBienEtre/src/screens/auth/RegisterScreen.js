@@ -55,6 +55,8 @@ import PhoneInput from '../../components/common/PhoneInput';
 import { maskFullname, maskEmail, isValidEmail, getPasswordRuleError } from '../../utils/inputMasks';
 import { validatePhoneNumber } from '../../utils/phone';
 
+import { toastAdapters } from "../../utils/toast";
+
 // ============================================================
 // CONSTANTES
 // ============================================================
@@ -69,177 +71,6 @@ const SCREEN_BG_DARK = '#121212';
 
 const DESKTOP_BREAKPOINT = 1100;
 const TABLET_BREAKPOINT = 700;
-
-// ============================================================
-// TOAST
-// ============================================================
-
-const CustomToast = ({
-  visible,
-  type = 'info',
-  message,
-  onDismiss,
-  isDark = false,
-}) => {
-  const translateY = useRef(new Animated.Value(-90)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.96)).current;
-
-  const config = {
-    success: {
-      icon: 'checkmark-circle',
-      title: 'Succès',
-      background: isDark ? '#10251D' : '#ECFDF5',
-      border: isDark ? '#176044' : '#A7F3D0',
-      iconBackground: isDark ? '#123C2C' : '#D1FAE5',
-      iconColor: '#059669',
-      textColor: isDark ? '#A7F3D0' : '#065F46',
-    },
-    error: {
-      icon: 'alert-circle',
-      title: 'Erreur',
-      background: isDark ? '#2B1515' : '#FEF2F2',
-      border: isDark ? '#6B2525' : '#FECACA',
-      iconBackground: isDark ? '#451B1B' : '#FEE2E2',
-      iconColor: '#DC2626',
-      textColor: isDark ? '#FECACA' : '#991B1B',
-    },
-    info: {
-      icon: 'information-circle',
-      title: 'Information',
-      background: isDark ? '#142039' : '#EFF6FF',
-      border: isDark ? '#284B82' : '#BFDBFE',
-      iconBackground: isDark ? '#1C3155' : '#DBEAFE',
-      iconColor: '#2563EB',
-      textColor: isDark ? '#BFDBFE' : '#1E40AF',
-    },
-    warning: {
-      icon: 'warning',
-      title: 'Attention',
-      background: isDark ? '#2B2412' : '#FFFBEB',
-      border: isDark ? '#695416' : '#FDE68A',
-      iconBackground: isDark ? '#433714' : '#FEF3C7',
-      iconColor: '#D97706',
-      textColor: isDark ? '#FDE68A' : '#92400E',
-    },
-  };
-
-  const current = config[type] || config.info;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.spring(translateY, {
-          toValue: 0,
-          friction: 8,
-          tension: 70,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 220,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.spring(scale, {
-          toValue: 1,
-          friction: 8,
-          tension: 70,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: -90,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: 0.96,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }
-  }, [visible, opacity, scale, translateY]);
-
-  if (!visible) return null;
-
-  return (
-    <Animated.View
-      pointerEvents="box-none"
-      style={[
-        styles.toastContainer,
-        {
-          opacity,
-          transform: [{ translateY }, { scale }],
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.toast,
-          {
-            backgroundColor: current.background,
-            borderColor: current.border,
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.toastIcon,
-            { backgroundColor: current.iconBackground },
-          ]}
-        >
-          <Ionicons
-            name={current.icon}
-            size={21}
-            color={current.iconColor}
-          />
-        </View>
-
-        <View style={styles.toastContent}>
-          <Text
-            style={[
-              styles.toastTitle,
-              { color: current.textColor },
-            ]}
-          >
-            {current.title}
-          </Text>
-
-          <Text
-            style={[
-              styles.toastMessage,
-              { color: current.textColor },
-            ]}
-            numberOfLines={4}
-          >
-            {message}
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          onPress={onDismiss}
-          style={styles.toastClose}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons
-            name="close"
-            size={18}
-            color={current.iconColor}
-          />
-        </TouchableOpacity>
-      </View>
-    </Animated.View>
-  );
-};
 
 // ============================================================
 // PASSWORD STRENGTH
@@ -631,18 +462,12 @@ const RegisterScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [toast, setToast] = useState({
-    visible: false,
-    type: 'info',
-    message: '',
-  });
 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(22)).current;
-  const toastTimer = useRef(null);
 
   const scrollRef = useRef(null);
 
@@ -672,7 +497,6 @@ const RegisterScreen = ({ navigation }) => {
     ]).start();
 
     return () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
     };
   }, [fadeAnim, slideAnim]);
 
@@ -701,28 +525,8 @@ const RegisterScreen = ({ navigation }) => {
   // TOAST
   // ----------------------------------------------------------
 
-  const showToast = useCallback((type, message) => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
+  const showToast = toastAdapters.typeMsg;
 
-    setToast({
-      visible: true,
-      type,
-      message,
-    });
-
-    toastTimer.current = setTimeout(() => {
-      setToast(prev => ({ ...prev, visible: false }));
-    }, 4500);
-  }, []);
-
-  const dismissToast = useCallback(() => {
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-
-    setToast(prev => ({
-      ...prev,
-      visible: false,
-    }));
-  }, []);
 
   // ----------------------------------------------------------
   // UPDATE
@@ -975,7 +779,6 @@ const RegisterScreen = ({ navigation }) => {
 
     setIsLoading(true);
     setCurrentStep(1);
-    dismissToast();
 
     try {
       const result = await register({
@@ -1569,13 +1372,7 @@ const RegisterScreen = ({ navigation }) => {
         translucent={false}
       />
 
-      <CustomToast
-        visible={toast.visible}
-        type={toast.type}
-        message={toast.message}
-        onDismiss={dismissToast}
-        isDark={isDark}
-      />
+
 
       {isDesktop ? renderDesktop() : renderMobile()}
     </SafeAreaView>
@@ -1591,74 +1388,6 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
-  },
-
-  // ----------------------------------------------------------
-  // TOAST
-  // ----------------------------------------------------------
-
-  toastContainer: {
-    position: 'absolute',
-    top: Platform.OS === 'web' ? 18 : 12,
-    left: 0,
-    right: 0,
-    zIndex: 99999,
-    elevation: 99999,
-    alignItems: 'center',
-    paddingHorizontal: 14,
-  },
-
-  toast: {
-    width: '100%',
-    maxWidth: 500,
-    minHeight: 64,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    elevation: 10,
-  },
-
-  toastIcon: {
-    width: 41,
-    height: 41,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  toastContent: {
-    flex: 1,
-    minWidth: 0,
-    marginLeft: 10,
-    marginRight: 6,
-  },
-
-  toastTitle: {
-    fontSize: 12.5,
-    fontFamily: typography.fontFamily.bold,
-    marginBottom: 2,
-  },
-
-  toastMessage: {
-    fontSize: 11.5,
-    lineHeight: 16,
-    fontFamily: typography.fontFamily.regular,
-  },
-
-  toastClose: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   // ----------------------------------------------------------
@@ -2339,7 +2068,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginLeft: 6,
     fontFamily: typography.fontFamily.medium,
-  },
+  }
 });
 
 export default RegisterScreen;

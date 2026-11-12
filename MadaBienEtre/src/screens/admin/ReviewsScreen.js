@@ -25,6 +25,8 @@ import { SORT_OPTIONS, formatRating, formatReviewDate } from '../../components/r
 import ReviewAvatar from '../../components/reviews/ReviewAvatar';
 import { useDebounceValue } from './reviewsDebounce';
 
+import { toastAdapters } from "../../utils/toast";
+
 const IS_WEB = Platform.OS === 'web';
 const VISIBILITY = [
   { key: 'visible', label: 'Visibles' },
@@ -57,12 +59,8 @@ export default function ReviewsScreen() {
   const [action, setAction] = useState(null); // { type, review?, report? }
   const [busy, setBusy] = useState(false);
   const [modalError, setModalError] = useState(null);
-  const [toast, setToast] = useState(null);
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const showToast = toastAdapters.msgType;
 
   const loadSummary = useCallback(async () => {
     try {
@@ -202,11 +200,7 @@ export default function ReviewsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); loadData(); }} />}
       >
         <View style={{ width: '100%' }}>
-          {!!toast && (
-            <View style={[s.toast, { backgroundColor: toast.type === 'error' ? '#FEE2E2' : '#E8F5E9' }]}>
-              <Text style={{ color: toast.type === 'error' ? '#B91C1C' : '#2E8B57', fontWeight: '600' }}>{toast.message}</Text>
-            </View>
-          )}
+
 
           {/* Statistiques globales */}
           {summary && (
@@ -415,7 +409,6 @@ export default function ReviewsScreen() {
 const s = StyleSheet.create({
   container: { flex: 1 },
   scroll: { paddingTop: 12, paddingBottom: 50 },
-  toast: { padding: 12, borderRadius: 12, marginBottom: 12 },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 },
   stat: { flexGrow: 1, borderWidth: 1, borderRadius: 14, padding: 14, gap: 3 },
   tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
@@ -432,5 +425,5 @@ const s = StyleSheet.create({
   actBtn: { flex: 1, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   thCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 10 },
   tagRed: { backgroundColor: '#FEE2E2', color: '#B91C1C', fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' },
-  tagOrange: { backgroundColor: '#FFF3E0', color: '#E65100', fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' },
+  tagOrange: { backgroundColor: '#FFF3E0', color: '#E65100', fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' }
 });

@@ -78,6 +78,8 @@ import {
   formatMadagascarTime,
 } from '../../utils/timeAgo';
 
+import { toastAdapters } from "../../utils/toast";
+
 // ============================================================
 // NORMALIZE STATUS
 // ============================================================
@@ -747,43 +749,7 @@ const BookingDetailScreen = ({
     setCertificateModalUrl,
   ] = useState([]);
 
-  // ==========================================================
-  // TOAST (notification centrée, alignée sous le header)
-  // ==========================================================
-
-  const [toast, setToast] = useState({
-    visible: false,
-    type: 'success',
-    message: '',
-  });
-
-  const toastTimerRef = useRef(null);
-
-  const showToast = useCallback(
-    (message, type = 'success') => {
-      if (toastTimerRef.current) {
-        clearTimeout(toastTimerRef.current);
-      }
-
-      setToast({ visible: true, type, message });
-
-      toastTimerRef.current = setTimeout(() => {
-        setToast((previous) => ({
-          ...previous,
-          visible: false,
-        }));
-      }, 2800);
-    },
-    [],
-  );
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) {
-        clearTimeout(toastTimerRef.current);
-      }
-    };
-  }, []);
+  const showToast = toastAdapters.msgType;
 
   // ==========================================================
   // LOAD BOOKING DETAILS
@@ -2577,49 +2543,7 @@ const BookingDetailScreen = ({
           TOAST — notification centrée, alignée sous le header
       ================================================== */}
 
-      {toast.visible && (
-        <View
-          pointerEvents="none"
-          style={styles.toastOverlay}
-        >
-          <View
-            style={[
-              styles.toastCard,
-              {
-                backgroundColor: themeColors.card,
-                borderColor:
-                  toast.type === 'error'
-                    ? '#D32F2F40'
-                    : `${colors.primary}40`,
-              },
-            ]}
-          >
-            <Ionicons
-              name={
-                toast.type === 'error'
-                  ? 'alert-circle'
-                  : 'checkmark-circle'
-              }
-              size={18}
-              color={
-                toast.type === 'error'
-                  ? '#D32F2F'
-                  : colors.primary
-              }
-            />
 
-            <Text
-              numberOfLines={2}
-              style={[
-                styles.toastText,
-                { color: themeColors.text },
-              ]}
-            >
-              {toast.message}
-            </Text>
-          </View>
-        </View>
-      )}
 
       {/* ==================================================
           CERTIFICAT — visionneuse en lecture seule
@@ -3099,42 +3023,6 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // TOAST — notification centrée, alignée sous le header
-  // ==========================================================
-
-  toastOverlay: {
-    position: 'absolute',
-    top: Platform.OS === 'android' ? 66 : 100,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 9999,
-    elevation: 9999,
-  },
-
-  toastCard: {
-    maxWidth: '90%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-
-  toastText: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  // ==========================================================
   // CERTIFICAT — modale
   // ==========================================================
 
@@ -3216,7 +3104,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13.5,
     fontFamily: typography.fontFamily.bold,
-  },
+  }
 });
 
 export default BookingDetailScreen;

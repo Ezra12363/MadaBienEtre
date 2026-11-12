@@ -74,6 +74,8 @@ import {
   getMadagascarDateKey,
 } from '../../utils/timeAgo';
 
+import { toastAdapters } from "../../utils/toast";
+
 // ============================================================
 // ANDROID STATUS BAR
 // ============================================================
@@ -128,66 +130,6 @@ const COLORS = {
 };
 
 const AUTO_REFRESH_MS = 15000;
-
-// ============================================================
-// TOAST
-// ============================================================
-
-function Toast({ toast }) {
-  const { colors, isDark } = useTheme();
-  const toastStyles = useMemo(
-    () => createToastStyles(colors, isDark),
-    [colors, isDark]
-  );
-
-  if (!toast) return null;
-  const isSuccess = toast.type === 'success';
-
-  return (
-    <View
-      style={[
-        toastStyles.container,
-        isSuccess ? toastStyles.success : toastStyles.error,
-      ]}
-    >
-      <Ionicons
-        name={isSuccess ? 'checkmark-circle' : 'alert-circle'}
-        size={18}
-        color={COLORS.white}
-      />
-      <Text style={toastStyles.text}>{toast.message}</Text>
-    </View>
-  );
-}
-
-const createToastStyles = (colors, isDark) =>
-  StyleSheet.create({
-    container: {
-      position: 'absolute',
-      top: ANDROID_STATUS_BAR_HEIGHT + 78,
-      left: 14,
-      right: 14,
-      zIndex: 999,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderRadius: 14,
-      ...Platform.select({
-        web: { boxShadow: '0 8px 24px rgba(0,0,0,0.18)' },
-        default: { elevation: 8 },
-      }),
-    },
-    success: { backgroundColor: COLORS.primary },
-    error: { backgroundColor: COLORS.red },
-    text: {
-      flex: 1,
-      fontSize: 13,
-      fontWeight: '700',
-      color: COLORS.white,
-    },
-  });
 
 // ============================================================
 // CONFIRMATION MODAL
@@ -1285,9 +1227,6 @@ export default function OffersScreen({ navigation, route }) {
   const [showDateModal, setShowDateModal] = useState(false);
   const [actionSheetBooking, setActionSheetBooking] = useState(null);
 
-  const [toast, setToast] = useState(null);
-  const toastTimerRef = useRef(null);
-
   const [viewMode, setViewMode] = useState('list');
   const [mapKey, setMapKey] = useState(0);
   const mapRef = useRef(null);
@@ -1471,11 +1410,7 @@ export default function OffersScreen({ navigation, route }) {
     loadBookings(false);
   }, [loadBookings]);
 
-  const showToast = useCallback((type, message) => {
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    setToast({ type, message });
-    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
-  }, []);
+  const showToast = toastAdapters.typeMsg;
 
   // ==========================================================
   // PAIEMENTS (filtres « En attente de paiement » / « Payé »)
@@ -3810,7 +3745,7 @@ export default function OffersScreen({ navigation, route }) {
             onBackPress={handleBack}
           />
 
-          <Toast toast={toast} />
+
 
           {renderDateModal()}
           {renderActionsSheet()}
@@ -3901,7 +3836,7 @@ export default function OffersScreen({ navigation, route }) {
           onBackPress={handleBack}
         />
 
-        <Toast toast={toast} />
+
 
         {renderDateModal()}
         {renderActionsSheet()}
@@ -5227,7 +5162,6 @@ const createStyles = (colors, isDark) => {
 export {
   COLORS,
   ANDROID_STATUS_BAR_HEIGHT,
-  Toast,
   ConfirmationModal,
   ClientAvatar,
   createStyles,

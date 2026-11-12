@@ -39,6 +39,9 @@ import authService from '../../services/authService';
 import FormInput from '../../components/common/FormInput';
 
 
+import { toastAdapters } from "../../utils/toast";
+
+
 // ============================================================
 // RESET PASSWORD SCREEN
 // ============================================================
@@ -47,7 +50,6 @@ const ResetPasswordScreen = ({
   route,
   navigation,
 }) => {
-
   const { email } =
     route.params || {};
 
@@ -82,20 +84,8 @@ const ResetPasswordScreen = ({
   const [showConfirmPassword, setShowConfirmPassword] =
     useState(false);
 
-  // Toast
-  const [toast, setToast] =
-    useState(null);
-
-  const toastTimeout =
-    useRef(null);
-
   // Animation
   const fadeAnim =
-    useRef(
-      new Animated.Value(0)
-    ).current;
-
-  const toastAnim =
     useRef(
       new Animated.Value(0)
     ).current;
@@ -124,135 +114,10 @@ const ResetPasswordScreen = ({
 
 
   // ==========================================================
-  // ANIMATION
-  // ==========================================================
-
-  useEffect(() => {
-
-    Animated.timing(
-      fadeAnim,
-      {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }
-    ).start();
-
-    return () => {
-      if (toastTimeout.current) {
-        clearTimeout(
-          toastTimeout.current
-        );
-      }
-    };
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ==========================================================
   // TOAST
   // ==========================================================
 
-  const showToast = (
-    type,
-    title,
-    message,
-    duration = 3000
-  ) => {
-
-    if (toastTimeout.current) {
-      clearTimeout(
-        toastTimeout.current
-      );
-    }
-
-    setToast({
-      type,
-      title,
-      message,
-    });
-
-    toastAnim.setValue(0);
-
-    Animated.spring(
-      toastAnim,
-      {
-        toValue: 1,
-        friction: 7,
-        tension: 70,
-        useNativeDriver: true,
-      }
-    ).start();
-
-    toastTimeout.current =
-      setTimeout(() => {
-
-        Animated.timing(
-          toastAnim,
-          {
-            toValue: 0,
-            duration: 220,
-            useNativeDriver: true,
-          }
-        ).start(() => {
-          setToast(null);
-        });
-
-      }, duration);
-  };
-
-
-  // ==========================================================
-  // TOAST CONFIG
-  // ==========================================================
-
-  const getToastConfig = () => {
-
-    if (!toast) {
-      return {
-        icon: 'information-circle',
-        background: '#333333',
-        iconBackground:
-          'rgba(255,255,255,0.15)',
-      };
-    }
-
-    switch (toast.type) {
-
-      case 'success':
-        return {
-          icon: 'checkmark-circle',
-          background: '#15803D',
-          iconBackground:
-            'rgba(255,255,255,0.16)',
-        };
-
-      case 'error':
-        return {
-          icon: 'close-circle',
-          background: '#DC2626',
-          iconBackground:
-            'rgba(255,255,255,0.16)',
-        };
-
-      case 'warning':
-        return {
-          icon: 'warning',
-          background: '#D97706',
-          iconBackground:
-            'rgba(255,255,255,0.16)',
-        };
-
-      case 'info':
-      default:
-        return {
-          icon: 'information-circle',
-          background: '#2563EB',
-          iconBackground:
-            'rgba(255,255,255,0.16)',
-        };
-    }
-  };
+  const showToast = toastAdapters.typeTitleMsg;
 
 
   // ==========================================================
@@ -565,105 +430,6 @@ const ResetPasswordScreen = ({
         </Text>
 
       </View>
-    );
-  };
-
-
-  // ==========================================================
-  // TOAST COMPONENT
-  // ==========================================================
-
-  const renderToast = () => {
-
-    if (!toast) {
-      return null;
-    }
-
-    const config =
-      getToastConfig();
-
-    return (
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.toast,
-          {
-            backgroundColor:
-              config.background,
-
-            opacity:
-              toastAnim,
-
-            transform: [
-              {
-                translateY:
-                  toastAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [
-                      -35,
-                      0,
-                    ],
-                  }),
-              },
-              {
-                scale:
-                  toastAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [
-                      0.96,
-                      1,
-                    ],
-                  }),
-              },
-            ],
-          },
-        ]}
-      >
-
-        <View
-          style={[
-            styles.toastIcon,
-            {
-              backgroundColor:
-                config.iconBackground,
-            },
-          ]}
-        >
-
-          <Ionicons
-            name={config.icon}
-            size={22}
-            color="#FFFFFF"
-          />
-
-        </View>
-
-
-        <View
-          style={
-            styles.toastContent
-          }
-        >
-
-          <Text
-            style={
-              styles.toastTitle
-            }
-          >
-            {toast.title}
-          </Text>
-
-          <Text
-            style={
-              styles.toastMessage
-            }
-          >
-            {toast.message}
-          </Text>
-
-        </View>
-
-      </Animated.View>
     );
   };
 
@@ -1913,12 +1679,11 @@ const ResetPasswordScreen = ({
 
       )}
 
-
       {/* ======================================================
           GLOBAL TOAST
       ====================================================== */}
 
-      {renderToast()}
+
 
     </View>
   );
@@ -1931,1025 +1696,906 @@ const ResetPasswordScreen = ({
 
 const styles =
   StyleSheet.create({
+    // ==========================================================
+    // ROOT
+    // ==========================================================
 
-  // ==========================================================
-  // ROOT
-  // ==========================================================
-
-  root: {
-    flex: 1,
-  },
-
-
-  // ==========================================================
-  // TOAST
-  // ==========================================================
-
-  toast: {
-    position: 'absolute',
-
-    top:
-      Platform.OS === 'web'
-        ? 24
-        : 45,
-
-    left: 16,
-    right: 16,
-
-    minHeight: 68,
-
-    borderRadius: 16,
-
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    zIndex: 999999,
-
-    elevation: 20,
-
-    shadowColor: '#000',
-
-    shadowOffset: {
-      width: 0,
-      height: 7,
+    root: {
+      flex: 1,
     },
 
-    shadowOpacity: 0.25,
-
-    shadowRadius: 14,
-
-    ...(Platform.OS === 'web'
-      ? {
-          maxWidth: 460,
-          alignSelf: 'center',
-          left: '50%',
-          right: undefined,
-          transform: [
-            {
-              translateX: -230,
-            },
-          ],
-        }
-      : {}),
-  },
-
-  toastIcon: {
-    width: 42,
-    height: 42,
-
-    borderRadius: 13,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 11,
-  },
-
-  toastContent: {
-    flex: 1,
-
-    paddingRight: 4,
-  },
-
-  toastTitle: {
-    color: '#FFFFFF',
-
-    fontSize: 14,
-
-    fontFamily:
-      typography.fontFamily.bold,
-
-    marginBottom: 2,
-  },
-
-  toastMessage: {
-    color:
-      'rgba(255,255,255,0.88)',
-
-    fontSize: 12,
-
-    lineHeight: 17,
-
-    fontFamily:
-      typography.fontFamily.regular,
-  },
-
-
-  // ==========================================================
-  // MOBILE
-  // ==========================================================
-
-  mobileSafeArea: {
-    flex: 1,
-
-    backgroundColor:
-      '#1B5C36',
-  },
-
-  mobileGradient: {
-    flex: 1,
-
-    width: '100%',
-
-    minHeight: '100%',
-  },
-
-  mobileKeyboardView: {
-    flex: 1,
-  },
-
-  mobileScroll: {
-    flex: 1,
-  },
-
-  mobileScrollContent: {
-    flexGrow: 1,
-  },
-
-  mobileWrapper: {
-    width: '100%',
-
-    alignItems: 'center',
-  },
-
-
-  // ==========================================================
-  // MOBILE DECORATION
-  // ==========================================================
-
-  circleTop: {
-    position: 'absolute',
-
-    top: -130,
-
-    right: -110,
-
-    backgroundColor:
-      'rgba(255,255,255,0.07)',
-  },
-
-  circleMiddle: {
-    position: 'absolute',
-
-    top: '38%',
-
-    left: -120,
-
-    backgroundColor:
-      'rgba(255,255,255,0.035)',
-  },
-
-  circleBottom: {
-    position: 'absolute',
-
-    bottom: -180,
-
-    right: -120,
-
-    backgroundColor:
-      'rgba(255,255,255,0.055)',
-  },
-
-
-  // ==========================================================
-  // MOBILE BACK
-  // ==========================================================
-
-  mobileBackButton: {
-    alignSelf:
-      'flex-start',
-
-    flexDirection:
-      'row',
-
-    alignItems:
-      'center',
-
-    minHeight: 40,
-
-    paddingHorizontal: 10,
-
-    borderRadius: 12,
-
-    marginBottom: 12,
-  },
-
-  mobileBackButtonPressed: {
-    backgroundColor:
-      'rgba(255,255,255,0.12)',
-
-    transform: [
-      {
-        scale: 0.97,
-      },
-    ],
-  },
-
-  mobileBackText: {
-    color: '#FFFFFF',
-
-    fontSize: 14,
-
-    fontFamily:
-      typography.fontFamily.medium,
-
-    marginLeft: 7,
-  },
-
-
-  // ==========================================================
-  // MOBILE HEADER
-  // ==========================================================
-
-  mobileHeaderCard: {
-    width: '100%',
-
-    alignItems: 'center',
-
-    paddingVertical: 19,
-
-    paddingHorizontal: 17,
-
-    borderRadius: 20,
-
-    backgroundColor:
-      'rgba(255,255,255,0.11)',
-
-    borderWidth: 1,
-
-    borderColor:
-      'rgba(255,255,255,0.13)',
-
-    marginBottom: 14,
-  },
-
-  mobileShieldIcon: {
-    width: 54,
-    height: 54,
-
-    borderRadius: 17,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    backgroundColor:
-      'rgba(255,255,255,0.15)',
-
-    marginBottom: 10,
-  },
-
-  mobileHeaderTitle: {
-    color: '#FFFFFF',
-
-    fontSize: 19,
-
-    fontFamily:
-      typography.fontFamily.bold,
-
-    textAlign: 'center',
-  },
-
-  mobileHeaderSubtitle: {
-    color:
-      'rgba(255,255,255,0.78)',
-
-    fontSize: 12.5,
-
-    lineHeight: 19,
-
-    fontFamily:
-      typography.fontFamily.regular,
-
-    textAlign: 'center',
-
-    marginTop: 5,
-  },
-
-
-  // ==========================================================
-  // MOBILE FORM CARD
-  // ==========================================================
-
-  mobileFormCard: {
-    width: '100%',
-
-    borderRadius: 22,
-
-    backgroundColor: '#FFFFFF',
-
-    paddingHorizontal: 18,
-
-    paddingVertical: 22,
-
-    shadowColor: '#000',
-
-    shadowOffset: {
-      width: 0,
-      height: 8,
+    // ==========================================================
+    // MOBILE
+    // ==========================================================
+
+    mobileSafeArea: {
+      flex: 1,
+
+      backgroundColor:
+        '#1B5C36',
     },
 
-    shadowOpacity: 0.13,
+    mobileGradient: {
+      flex: 1,
 
-    shadowRadius: 20,
+      width: '100%',
 
-    elevation: 7,
-  },
-
-
-  // ==========================================================
-  // FORM
-  // ==========================================================
-
-  formWrapper: {
-    width: '100%',
-  },
-
-  formHeading: {
-    alignItems: 'center',
-
-    marginBottom: 4,
-  },
-
-  formHeadingIcon: {
-    width: 46,
-    height: 46,
-
-    borderRadius: 14,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginBottom: 11,
-  },
-
-  formTitle: {
-    fontSize:
-      typography.fontSize.xl,
-
-    fontFamily:
-      typography.fontFamily.bold,
-
-    textAlign: 'center',
-  },
-
-  formSubtitle: {
-    fontSize:
-      typography.fontSize.md,
-
-    fontFamily:
-      typography.fontFamily.regular,
-
-    textAlign: 'center',
-
-    marginTop: spacing.xs,
-
-    marginBottom:
-      spacing.lg,
-
-    lineHeight: 20,
-
-    maxWidth: 570,
-  },
-
-
-  // ==========================================================
-  // INPUT
-  // ==========================================================
-
-  inputContainer: {
-    width: '100%',
-
-    maxWidth: 600,
-
-    alignSelf: 'center',
-
-    marginBottom:
-      spacing.sm,
-  },
-
-
-  // ==========================================================
-  // PASSWORD REQUIREMENTS
-  // ==========================================================
-
-  passwordRequirements: {
-    width: '100%',
-
-    maxWidth: 600,
-
-    alignSelf: 'center',
-
-    marginTop: spacing.xs,
-
-    marginBottom:
-      spacing.lg,
-
-    paddingHorizontal:
-      spacing.xs,
-  },
-
-  requirementTitle: {
-    fontSize: 13,
-
-    fontFamily:
-      typography.fontFamily.medium,
-
-    marginBottom: 6,
-  },
-
-  requirementRow: {
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    gap: spacing.sm,
-
-    marginVertical: 2.5,
-  },
-
-  requirementText: {
-    fontSize:
-      typography.fontSize.sm,
-
-    fontFamily:
-      typography.fontFamily.regular,
-
-    flexShrink: 1,
-  },
-
-
-  // ==========================================================
-  // BUTTON
-  // ==========================================================
-
-  resetButton: {
-    width: '100%',
-
-    maxWidth: 600,
-
-    alignSelf: 'center',
-
-    borderRadius: 15,
-
-    overflow: 'hidden',
-
-    marginBottom:
-      spacing.md,
-
-    shadowColor:
-      colors.primary,
-
-    shadowOffset: {
-      width: 0,
-      height: 5,
+      minHeight: '100%',
     },
 
-    shadowOpacity: 0.24,
+    mobileKeyboardView: {
+      flex: 1,
+    },
 
-    shadowRadius: 10,
+    mobileScroll: {
+      flex: 1,
+    },
 
-    elevation: 5,
-  },
+    mobileScrollContent: {
+      flexGrow: 1,
+    },
 
-  resetButtonDisabled: {
-    opacity: 0.7,
-  },
+    mobileWrapper: {
+      width: '100%',
 
-  resetButtonHover: {
-    shadowOpacity: 0.34,
+      alignItems: 'center',
+    },
 
-    shadowRadius: 14,
+    // ==========================================================
+    // MOBILE DECORATION
+    // ==========================================================
 
-    transform: [
-      {
-        translateY: -1,
+    circleTop: {
+      position: 'absolute',
+
+      top: -130,
+
+      right: -110,
+
+      backgroundColor:
+        'rgba(255,255,255,0.07)',
+    },
+
+    circleMiddle: {
+      position: 'absolute',
+
+      top: '38%',
+
+      left: -120,
+
+      backgroundColor:
+        'rgba(255,255,255,0.035)',
+    },
+
+    circleBottom: {
+      position: 'absolute',
+
+      bottom: -180,
+
+      right: -120,
+
+      backgroundColor:
+        'rgba(255,255,255,0.055)',
+    },
+
+    // ==========================================================
+    // MOBILE BACK
+    // ==========================================================
+
+    mobileBackButton: {
+      alignSelf:
+        'flex-start',
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      minHeight: 40,
+
+      paddingHorizontal: 10,
+
+      borderRadius: 12,
+
+      marginBottom: 12,
+    },
+
+    mobileBackButtonPressed: {
+      backgroundColor:
+        'rgba(255,255,255,0.12)',
+
+      transform: [
+        {
+          scale: 0.97,
+        },
+      ],
+    },
+
+    mobileBackText: {
+      color: '#FFFFFF',
+
+      fontSize: 14,
+
+      fontFamily:
+        typography.fontFamily.medium,
+
+      marginLeft: 7,
+    },
+
+    // ==========================================================
+    // MOBILE HEADER
+    // ==========================================================
+
+    mobileHeaderCard: {
+      width: '100%',
+
+      alignItems: 'center',
+
+      paddingVertical: 19,
+
+      paddingHorizontal: 17,
+
+      borderRadius: 20,
+
+      backgroundColor:
+        'rgba(255,255,255,0.11)',
+
+      borderWidth: 1,
+
+      borderColor:
+        'rgba(255,255,255,0.13)',
+
+      marginBottom: 14,
+    },
+
+    mobileShieldIcon: {
+      width: 54,
+      height: 54,
+
+      borderRadius: 17,
+
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      backgroundColor:
+        'rgba(255,255,255,0.15)',
+
+      marginBottom: 10,
+    },
+
+    mobileHeaderTitle: {
+      color: '#FFFFFF',
+
+      fontSize: 19,
+
+      fontFamily:
+        typography.fontFamily.bold,
+
+      textAlign: 'center',
+    },
+
+    mobileHeaderSubtitle: {
+      color:
+        'rgba(255,255,255,0.78)',
+
+      fontSize: 12.5,
+
+      lineHeight: 19,
+
+      fontFamily:
+        typography.fontFamily.regular,
+
+      textAlign: 'center',
+
+      marginTop: 5,
+    },
+
+    // ==========================================================
+    // MOBILE FORM CARD
+    // ==========================================================
+
+    mobileFormCard: {
+      width: '100%',
+
+      borderRadius: 22,
+
+      backgroundColor: '#FFFFFF',
+
+      paddingHorizontal: 18,
+
+      paddingVertical: 22,
+
+      shadowColor: '#000',
+
+      shadowOffset: {
+        width: 0,
+        height: 8,
       },
-    ],
-  },
 
-  resetButtonPressed: {
-    transform: [
-      {
-        scale: 0.985,
+      shadowOpacity: 0.13,
+
+      shadowRadius: 20,
+
+      elevation: 7,
+    },
+
+    // ==========================================================
+    // FORM
+    // ==========================================================
+
+    formWrapper: {
+      width: '100%',
+    },
+
+    formHeading: {
+      alignItems: 'center',
+
+      marginBottom: 4,
+    },
+
+    formHeadingIcon: {
+      width: 46,
+      height: 46,
+
+      borderRadius: 14,
+
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      marginBottom: 11,
+    },
+
+    formTitle: {
+      fontSize:
+        typography.fontSize.xl,
+
+      fontFamily:
+        typography.fontFamily.bold,
+
+      textAlign: 'center',
+    },
+
+    formSubtitle: {
+      fontSize:
+        typography.fontSize.md,
+
+      fontFamily:
+        typography.fontFamily.regular,
+
+      textAlign: 'center',
+
+      marginTop: spacing.xs,
+
+      marginBottom:
+        spacing.lg,
+
+      lineHeight: 20,
+
+      maxWidth: 570,
+    },
+
+    // ==========================================================
+    // INPUT
+    // ==========================================================
+
+    inputContainer: {
+      width: '100%',
+
+      maxWidth: 600,
+
+      alignSelf: 'center',
+
+      marginBottom:
+        spacing.sm,
+    },
+
+    // ==========================================================
+    // PASSWORD REQUIREMENTS
+    // ==========================================================
+
+    passwordRequirements: {
+      width: '100%',
+
+      maxWidth: 600,
+
+      alignSelf: 'center',
+
+      marginTop: spacing.xs,
+
+      marginBottom:
+        spacing.lg,
+
+      paddingHorizontal:
+        spacing.xs,
+    },
+
+    requirementTitle: {
+      fontSize: 13,
+
+      fontFamily:
+        typography.fontFamily.medium,
+
+      marginBottom: 6,
+    },
+
+    requirementRow: {
+      flexDirection: 'row',
+
+      alignItems: 'center',
+
+      gap: spacing.sm,
+
+      marginVertical: 2.5,
+    },
+
+    requirementText: {
+      fontSize:
+        typography.fontSize.sm,
+
+      fontFamily:
+        typography.fontFamily.regular,
+
+      flexShrink: 1,
+    },
+
+    // ==========================================================
+    // BUTTON
+    // ==========================================================
+
+    resetButton: {
+      width: '100%',
+
+      maxWidth: 600,
+
+      alignSelf: 'center',
+
+      borderRadius: 15,
+
+      overflow: 'hidden',
+
+      marginBottom:
+        spacing.md,
+
+      shadowColor:
+        colors.primary,
+
+      shadowOffset: {
+        width: 0,
+        height: 5,
       },
-    ],
-  },
 
-  resetButtonFocused: {
-    borderWidth: 2,
+      shadowOpacity: 0.24,
 
-    borderColor:
-      colors.primary,
-  },
+      shadowRadius: 10,
 
-  resetGradient: {
-    minHeight: 56,
+      elevation: 5,
+    },
 
-    paddingHorizontal: 18,
+    resetButtonDisabled: {
+      opacity: 0.7,
+    },
 
-    alignItems: 'center',
+    resetButtonHover: {
+      shadowOpacity: 0.34,
 
-    justifyContent:
-      'center',
+      shadowRadius: 14,
 
-    position: 'relative',
-  },
+      transform: [
+        {
+          translateY: -1,
+        },
+      ],
+    },
 
-  resetButtonText: {
-    color: '#FFFFFF',
+    resetButtonPressed: {
+      transform: [
+        {
+          scale: 0.985,
+        },
+      ],
+    },
 
-    fontSize:
-      typography.fontSize.lg,
+    resetButtonFocused: {
+      borderWidth: 2,
 
-    fontFamily:
-      typography.fontFamily.bold,
-  },
+      borderColor:
+        colors.primary,
+    },
 
-  buttonIcon: {
-    position: 'absolute',
+    resetGradient: {
+      minHeight: 56,
 
-    right: 12,
+      paddingHorizontal: 18,
 
-    width: 36,
-    height: 36,
+      alignItems: 'center',
 
-    borderRadius: 18,
+      justifyContent:
+        'center',
 
-    backgroundColor:
-      'rgba(255,255,255,0.16)',
+      position: 'relative',
+    },
 
-    alignItems: 'center',
+    resetButtonText: {
+      color: '#FFFFFF',
 
-    justifyContent: 'center',
-  },
+      fontSize:
+        typography.fontSize.lg,
 
-  loadingContent: {
-    flexDirection: 'row',
+      fontFamily:
+        typography.fontFamily.bold,
+    },
 
-    alignItems: 'center',
+    buttonIcon: {
+      position: 'absolute',
 
-    justifyContent: 'center',
-  },
+      right: 12,
 
-  loadingText: {
-    color: '#FFFFFF',
+      width: 36,
+      height: 36,
 
-    fontSize: 14,
+      borderRadius: 18,
 
-    fontFamily:
-      typography.fontFamily.medium,
+      backgroundColor:
+        'rgba(255,255,255,0.16)',
 
-    marginLeft: 9,
-  },
+      alignItems: 'center',
 
+      justifyContent: 'center',
+    },
 
-  // ==========================================================
-  // BACK LOGIN
-  // ==========================================================
+    loadingContent: {
+      flexDirection: 'row',
 
-  backToLogin: {
-    flexDirection: 'row',
+      alignItems: 'center',
 
-    alignItems: 'center',
+      justifyContent: 'center',
+    },
 
-    justifyContent: 'center',
+    loadingText: {
+      color: '#FFFFFF',
 
-    gap: spacing.xs,
+      fontSize: 14,
 
-    marginVertical:
-      spacing.md,
+      fontFamily:
+        typography.fontFamily.medium,
 
-    paddingVertical:
-      spacing.xs,
-  },
+      marginLeft: 9,
+    },
 
-  backToLoginText: {
-    color:
-      colors.primary,
+    // ==========================================================
+    // BACK LOGIN
+    // ==========================================================
 
-    fontSize:
-      typography.fontSize.md,
+    backToLogin: {
+      flexDirection: 'row',
 
-    fontFamily:
-      typography.fontFamily.medium,
-  },
+      alignItems: 'center',
 
+      justifyContent: 'center',
 
-  // ==========================================================
-  // INFO
-  // ==========================================================
+      gap: spacing.xs,
 
-  infoContainer: {
-    flexDirection: 'row',
+      marginVertical:
+        spacing.md,
 
-    alignItems: 'center',
+      paddingVertical:
+        spacing.xs,
+    },
 
-    justifyContent: 'center',
+    backToLoginText: {
+      color:
+        colors.primary,
 
-    paddingHorizontal:
-      spacing.sm,
+      fontSize:
+        typography.fontSize.md,
 
-    marginTop: spacing.sm,
-  },
+      fontFamily:
+        typography.fontFamily.medium,
+    },
 
-  infoText: {
-    fontSize:
-      typography.fontSize.sm,
+    // ==========================================================
+    // INFO
+    // ==========================================================
 
-    fontFamily:
-      typography.fontFamily.regular,
+    infoContainer: {
+      flexDirection: 'row',
 
-    textAlign: 'center',
+      alignItems: 'center',
 
-    flexShrink: 1,
+      justifyContent: 'center',
 
-    marginLeft: 6,
-  },
+      paddingHorizontal:
+        spacing.sm,
 
+      marginTop: spacing.sm,
+    },
 
-  // ==========================================================
-  // MOBILE FOOTER
-  // ==========================================================
+    infoText: {
+      fontSize:
+        typography.fontSize.sm,
 
-  mobileFooter: {
-    flexDirection: 'row',
+      fontFamily:
+        typography.fontFamily.regular,
 
-    alignItems: 'center',
+      textAlign: 'center',
 
-    justifyContent: 'center',
+      flexShrink: 1,
 
-    marginTop: 18,
-  },
+      marginLeft: 6,
+    },
 
-  mobileFooterText: {
-    color:
-      'rgba(255,255,255,0.62)',
+    // ==========================================================
+    // MOBILE FOOTER
+    // ==========================================================
 
-    fontSize: 11.5,
+    mobileFooter: {
+      flexDirection: 'row',
 
-    fontFamily:
-      typography.fontFamily.regular,
+      alignItems: 'center',
 
-    textAlign: 'center',
+      justifyContent: 'center',
 
-    marginLeft: 5,
-  },
+      marginTop: 18,
+    },
 
+    mobileFooterText: {
+      color:
+        'rgba(255,255,255,0.62)',
 
-  // ==========================================================
-  // DESKTOP
-  // ==========================================================
+      fontSize: 11.5,
 
-  desktopSafeArea: {
-    flex: 1,
+      fontFamily:
+        typography.fontFamily.regular,
 
-    backgroundColor: '#FFFFFF',
-  },
+      textAlign: 'center',
 
-  desktopContainer: {
-    flex: 1,
+      marginLeft: 5,
+    },
 
-    flexDirection: 'row',
+    // ==========================================================
+    // DESKTOP
+    // ==========================================================
 
-    width: '100%',
+    desktopSafeArea: {
+      flex: 1,
 
-    height: '100%',
+      backgroundColor: '#FFFFFF',
+    },
 
-    backgroundColor: '#FFFFFF',
-  },
+    desktopContainer: {
+      flex: 1,
 
+      flexDirection: 'row',
 
-  // ==========================================================
-  // DESKTOP LEFT
-  // ==========================================================
+      width: '100%',
 
-  desktopBrandPanel: {
-    width: '50%',
+      height: '100%',
 
-    minWidth: 480,
+      backgroundColor: '#FFFFFF',
+    },
 
-    maxWidth: 920,
+    // ==========================================================
+    // DESKTOP LEFT
+    // ==========================================================
 
-    height: '100%',
-  },
+    desktopBrandPanel: {
+      width: '50%',
 
-  desktopBrandGradient: {
-    flex: 1,
+      minWidth: 480,
 
-    paddingHorizontal: 70,
+      maxWidth: 920,
 
-    paddingVertical: 54,
+      height: '100%',
+    },
 
-    justifyContent:
-      'space-between',
-  },
+    desktopBrandGradient: {
+      flex: 1,
 
-  desktopBrandContent: {
-    width: '100%',
+      paddingHorizontal: 70,
 
-    maxWidth: 620,
+      paddingVertical: 54,
 
-    alignSelf: 'center',
-  },
+      justifyContent:
+        'space-between',
+    },
 
-  desktopSecurityIcon: {
-    width: 68,
-    height: 68,
+    desktopBrandContent: {
+      width: '100%',
 
-    borderRadius: 21,
+      maxWidth: 620,
 
-    backgroundColor:
-      'rgba(255,255,255,0.14)',
+      alignSelf: 'center',
+    },
 
-    alignItems: 'center',
-    justifyContent: 'center',
+    desktopSecurityIcon: {
+      width: 68,
+      height: 68,
 
-    marginBottom: 22,
+      borderRadius: 21,
 
-    borderWidth: 1,
+      backgroundColor:
+        'rgba(255,255,255,0.14)',
 
-    borderColor:
-      'rgba(255,255,255,0.12)',
-  },
+      alignItems: 'center',
+      justifyContent: 'center',
 
-  desktopBrandTitle: {
-    color: '#FFFFFF',
+      marginBottom: 22,
 
-    fontSize: 42,
+      borderWidth: 1,
 
-    lineHeight: 51,
+      borderColor:
+        'rgba(255,255,255,0.12)',
+    },
 
-    fontFamily:
-      typography.fontFamily.bold,
+    desktopBrandTitle: {
+      color: '#FFFFFF',
 
-    marginBottom: 22,
-  },
+      fontSize: 42,
 
-  desktopBrandDescription: {
-    color:
-      'rgba(255,255,255,0.90)',
+      lineHeight: 51,
 
-    fontSize: 15.5,
+      fontFamily:
+        typography.fontFamily.bold,
 
-    lineHeight: 25,
+      marginBottom: 22,
+    },
 
-    fontFamily:
-      typography.fontFamily.regular,
+    desktopBrandDescription: {
+      color:
+        'rgba(255,255,255,0.90)',
 
-    maxWidth: 600,
-  },
+      fontSize: 15.5,
 
+      lineHeight: 25,
 
-  // ==========================================================
-  // DESKTOP FEATURES
-  // ==========================================================
+      fontFamily:
+        typography.fontFamily.regular,
 
-  desktopFeatureList: {
-    marginTop: 48,
+      maxWidth: 600,
+    },
 
-    gap: 20,
-  },
+    // ==========================================================
+    // DESKTOP FEATURES
+    // ==========================================================
 
-  desktopFeatureItem: {
-    flexDirection: 'row',
+    desktopFeatureList: {
+      marginTop: 48,
 
-    alignItems: 'center',
-  },
+      gap: 20,
+    },
 
-  desktopFeatureIcon: {
-    width: 47,
-    height: 47,
+    desktopFeatureItem: {
+      flexDirection: 'row',
 
-    borderRadius: 14,
+      alignItems: 'center',
+    },
 
-    backgroundColor:
-      'rgba(255,255,255,0.14)',
+    desktopFeatureIcon: {
+      width: 47,
+      height: 47,
 
-    alignItems: 'center',
-    justifyContent: 'center',
+      borderRadius: 14,
 
-    marginRight: 14,
-  },
+      backgroundColor:
+        'rgba(255,255,255,0.14)',
 
-  desktopFeatureContent: {
-    flex: 1,
-  },
+      alignItems: 'center',
+      justifyContent: 'center',
 
-  desktopFeatureTitle: {
-    color: '#FFFFFF',
+      marginRight: 14,
+    },
 
-    fontSize: 14,
+    desktopFeatureContent: {
+      flex: 1,
+    },
 
-    fontFamily:
-      typography.fontFamily.bold,
-  },
+    desktopFeatureTitle: {
+      color: '#FFFFFF',
 
-  desktopFeatureDescription: {
-    color:
-      'rgba(255,255,255,0.75)',
+      fontSize: 14,
 
-    fontSize: 12,
+      fontFamily:
+        typography.fontFamily.bold,
+    },
 
-    lineHeight: 18,
+    desktopFeatureDescription: {
+      color:
+        'rgba(255,255,255,0.75)',
 
-    fontFamily:
-      typography.fontFamily.regular,
+      fontSize: 12,
 
-    marginTop: 3,
-  },
+      lineHeight: 18,
 
+      fontFamily:
+        typography.fontFamily.regular,
 
-  // ==========================================================
-  // DESKTOP LEFT FOOTER
-  // ==========================================================
+      marginTop: 3,
+    },
 
-  desktopBrandFooter: {
-    flexDirection: 'row',
+    // ==========================================================
+    // DESKTOP LEFT FOOTER
+    // ==========================================================
 
-    alignItems: 'center',
+    desktopBrandFooter: {
+      flexDirection: 'row',
 
-    justifyContent:
-      'space-between',
+      alignItems: 'center',
 
-    paddingTop: 18,
+      justifyContent:
+        'space-between',
 
-    borderTopWidth: 1,
+      paddingTop: 18,
 
-    borderTopColor:
-      'rgba(255,255,255,0.20)',
-  },
+      borderTopWidth: 1,
 
-  desktopCopyright: {
-    color:
-      'rgba(255,255,255,0.72)',
+      borderTopColor:
+        'rgba(255,255,255,0.20)',
+    },
 
-    fontSize: 11,
+    desktopCopyright: {
+      color:
+        'rgba(255,255,255,0.72)',
 
-    fontFamily:
-      typography.fontFamily.regular,
-  },
+      fontSize: 11,
 
-  desktopFooterRight: {
-    color:
-      'rgba(255,255,255,0.72)',
+      fontFamily:
+        typography.fontFamily.regular,
+    },
 
-    fontSize: 11,
+    desktopFooterRight: {
+      color:
+        'rgba(255,255,255,0.72)',
 
-    fontFamily:
-      typography.fontFamily.regular,
-  },
+      fontSize: 11,
 
+      fontFamily:
+        typography.fontFamily.regular,
+    },
 
-  // ==========================================================
-  // DESKTOP RIGHT
-  // ==========================================================
+    // ==========================================================
+    // DESKTOP RIGHT
+    // ==========================================================
 
-  desktopContentPanel: {
-    flex: 1,
+    desktopContentPanel: {
+      flex: 1,
 
-    backgroundColor: '#FFFFFF',
+      backgroundColor: '#FFFFFF',
 
-    minWidth: 0,
-  },
+      minWidth: 0,
+    },
 
-  desktopScroll: {
-    flex: 1,
-  },
+    desktopScroll: {
+      flex: 1,
+    },
 
-  desktopScrollContent: {
-    flexGrow: 1,
+    desktopScrollContent: {
+      flexGrow: 1,
 
-    minHeight: '100%',
+      minHeight: '100%',
 
-    justifyContent:
-      'center',
+      justifyContent:
+        'center',
 
-    paddingHorizontal: 70,
+      paddingHorizontal: 70,
 
-    paddingVertical: 45,
-  },
+      paddingVertical: 45,
+    },
 
-  desktopContentWrapper: {
-    width: '100%',
+    desktopContentWrapper: {
+      width: '100%',
 
-    maxWidth: 570,
+      maxWidth: 570,
 
-    alignSelf: 'center',
-  },
+      alignSelf: 'center',
+    },
 
+    // ==========================================================
+    // DESKTOP BACK
+    // ==========================================================
 
-  // ==========================================================
-  // DESKTOP BACK
-  // ==========================================================
+    desktopBackButton: {
+      alignSelf:
+        'flex-start',
 
-  desktopBackButton: {
-    alignSelf:
-      'flex-start',
+      flexDirection: 'row',
 
-    flexDirection: 'row',
+      alignItems: 'center',
 
-    alignItems: 'center',
+      minHeight: 40,
 
-    minHeight: 40,
+      paddingHorizontal: 10,
 
-    paddingHorizontal: 10,
+      borderRadius: 11,
 
-    borderRadius: 11,
+      marginBottom: 22,
+    },
 
-    marginBottom: 22,
-  },
+    desktopBackButtonHover: {
+      backgroundColor:
+        '#F0F5F1',
+    },
 
-  desktopBackButtonHover: {
-    backgroundColor:
-      '#F0F5F1',
-  },
+    desktopBackButtonPressed: {
+      backgroundColor:
+        '#E8F1E9',
 
-  desktopBackButtonPressed: {
-    backgroundColor:
-      '#E8F1E9',
+      transform: [
+        {
+          scale: 0.97,
+        },
+      ],
+    },
 
-    transform: [
-      {
-        scale: 0.97,
-      },
-    ],
-  },
+    desktopBackButtonFocused: {
+      borderWidth: 2,
 
-  desktopBackButtonFocused: {
-    borderWidth: 2,
+      borderColor:
+        colors.primary,
+    },
 
-    borderColor:
-      colors.primary,
-  },
+    desktopBackText: {
+      color:
+        colors.primary,
 
-  desktopBackText: {
-    color:
-      colors.primary,
+      fontSize: 13.5,
 
-    fontSize: 13.5,
+      fontFamily:
+        typography.fontFamily.medium,
 
-    fontFamily:
-      typography.fontFamily.medium,
+      marginLeft: 6,
+    },
 
-    marginLeft: 6,
-  },
+    // ==========================================================
+    // DESKTOP FOOTER
+    // ==========================================================
 
+    desktopFooter: {
+      width: '100%',
 
-  // ==========================================================
-  // DESKTOP FOOTER
-  // ==========================================================
+      marginTop: 25,
 
-  desktopFooter: {
-    width: '100%',
+      paddingTop: 15,
 
-    marginTop: 25,
+      borderTopWidth: 1,
 
-    paddingTop: 15,
+      borderTopColor:
+        '#E8ECE9',
 
-    borderTopWidth: 1,
+      flexDirection: 'row',
 
-    borderTopColor:
-      '#E8ECE9',
+      alignItems: 'center',
 
-    flexDirection: 'row',
+      justifyContent:
+        'space-between',
+    },
 
-    alignItems: 'center',
+    desktopSecure: {
+      flexDirection: 'row',
 
-    justifyContent:
-      'space-between',
-  },
+      alignItems: 'center',
+    },
 
-  desktopSecure: {
-    flexDirection: 'row',
+    desktopSecureText: {
+      color: '#7C8780',
 
-    alignItems: 'center',
-  },
+      fontSize: 10.5,
 
-  desktopSecureText: {
-    color: '#7C8780',
+      fontFamily:
+        typography.fontFamily.regular,
 
-    fontSize: 10.5,
+      marginLeft: 6,
+    },
 
-    fontFamily:
-      typography.fontFamily.regular,
+    desktopFooterCopyright: {
+      color: '#9AA19C',
 
-    marginLeft: 6,
-  },
+      fontSize: 10,
 
-  desktopFooterCopyright: {
-    color: '#9AA19C',
-
-    fontSize: 10,
-
-    fontFamily:
-      typography.fontFamily.regular,
-  },
-
-});
+      fontFamily:
+        typography.fontFamily.regular,
+    }
+  });
 
 
 // ============================================================

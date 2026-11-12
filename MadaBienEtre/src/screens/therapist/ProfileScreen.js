@@ -69,6 +69,7 @@ import SpecialtiesSelector from '../../components/therapist/SpecialtiesSelector'
 import therapistService from '../../services/therapistService';
 
 import { normalizeMediaUrl } from '../../utils/mediaUrl';
+import { toastAdapters } from "../../utils/toast";
 // ============================================================
 // CONSTANTS
 // ============================================================
@@ -188,16 +189,6 @@ const ProfileScreen = ({ navigation }) => {
 
   const mapRef = useRef(null);
 
-  const toastTimerRef = useRef(null);
-
-  const toastOpacity = useRef(
-    new Animated.Value(0)
-  ).current;
-
-  const toastTranslateY = useRef(
-    new Animated.Value(-24)
-  ).current;
-
   // ==========================================================
   // STATES
   // ==========================================================
@@ -212,17 +203,6 @@ const ProfileScreen = ({ navigation }) => {
 
   const [showMapModal, setShowMapModal] =
     useState(false);
-
-  // ==========================================================
-  // TOAST STATE
-  // ==========================================================
-
-  const [toast, setToast] = useState({
-    visible: false,
-    type: 'info',
-    title: '',
-    message: '',
-  });
 
   // ==========================================================
   // LOCATION STATES
@@ -336,129 +316,7 @@ const ProfileScreen = ({ navigation }) => {
   // TOAST HELPER
   // ==========================================================
 
-  const showToast = (
-    type = 'info',
-    title = '',
-    message = ''
-  ) => {
-    if (toastTimerRef.current) {
-      clearTimeout(toastTimerRef.current);
-    }
-
-    setToast({
-      visible: true,
-      type,
-      title,
-      message,
-    });
-
-    toastOpacity.setValue(0);
-    toastTranslateY.setValue(-24);
-
-    Animated.parallel([
-      Animated.timing(toastOpacity, {
-        toValue: 1,
-        duration: 230,
-        useNativeDriver: true,
-      }),
-      Animated.spring(toastTranslateY, {
-        toValue: 0,
-        friction: 8,
-        tension: 70,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    toastTimerRef.current = setTimeout(() => {
-      hideToast();
-    }, 3200);
-  };
-
-  const hideToast = () => {
-    Animated.parallel([
-      Animated.timing(toastOpacity, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(toastTranslateY, {
-        toValue: -18,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      if (finished) {
-        setToast((previous) => ({
-          ...previous,
-          visible: false,
-        }));
-      }
-    });
-  };
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) {
-        clearTimeout(toastTimerRef.current);
-      }
-    };
-  }, []);
-
-  // ==========================================================
-  // TOAST CONFIG
-  // ==========================================================
-
-  const toastConfig = useMemo(() => {
-    switch (toast.type) {
-      case 'success':
-        return {
-          icon: 'checkmark-circle',
-          color: GREEN,
-          background: isDark
-            ? '#12351F'
-            : '#F0FDF4',
-          border: isDark
-            ? '#2E8B57'
-            : '#BBF7D0',
-        };
-
-      case 'error':
-        return {
-          icon: 'close-circle',
-          color: RED,
-          background: isDark
-            ? '#3A1717'
-            : '#FEF2F2',
-          border: isDark
-            ? '#7F2929'
-            : '#FECACA',
-        };
-
-      case 'warning':
-        return {
-          icon: 'warning',
-          color: ORANGE,
-          background: isDark
-            ? '#3A2B10'
-            : '#FFFBEB',
-          border: isDark
-            ? '#795A1A'
-            : '#FDE68A',
-        };
-
-      default:
-        return {
-          icon: 'information-circle',
-          color: BLUE,
-          background: isDark
-            ? '#121E3D'
-            : '#EFF6FF',
-          border: isDark
-            ? '#28468D'
-            : '#BFDBFE',
-        };
-    }
-  }, [toast.type, isDark]);
+  const showToast = toastAdapters.typeTitleMsg;
 
   // ==========================================================
   // ADDRESS HELPERS
@@ -1693,116 +1551,6 @@ const ProfileScreen = ({ navigation }) => {
       selectedLocation.accuracy,
     ]
   );
-
-  // ==========================================================
-  // TOAST COMPONENT
-  // ==========================================================
-
-  const renderToast = () => {
-    if (!toast.visible) {
-      return null;
-    }
-
-    return (
-      <View
-        pointerEvents="box-none"
-        style={styles.toastLayer}
-      >
-        <Animated.View
-          style={[
-            styles.toastContainer,
-            {
-              backgroundColor:
-                toastConfig.background,
-
-              borderColor:
-                toastConfig.border,
-
-              opacity: toastOpacity,
-
-              transform: [
-                {
-                  translateY:
-                    toastTranslateY,
-                },
-              ],
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.toastIconContainer,
-              {
-                backgroundColor:
-                  `${toastConfig.color}18`,
-              },
-            ]}
-          >
-            <Ionicons
-              name={toastConfig.icon}
-              size={22}
-              color={toastConfig.color}
-            />
-          </View>
-
-          <View
-            style={styles.toastContent}
-          >
-            {toast.title ? (
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.toastTitle,
-                  {
-                    color:
-                      themeColors.text,
-                  },
-                ]}
-              >
-                {toast.title}
-              </Text>
-            ) : null}
-
-            {toast.message ? (
-              <Text
-                numberOfLines={2}
-                style={[
-                  styles.toastMessage,
-                  {
-                    color:
-                      themeColors
-                        .textSecondary,
-                  },
-                ]}
-              >
-                {toast.message}
-              </Text>
-            ) : null}
-          </View>
-
-          <TouchableOpacity
-            onPress={hideToast}
-            style={styles.toastClose}
-            hitSlop={{
-              top: 8,
-              bottom: 8,
-              left: 8,
-              right: 8,
-            }}
-          >
-            <Ionicons
-              name="close"
-              size={17}
-              color={
-                themeColors
-                  .textSecondary
-              }
-            />
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
-    );
-  };
 
   // ==========================================================
   // MAP MODAL
@@ -4037,7 +3785,7 @@ const ProfileScreen = ({ navigation }) => {
           Rendered AFTER modals so it stays above the interface.
       ======================================================== */}
 
-      {renderToast()}
+
     </View>
   );
 };
@@ -4131,101 +3879,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 40,
-  },
-
-  // ==========================================================
-  // TOAST
-  // ==========================================================
-
-  toastLayer: {
-    position: 'absolute',
-    top:
-      Platform.OS === 'web'
-        ? 18
-        : 52,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    zIndex: 99999,
-    elevation: 99999,
-    pointerEvents: 'box-none',
-  },
-
-  toastContainer: {
-    width:
-      Platform.OS === 'web'
-        ? 'min(460px, calc(100% - 32px))'
-        : '88%',
-
-    maxWidth: 460,
-    minHeight: 66,
-
-    borderWidth: 1,
-    borderRadius: 18,
-
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
-
-    elevation: 12,
-  },
-
-  toastIconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 10,
-  },
-
-  toastContent: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  toastTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    lineHeight: 17,
-
-    fontFamily:
-      typography?.fontFamily?.bold ||
-      'System',
-  },
-
-  toastMessage: {
-    fontSize: 11,
-    lineHeight: 16,
-    marginTop: 2,
-
-    fontFamily:
-      typography?.fontFamily?.regular ||
-      'System',
-  },
-
-  toastClose: {
-    width: 28,
-    height: 28,
-    borderRadius: 10,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginLeft: 5,
   },
 
   // ==========================================================
@@ -5294,7 +4947,7 @@ const styles = StyleSheet.create({
     fontFamily:
       typography?.fontFamily?.bold ||
       'System',
-  },
+  }
 });
 
 export default ProfileScreen;

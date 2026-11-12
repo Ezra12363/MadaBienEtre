@@ -60,6 +60,8 @@ import { formatMadagascarDateTime } from '../../utils/timeAgo';
 import useNegotiationAI from '../../hooks/useNegotiationAI';
 import AINegotiationAdvisor from '../../components/ai/AINegotiationAdvisor';
 
+import { toastAdapters } from "../../utils/toast";
+
 // ============================================================
 // CONFIRMATION MODAL
 // ============================================================
@@ -558,33 +560,9 @@ const NegotiationScreen = ({
     setRejecting,
   ] = useState(false);
 
-  const [
-    toast,
-    setToast,
-  ] = useState(null);
-
   const [confirmModal, setConfirmModal] = useState(null);
 
-  const toastTimerRef =
-    useRef(null);
-
-  const showToast = useCallback(
-    (type, text) => {
-      if (toastTimerRef.current) {
-        clearTimeout(
-          toastTimerRef.current
-        );
-      }
-
-      setToast({ type, text });
-
-      toastTimerRef.current =
-        setTimeout(() => {
-          setToast(null);
-        }, 3000);
-    },
-    []
-  );
+  const showToast = toastAdapters.typeMsg;
 
   const fadeAnim =
     useRef(new Animated.Value(0)).current;
@@ -1736,30 +1714,7 @@ const NegotiationScreen = ({
         onBackPress={() => navigation.goBack()}
       />
 
-      {toast ? (
-        <View
-          style={[
-            styles.toast,
-            toast.type === 'success'
-              ? styles.toastSuccess
-              : styles.toastError,
-          ]}
-        >
-          <Ionicons
-            name={
-              toast.type === 'success'
-                ? 'checkmark-circle'
-                : 'alert-circle'
-            }
-            size={18}
-            color="#FFFFFF"
-          />
 
-          <Text style={styles.toastText}>
-            {toast.text}
-          </Text>
-        </View>
-      ) : null}
 
       <ConfirmationModal
         visible={!!confirmModal}
@@ -3517,54 +3472,7 @@ const styles =
     emptyHistoryText: {
       marginTop: 3,
       fontSize: 10,
-    },
-
-    // ==========================================================
-    // TOAST
-    // ==========================================================
-
-    toast: {
-      position: 'absolute',
-      top: ANDROID_STATUS_BAR_HEIGHT + 8,
-      left: 18,
-      right: 18,
-      zIndex: 9999,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      alignSelf: 'center',
-      gap: 8,
-      minHeight: 44,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 14,
-
-      ...Platform.select({
-        web: {
-          boxShadow:
-            '0 6px 20px rgba(0,0,0,0.18)',
-        },
-
-        default: {
-          elevation: 6,
-        },
-      }),
-    },
-
-    toastSuccess: {
-      backgroundColor: colors.primary,
-    },
-
-    toastError: {
-      backgroundColor: '#E53935',
-    },
-
-    toastText: {
-      flex: 1,
-      fontSize: 12,
-      fontWeight: '700',
-      color: '#FFFFFF',
-    },
+    }
   });
 
 export default NegotiationScreen;

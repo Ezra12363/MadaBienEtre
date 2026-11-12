@@ -37,6 +37,8 @@ import {
 import { GOOGLE_MAPS_API_KEY } from '../../config/googleMaps';
 import { getMadagascarTodayDate } from '../../utils/timeAgo';
 
+import { toastAdapters } from "../../utils/toast";
+
 /* ============================================================
    ✅ DATE & HEURE — helpers
    Date  : JJ/MM/AAAA
@@ -266,20 +268,6 @@ const CreateBookingScreen = ({ navigation }) => {
   // Géolocalisation Web (navigateur)
   const [locatingWeb, setLocatingWeb] = useState(false);
 
-  /* ============================================================
-     TOAST STATES
-     ============================================================ */
-
-  const [toast, setToast] = useState({
-    visible: false,
-    title: '',
-    message: '',
-    type: 'info',
-  });
-
-  const toastOpacity = useRef(new Animated.Value(0)).current;
-  const toastTranslateY = useRef(new Animated.Value(-20)).current;
-  const toastTimer = useRef(null);
   const navigateTimer = useRef(null);
 
   /* ============================================================
@@ -337,136 +325,7 @@ const CreateBookingScreen = ({ navigation }) => {
     };
   }, []);
 
-  /* ============================================================
-     TOAST FUNCTION
-     ============================================================ */
-
-  const dismissToast = () => {
-    Animated.parallel([
-      Animated.timing(toastOpacity, {
-        toValue: 0,
-        duration: 220,
-        easing: Easing.in(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.timing(toastTranslateY, {
-        toValue: -20,
-        duration: 220,
-        easing: Easing.in(Easing.ease),
-        useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      if (finished) {
-        setToast({
-          visible: false,
-          title: '',
-          message: '',
-          type: 'info',
-        });
-      }
-    });
-  };
-
-  const showToast = (message, type = 'info', duration = 2600, title = '') => {
-    // Annule l'ancien timer
-    if (toastTimer.current) {
-      clearTimeout(toastTimer.current);
-      toastTimer.current = null;
-    }
-
-    // Réinitialisation
-    toastOpacity.stopAnimation();
-    toastTranslateY.stopAnimation();
-
-    toastOpacity.setValue(0);
-    toastTranslateY.setValue(-20);
-
-    setToast({
-      visible: true,
-      title,
-      message,
-      type,
-    });
-
-    // Entrée du toast
-    Animated.parallel([
-      Animated.timing(toastOpacity, {
-        toValue: 1,
-        duration: 220,
-        easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
-      }),
-      Animated.spring(toastTranslateY, {
-        toValue: 0,
-        friction: 8,
-        tension: 70,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Disparition automatique
-    toastTimer.current = setTimeout(() => {
-      dismissToast();
-    }, duration);
-  };
-
-  const handleCloseToast = () => {
-    if (toastTimer.current) {
-      clearTimeout(toastTimer.current);
-      toastTimer.current = null;
-    }
-    dismissToast();
-  };
-
-  /* ============================================================
-     CLEANUP TIMERS
-     ============================================================ */
-
-  useEffect(() => {
-    return () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-      if (suggestionsTimer.current) clearTimeout(suggestionsTimer.current);
-      if (navigateTimer.current) clearTimeout(navigateTimer.current);
-    };
-  }, []);
-
-  /* ============================================================
-     TOAST ICON / COLOR
-     ============================================================ */
-
-  const getToastIcon = () => {
-    switch (toast.type) {
-      case 'success':
-        return 'checkmark-circle';
-      case 'error':
-        return 'close-circle';
-      case 'warning':
-        return 'warning';
-      case 'location':
-        return 'location';
-      case 'map':
-        return 'map';
-      default:
-        return 'information-circle';
-    }
-  };
-
-  const getToastColor = () => {
-    switch (toast.type) {
-      case 'success':
-        return '#00C853';
-      case 'error':
-        return '#E53935';
-      case 'warning':
-        return '#F59E0B';
-      case 'location':
-        return '#1A4FB5';
-      case 'map':
-        return '#0D2B7E';
-      default:
-        return '#1A4FB5';
-    }
-  };
+  const showToast = toastAdapters.msgType;
 
   /* ============================================================
      SELECT MASSAGE
@@ -871,64 +730,7 @@ const CreateBookingScreen = ({ navigation }) => {
 
       {/* TOAST */}
 
-      {toast.visible && (
-        <View pointerEvents="box-none" style={styles.toastWrapper}>
-          <Animated.View
-            style={[
-              styles.toast,
-              {
-                opacity: toastOpacity,
-                transform: [{ translateY: toastTranslateY }],
-                borderColor: getToastColor(),
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.toastIconContainer,
-                {
-                  backgroundColor: getToastColor() + '18',
-                },
-              ]}
-            >
-              <Ionicons name={getToastIcon()} size={20} color={getToastColor()} />
-            </View>
 
-            <View style={styles.toastTextWrapper}>
-              {!!toast.title && (
-                <Text
-                  style={[styles.toastTitle, { color: themeColors.text }]}
-                  numberOfLines={2}
-                >
-                  {toast.title}
-                </Text>
-              )}
-
-              <Text
-                style={[
-                  styles.toastText,
-                  {
-                    color: toast.title
-                      ? themeColors.textSecondary
-                      : themeColors.text,
-                  },
-                ]}
-                numberOfLines={3}
-              >
-                {toast.message}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              onPress={handleCloseToast}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={styles.toastCloseButton}
-            >
-              <Ionicons name="close" size={16} color={themeColors.textSecondary} />
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-      )}
 
       {/* KEYBOARD */}
 
@@ -1448,84 +1250,6 @@ const styles = StyleSheet.create({
     paddingBottom: 110,
   },
 
-  /* TOAST */
-
-  toastWrapper: {
-    position: 'absolute',
-    top: Platform.OS === 'web' ? 18 : 12,
-    left: 0,
-    right: 0,
-    zIndex: 99999,
-    elevation: 99999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 18,
-  },
-
-  toast: {
-    minHeight: 54,
-    maxWidth: 440,
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: 18,
-    borderWidth: 1,
-    backgroundColor: '#FFFFFF',
-
-    // Ombre Android
-    elevation: 12,
-
-    // Ombre iOS
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
-
-    // Ombre Web
-    ...(Platform.OS === 'web'
-      ? {
-          boxShadow: '0px 6px 22px rgba(0,0,0,0.15)',
-        }
-      : {}),
-  },
-
-  toastIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-
-  toastTextWrapper: {
-    flex: 1,
-  },
-
-  toastTitle: {
-    fontSize: 13.5,
-    lineHeight: 17,
-    marginBottom: 2,
-    fontFamily: typography.fontFamily.bold,
-  },
-
-  toastText: {
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 17,
-    fontFamily: typography.fontFamily.medium,
-  },
-
-  toastCloseButton: {
-    marginLeft: 8,
-    padding: 2,
-  },
-
   /* SECTION */
 
   sectionTitle: {
@@ -1900,7 +1624,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: typography.fontSize.md,
     fontFamily: typography.fontFamily.semiBold,
-  },
+  }
 });
 
 export default CreateBookingScreen;

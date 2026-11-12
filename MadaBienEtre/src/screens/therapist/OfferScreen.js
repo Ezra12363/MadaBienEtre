@@ -67,6 +67,8 @@ import {
   formatMadagascarTime,
 } from '../../utils/timeAgo';
 
+import { toastAdapters } from "../../utils/toast";
+
 // ============================================================
 // COLORS
 // ============================================================
@@ -280,7 +282,6 @@ export default function OfferScreen({ route, navigation }) {
   const [remainingTime, setRemainingTime] = useState(
     getRemaining(initialBooking?.expires_at)
   );
-  const [toast, setToast] = useState(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const { colors, isDark } = useTheme();
@@ -296,10 +297,7 @@ export default function OfferScreen({ route, navigation }) {
   // TOAST
   // ==========================================================
 
-  const showToast = useCallback((type, text) => {
-    setToast({ type, text });
-    setTimeout(() => setToast(null), 3000);
-  }, []);
+  const showToast = toastAdapters.typeMsg;
 
   // ==========================================================
   // MERGE BOOKING
@@ -1085,27 +1083,7 @@ export default function OfferScreen({ route, navigation }) {
         barStyle="light-content"
       />
 
-      {toast ? (
-        <View
-          style={[
-            styles.toast,
-            toast.type === 'success'
-              ? styles.toastSuccess
-              : styles.toastError,
-          ]}
-        >
-          <Ionicons
-            name={
-              toast.type === 'success'
-                ? 'checkmark-circle'
-                : 'alert-circle'
-            }
-            size={18}
-            color={COLORS.white}
-          />
-          <Text style={styles.toastText}>{toast.text}</Text>
-        </View>
-      ) : null}
+
 
       <Header
         title="Détails et négociation"
@@ -1721,44 +1699,6 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       fontSize: 12,
     },
 
-    // --------------------------------------------------------
-    // TOAST
-    // --------------------------------------------------------
-
-    toast: {
-      position: 'absolute',
-      zIndex: 1000,
-      top: 12,
-      left: 14,
-      right: 14,
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 14,
-      paddingVertical: 11,
-      borderRadius: 12,
-      elevation: 8,
-      ...Platform.select({
-        web: { boxShadow: '0 8px 24px rgba(0,0,0,0.18)' },
-        default: {
-          shadowColor: '#000',
-          shadowOpacity: 0.18,
-          shadowRadius: 12,
-          shadowOffset: { width: 0, height: 4 },
-        },
-      }),
-    },
-
-    toastSuccess: { backgroundColor: COLORS.primary },
-    toastError: { backgroundColor: COLORS.red },
-
-    toastText: {
-      flex: 1,
-      marginLeft: 8,
-      color: COLORS.white,
-      fontWeight: '700',
-      fontSize: 12.5,
-    },
-
     refreshButton: {
       width: 34,
       height: 34,
@@ -1918,7 +1858,6 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
     },
 
     profileAvatarImage: { width: '100%', height: '100%' },
-
     profileInfo: { flex: 1, minWidth: 0 },
 
     profileName: {
@@ -1978,11 +1917,13 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       fontWeight: '900',
       color: COLORS.primary,
     },
+
     finalPrice: {
       fontSize: 12.5,
       fontWeight: '900',
       color: COLORS.primary,
     },
+
     successValue: { color: COLORS.primary, fontWeight: '800' },
     mutedValue: { color: colors.textSecondary },
 
@@ -2390,5 +2331,5 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       color: COLORS.primary,
       fontSize: 11,
       fontWeight: '800',
-    },
+    }
   });

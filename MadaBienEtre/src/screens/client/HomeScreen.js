@@ -60,6 +60,8 @@ import useClientStats from '../../hooks/useClientStats';
 import aiService from '../../services/aiService';
 import CountBadge from '../../components/common/CountBadge';
 
+import { toastAdapters } from "../../utils/toast";
+
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const IS_WEB = Platform.OS === 'web';
@@ -325,178 +327,6 @@ const QUICK_ACTIONS = [
 ];
 
 /* ============================================================
-   TOAST
-============================================================ */
-
-const Toast = ({
-  visible,
-  message,
-  type = 'info',
-  onHide,
-  isDark,
-}) => {
-  const translateY = useRef(new Animated.Value(-90)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.92)).current;
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.spring(translateY, {
-          toValue: 0,
-          tension: 75,
-          friction: 8,
-          useNativeDriver: USE_NATIVE_DRIVER,
-        }),
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 180,
-          useNativeDriver: USE_NATIVE_DRIVER,
-        }),
-        Animated.spring(scale, {
-          toValue: 1,
-          tension: 80,
-          friction: 7,
-          useNativeDriver: USE_NATIVE_DRIVER,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: -90,
-          duration: 180,
-          useNativeDriver: USE_NATIVE_DRIVER,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 140,
-          useNativeDriver: USE_NATIVE_DRIVER,
-        }),
-        Animated.timing(scale, {
-          toValue: 0.92,
-          duration: 140,
-          useNativeDriver: USE_NATIVE_DRIVER,
-        }),
-      ]).start();
-    }
-  }, [visible, translateY, opacity, scale]);
-
-  const config = {
-    success: {
-      icon: 'checkmark-circle',
-      color: SUCCESS,
-      lightBg: '#EAF9F0',
-      darkBg: '#173526',
-    },
-    error: {
-      icon: 'close-circle',
-      color: DANGER,
-      lightBg: '#FFF0F1',
-      darkBg: '#3A2023',
-    },
-    warning: {
-      icon: 'warning',
-      color: WARNING,
-      lightBg: '#FFF6E8',
-      darkBg: '#3B2C17',
-    },
-    info: {
-      icon: 'information-circle',
-      color: INFO,
-      lightBg: '#EAF4FF',
-      darkBg: '#182D43',
-    },
-  }[type];
-
-  const currentConfig = config || {
-    icon: 'information-circle',
-    color: INFO,
-    lightBg: '#EAF4FF',
-    darkBg: '#182D43',
-  };
-
-  if (!visible) {
-    return null;
-  }
-
-  return (
-    <Animated.View
-      pointerEvents="box-none"
-      style={[
-        styles.toastContainer,
-        {
-          opacity,
-          transform: [
-            { translateY },
-            { scale },
-          ],
-        },
-      ]}
-    >
-      <TouchableOpacity
-        activeOpacity={0.95}
-        onPress={onHide}
-        style={[
-          styles.toast,
-          {
-            backgroundColor: isDark
-              ? currentConfig.darkBg
-              : currentConfig.lightBg,
-            borderColor: `${currentConfig.color}35`,
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.toastIcon,
-            {
-              backgroundColor: `${currentConfig.color}18`,
-            },
-          ]}
-        >
-          <Ionicons
-            name={currentConfig.icon}
-            size={20}
-            color={currentConfig.color}
-          />
-        </View>
-
-        <View style={styles.toastContent}>
-          <Text
-            numberOfLines={2}
-            style={[
-              styles.toastMessage,
-              {
-                color: isDark ? '#FFFFFF' : '#20242C',
-              },
-            ]}
-          >
-            {message}
-          </Text>
-
-          <Text
-            style={[
-              styles.toastHint,
-              {
-                color: isDark ? '#AEB5C2' : '#777E8A',
-              },
-            ]}
-          >
-            Appuyez pour fermer
-          </Text>
-        </View>
-
-        <Ionicons
-          name="close"
-          size={17}
-          color={isDark ? '#AEB5C2' : '#777E8A'}
-        />
-      </TouchableOpacity>
-    </Animated.View>
-  );
-};
-
-/* ============================================================
    VISUEL TYPE MASSAGE
 ============================================================ */
 
@@ -558,14 +388,8 @@ const HomeScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   // Incrémenté à chaque pull-to-refresh : recharge les statistiques réelles
   const [statsRefreshKey, setStatsRefreshKey] = useState(0);
-  const [toast, setToast] = useState({
-    visible: false,
-    message: '',
-    type: 'info',
-  });
 
   const scrollY = useRef(new Animated.Value(0)).current;
-  const toastTimer = useRef(null);
 
   const [screenWidth, setScreenWidth] = useState(
     Dimensions.get('window').width
@@ -795,50 +619,7 @@ const HomeScreen = ({ navigation }) => {
     });
   }, []);
 
-  /* ==========================================================
-     TOAST CLEANUP
-  ========================================================== */
-
-  useEffect(() => {
-    return () => {
-      if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
-      }
-    };
-  }, []);
-
-  const showToast = useCallback(
-    (message, type = 'info', duration = 2200) => {
-      if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
-      }
-
-      setToast({
-        visible: true,
-        message,
-        type,
-      });
-
-      toastTimer.current = setTimeout(() => {
-        setToast((current) => ({
-          ...current,
-          visible: false,
-        }));
-      }, duration);
-    },
-    []
-  );
-
-  const hideToast = useCallback(() => {
-    if (toastTimer.current) {
-      clearTimeout(toastTimer.current);
-    }
-
-    setToast((current) => ({
-      ...current,
-      visible: false,
-    }));
-  }, []);
+  const showToast = toastAdapters.msgType;
 
   /* ==========================================================
      UTILISATEUR
@@ -1491,13 +1272,7 @@ const HomeScreen = ({ navigation }) => {
         }
       />
 
-      <Toast
-        visible={toast.visible}
-        message={toast.message}
-        type={toast.type}
-        onHide={hideToast}
-        isDark={isDark}
-      />
+
 
       {/* ======================================================
           HEADER FIXE — composant partagé <Header />
@@ -2895,27 +2670,6 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
 
-  /* ==========================================================
-     TOAST
-  ========================================================== */
-
-  toastContainer: {
-    position: 'absolute',
-    top:
-      Platform.OS === 'web'
-        ? 18
-        : Platform.OS === 'ios'
-          ? 55
-          : 42,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 99999,
-    elevation: 999,
-    pointerEvents: 'box-none',
-  },
-
   toast: {
     width:
       Platform.OS === 'web'
@@ -2936,32 +2690,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.16,
     shadowRadius: 18,
     elevation: 15,
-  },
-
-  toastIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-  },
-
-  toastContent: {
-    flex: 1,
-    paddingRight: 7,
-  },
-
-  toastMessage: {
-    fontSize: 12,
-    lineHeight: 17,
-    fontFamily: typography.fontFamily.semiBold,
-  },
-
-  toastHint: {
-    fontSize: 8,
-    marginTop: 2,
-    fontFamily: typography.fontFamily.regular,
   },
 
   /* ==========================================================
@@ -3075,7 +2803,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
 
-
   heroTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -3086,8 +2813,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 10,
   },
-
-
 
   heroGreeting: {
     color: 'rgba(255,255,255,0.78)',
@@ -3182,10 +2907,6 @@ const styles = StyleSheet.create({
     maxWidth: 250,
     fontFamily: typography.fontFamily.regular,
   },
-
-
-
-
 
   heroCTA: {
     marginTop: 22,
@@ -4017,7 +3738,7 @@ const styles = StyleSheet.create({
   footerDot: {
     fontSize: 10,
     marginHorizontal: 5,
-  },
+  }
 });
 
 export default HomeScreen;

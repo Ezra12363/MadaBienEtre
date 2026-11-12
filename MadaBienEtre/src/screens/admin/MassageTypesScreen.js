@@ -35,6 +35,8 @@ import Header from '../../components/common/Header';
 import adminService from '../../services/adminService';
 import useResponsive from '../../hooks/useResponsive';
 
+import { toastAdapters } from "../../utils/toast";
+
 // ============================================================
 // CONSTANTES
 // ============================================================
@@ -220,48 +222,11 @@ const MassageTypesScreen = () => {
     setDeleteProcessing,
   ] = useState(false);
 
-  const [toast, setToast] = useState({
-    visible: false,
-    type: 'success',
-    title: '',
-    message: '',
-  });
-
   // ==========================================================
   // TOAST
   // ==========================================================
 
-  const showToast = useCallback(
-    (
-      message,
-      type = 'success',
-      title = null,
-      duration = 3000
-    ) => {
-      setToast({
-        visible: true,
-        type,
-        title:
-          title ||
-          (type === 'success'
-            ? 'Succès'
-            : type === 'error'
-            ? 'Erreur'
-            : type === 'warning'
-            ? 'Attention'
-            : 'Information'),
-        message,
-      });
-
-      setTimeout(() => {
-        setToast((previous) => ({
-          ...previous,
-          visible: false,
-        }));
-      }, duration);
-    },
-    []
-  );
+  const showToast = toastAdapters.msgType;
 
   // ==========================================================
   // FORM RESET
@@ -1063,157 +1028,6 @@ const MassageTypesScreen = () => {
     } finally {
       setDeleteProcessing(false);
     }
-  };
-
-  // ==========================================================
-  // TOAST
-  // ==========================================================
-
-  const renderToast = () => {
-    if (!toast.visible)
-      return null;
-
-    const toastConfig = {
-      success: {
-        icon: 'checkmark-circle',
-        iconColor: '#16A34A',
-        background:
-          isDark
-            ? '#102B1B'
-            : '#F0FDF4',
-        border: '#22C55E',
-      },
-
-      error: {
-        icon: 'close-circle',
-        iconColor: '#DC2626',
-        background:
-          isDark
-            ? '#321414'
-            : '#FEF2F2',
-        border: '#EF4444',
-      },
-
-      warning: {
-        icon: 'warning',
-        iconColor: '#D97706',
-        background:
-          isDark
-            ? '#30250F'
-            : '#FFFBEB',
-        border: '#F59E0B',
-      },
-
-      info: {
-        icon:
-          'information-circle',
-        iconColor:
-          colors.primary,
-        background:
-          isDark
-            ? '#101F3A'
-            : '#EFF6FF',
-        border:
-          colors.primary,
-      },
-    };
-
-    const config =
-      toastConfig[
-        toast.type
-      ] ||
-      toastConfig.success;
-
-    return (
-      <View
-        pointerEvents="box-none"
-        style={styles.toastLayer}
-      >
-        <View
-          style={[
-            styles.toastContainer,
-            {
-              backgroundColor:
-                config.background,
-              borderColor:
-                config.border,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.toastIconContainer,
-              {
-                backgroundColor:
-                  `${config.iconColor}18`,
-              },
-            ]}
-          >
-            <Ionicons
-              name={config.icon}
-              size={22}
-              color={
-                config.iconColor
-              }
-            />
-          </View>
-
-          <View
-            style={
-              styles.toastContent
-            }
-          >
-            <Text
-              style={[
-                styles.toastTitle,
-                {
-                  color:
-                    themeColors.text,
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {toast.title}
-            </Text>
-
-            <Text
-              style={[
-                styles.toastMessage,
-                {
-                  color:
-                    themeColors.textSecondary,
-                },
-              ]}
-              numberOfLines={3}
-            >
-              {toast.message}
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={
-              styles.toastClose
-            }
-            onPress={() =>
-              setToast(
-                (previous) => ({
-                  ...previous,
-                  visible: false,
-                })
-              )
-            }
-          >
-            <Ionicons
-              name="close"
-              size={18}
-              color={
-                themeColors.textSecondary
-              }
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
   };
 
   // ==========================================================
@@ -3665,7 +3479,7 @@ const MassageTypesScreen = () => {
         },
       ]}
     >
-      {renderToast()}
+
 
       <View
         style={[
@@ -4058,92 +3872,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     minHeight: 0,
-  },
-
-  // ==========================================================
-  // TOAST
-  // ==========================================================
-
-  toastLayer: {
-    position: 'absolute',
-    top:
-      Platform.OS === 'web'
-        ? 18
-        : 12,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 999999,
-    elevation: 999,
-  },
-
-  toastContainer: {
-    width:
-      Platform.OS === 'web'
-        ? 'min(92%, 560px)'
-        : '92%',
-
-    maxWidth: 560,
-    minHeight: 68,
-
-    borderWidth: 1,
-    borderRadius: 16,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    paddingHorizontal: 13,
-    paddingVertical: 11,
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 7,
-    },
-    shadowOpacity: 0.16,
-    shadowRadius: 18,
-    elevation: 12,
-  },
-
-  toastIconContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 11,
-  },
-
-  toastContent: {
-    flex: 1,
-    paddingRight: 8,
-  },
-
-  toastTitle: {
-    fontSize: 14,
-    fontFamily:
-      typography.fontFamily
-        .semiBold,
-    marginBottom: 2,
-  },
-
-  toastMessage: {
-    fontSize: 12,
-    lineHeight: 17,
-    fontFamily:
-      typography.fontFamily
-        .regular,
-  },
-
-  toastClose: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 
   // ==========================================================
@@ -5388,7 +5116,7 @@ const styles = StyleSheet.create({
     fontFamily:
       typography.fontFamily
         .semiBold,
-  },
+  }
 });
 
 export default MassageTypesScreen;

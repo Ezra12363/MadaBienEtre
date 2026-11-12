@@ -29,6 +29,8 @@ import Header from '../../components/common/Header';
 import { BarChart, HBars, StackedShare, StatTile, dayLabel, monthLabel } from '../../components/charts/SimpleCharts';
 import FilterBar, { EMPTY_FILTERS } from '../../components/payment/FilterBar';
 import { formatAr, formatDateTime, formatShort, inRange } from '../../components/payment/paymentUtils';
+import HideAmountsToggle from '../../components/common/HideAmountsToggle';
+import { useHideAmounts } from '../../hooks/useHideAmounts';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import { colors } from '../../theme';
@@ -97,6 +99,7 @@ const matchText = (q, ...parts) => {
 
 const PaymentsScreen = ({ navigation, route }) => {
   const { colors: theme } = useTheme();
+  const { show } = useHideAmounts();
   const { width } = useWindowDimensions();
   const cols = width >= 1500 ? 3 : width >= 900 ? 2 : 1;       // pleine largeur web : 2-3 colonnes
   const cellW = cols === 1 ? '100%' : cols === 2 ? '49.3%' : '32.5%';
@@ -372,8 +375,11 @@ const PaymentsScreen = ({ navigation, route }) => {
 
   const totalCard = (
     <View style={styles.totalCard}>
-      <Text style={styles.totalLabel}>Total encaissé</Text>
-      <Text style={styles.totalValue} numberOfLines={1} adjustsFontSizeToFit>{formatAr(sm.total_payments)}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={styles.totalLabel}>Total encaissé</Text>
+        <HideAmountsToggle color="#FFFFFF" />
+      </View>
+      <Text style={styles.totalValue} numberOfLines={1} adjustsFontSizeToFit>{show(formatAr(sm.total_payments))}</Text>
       <View style={styles.splitBar}>
         <View style={{ flex: Math.max(0.0001, pctTherapists), backgroundColor: '#FFFFFF' }} />
         <View style={{ flex: Math.max(0.0001, pctCommission), backgroundColor: '#B8924A' }} />

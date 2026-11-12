@@ -55,6 +55,8 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 import useResponsive from '../../hooks/useResponsive';
 import adminService from '../../services/adminService';
 
+import { toastAdapters } from "../../utils/toast";
+
 const IS_WEB = Platform.OS === 'web';
 
 // ============================================================
@@ -173,93 +175,10 @@ const SettingsScreen = ({ navigation }) => {
     useRef(new Animated.Value(0)).current;
 
   // ==========================================================
-  // TOAST
-  // ==========================================================
-
-  const [toast, setToast] = useState(null);
-
-  const toastOpacity =
-    useRef(new Animated.Value(0)).current;
-
-  const toastTranslateY =
-    useRef(new Animated.Value(-20)).current;
-
-  const toastTimer =
-    useRef(null);
-
-  // ==========================================================
   // SHOW TOAST
   // ==========================================================
 
-  const showToast = useCallback(
-    (
-      message,
-      type = 'info',
-      duration = 3200
-    ) => {
-      if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
-      }
-
-      setToast({
-        message,
-        type,
-      });
-
-      toastOpacity.setValue(0);
-      toastTranslateY.setValue(-20);
-
-      Animated.parallel([
-        Animated.timing(
-          toastOpacity,
-          {
-            toValue: 1,
-            duration: 200,
-            useNativeDriver: true,
-          }
-        ),
-
-        Animated.spring(
-          toastTranslateY,
-          {
-            toValue: 0,
-            tension: 90,
-            friction: 9,
-            useNativeDriver: true,
-          }
-        ),
-      ]).start();
-
-      toastTimer.current = setTimeout(() => {
-        Animated.timing(
-          toastOpacity,
-          {
-            toValue: 0,
-            duration: 180,
-            useNativeDriver: true,
-          }
-        ).start(() => {
-          setToast(null);
-        });
-      }, duration);
-    },
-    [
-      toastOpacity,
-      toastTranslateY,
-    ]
-  );
-
-  // ==========================================================
-  // CLEANUP TOAST
-  // ==========================================================
-
-  useEffect(() => {
-    return () => {
-      if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
-      }
-    };
-  }, []);
+  const showToast = toastAdapters.msgType;
 
   // ==========================================================
   // LOAD SETTINGS
@@ -1239,100 +1158,6 @@ const SettingsScreen = ({ navigation }) => {
     );
 
   // ==========================================================
-  // TOAST COMPONENT
-  // ==========================================================
-
-  const Toast = () => {
-    if (!toast) {
-      return null;
-    }
-
-    let backgroundColor =
-      colors.primary;
-
-    let icon =
-      'information-circle';
-
-    if (
-      toast.type ===
-      'success'
-    ) {
-      backgroundColor =
-        '#16A34A';
-
-      icon =
-        'checkmark-circle';
-    }
-
-    if (
-      toast.type ===
-      'error'
-    ) {
-      backgroundColor =
-        '#DC2626';
-
-      icon =
-        'alert-circle';
-    }
-
-    if (
-      toast.type ===
-      'warning'
-    ) {
-      backgroundColor =
-        '#F59E0B';
-
-      icon =
-        'warning';
-    }
-
-    return (
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.toastWrapper,
-
-          {
-            opacity:
-              toastOpacity,
-
-            transform: [
-              {
-                translateY:
-                  toastTranslateY,
-              },
-            ],
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.toast,
-            {
-              backgroundColor,
-            },
-          ]}
-        >
-          <Ionicons
-            name={icon}
-            size={19}
-            color="#FFFFFF"
-          />
-
-          <Text
-            style={
-              styles.toastText
-            }
-            numberOfLines={3}
-          >
-            {toast.message}
-          </Text>
-        </View>
-      </Animated.View>
-    );
-  };
-
-  // ==========================================================
   // RENDER
   // ==========================================================
 
@@ -1848,7 +1673,7 @@ const SettingsScreen = ({ navigation }) => {
             TOAST
         ====================================================== */}
 
-        <Toast />
+
 
         {/* ======================================================
             LOGOUT CONFIRMATION
@@ -2491,80 +2316,7 @@ const styles = StyleSheet.create({
       typography.fontFamily.regular,
 
     marginTop: 2,
-  },
-
-  // ==========================================================
-  // TOAST
-  // ==========================================================
-
-  toastWrapper: {
-    position: 'absolute',
-
-    top: 14,
-
-    left: 0,
-    right: 0,
-
-    alignItems: 'center',
-
-    zIndex: 9999,
-
-    elevation: 9999,
-
-    pointerEvents: 'none',
-  },
-
-  toast: {
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    gap: 8,
-
-    maxWidth: 440,
-
-    marginHorizontal: 16,
-
-    paddingHorizontal: 17,
-
-    paddingVertical: 13,
-
-    borderRadius: 15,
-
-    ...(IS_WEB
-      ? {
-          boxShadow:
-            '0 9px 28px rgba(0,0,0,0.20)',
-        }
-      : {
-          shadowColor: '#000',
-
-          shadowOffset: {
-            width: 0,
-            height: 4,
-          },
-
-          shadowOpacity: 0.18,
-
-          shadowRadius: 10,
-
-          elevation: 6,
-        }),
-  },
-
-  toastText: {
-    color: '#FFFFFF',
-
-    fontSize:
-      typography.fontSize.sm,
-
-    fontFamily:
-      typography.fontFamily.medium,
-
-    flexShrink: 1,
-
-    lineHeight: 19,
-  },
+  }
 });
 
 export default SettingsScreen;

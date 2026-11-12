@@ -42,12 +42,14 @@ import {
 import FormInput from '../../components/common/FormInput';
 
 
+import { toastAdapters } from "../../utils/toast";
+
+
 // ============================================================
 // FORGOT PASSWORD SCREEN
 // ============================================================
 
 const ForgotPasswordScreen = ({ navigation }) => {
-
   // ==========================================================
   // STATE
   // ==========================================================
@@ -58,27 +60,10 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
-  const [toast, setToast] = useState({
-    visible: false,
-    type: 'info',
-    title: '',
-    message: '',
-  });
-
-
-  // ==========================================================
-  // REFS
-  // ==========================================================
-
-  const toastAnim = useRef(
-    new Animated.Value(0)
-  ).current;
-
   const fadeAnim = useRef(
     new Animated.Value(0)
   ).current;
 
-  const toastTimer = useRef(null);
 
 
   // ==========================================================
@@ -124,151 +109,10 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
 
   // ==========================================================
-  // TOAST CONFIGURATION
-  // ==========================================================
-
-  const toastConfig = {
-    success: {
-      icon: 'checkmark-circle',
-      color: '#00C853',
-
-      background: isDark
-        ? '#17351F'
-        : '#EAF8EF',
-
-      border: isDark
-        ? '#2E8B57'
-        : '#B8E7C7',
-    },
-
-    error: {
-      icon: 'close-circle',
-      color: '#E53935',
-
-      background: isDark
-        ? '#3A1C1C'
-        : '#FFF0F0',
-
-      border: isDark
-        ? '#743737'
-        : '#F2BABA',
-    },
-
-    warning: {
-      icon: 'warning',
-      color: '#F59E0B',
-
-      background: isDark
-        ? '#3A2E17'
-        : '#FFF8E6',
-
-      border: isDark
-        ? '#705B2D'
-        : '#F3D68B',
-    },
-
-    info: {
-      icon: 'information-circle',
-      color: colors.primary,
-
-      background: isDark
-        ? '#18243D'
-        : '#EEF4FF',
-
-      border: isDark
-        ? '#2D4675'
-        : '#C8D8F7',
-    },
-  };
-
-
-  // ==========================================================
   // SHOW TOAST
   // ==========================================================
 
-  const showToast = useCallback(
-    (
-      type,
-      title,
-      message,
-      duration = 3000
-    ) => {
-
-      if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
-      }
-
-      setToast({
-        visible: true,
-        type,
-        title,
-        message,
-      });
-
-      toastAnim.setValue(0);
-
-      Animated.spring(
-        toastAnim,
-        {
-          toValue: 1,
-          tension: 70,
-          friction: 8,
-          useNativeDriver: true,
-        }
-      ).start();
-
-      toastTimer.current = setTimeout(() => {
-
-        Animated.timing(
-          toastAnim,
-          {
-            toValue: 0,
-            duration: 220,
-            useNativeDriver: true,
-          }
-        ).start(() => {
-
-          setToast((prev) => ({
-            ...prev,
-            visible: false,
-          }));
-
-        });
-
-      }, duration);
-
-    },
-    [toastAnim]
-  );
-
-
-  // ==========================================================
-  // HIDE TOAST
-  // ==========================================================
-
-  const hideToast = useCallback(() => {
-
-    if (toastTimer.current) {
-      clearTimeout(toastTimer.current);
-    }
-
-    Animated.timing(
-      toastAnim,
-      {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: true,
-      }
-    ).start(() => {
-
-      setToast((prev) => ({
-        ...prev,
-        visible: false,
-      }));
-
-    });
-
-  }, [toastAnim]);
+  const showToast = toastAdapters.typeTitleMsg;
 
 
   // ==========================================================
@@ -322,11 +166,6 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
     return () => {
 
-      if (toastTimer.current) {
-        clearTimeout(
-          toastTimer.current
-        );
-      }
 
     };
 
@@ -567,163 +406,6 @@ const ForgotPasswordScreen = ({ navigation }) => {
       );
 
     }, 350);
-
-  };
-
-
-  // ==========================================================
-  // TOAST COMPONENT
-  // ==========================================================
-
-  const renderToast = () => {
-
-    if (!toast.visible) {
-      return null;
-    }
-
-    const config =
-      toastConfig[toast.type] ||
-      toastConfig.info;
-
-
-    return (
-      <Animated.View
-        pointerEvents="box-none"
-        style={[
-          styles.toastWrapper,
-
-          isDesktop
-            ? styles.toastDesktop
-            : styles.toastMobile,
-
-          {
-            opacity: toastAnim,
-
-            transform: [
-
-              {
-                translateY:
-                  toastAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-35, 0],
-                  }),
-              },
-
-              {
-                scale:
-                  toastAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.96, 1],
-                  }),
-              },
-
-            ],
-          },
-        ]}
-      >
-
-        <Pressable
-          onPress={hideToast}
-          style={[
-            styles.toastContainer,
-
-            {
-              backgroundColor:
-                config.background,
-
-              borderColor:
-                config.border,
-            },
-          ]}
-        >
-
-          {/* ICON */}
-
-          <View
-            style={[
-              styles.toastIconContainer,
-              {
-                backgroundColor:
-                  `${config.color}18`,
-              },
-            ]}
-          >
-
-            <Ionicons
-              name={config.icon}
-              size={22}
-              color={config.color}
-            />
-
-          </View>
-
-
-          {/* CONTENT */}
-
-          <View
-            style={styles.toastContent}
-          >
-
-            <Text
-              style={[
-                styles.toastTitle,
-                {
-                  color: isDark
-                    ? '#FFFFFF'
-                    : '#1A1A1A',
-                },
-              ]}
-            >
-              {toast.title}
-            </Text>
-
-
-            <Text
-              style={[
-                styles.toastMessage,
-                {
-                  color: isDark
-                    ? '#C5C5C5'
-                    : '#626262',
-                },
-              ]}
-              numberOfLines={4}
-            >
-              {toast.message}
-            </Text>
-
-          </View>
-
-
-          {/* CLOSE */}
-
-          <TouchableOpacity
-            onPress={hideToast}
-            style={styles.toastClose}
-            hitSlop={{
-              top: 10,
-              bottom: 10,
-              left: 10,
-              right: 10,
-            }}
-          >
-
-            <Ionicons
-              name="close"
-              size={18}
-              color={
-                isDark
-                  ? '#AAAAAA'
-                  : '#777777'
-              }
-            />
-
-          </TouchableOpacity>
-
-        </Pressable>
-
-      </Animated.View>
-    );
 
   };
 
@@ -1874,10 +1556,9 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
       )}
 
-
       {/* GLOBAL TOAST */}
 
-      {renderToast()}
+
 
     </View>
   );
@@ -1889,7 +1570,6 @@ const ForgotPasswordScreen = ({ navigation }) => {
 // ============================================================
 
 const styles = StyleSheet.create({
-
   // ==========================================================
   // ROOT
   // ==========================================================
@@ -1897,103 +1577,6 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
-
-
-  // ==========================================================
-  // TOAST
-  // ==========================================================
-
-  toastWrapper: {
-    position: 'absolute',
-    zIndex: 99999,
-    elevation: 99999,
-  },
-
-  toastDesktop: {
-    top: 24,
-    right: 28,
-    width: 390,
-  },
-
-  toastMobile: {
-    top: 18,
-    left: 16,
-    right: 16,
-  },
-
-  toastContainer: {
-    minHeight: 76,
-
-    borderRadius: 17,
-
-    borderWidth: 1,
-
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-
-    shadowColor: '#000',
-
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-
-    shadowOpacity: 0.16,
-
-    shadowRadius: 15,
-
-    elevation: 10,
-  },
-
-  toastIconContainer: {
-    width: 42,
-    height: 42,
-
-    borderRadius: 13,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 11,
-  },
-
-  toastContent: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  toastTitle: {
-    fontSize: 14.5,
-
-    fontFamily:
-      typography.fontFamily.bold,
-
-    marginBottom: 3,
-  },
-
-  toastMessage: {
-    fontSize: 12.5,
-
-    lineHeight: 18,
-
-    fontFamily:
-      typography.fontFamily.regular,
-  },
-
-  toastClose: {
-    width: 30,
-    height: 30,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginLeft: 5,
-  },
-
 
   // ==========================================================
   // MOBILE
@@ -2037,7 +1620,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-
   // ==========================================================
   // MOBILE BACKGROUND
   // ==========================================================
@@ -2074,7 +1656,6 @@ const styles = StyleSheet.create({
     backgroundColor:
       'rgba(255,255,255,0.055)',
   },
-
 
   // ==========================================================
   // MOBILE BACK
@@ -2117,7 +1698,6 @@ const styles = StyleSheet.create({
 
     marginLeft: 7,
   },
-
 
   // ==========================================================
   // MOBILE HEADER
@@ -2187,7 +1767,6 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
 
-
   // ==========================================================
   // MOBILE FORM CARD
   // ==========================================================
@@ -2218,7 +1797,6 @@ const styles = StyleSheet.create({
   mobileFormCardKeyboard: {
     marginTop: 4,
   },
-
 
   // ==========================================================
   // FORM
@@ -2272,7 +1850,6 @@ const styles = StyleSheet.create({
     maxWidth: 600,
   },
 
-
   // ==========================================================
   // INPUT
   // ==========================================================
@@ -2286,7 +1863,6 @@ const styles = StyleSheet.create({
 
     marginBottom: spacing.sm,
   },
-
 
   // ==========================================================
   // BUTTON
@@ -2412,7 +1988,6 @@ const styles = StyleSheet.create({
     marginLeft: 9,
   },
 
-
   // ==========================================================
   // BACK TO LOGIN
   // ==========================================================
@@ -2454,7 +2029,6 @@ const styles = StyleSheet.create({
       typography.fontFamily.medium,
   },
 
-
   // ==========================================================
   // INFO
   // ==========================================================
@@ -2491,7 +2065,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-
   // ==========================================================
   // MOBILE FOOTER
   // ==========================================================
@@ -2520,7 +2093,6 @@ const styles = StyleSheet.create({
     marginLeft: 5,
   },
 
-
   // ==========================================================
   // DESKTOP
   // ==========================================================
@@ -2542,7 +2114,6 @@ const styles = StyleSheet.create({
 
     backgroundColor: '#FFFFFF',
   },
-
 
   // ==========================================================
   // DESKTOP LEFT PANEL
@@ -2624,7 +2195,6 @@ const styles = StyleSheet.create({
     maxWidth: 600,
   },
 
-
   // ==========================================================
   // DESKTOP FEATURES
   // ==========================================================
@@ -2683,7 +2253,6 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
-
   // ==========================================================
   // DESKTOP LEFT FOOTER
   // ==========================================================
@@ -2724,7 +2293,6 @@ const styles = StyleSheet.create({
       typography.fontFamily.regular,
   },
 
-
   // ==========================================================
   // DESKTOP RIGHT PANEL
   // ==========================================================
@@ -2761,7 +2329,6 @@ const styles = StyleSheet.create({
 
     alignSelf: 'center',
   },
-
 
   // ==========================================================
   // DESKTOP BACK
@@ -2818,7 +2385,6 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
 
-
   // ==========================================================
   // DESKTOP FOOTER
   // ==========================================================
@@ -2867,8 +2433,7 @@ const styles = StyleSheet.create({
 
     fontFamily:
       typography.fontFamily.regular,
-  },
-
+  }
 });
 
 

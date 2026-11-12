@@ -75,6 +75,9 @@ import {
 import { getStatusVisual, opensBookingDetail } from '../../utils/notificationVisuals';
 
 
+import { toastAdapters } from "../../utils/toast";
+
+
 /* ============================================================
    HELPERS
 ============================================================ */
@@ -449,7 +452,6 @@ const formatTimeAgo = (date) => {
 const NotificationScreen = ({
   navigation,
 }) => {
-
   const {
     colors: themeColors,
     isDark,
@@ -558,37 +560,6 @@ const NotificationScreen = ({
 
 
   /* ==========================================================
-     TOAST
-  ========================================================== */
-
-  const [
-    toast,
-    setToast,
-  ] = useState({
-    visible: false,
-    type: 'success',
-    title: '',
-    message: '',
-  });
-
-
-  const toastOpacity =
-    useRef(
-      new Animated.Value(0)
-    ).current;
-
-
-  const toastTranslateY =
-    useRef(
-      new Animated.Value(-30)
-    ).current;
-
-
-  const toastTimerRef =
-    useRef(null);
-
-
-  /* ==========================================================
      MODAL ANIMATION
   ========================================================== */
 
@@ -670,133 +641,8 @@ const NotificationScreen = ({
   );
 
 
-  /* ==========================================================
-     TOAST CENTRAL
-  ========================================================== */
-
-  const hideToast =
-    useCallback(() => {
-
-      Animated.parallel([
-        Animated.timing(
-          toastOpacity,
-          {
-            toValue: 0,
-            duration: 180,
-            useNativeDriver: true,
-          }
-        ),
-
-        Animated.timing(
-          toastTranslateY,
-          {
-            toValue: -20,
-            duration: 180,
-            useNativeDriver: true,
-          }
-        ),
-      ]).start(() => {
-
-        setToast(
-          (previous) => ({
-            ...previous,
-            visible: false,
-          })
-        );
-
-      });
-
-    }, [
-      toastOpacity,
-      toastTranslateY,
-    ]);
-
-
   const showToast =
-    useCallback(
-      ({
-        type = 'success',
-        title = '',
-        message = '',
-        duration = 2600,
-      }) => {
-
-        if (
-          toastTimerRef.current
-        ) {
-          clearTimeout(
-            toastTimerRef.current
-          );
-        }
-
-
-        setToast({
-          visible: true,
-          type,
-          title,
-          message,
-        });
-
-
-        toastOpacity.setValue(0);
-        toastTranslateY.setValue(-30);
-
-
-        Animated.parallel([
-          Animated.timing(
-            toastOpacity,
-            {
-              toValue: 1,
-              duration: 250,
-              useNativeDriver: true,
-            }
-          ),
-
-          Animated.spring(
-            toastTranslateY,
-            {
-              toValue: 0,
-              friction: 7,
-              tension: 55,
-              useNativeDriver: true,
-            }
-          ),
-        ]).start();
-
-
-        toastTimerRef.current =
-          setTimeout(() => {
-            hideToast();
-          }, duration);
-
-      },
-      [
-        hideToast,
-        toastOpacity,
-        toastTranslateY,
-      ]
-    );
-
-
-  /* ==========================================================
-     CLEAN TOAST TIMER
-  ========================================================== */
-
-  useEffect(() => {
-
-    return () => {
-
-      if (
-        toastTimerRef.current
-      ) {
-        clearTimeout(
-          toastTimerRef.current
-        );
-      }
-
-    };
-
-  }, []);
+    toastAdapters.obj;
 
 
   /* ==========================================================
@@ -2967,70 +2813,6 @@ const NotificationScreen = ({
 
 
   /* ==========================================================
-     TOAST COLORS / ICON
-  ========================================================== */
-
-  const getToastConfig = () => {
-
-    switch (toast.type) {
-
-      case 'error':
-        return {
-          icon: 'close-circle',
-          iconColor: '#D32F2F',
-          background:
-            isDark
-              ? '#35191B'
-              : '#FFFFFF',
-          accent: '#D32F2F',
-        };
-
-
-      case 'warning':
-        return {
-          icon: 'warning',
-          iconColor: '#F57C00',
-          background:
-            isDark
-              ? '#352815'
-              : '#FFFFFF',
-          accent: '#F57C00',
-        };
-
-
-      case 'info':
-        return {
-          icon: 'information-circle',
-          iconColor: '#1976D2',
-          background:
-            isDark
-              ? '#172B3D'
-              : '#FFFFFF',
-          accent: '#1976D2',
-        };
-
-
-      default:
-        return {
-          icon: 'checkmark-circle',
-          iconColor: '#2E8B57',
-          background:
-            isDark
-              ? '#172D20'
-              : '#FFFFFF',
-          accent: '#2E8B57',
-        };
-
-    }
-
-  };
-
-
-  const toastConfig =
-    getToastConfig();
-
-
-  /* ==========================================================
      MAIN
   ========================================================== */
 
@@ -3099,7 +2881,6 @@ const NotificationScreen = ({
           ) : null
         }
       />
-
 
       {/* ========================================================
           SUMMARY
@@ -3227,7 +3008,6 @@ const NotificationScreen = ({
 
       </View>
 
-
       {/* ========================================================
           FILTERS
       ======================================================== */}
@@ -3334,7 +3114,6 @@ const NotificationScreen = ({
         </ScrollView>
 
       </View>
-
 
       {/* ========================================================
           LIST
@@ -3513,7 +3292,6 @@ const NotificationScreen = ({
         )}
 
       </Animated.View>
-
 
       {/* ========================================================
           NOTIFICATION OPTIONS BOTTOM SHEET (⋮)
@@ -3871,7 +3649,6 @@ const NotificationScreen = ({
 
       </Modal>
 
-
       {/* ========================================================
           DELETE CONFIRMATION MODAL
       ======================================================== */}
@@ -4137,141 +3914,11 @@ const NotificationScreen = ({
 
       </Modal>
 
-
       {/* ========================================================
           CENTRAL TOAST
       ======================================================== */}
 
-      {toast.visible && (
 
-        <View
-          pointerEvents="box-none"
-          style={
-            styles.toastLayer
-          }
-        >
-
-          <Animated.View
-            style={[
-              styles.toastContainer,
-
-              {
-                backgroundColor:
-                  toastConfig.background,
-
-                borderLeftColor:
-                  toastConfig.accent,
-
-                opacity:
-                  toastOpacity,
-
-                transform: [
-                  {
-                    translateY:
-                      toastTranslateY,
-                  },
-                ],
-              },
-            ]}
-          >
-
-            {/* ICON */}
-
-            <View
-              style={[
-                styles.toastIconContainer,
-
-                {
-                  backgroundColor:
-                    `${toastConfig.iconColor}15`,
-                },
-              ]}
-            >
-
-              <Ionicons
-                name={
-                  toastConfig.icon
-                }
-                size={25}
-                color={
-                  toastConfig.iconColor
-                }
-              />
-
-            </View>
-
-
-            {/* CONTENT */}
-
-            <View
-              style={
-                styles.toastContent
-              }
-            >
-
-              {!!toast.title && (
-                <Text
-                  numberOfLines={1}
-                  style={[
-                    styles.toastTitle,
-
-                    {
-                      color:
-                        themeColors.text,
-                    },
-                  ]}
-                >
-                  {toast.title}
-                </Text>
-              )}
-
-
-              {!!toast.message && (
-                <Text
-                  numberOfLines={3}
-                  style={[
-                    styles.toastMessage,
-
-                    {
-                      color:
-                        themeColors.textSecondary,
-                    },
-                  ]}
-                >
-                  {toast.message}
-                </Text>
-              )}
-
-            </View>
-
-
-            {/* CLOSE */}
-
-            <TouchableOpacity
-              style={
-                styles.toastClose
-              }
-              onPress={
-                hideToast
-              }
-              activeOpacity={0.7}
-            >
-
-              <Ionicons
-                name="close"
-                size={19}
-                color={
-                  themeColors.textSecondary
-                }
-              />
-
-            </TouchableOpacity>
-
-          </Animated.View>
-
-        </View>
-
-      )}
 
     </View>
   );
@@ -4284,11 +3931,9 @@ const NotificationScreen = ({
 
 const styles =
   StyleSheet.create({
-
     container: {
       flex: 1,
     },
-
 
     /* ==========================================================
        HEADER
@@ -4309,7 +3954,6 @@ const styles =
       gap: 5,
     },
 
-
     markAllText: {
       fontSize:
         typography.fontSize.xs,
@@ -4317,7 +3961,6 @@ const styles =
       fontFamily:
         typography.fontFamily.semiBold,
     },
-
 
     /* ==========================================================
        SUMMARY
@@ -4340,12 +3983,10 @@ const styles =
         'space-between',
     },
 
-
     summaryLeft: {
       flexDirection: 'row',
       alignItems: 'center',
     },
-
 
     summaryIcon: {
       width: 38,
@@ -4359,7 +4000,6 @@ const styles =
       marginRight: 10,
     },
 
-
     summaryTitle: {
       fontSize:
         typography.fontSize.md,
@@ -4367,7 +4007,6 @@ const styles =
       fontFamily:
         typography.fontFamily.semiBold,
     },
-
 
     summarySubtitle: {
       marginTop: 2,
@@ -4378,7 +4017,6 @@ const styles =
       fontFamily:
         typography.fontFamily.regular,
     },
-
 
     unreadCountBadge: {
       minWidth: 74,
@@ -4392,7 +4030,6 @@ const styles =
       justifyContent: 'center',
     },
 
-
     unreadCountText: {
       color: '#FFFFFF',
 
@@ -4401,7 +4038,6 @@ const styles =
       fontFamily:
         typography.fontFamily.bold,
     },
-
 
     unreadCountLabel: {
       color: '#FFFFFF',
@@ -4414,7 +4050,6 @@ const styles =
         typography.fontFamily.medium,
     },
 
-
     /* ==========================================================
        FILTERS
     ========================================================== */
@@ -4423,12 +4058,10 @@ const styles =
       paddingVertical: 10,
     },
 
-
     filtersContent: {
       paddingHorizontal:
         spacing.md,
     },
-
 
     filterButton: {
       height: 38,
@@ -4450,7 +4083,6 @@ const styles =
       gap: 6,
     },
 
-
     filterText: {
       fontSize:
         typography.fontSize.sm,
@@ -4461,7 +4093,6 @@ const styles =
       flexShrink: 0,
     },
 
-
     /* ==========================================================
        LIST
     ========================================================== */
@@ -4469,7 +4100,6 @@ const styles =
     listContainer: {
       flex: 1,
     },
-
 
     listContent: {
       paddingHorizontal:
@@ -4480,11 +4110,9 @@ const styles =
       paddingBottom: 30,
     },
 
-
     animationWrapper: {
       marginBottom: 9,
     },
-
 
     listHeader: {
       flexDirection: 'row',
@@ -4496,7 +4124,6 @@ const styles =
       gap: 8,
     },
 
-
     listHeaderLine: {
       height: 1,
 
@@ -4505,7 +4132,6 @@ const styles =
       backgroundColor:
         '#E2E2E2',
     },
-
 
     listHeaderText: {
       fontSize: 10,
@@ -4518,7 +4144,6 @@ const styles =
       fontFamily:
         typography.fontFamily.semiBold,
     },
-
 
     listFooter: {
       flexDirection: 'row',
@@ -4533,7 +4158,6 @@ const styles =
       paddingVertical: 20,
     },
 
-
     listFooterText: {
       fontSize:
         typography.fontSize.xs,
@@ -4541,7 +4165,6 @@ const styles =
       fontFamily:
         typography.fontFamily.regular,
     },
-
 
     /* ==========================================================
        NOTIFICATION CARD
@@ -4576,11 +4199,9 @@ const styles =
       position: 'relative',
     },
 
-
     iconTouchable: {
       marginRight: 10,
     },
-
 
     notificationIcon: {
       width: 44,
@@ -4592,7 +4213,6 @@ const styles =
       justifyContent: 'center',
     },
 
-
     notificationContent: {
       flex: 1,
 
@@ -4600,7 +4220,6 @@ const styles =
 
       paddingRight: 5,
     },
-
 
     notificationHeader: {
       flexDirection: 'row',
@@ -4611,7 +4230,6 @@ const styles =
         'space-between',
     },
 
-
     titleContainer: {
       flex: 1,
 
@@ -4619,7 +4237,6 @@ const styles =
 
       paddingRight: 6,
     },
-
 
     notificationTitle: {
       fontSize:
@@ -4631,12 +4248,10 @@ const styles =
         typography.fontFamily.medium,
     },
 
-
     unreadTitle: {
       fontFamily:
         typography.fontFamily.semiBold,
     },
-
 
     notificationTime: {
       fontSize: 11,
@@ -4653,7 +4268,6 @@ const styles =
       marginLeft: 4,
     },
 
-
     notificationBody: {
       fontSize:
         typography.fontSize.sm,
@@ -4665,7 +4279,6 @@ const styles =
       fontFamily:
         typography.fontFamily.regular,
     },
-
 
     /* ==========================================================
        NEW BADGE
@@ -4688,14 +4301,12 @@ const styles =
       gap: 4,
     },
 
-
     newBadgeDot: {
       width: 5,
       height: 5,
 
       borderRadius: 3,
     },
-
 
     newBadgeText: {
       fontSize: 8,
@@ -4705,7 +4316,6 @@ const styles =
       fontFamily:
         typography.fontFamily.bold,
     },
-
 
     /* ==========================================================
        ACTION HINT
@@ -4728,14 +4338,12 @@ const styles =
       gap: 5,
     },
 
-
     actionHintText: {
       fontSize: 10,
 
       fontFamily:
         typography.fontFamily.semiBold,
     },
-
 
     /* ==========================================================
        OPTIONS BUTTON (⋮)
@@ -4752,7 +4360,6 @@ const styles =
       alignItems: 'center',
       justifyContent: 'center',
     },
-
 
     /* ==========================================================
        OPTIONS BOTTOM SHEET
@@ -4867,7 +4474,6 @@ const styles =
         typography.fontFamily.semiBold,
     },
 
-
     /* ==========================================================
        READING
     ========================================================== */
@@ -4879,7 +4485,6 @@ const styles =
 
       top: 14,
     },
-
 
     /* ==========================================================
        LOADING
@@ -4894,7 +4499,6 @@ const styles =
       padding: spacing.xl,
     },
 
-
     loadingIconContainer: {
       width: 76,
       height: 76,
@@ -4905,11 +4509,9 @@ const styles =
       justifyContent: 'center',
     },
 
-
     loader: {
       marginTop: 20,
     },
-
 
     loadingText: {
       marginTop: 12,
@@ -4921,7 +4523,6 @@ const styles =
         typography.fontFamily.regular,
     },
 
-
     /* ==========================================================
        EMPTY
     ========================================================== */
@@ -4929,7 +4530,6 @@ const styles =
     emptyScrollContent: {
       flexGrow: 1,
     },
-
 
     emptyState: {
       flex: 1,
@@ -4943,7 +4543,6 @@ const styles =
         spacing.xl,
     },
 
-
     emptyIconContainer: {
       width: 92,
       height: 92,
@@ -4954,7 +4553,6 @@ const styles =
       justifyContent: 'center',
     },
 
-
     emptyStateTitle: {
       fontSize:
         typography.fontSize.lg,
@@ -4964,7 +4562,6 @@ const styles =
 
       marginTop: 18,
     },
-
 
     emptyStateText: {
       fontSize:
@@ -4981,7 +4578,6 @@ const styles =
       fontFamily:
         typography.fontFamily.regular,
     },
-
 
     /* ==========================================================
        DELETE MODAL
@@ -5005,7 +4601,6 @@ const styles =
         },
       }),
     },
-
 
     confirmModal: {
       width: '100%',
@@ -5033,7 +4628,6 @@ const styles =
       elevation: 10,
     },
 
-
     confirmIconContainer: {
       width: 68,
       height: 68,
@@ -5046,7 +4640,6 @@ const styles =
       marginBottom: 15,
     },
 
-
     confirmTitle: {
       fontSize: 20,
 
@@ -5057,7 +4650,6 @@ const styles =
       fontFamily:
         typography.fontFamily.bold,
     },
-
 
     confirmMessage: {
       fontSize:
@@ -5074,7 +4666,6 @@ const styles =
       fontFamily:
         typography.fontFamily.regular,
     },
-
 
     confirmNotificationPreview: {
       width: '100%',
@@ -5096,7 +4687,6 @@ const styles =
       alignItems: 'center',
     },
 
-
     confirmNotificationText: {
       flex: 1,
 
@@ -5111,7 +4701,6 @@ const styles =
         typography.fontFamily.medium,
     },
 
-
     confirmButtons: {
       width: '100%',
 
@@ -5121,7 +4710,6 @@ const styles =
 
       marginTop: 22,
     },
-
 
     confirmCancelButton: {
       flex: 1,
@@ -5136,7 +4724,6 @@ const styles =
       justifyContent: 'center',
     },
 
-
     confirmCancelText: {
       fontSize:
         typography.fontSize.sm,
@@ -5144,7 +4731,6 @@ const styles =
       fontFamily:
         typography.fontFamily.semiBold,
     },
-
 
     confirmDeleteButton: {
       flex: 1,
@@ -5164,7 +4750,6 @@ const styles =
       gap: 7,
     },
 
-
     confirmDeleteText: {
       color: '#FFFFFF',
 
@@ -5173,125 +4758,7 @@ const styles =
 
       fontFamily:
         typography.fontFamily.semiBold,
-    },
-
-
-    /* ==========================================================
-       CENTRAL TOAST
-    ========================================================== */
-
-    toastLayer: {
-      position: 'absolute',
-
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-
-      alignItems: 'center',
-
-      pointerEvents: 'box-none',
-
-      zIndex: 9999,
-
-      elevation: 9999,
-    },
-
-
-    toastContainer: {
-      width: '90%',
-
-      maxWidth: 460,
-
-      minHeight: 70,
-
-      marginTop:
-        Platform.OS === 'web'
-          ? 25
-          : 48,
-
-      borderRadius: 17,
-
-      borderLeftWidth: 4,
-
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-
-      flexDirection: 'row',
-
-      alignItems: 'center',
-
-      shadowColor: '#000',
-
-      shadowOffset: {
-        width: 0,
-        height: 5,
-      },
-
-      shadowOpacity: 0.16,
-
-      shadowRadius: 14,
-
-      elevation: 12,
-    },
-
-
-    toastIconContainer: {
-      width: 43,
-      height: 43,
-
-      borderRadius: 13,
-
-      alignItems: 'center',
-      justifyContent: 'center',
-
-      marginRight: 10,
-    },
-
-
-    toastContent: {
-      flex: 1,
-
-      minWidth: 0,
-
-      justifyContent: 'center',
-    },
-
-
-    toastTitle: {
-      fontSize:
-        typography.fontSize.sm,
-
-      lineHeight: 19,
-
-      fontFamily:
-        typography.fontFamily.bold,
-    },
-
-
-    toastMessage: {
-      fontSize:
-        typography.fontSize.xs,
-
-      lineHeight: 18,
-
-      marginTop: 2,
-
-      fontFamily:
-        typography.fontFamily.regular,
-    },
-
-
-    toastClose: {
-      width: 32,
-      height: 32,
-
-      marginLeft: 5,
-
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-
+    }
   });
 
 

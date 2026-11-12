@@ -42,6 +42,8 @@ import {
 } from '../../components/charts/SimpleCharts';
 import CountBadge from '../../components/common/CountBadge';
 
+import { toastAdapters } from "../../utils/toast";
+
 const IS_WEB = Platform.OS === 'web';
 
 const STATUS_LABELS = {
@@ -130,82 +132,7 @@ const DashboardScreen = ({ navigation }) => {
       ? `${(100 - (columns - 1) * 1.35) / columns}%`
       : `${(100 - (columns - 1) * 2) / columns}%`;
 
-  /* ============================================================
-     TOAST
-  ============================================================ */
-
-  const [toast, setToast] = useState(null);
-
-  const toastOpacity = useRef(
-    new Animated.Value(0)
-  ).current;
-
-  const toastTranslateY = useRef(
-    new Animated.Value(-25)
-  ).current;
-
-  const toastTimer = useRef(null);
-
-  const showToast = useCallback(
-    (message, type = 'info') => {
-      if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
-      }
-
-      setToast({
-        message,
-        type,
-      });
-
-      toastOpacity.stopAnimation();
-      toastTranslateY.stopAnimation();
-
-      toastOpacity.setValue(0);
-      toastTranslateY.setValue(-25);
-
-      Animated.parallel([
-        Animated.timing(toastOpacity, {
-          toValue: 1,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-
-        Animated.spring(toastTranslateY, {
-          toValue: 0,
-          tension: 90,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      toastTimer.current = setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(toastOpacity, {
-            toValue: 0,
-            duration: 180,
-            useNativeDriver: true,
-          }),
-
-          Animated.timing(toastTranslateY, {
-            toValue: -15,
-            duration: 180,
-            useNativeDriver: true,
-          }),
-        ]).start(() => {
-          setToast(null);
-        });
-      }, 3200);
-    },
-    [toastOpacity, toastTranslateY]
-  );
-
-  useEffect(() => {
-    return () => {
-      if (toastTimer.current) {
-        clearTimeout(toastTimer.current);
-      }
-    };
-  }, []);
+  const showToast = toastAdapters.msgType;
 
   /* ============================================================
      LOAD DASHBOARD
@@ -391,81 +318,6 @@ const DashboardScreen = ({ navigation }) => {
     color: themeColors.text,
     fontSize: 14,
     marginBottom: 10,
-  };
-
-  /* ============================================================
-     TOAST COMPONENT
-  ============================================================ */
-
-  const Toast = () => {
-    if (!toast) return null;
-
-    const typeConfig = {
-      success: {
-        icon: 'checkmark-circle',
-        background: '#16A34A',
-      },
-
-      error: {
-        icon: 'alert-circle',
-        background: '#DC2626',
-      },
-
-      warning: {
-        icon: 'warning',
-        background: '#F59E0B',
-      },
-
-      info: {
-        icon: 'information-circle',
-        background: colors.primary,
-      },
-    };
-
-    const config =
-      typeConfig[toast.type] ||
-      typeConfig.info;
-
-    return (
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.toastWrapper,
-          {
-            opacity: toastOpacity,
-            transform: [
-              {
-                translateY:
-                  toastTranslateY,
-              },
-            ],
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.toast,
-            {
-              backgroundColor:
-                config.background,
-            },
-          ]}
-        >
-          <Ionicons
-            name={config.icon}
-            size={21}
-            color="#FFFFFF"
-          />
-
-          <Text
-            style={styles.toastText}
-            numberOfLines={3}
-          >
-            {toast.message}
-          </Text>
-        </View>
-      </Animated.View>
-    );
   };
 
   /* ============================================================
@@ -1376,7 +1228,7 @@ const DashboardScreen = ({ navigation }) => {
           }
         />
 
-        <Toast />
+
 
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -2057,67 +1909,6 @@ const styles = StyleSheet.create({
   },
 
   /* ==========================================================
-     TOAST
-  ========================================================== */
-
-  toastWrapper: {
-    position: 'absolute',
-
-    top: IS_WEB ? 20 : 14,
-
-    left: 0,
-    right: 0,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    zIndex: 99999,
-    elevation: 99999,
-
-    pointerEvents: 'none',
-  },
-
-  toast: {
-    minWidth: IS_WEB ? 320 : '76%',
-    maxWidth: IS_WEB ? 540 : '92%',
-
-    minHeight: 50,
-
-    paddingHorizontal: 17,
-    paddingVertical: 12,
-
-    borderRadius: 15,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.22,
-    shadowRadius: 14,
-
-    elevation: 12,
-  },
-
-  toastText: {
-    flex: 1,
-
-    marginLeft: 10,
-
-    color: '#FFFFFF',
-
-    fontSize: 13,
-
-    fontFamily:
-      typography.fontFamily.semiBold,
-
-    lineHeight: 18,
-  },
-
-  /* ==========================================================
      SCROLL
   ========================================================== */
 
@@ -2270,6 +2061,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 10,
   },
+
   sectionHeaderInlineFlex: {
     flex: 1,
     minWidth: 0,
@@ -2278,7 +2070,9 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
     columnGap: 14,
   },
+
   sosMain: { flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0 },
+
   sosButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2290,6 +2084,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginHorizontal: 10,
   },
+
   sosButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
   sosClose: { padding: 6 },
   splitBar: { flexDirection: 'row', height: 8, borderRadius: 2, overflow: 'hidden', marginTop: 4 },
@@ -3161,7 +2956,7 @@ const styles = StyleSheet.create({
 
   footer: {
     height: 25,
-  },
+  }
 });
 
 export default DashboardScreen;

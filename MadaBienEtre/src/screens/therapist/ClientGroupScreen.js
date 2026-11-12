@@ -49,7 +49,6 @@ import { useTheme } from '../../context/ThemeContext';
 
 import {
   COLORS,
-  Toast,
   ConfirmationModal,
   ClientAvatar,
   createStyles,
@@ -89,6 +88,8 @@ import {
   getMadagascarDateKey,
   getMadagascarTodayDate,
 } from '../../utils/timeAgo';
+
+import { toastAdapters } from "../../utils/toast";
 
 // ============================================================
 // LABELS STATUT (pour les pastilles de filtre)
@@ -332,9 +333,6 @@ export default function ClientGroupScreen({
   const [hoveredId, setHoveredId] =
     useState(null);
 
-  const [toast, setToast] =
-    useState(null);
-
   const [confirmModal, setConfirmModal] =
     useState(null);
 
@@ -357,7 +355,6 @@ export default function ClientGroupScreen({
   const [calendarCursor, setCalendarCursor] =
     useState(() => getMadagascarTodayDate());
 
-  const toastTimerRef = useRef(null);
   const closeTimerRef = useRef(null);
 
   // ==========================================================
@@ -721,24 +718,7 @@ export default function ClientGroupScreen({
   // TOAST
   // ==========================================================
 
-  const showToast = useCallback(
-    (type, message) => {
-      if (toastTimerRef.current) {
-        clearTimeout(toastTimerRef.current);
-      }
-
-      setToast({
-        type,
-        message,
-      });
-
-      toastTimerRef.current = setTimeout(
-        () => setToast(null),
-        3000
-      );
-    },
-    []
-  );
+  const showToast = toastAdapters.typeMsg;
 
   // ==========================================================
   // FERMETURE APRÈS ACTION
@@ -3245,7 +3225,7 @@ export default function ClientGroupScreen({
           }
         />
 
-        <Toast toast={toast} />
+
 
         <ConfirmationModal
           visible={

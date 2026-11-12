@@ -53,6 +53,8 @@ import {
   MAP_TYPES,
 } from "../../config/googleMaps";
 
+import { toastAdapters } from "../../utils/toast";
+
 const { width: _width, height } = Dimensions.get("window");
 
 /* ============================================================
@@ -871,133 +873,6 @@ const cardStyles = StyleSheet.create({
 
 
 /* ============================================================
-   COMPOSANT TOAST
-============================================================ */
-
-const Toast = ({ visible, message, type, onHide }) => {
-  const [opacity] = useState(new Animated.Value(0));
-  const [translateY] = useState(new Animated.Value(-20));
-
-  useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(translateY, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-      ]).start();
-
-      const timer = setTimeout(() => {
-        hideToast();
-      }, 3500);
-
-      return () => clearTimeout(timer);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `hideToast` est recréée à chaque render ; l'ajouter relancerait le minuteur d'auto-fermeture à chaque re-render
-  }, [visible]);
-
-  const hideToast = () => {
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: -20,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      if (onHide) onHide();
-    });
-  };
-
-  if (!visible) return null;
-
-  const getTypeStyles = () => {
-    switch (type) {
-      case "success":
-        return {
-          bg: "#D1FAE5",
-          border: "#6EE7B7",
-          icon: "checkmark-circle",
-          iconColor: "#059669",
-          textColor: "#065F46",
-        };
-      case "error":
-        return {
-          bg: "#FEE2E2",
-          border: "#FCA5A5",
-          icon: "alert-circle",
-          iconColor: "#DC2626",
-          textColor: "#991B1B",
-        };
-      case "warning":
-        return {
-          bg: "#FEF3C7",
-          border: "#FCD34D",
-          icon: "warning",
-          iconColor: "#D97706",
-          textColor: "#92400E",
-        };
-      default:
-        return {
-          bg: `${PRIMARY}15`,
-          border: `${PRIMARY}40`,
-          icon: "information-circle",
-          iconColor: PRIMARY,
-          textColor: "#1B5C36",
-        };
-    }
-  };
-
-  const stylesType = getTypeStyles();
-
-  return (
-    // ✅ CORRECTIF : "left: 50%" + "transform: translateX(-50)" ne
-    // centre PAS correctement en React Native — translateX attend
-    // des pixels, pas un pourcentage ("-50" ne déplace que de 50px,
-    // pas de la moitié de la largeur réelle du toast). Résultat :
-    // le toast était toujours décalé, surtout sur mobile ou quand le
-    // message change de longueur. On centre désormais avec un
-    // conteneur plein-largeur + alignItems:"center", qui fonctionne
-    // pareil sur web, iOS et Android quelle que soit la largeur du
-    // toast. "pointerEvents='box-none'" laisse passer les touches en
-    // dehors du toast vers l'écran en dessous.
-    <View style={styles.toastWrapper} pointerEvents="box-none">
-      <Animated.View
-        style={[
-          styles.toastContainer,
-          {
-            opacity,
-            transform: [{ translateY }],
-            backgroundColor: stylesType.bg,
-            borderColor: stylesType.border,
-          },
-        ]}
-      >
-        <View style={styles.toastContent}>
-          <Ionicons name={stylesType.icon} size={20} color={stylesType.iconColor} />
-          <Text style={[styles.toastMessage, { color: stylesType.textColor }]}>
-            {message}
-          </Text>
-        </View>
-        <TouchableOpacity onPress={hideToast} style={styles.toastClose}>
-          <Ionicons name="close" size={16} color={stylesType.textColor} />
-        </TouchableOpacity>
-      </Animated.View>
-    </View>
-  );
-};
-
-/* ============================================================
    MAP TYPE TOGGLE
 ============================================================ */
 
@@ -1179,16 +1054,6 @@ const SearchMassageScreen = ({ navigation, route }) => {
   }, [initialType?.id, initialType?.category, initialType?.categoryLabel, initialType?.name]);
 
   /* ==========================================================
-     TOAST STATE
-  ========================================================== */
-
-  const [toast, setToast] = useState({
-    visible: false,
-    message: "",
-    type: "info",
-  });
-
-  /* ==========================================================
      REFS
   ========================================================== */
 
@@ -1199,13 +1064,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
      TOAST FUNCTIONS
   ========================================================== */
 
-  const showToast = useCallback((message, type = "info") => {
-    setToast({ visible: true, message, type });
-  }, []);
-
-  const hideToast = useCallback(() => {
-    setToast((prev) => ({ ...prev, visible: false }));
-  }, []);
+  const showToast = toastAdapters.msgType;
 
   /* ==========================================================
      LOCATION
@@ -2108,12 +1967,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
         },
       ]}
     >
-      <Toast
-        visible={toast.visible}
-        message={toast.message}
-        type={toast.type}
-        onHide={hideToast}
-      />
+
 
       <Header
         title="Trouver un massage"
@@ -3147,37 +3001,6 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
   scrollContent: { paddingBottom: 100 },
-
-  toastWrapper: {
-    position: "absolute",
-    top: Platform.OS === "ios" ? 70 : 50,
-    left: 0,
-    right: 0,
-    zIndex: 9999,
-    alignItems: "center",
-  },
-  toastContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-    backgroundColor: "#FFFFFF",
-    maxWidth: Platform.OS === "web" ? 480 : "90%",
-    width: Platform.OS === "web" ? "auto" : "90%",
-    minWidth: Platform.OS === "web" ? 320 : "auto",
-  },
-  toastContent: { flexDirection: "row", alignItems: "center", flex: 1, gap: 10 },
-  toastMessage: { fontSize: 12.5, fontFamily: typography.fontFamily.medium, flex: 1, lineHeight: 18 },
-  toastClose: { paddingLeft: 8, paddingVertical: 4 },
-
   heroSection: { marginHorizontal: 16, marginTop: 8, borderRadius: 24, overflow: "hidden" },
   heroGradient: { minHeight: 185, padding: 16, position: "relative", overflow: "hidden" },
   heroDecorOne: { position: "absolute", width: 150, height: 150, borderRadius: 75, right: -70, top: -80, backgroundColor: "rgba(255,255,255,0.08)" },
@@ -3203,13 +3026,11 @@ const styles = StyleSheet.create({
   locationStatus: { flexDirection: "row", alignItems: "center", marginTop: 10 },
   locationDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
   locationStatusText: { flex: 1, color: "rgba(255,255,255,0.68)", fontSize: 8.5, fontFamily: typography.fontFamily.regular },
-
   addressCard: { marginHorizontal: 16, marginTop: 10, borderRadius: 15, padding: 10, flexDirection: "row", alignItems: "center" },
   addressIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", marginRight: 8 },
   addressContent: { flex: 1 },
   addressLabel: { fontSize: 10, fontFamily: typography.fontFamily.semiBold },
   addressValue: { fontSize: 9, marginTop: 2, fontFamily: typography.fontFamily.regular },
-
   filterSection: { marginTop: 20 },
   sectionHeader: { paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   sectionTitle: { fontSize: 15, fontFamily: typography.fontFamily.bold },
@@ -3219,7 +3040,6 @@ const styles = StyleSheet.create({
   typeList: { paddingHorizontal: 16, paddingTop: 11, paddingBottom: 3 },
   typeChip: { minHeight: 38, paddingHorizontal: 12, borderRadius: 13, borderWidth: 1, flexDirection: "row", alignItems: "center", marginRight: 7 },
   typeChipText: { fontSize: 10, marginLeft: 5, fontFamily: typography.fontFamily.medium },
-
   typeGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, paddingTop: 11, paddingBottom: 5, gap: 10 },
   typeGridDesktop: { paddingHorizontal: 24, gap: 14 },
   typeCard: { width: "31%", minWidth: 150, minHeight: 96, borderRadius: 16, borderWidth: 1, padding: 12, justifyContent: "center" },
@@ -3227,11 +3047,9 @@ const styles = StyleSheet.create({
   typeCardIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 8 },
   typeCardTitle: { fontSize: 12.5, fontFamily: typography.fontFamily.bold },
   typeCardSubtitle: { fontSize: 9, marginTop: 2, fontFamily: typography.fontFamily.regular },
-
   quickFilters: { flexDirection: "row", paddingHorizontal: 16, marginTop: 10, gap: 7 },
   quickFilter: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7 },
   quickFilterText: { fontSize: 8.5, marginLeft: 5, fontFamily: typography.fontFamily.medium },
-
   resultsHeader: { paddingHorizontal: 16, marginTop: 20, marginBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   resultsInfo: { flex: 1, paddingRight: 10 },
   resultsTitle: { fontSize: 15, fontFamily: typography.fontFamily.bold },
@@ -3239,7 +3057,6 @@ const styles = StyleSheet.create({
   viewSwitcher: { height: 38, borderRadius: 12, borderWidth: 1, padding: 3, flexDirection: "row" },
   viewButton: { width: 35, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center" },
   viewButtonActive: { backgroundColor: PRIMARY },
-
   listContent: { paddingHorizontal: 16, paddingBottom: 30 },
   cardWrapper: { marginBottom: 11 },
   therapistCard: { borderRadius: 21, borderWidth: 1, padding: 13, overflow: "hidden" },
@@ -3277,7 +3094,6 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 7.5, fontFamily: typography.fontFamily.medium },
   bookButton: { minWidth: 116, height: 36, paddingHorizontal: 10, borderRadius: 11, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 5 },
   bookButtonText: { fontSize: 9, fontFamily: typography.fontFamily.semiBold },
-
   mapContainer: { marginHorizontal: 16, height: Math.min(height * 0.68, 640), minHeight: 480, borderRadius: 23, overflow: "hidden", position: "relative", backgroundColor: "#E5E7EB" },
   mapContainerTablet: { height: Math.min(height * 0.75, 720), minHeight: 540 },
   mapContainerDesktop: { height: Math.min(height * 0.82, 840), minHeight: 620, marginHorizontal: 24 },
@@ -3292,7 +3108,6 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: "row", alignItems: "center", marginVertical: 2 },
   legendDot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
   legendText: { fontSize: 7, fontFamily: typography.fontFamily.medium },
-
   selectedPanel: { position: "absolute", left: 10, right: 10, bottom: 10, borderRadius: 20, padding: 13 },
   panelClose: { position: "absolute", right: 9, top: 9, width: 27, height: 27, borderRadius: 9, backgroundColor: "rgba(127,127,127,0.10)", alignItems: "center", justifyContent: "center", zIndex: 3 },
   panelHeader: { flexDirection: "row", alignItems: "center", paddingRight: 25 },
@@ -3322,19 +3137,16 @@ const styles = StyleSheet.create({
   panelPrice: { color: PRIMARY, fontSize: 12, fontFamily: typography.fontFamily.bold },
   panelButton: { height: 38, marginTop: 11, borderRadius: 11, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
   panelButtonText: { color: "#FFFFFF", fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
-
   loadingContainer: { alignItems: "center", paddingHorizontal: 30, paddingVertical: 60 },
   loadingIcon: { width: 68, height: 68, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   loadingTitle: { fontSize: 15, marginTop: 14, fontFamily: typography.fontFamily.bold },
   loadingSubtitle: { textAlign: "center", fontSize: 9.5, lineHeight: 15, marginTop: 5, fontFamily: typography.fontFamily.regular },
-
   emptyState: { alignItems: "center", paddingHorizontal: 30, paddingVertical: 60 },
   emptyIcon: { width: 76, height: 76, borderRadius: 25, alignItems: "center", justifyContent: "center" },
   emptyTitle: { fontSize: 16, marginTop: 16, textAlign: "center", fontFamily: typography.fontFamily.bold },
   emptySubtitle: { fontSize: 10, lineHeight: 16, textAlign: "center", marginTop: 6, fontFamily: typography.fontFamily.regular },
   resetButton: { marginTop: 17, minHeight: 40, paddingHorizontal: 17, borderRadius: 12, backgroundColor: PRIMARY, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
   resetButtonText: { color: "#FFFFFF", fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
-
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.48)", justifyContent: "flex-end" },
   modalKeyboard: { width: "100%", maxHeight: "90%" },
   filterModal: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 15 },
@@ -3368,7 +3180,7 @@ const styles = StyleSheet.create({
   resetModalButton: { flex: 0.85, height: 47, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(127,127,127,0.08)" },
   resetModalText: { fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
   applyModalButton: { flex: 1.6, height: 47, borderRadius: 13, backgroundColor: PRIMARY, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 7 },
-  applyModalText: { color: "#FFFFFF", fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+  applyModalText: { color: "#FFFFFF", fontSize: 9.5, fontFamily: typography.fontFamily.semiBold }
 });
 
 export default SearchMassageScreen;

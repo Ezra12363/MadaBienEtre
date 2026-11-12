@@ -18,7 +18,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
   useWindowDimensions,
@@ -28,10 +27,14 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 
 import Header from '../../components/common/Header';
+import MaskedField, { FormSummary } from '../../components/common/MaskedField';
+import { maskAmount, maskMgPhone, maskReference, parseAmount, rules } from '../../utils/inputMasks';
 import { BarChart, HBars, StackedShare, StatTile, dayLabel, monthLabel } from '../../components/charts/SimpleCharts';
 import FilterBar, { EMPTY_FILTERS } from '../../components/payment/FilterBar';
 import SavedCardsManager from '../../components/payment/SavedCardsManager';
 import { formatAr, formatDateTime, formatShort, inRange } from '../../components/payment/paymentUtils';
+import HideAmountsToggle from '../../components/common/HideAmountsToggle';
+import { useHideAmounts } from '../../hooks/useHideAmounts';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import { colors } from '../../theme';
@@ -116,6 +119,7 @@ const matchText = (q, ...parts) => {
 
 const EarningsScreen = ({ navigation, route }) => {
   const { colors: theme } = useTheme();
+  const { show } = useHideAmounts();
   const { width } = useWindowDimensions();
   const wide = width >= 900;      // web / tablette : pleine largeur, 2 colonnes
   const cols = width >= 1400 ? 3 : wide ? 2 : 1;
@@ -138,6 +142,7 @@ const EarningsScreen = ({ navigation, route }) => {
   const [cmCardId, setCmCardId] = useState(null);
   const [cmBusy, setCmBusy] = useState(false);
   const [cmError, setCmError] = useState('');
+  const [cmSubmitted, setCmSubmitted] = useState(false);
 
   const [filters, setFilters] = useState(EMPTY_FILTERS);
 
@@ -215,11 +220,35 @@ const EarningsScreen = ({ navigation, route }) => {
     else setNotice('Reçu prêt.');
   };
 
+  // Règles de validation du formulaire (masque + erreurs rouges / états valides verts)
+  const cmAmountRule = (v) => {
+    const base = rules.amount({ min: 1, label: 'Le montant' })(v);
+    if (base) return base;
+    const n = parseAmount(v);
+    if (cm.method === 'wallet' && n > Number(w?.available || 0)) return `Solde insuffisant (disponible : ${formatAr(w?.available || 0)}).`;
+    return '';
+  };
+  const cmErrors = {};
+  {
+    const a = cmAmountRule(cm.amount);
+    if (a) cmErrors.amount = a;
+    if (cm.method === 'mobile_money') {
+      const p = rules.mgPhone(cm.phone);
+      if (p) cmErrors.phone = p;
+    }
+    if (cm.method === 'mobile_money' || cm.method === 'bank_transfer') {
+      const r = rules.reference(cm.ref);
+      if (r) cmErrors.ref = r;
+    }
+    if (cm.method === 'card' && !cmCardId) cmErrors.card = 'Choisissez ou ajoutez une carte bancaire.';
+  }
+
   const submitCommission = async () => {
     setCmError('');
-    const amount = Number(String(cm.amount).replace(/\s/g, ''));
+    setCmSubmitted(true);
+    if (Object.keys(cmErrors).length) return;
+    const amount = parseAmount(cm.amount);
     if (!amount || amount <= 0) return setCmError('Entrez un montant valide.');
-    if (cm.method === 'card' && !cmCardId) return setCmError('Choisissez ou ajoutez une carte bancaire.');
     setCmBusy(true);
     const res = await paymentService.payCommission({
       amount,
@@ -348,16 +377,19 @@ const EarningsScreen = ({ navigation, route }) => {
 
   const balanceNode = (
     <View style={styles.balanceCard}>
-      <Text style={styles.balanceLabel}>Solde disponible</Text>
-      <Text style={styles.balanceValue}>{formatAr(w.available)}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text style={styles.balanceLabel}>Solde disponible</Text>
+        <HideAmountsToggle color="#FFFFFF" />
+      </View>
+      <Text style={styles.balanceValue}>{show(formatAr(w.available))}</Text>
       <View style={styles.balRow}>
         <View>
           <Text style={styles.balSmallLabel}>En attente</Text>
-          <Text style={styles.balSmallValue}>{formatAr(w.withdrawals_pending)}</Text>
+          <Text style={styles.balSmallValue}>{show(formatAr(w.withdrawals_pending))}</Text>
         </View>
         <View>
           <Text style={styles.balSmallLabel}>Déjà retiré</Text>
-          <Text style={styles.balSmallValue}>{formatAr(w.withdrawals_paid)}</Text>
+          <Text style={styles.balSmallValue}>{show(formatAr(w.withdrawals_paid))}</Text>
         </View>
       </View>
       <TouchableOpacity
@@ -695,8 +727,9 @@ const EarningsScreen = ({ navigation, route }) => {
                 style={[styles.primaryBtn, due <= 0 && { opacity: 0.5 }]}
                 disabled={due <= 0}
                 onPress={() => {
-                  setCm((c) => ({ ...c, amount: String(Math.round(due)) }));
+                  setCm((c) => ({ ...c, amount: maskAmount(String(Math.round(due))) }));
                   setCmError('');
+                  setCmSubmitted(false);
                   setCmOpen(true);
                 }}
               >
@@ -767,12 +800,20 @@ const EarningsScreen = ({ navigation, route }) => {
               <Text style={[styles.cardTitle, txt]}>Payer ma commission</Text>
               <Text style={[styles.rowSub, sub, { marginTop: 4 }]}>Reste à payer : {formatAr(due)}</Text>
 
-              <Text style={[styles.label, sub]}>Montant (Ar)</Text>
-              <TextInput
-                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
-                keyboardType="numeric"
+              <MaskedField
+                label="Montant"
                 value={cm.amount}
-                onChangeText={(v) => setCm({ ...cm, amount: v })}
+                onChangeText={(v) => setCm((c) => ({ ...c, amount: v }))}
+                mask={maskAmount}
+                validate={cmAmountRule}
+                showErrors={cmSubmitted}
+                keyboardType="numeric"
+                placeholder="Ex. 50 000"
+                suffix="Ar"
+                successText="Montant valide"
+                textColor={theme.text}
+                surfaceColor={theme.surface}
+                style={{ marginTop: 10 }}
               />
 
               <Text style={[styles.label, sub]}>Comment payez-vous ?</Text>
@@ -801,22 +842,45 @@ const EarningsScreen = ({ navigation, route }) => {
                       </TouchableOpacity>
                     ))}
                   </View>
-                  <Text style={[styles.label, sub]}>Numéro utilisé pour payer</Text>
-                  <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} keyboardType="phone-pad" value={cm.phone} onChangeText={(v) => setCm({ ...cm, phone: v })} placeholder="034 12 345 67" placeholderTextColor={theme.placeholder} />
+                  <MaskedField
+                    label="Numéro utilisé pour payer"
+                    value={cm.phone}
+                    onChangeText={(v) => setCm((c) => ({ ...c, phone: v }))}
+                    mask={maskMgPhone}
+                    validate={rules.mgPhone}
+                    showErrors={cmSubmitted}
+                    keyboardType="phone-pad"
+                    placeholder="034 12 345 67"
+                    icon="call-outline"
+                    successText="Numéro valide"
+                    textColor={theme.text}
+                    surfaceColor={theme.surface}
+                  />
                 </>
               ) : null}
               {cm.method === 'mobile_money' || cm.method === 'bank_transfer' ? (
                 <>
-                  <Text style={[styles.label, sub]}>Référence de la transaction</Text>
-                  <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border }]} value={cm.ref} onChangeText={(v) => setCm({ ...cm, ref: v })} placeholder="Ex. MP260101.1234.A56789" placeholderTextColor={theme.placeholder} autoCapitalize="characters" />
+                  <MaskedField
+                    label="Référence de la transaction"
+                    value={cm.ref}
+                    onChangeText={(v) => setCm((c) => ({ ...c, ref: v }))}
+                    mask={maskReference}
+                    validate={rules.reference}
+                    showErrors={cmSubmitted}
+                    placeholder="Ex. MP260101.1234.A56789"
+                    autoCapitalize="characters"
+                    successText="Référence valide"
+                    textColor={theme.text}
+                    surfaceColor={theme.surface}
+                  />
                   <Text style={[styles.rowSub, sub]}>Effectuez d’abord le transfert à l’administrateur, puis saisissez la référence reçue. L’admin validera ensuite.</Text>
                 </>
               ) : null}
               {cm.method === 'wallet' ? (
                 <View style={styles.afterBox}>
                   <Text style={[styles.rowSub, sub]}>Solde disponible : {formatAr(w.available)}</Text>
-                  <Text style={[styles.afterText, { color: Number(cm.amount) > (w.available || 0) ? '#B91C1C' : PRIMARY }]}>
-                    Solde après paiement : {formatAr((w.available || 0) - (Number(String(cm.amount).replace(/\s/g, '')) || 0))}
+                  <Text style={[styles.afterText, { color: parseAmount(cm.amount) > (w.available || 0) ? '#B91C1C' : PRIMARY }]}>
+                    Solde après paiement : {formatAr((w.available || 0) - parseAmount(cm.amount))}
                   </Text>
                   <Text style={[styles.rowSub, sub]}>Le montant est prélevé tout de suite sur votre solde et validé immédiatement.</Text>
                 </View>
@@ -829,6 +893,7 @@ const EarningsScreen = ({ navigation, route }) => {
               ) : null}
               {cm.method === 'cash' ? <Text style={[styles.rowSub, sub, { marginTop: 8 }]}>Remettez les espèces à l’administrateur : il validera le paiement dans l’application.</Text> : null}
 
+              <FormSummary errors={cmErrors} show={cmSubmitted} successText="Formulaire valide : vous pouvez confirmer." />
               {cmError ? <Text style={styles.cmError}>{cmError}</Text> : null}
 
               <TouchableOpacity style={[styles.primaryBtn, { marginTop: 14 }]} onPress={submitCommission} disabled={cmBusy}>

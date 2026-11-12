@@ -56,6 +56,8 @@ import {
   getMadagascarTodayDate,
 } from '../../utils/timeAgo';
 
+import { toastAdapters } from "../../utils/toast";
+
 // ============================================================
 // PALETTE
 // ============================================================
@@ -88,6 +90,33 @@ const COLORS = {
   blue: '#3B82F6',
   blueSoft: '#EFF6FF',
 };
+
+// ============================================================
+// ✅ MODE SOMBRE — helpers
+// ============================================================
+
+// Éclaircit les couleurs de texte trop foncées pour un fond sombre
+const DARK_TEXT_MAP = {
+  '#2E8B57': '#5FD08C',
+  '#B26A00': '#F5B14C',
+  '#5B3DE0': '#A78BFA',
+  '#D93636': '#F87171',
+  '#6B7A72': '#B0B0B0',
+  '#2563EB': '#7FB0FF',
+  '#EA580C': '#FB923C',
+  '#B45309': '#F5B14C',
+  '#DB2777': '#F472B6',
+};
+
+const lightenForDark = (hex) => DARK_TEXT_MAP[hex] || hex;
+
+const softPrimary = (isDark) =>
+  isDark ? 'rgba(95,208,140,0.16)' : COLORS.primarySoft;
+
+const softRed = (isDark) =>
+  isDark ? 'rgba(248,113,113,0.16)' : COLORS.redSoft;
+
+const useIsDark = () => !!useTheme()?.isDark;
 
 // ============================================================
 // HELPERS
@@ -556,18 +585,25 @@ const MASSAGE_TYPE_VISUALS = [
   { match: /femme enceinte|prénatal|prenatal/i, icon: 'flower', color: '#DB2777', backgroundColor: '#FCE7F3' },
 ];
 
-const getMassageTypeVisual = (massageType) => {
+const getMassageTypeVisual = (massageType, isDark = false) => {
   const found = MASSAGE_TYPE_VISUALS.find((entry) =>
     entry.match.test(massageType || ''),
   );
 
-  return (
-    found || {
-      icon: 'sparkles',
-      color: COLORS.primary,
-      backgroundColor: COLORS.primarySoft,
-    }
-  );
+  const visual = found || {
+    icon: 'sparkles',
+    color: COLORS.primary,
+    backgroundColor: COLORS.primarySoft,
+  };
+
+  // Mode sombre : fond sombre translucide au lieu d'une tuile claire
+  return isDark
+    ? {
+        ...visual,
+        color: lightenForDark(visual.color),
+        backgroundColor: `${visual.color}2E`,
+      }
+    : visual;
 };
 
 // ============================================================
@@ -598,65 +634,22 @@ const STATUS_CONFIG = {
   cancelled_by_therapist: CANCELLED_STYLE,
 };
 
-const getStatusConfig = (status) =>
-  STATUS_CONFIG[status] || {
+const getStatusConfig = (status, isDark = false) => {
+  const config = STATUS_CONFIG[status] || {
     label: status || 'Inconnu',
     color: COLORS.textSecondary,
     backgroundColor: '#F1F5F9',
   };
 
-// ============================================================
-// TOAST
-// ============================================================
-
-const TOAST_CONFIG = {
-  success: { icon: 'checkmark-circle', color: COLORS.primary, background: COLORS.primarySoft },
-  error: { icon: 'close-circle', color: COLORS.red, background: COLORS.redSoft },
-  info: { icon: 'information-circle', color: '#4F46E5', background: '#E0E7FF' },
-};
-
-const Toast = ({ visible, type, message, onHide }) => {
-  const translateY = useMemo(() => new Animated.Value(-80), []);
-
-  useEffect(() => {
-    if (!visible) return undefined;
-
-    Animated.spring(translateY, {
-      toValue: 0,
-      useNativeDriver: Platform.OS !== 'web',
-      friction: 8,
-    }).start();
-
-    const timer = setTimeout(() => {
-      Animated.timing(translateY, {
-        toValue: -80,
-        duration: 200,
-        useNativeDriver: Platform.OS !== 'web',
-      }).start(() => {
-        onHide?.();
-      });
-    }, 3200);
-
-    return () => clearTimeout(timer);
-  }, [visible, translateY, onHide]);
-
-  if (!visible) return null;
-
-  const config = TOAST_CONFIG[type] || TOAST_CONFIG.info;
-
-  return (
-    <Animated.View
-      pointerEvents="box-none"
-      style={[styles.toastOverlay, { transform: [{ translateY }] }]}
-    >
-      <View style={[styles.toastCard, { backgroundColor: config.background }]}>
-        <Ionicons name={config.icon} size={20} color={config.color} />
-        <Text numberOfLines={2} style={[styles.toastText, { color: config.color }]}>
-          {message}
-        </Text>
-      </View>
-    </Animated.View>
-  );
+  // Mode sombre : fond translucide teinté + texte éclairci (plus de
+  // pastilles blanches / pastel sur fond sombre).
+  return isDark
+    ? {
+        ...config,
+        color: lightenForDark(config.color),
+        backgroundColor: `${config.color}33`,
+      }
+    : config;
 };
 
 // ============================================================
@@ -674,7 +667,10 @@ const ConfirmModal = ({
   themeColors,
   onCancel,
   onConfirm,
-}) => (
+}) => {
+  const isDark = useIsDark();
+
+  return (
   <Modal
     visible={visible}
     transparent
@@ -693,7 +689,7 @@ const ConfirmModal = ({
         <View
           style={[
             styles.confirmIconWrap,
-            { backgroundColor: destructive ? COLORS.redSoft : COLORS.primarySoft },
+            { backgroundColor: destructive ? softRed(isDark) : softPrimary(isDark) },
           ]}
         >
           <Ionicons
@@ -746,7 +742,8 @@ const ConfirmModal = ({
       </Pressable>
     </Pressable>
   </Modal>
-);
+  );
+};
 
 // ============================================================
 // BOOKING ACTION SHEET
@@ -763,6 +760,7 @@ const BookingActionSheet = ({
   onShare,
   onCancel,
 }) => {
+  const isDark = useIsDark();
   const insets = useSafeAreaInsets();
 
   return (
@@ -799,7 +797,7 @@ const BookingActionSheet = ({
             onPress={onViewDetails}
             style={styles.actionSheetRow}
           >
-            <View style={[styles.actionSheetIcon, { backgroundColor: COLORS.primarySoft }]}>
+            <View style={[styles.actionSheetIcon, { backgroundColor: softPrimary(isDark) }]}>
               <Ionicons name="eye-outline" size={18} color={COLORS.primary} />
             </View>
             <Text style={[styles.actionSheetRowText, { color: themeColors.text }]}>
@@ -813,7 +811,7 @@ const BookingActionSheet = ({
               onPress={onShare}
               style={styles.actionSheetRow}
             >
-              <View style={[styles.actionSheetIcon, { backgroundColor: COLORS.primarySoft }]}>
+              <View style={[styles.actionSheetIcon, { backgroundColor: softPrimary(isDark) }]}>
                 <Ionicons name="chatbubble-ellipses-outline" size={18} color={COLORS.primary} />
               </View>
               <Text style={[styles.actionSheetRowText, { color: themeColors.text }]}>
@@ -828,7 +826,7 @@ const BookingActionSheet = ({
               onPress={onCancel}
               style={styles.actionSheetRow}
             >
-              <View style={[styles.actionSheetIcon, { backgroundColor: COLORS.redSoft }]}>
+              <View style={[styles.actionSheetIcon, { backgroundColor: softRed(isDark) }]}>
                 <Ionicons name="close-circle-outline" size={18} color={COLORS.red} />
               </View>
               <Text style={[styles.actionSheetRowText, { color: COLORS.red }]}>
@@ -901,6 +899,7 @@ const CalendarFilterModal = ({
   onReset,
   onApply,
 }) => {
+  const isDark = useIsDark();
   const insets = useSafeAreaInsets();
 
   const [viewDate, setViewDate] = useState(
@@ -960,7 +959,7 @@ const CalendarFilterModal = ({
                 styles.rangeField,
                 {
                   borderColor: !endKey ? COLORS.primary : themeColors.border,
-                  backgroundColor: !endKey ? COLORS.primarySoft : 'transparent',
+                  backgroundColor: !endKey ? softPrimary(isDark) : 'transparent',
                 },
               ]}
             >
@@ -984,7 +983,7 @@ const CalendarFilterModal = ({
                 styles.rangeField,
                 {
                   borderColor: !!range?.start && !endKey ? COLORS.primary : themeColors.border,
-                  backgroundColor: !!range?.start && !endKey ? COLORS.primarySoft : 'transparent',
+                  backgroundColor: !!range?.start && !endKey ? softPrimary(isDark) : 'transparent',
                 },
               ]}
             >
@@ -1047,16 +1046,16 @@ const CalendarFilterModal = ({
                   key={key}
                   style={[
                     styles.calendarCell,
-                    isInRange && { backgroundColor: COLORS.primarySoft },
+                    isInRange && { backgroundColor: softPrimary(isDark) },
                     isStart &&
                       !!endKey && {
-                        backgroundColor: COLORS.primarySoft,
+                        backgroundColor: softPrimary(isDark),
                         borderTopLeftRadius: 16,
                         borderBottomLeftRadius: 16,
                       },
                     isEnd &&
                       !!startKey && {
-                        backgroundColor: COLORS.primarySoft,
+                        backgroundColor: softPrimary(isDark),
                         borderTopRightRadius: 16,
                         borderBottomRightRadius: 16,
                       },
@@ -1166,20 +1165,34 @@ const FilterButton = ({ label, value, activeFilter, onPress, themeColors }) => {
 // BOOKING CARD (structure "annonce" : photo | infos | tags)
 // ============================================================
 
-const Tag = ({ label, themeColors }) => (
-  <View style={[styles.tag, { backgroundColor: themeColors.tagBackground || '#F1F5F3' }]}>
-    <Text numberOfLines={1} style={[styles.tagText, { color: themeColors.textSecondary }]}>
-      {label}
-    </Text>
-  </View>
-);
+const Tag = ({ label, themeColors }) => {
+  const isDark = useIsDark();
+
+  return (
+    <View
+      style={[
+        styles.tag,
+        {
+          backgroundColor:
+            themeColors.tagBackground ||
+            (isDark ? 'rgba(255,255,255,0.08)' : '#F1F5F3'),
+        },
+      ]}
+    >
+      <Text numberOfLines={1} style={[styles.tagText, { color: themeColors.textSecondary }]}>
+        {label}
+      </Text>
+    </View>
+  );
+};
 
 const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress, onReviewPress, navigation, columns = 1 }) => {
   const { width } = useWindowDimensions();
   // Grille (3 colonnes) : vignette compacte pour garder de la place au texte.
   const isWide = width >= 768 && columns === 1;
-  const statusConfig = getStatusConfig(booking.status);
-  const typeVisual = getMassageTypeVisual(booking.massageType);
+  const isDark = useIsDark();
+  const statusConfig = getStatusConfig(booking.status, isDark);
+  const typeVisual = getMassageTypeVisual(booking.massageType, isDark);
   const formattedPrice = formatPrice(booking.displayPrice);
   const formattedDuration = formatDuration(booking.duration);
 
@@ -1284,8 +1297,20 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
               >
                 {therapist.name}
               </Text>
-              <View style={styles.roleBadge}>
-                <Text style={styles.roleBadgeText}>Thérapeute</Text>
+              <View
+                style={[
+                  styles.roleBadge,
+                  isDark && { backgroundColor: 'rgba(167,139,250,0.2)' },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.roleBadgeText,
+                    isDark && { color: '#C4B5FD' },
+                  ]}
+                >
+                  Thérapeute
+                </Text>
               </View>
 
               {/* Avis sur ce thérapeute : petit chip dans la carte (séance terminée) */}
@@ -1307,6 +1332,13 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
                       booking.hasReview
                         ? styles.reviewChipDone
                         : styles.reviewChipTodo,
+                      isDark &&
+                        (booking.hasReview
+                          ? { borderColor: 'rgba(255,255,255,0.18)' }
+                          : {
+                              backgroundColor: 'rgba(245,166,35,0.16)',
+                              borderColor: 'rgba(245,166,35,0.4)',
+                            }),
                     ]}
                   >
                     <Ionicons
@@ -1317,7 +1349,13 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
                     <Text
                       style={[
                         styles.reviewChipText,
-                        { color: booking.hasReview ? themeColors.textSecondary : '#8D6E00' },
+                        {
+                          color: booking.hasReview
+                            ? themeColors.textSecondary
+                            : isDark
+                            ? '#F5C16C'
+                            : '#8D6E00',
+                        },
                       ]}
                     >
                       {booking.hasReview
@@ -1374,10 +1412,24 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
               onPress={() => onSharePress(booking)}
               accessibilityRole="button"
               accessibilityLabel="Partager la réservation avec le thérapeute dans la messagerie"
-              style={styles.shareButton}
+              style={[
+                styles.shareButton,
+                isDark && { backgroundColor: softPrimary(true) },
+              ]}
             >
-              <Ionicons name="chatbubble-ellipses-outline" size={14} color={COLORS.primary} />
-              <Text style={styles.shareButtonText}>Partager</Text>
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={14}
+                color={isDark ? '#5FD08C' : COLORS.primary}
+              />
+              <Text
+                style={[
+                  styles.shareButtonText,
+                  isDark && { color: '#5FD08C' },
+                ]}
+              >
+                Partager
+              </Text>
             </TouchableOpacity>
           )}
 
@@ -1403,11 +1455,12 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
 // ============================================================
 
 const EmptyState = ({ activeFilter, onCreateBooking, themeColors }) => {
+  const isDark = useIsDark();
   const isFiltered = activeFilter !== 'all';
 
   return (
     <View style={styles.emptyState}>
-      <View style={[styles.emptyIconContainer, { backgroundColor: COLORS.primarySoft }]}>
+      <View style={[styles.emptyIconContainer, { backgroundColor: softPrimary(isDark) }]}>
         <Ionicons
           name={isFiltered ? 'filter-outline' : 'calendar-outline'}
           size={40}
@@ -1445,7 +1498,7 @@ const EmptyState = ({ activeFilter, onCreateBooking, themeColors }) => {
 
 const HistoryScreen = ({ navigation }) => {
   const { user: _user } = useAuth();
-  const { colors: themeColors } = useTheme();
+  const { colors: themeColors, isDark } = useTheme();
 
   // Web large : 3 cartes par ligne. Android / fenêtre étroite : 1 par ligne.
   const { width: windowWidth } = useWindowDimensions();
@@ -1798,17 +1851,7 @@ const HistoryScreen = ({ navigation }) => {
     navigation.navigate('CreateBooking');
   }, [navigation]);
 
-  // ---------- TOAST ----------
-
-  const [toast, setToast] = useState({ visible: false, type: 'success', message: '' });
-
-  const showToast = useCallback((message, type = 'success') => {
-    setToast({ visible: true, type, message });
-  }, []);
-
-  const hideToast = useCallback(() => {
-    setToast((previous) => ({ ...previous, visible: false }));
-  }, []);
+  const showToast = toastAdapters.msgType;
 
   // ---------- MENU / CANCEL ----------
 
@@ -2011,7 +2054,7 @@ const HistoryScreen = ({ navigation }) => {
               onPress={openCalendarModal}
               style={[
                 styles.headerCalendarButton,
-                { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primaryTint },
+                { backgroundColor: softPrimary(isDark), borderColor: (isDark ? 'rgba(95,208,140,0.35)' : COLORS.primaryTint) },
                 !!appliedRange.start && styles.headerCalendarButtonActive,
               ]}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -2062,7 +2105,7 @@ const HistoryScreen = ({ navigation }) => {
             <View
               style={[
                 styles.dateFilterChip,
-                { backgroundColor: COLORS.primarySoft, borderColor: COLORS.primary },
+                { backgroundColor: softPrimary(isDark), borderColor: COLORS.primary },
               ]}
             >
               <Text style={[styles.dateFilterChipText, { color: COLORS.primary }]}>
@@ -2143,12 +2186,7 @@ const HistoryScreen = ({ navigation }) => {
         )}
       </View>
 
-      <Toast
-        visible={toast.visible}
-        type={toast.type}
-        message={toast.message}
-        onHide={hideToast}
-      />
+
 
       <BookingActionSheet
         visible={!!menuTarget}
@@ -2487,14 +2525,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
   },
+
   reviewChipTodo: {
     backgroundColor: '#FFF8E1',
     borderColor: '#F5A62355',
   },
+
   reviewChipDone: {
     backgroundColor: 'transparent',
     borderColor: 'rgba(0,0,0,0.12)',
   },
+
   reviewChipText: {
     fontSize: 10.5,
     fontWeight: '700',
@@ -2723,41 +2764,6 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontSize: 13,
     fontFamily: typography.fontFamily.bold,
-  },
-
-  // ---------- TOAST ----------
-
-  toastOverlay: {
-    position: 'absolute',
-    top: Platform.OS === 'android' ? 14 : 55,
-    left: 14,
-    right: 14,
-    zIndex: 9999,
-    elevation: 9999,
-    alignItems: 'center',
-  },
-
-  toastCard: {
-    width: '100%',
-    maxWidth: 520,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-
-  toastText: {
-    flex: 1,
-    fontSize: 12.5,
-    lineHeight: 17,
-    fontFamily: typography.fontFamily.medium,
   },
 
   // ---------- MODALS ----------
@@ -3031,7 +3037,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginTop: 18,
-  },
+  }
 });
 
 export default HistoryScreen;

@@ -89,6 +89,9 @@ import notificationService from '../../services/notificationService';
 import { getStatusVisual, opensBookingDetail } from '../../utils/notificationVisuals';
 
 
+import { toastAdapters } from "../../utils/toast";
+
+
 /* ============================================================
    HELPERS
 ============================================================ */
@@ -395,7 +398,6 @@ const safeText = (
 const NotificationScreen = ({
   navigation,
 }) => {
-
   const {
     colors: themeColors,
     isDark,
@@ -493,29 +495,6 @@ const NotificationScreen = ({
 
 
   /* ==========================================================
-     TOAST
-  ========================================================== */
-
-  const [
-    toast,
-    setToast,
-  ] = useState({
-    visible: false,
-    type: 'success',
-    title: '',
-    message: '',
-  });
-
-  const toastTimerRef =
-    useRef(null);
-
-  const toastAnimation =
-    useRef(
-      new Animated.Value(0)
-    ).current;
-
-
-  /* ==========================================================
      LIST ANIMATION
   ========================================================== */
 
@@ -529,78 +508,7 @@ const NotificationScreen = ({
      SHOW TOAST
   ========================================================== */
 
-  const showToast = useCallback(
-    ({
-      type = 'success',
-      title = '',
-      message = '',
-      duration = 2600,
-    }) => {
-
-      if (toastTimerRef.current) {
-        clearTimeout(
-          toastTimerRef.current
-        );
-      }
-
-      setToast({
-        visible: true,
-        type,
-        title,
-        message,
-      });
-
-      toastAnimation.setValue(0);
-
-      Animated.spring(
-        toastAnimation,
-        {
-          toValue: 1,
-          friction: 7,
-          tension: 65,
-          useNativeDriver: true,
-        }
-      ).start();
-
-      toastTimerRef.current =
-        setTimeout(() => {
-
-          Animated.timing(
-            toastAnimation,
-            {
-              toValue: 0,
-              duration: 220,
-              useNativeDriver: true,
-            }
-          ).start(() => {
-            setToast(
-              (previous) => ({
-                ...previous,
-                visible: false,
-              })
-            );
-          });
-
-        }, duration);
-
-    },
-    [toastAnimation]
-  );
-
-
-  /* ==========================================================
-     CLEAN TOAST TIMER
-  ========================================================== */
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) {
-        clearTimeout(
-          toastTimerRef.current
-        );
-      }
-    };
-  }, []);
+  const showToast = toastAdapters.obj;
 
 
   /* ==========================================================
@@ -1922,154 +1830,6 @@ const NotificationScreen = ({
 
 
   /* ==========================================================
-     RENDER TOAST
-  ========================================================== */
-
-  const renderToast = () => {
-
-    if (!toast.visible) {
-      return null;
-    }
-
-
-    const isError =
-      toast.type === 'error';
-
-    const isWarning =
-      toast.type === 'warning';
-
-
-    const iconName =
-      isError
-        ? 'close-circle'
-        : isWarning
-          ? 'warning'
-          : 'checkmark-circle';
-
-
-    const iconColor =
-      isError
-        ? '#D32F2F'
-        : isWarning
-          ? '#F57C00'
-          : colors.primary;
-
-
-    const iconBackground =
-      isError
-        ? 'rgba(211,47,47,0.12)'
-        : isWarning
-          ? 'rgba(245,124,0,0.12)'
-          : `${colors.primary}15`;
-
-
-    const translateY =
-      toastAnimation.interpolate({
-        inputRange: [0, 1],
-        outputRange: [-20, 0],
-      });
-
-
-    const scale =
-      toastAnimation.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0.96, 1],
-      });
-
-
-    return (
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.toastWrapper,
-          {
-            transform: [
-              {
-                translateY,
-              },
-              {
-                scale,
-              },
-            ],
-            opacity:
-              toastAnimation,
-          },
-        ]}
-      >
-        <View
-          style={[
-            styles.toast,
-            {
-              backgroundColor:
-                themeColors.surface,
-
-              borderColor:
-                isDark
-                  ? 'rgba(255,255,255,0.08)'
-                  : '#E9E9E9',
-
-              shadowColor:
-                '#000',
-            },
-          ]}
-        >
-
-          <View
-            style={[
-              styles.toastIcon,
-              {
-                backgroundColor:
-                  iconBackground,
-              },
-            ]}
-          >
-            <Ionicons
-              name={iconName}
-              size={23}
-              color={iconColor}
-            />
-          </View>
-
-
-          <View
-            style={
-              styles.toastContent
-            }
-          >
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.toastTitle,
-                {
-                  color:
-                    themeColors.text,
-                },
-              ]}
-            >
-              {toast.title}
-            </Text>
-
-            <Text
-              numberOfLines={2}
-              style={[
-                styles.toastMessage,
-                {
-                  color:
-                    themeColors.textSecondary,
-                },
-              ]}
-            >
-              {toast.message}
-            </Text>
-          </View>
-
-        </View>
-      </Animated.View>
-    );
-  };
-
-
-  /* ==========================================================
      RENDER DELETE MODAL
   ========================================================== */
 
@@ -3257,13 +3017,11 @@ const NotificationScreen = ({
         }
       />
 
-
       {/* ======================================================
           TOAST
           Juste sous le Header
       ====================================================== */}
 
-      {renderToast()}
 
 
       {/* ======================================================
@@ -3382,7 +3140,6 @@ const NotificationScreen = ({
 
       </View>
 
-
       {/* ======================================================
           FILTERS
       ====================================================== */}
@@ -3480,7 +3237,6 @@ const NotificationScreen = ({
         </ScrollView>
 
       </View>
-
 
       {/* ======================================================
           LIST
@@ -3645,7 +3401,6 @@ const NotificationScreen = ({
 
       </Animated.View>
 
-
       {/* ======================================================
           DELETE CONFIRMATION MODAL
       ====================================================== */}
@@ -3664,11 +3419,9 @@ const NotificationScreen = ({
 ============================================================ */
 
 const styles = StyleSheet.create({
-
   container: {
     flex: 1,
   },
-
 
   /* ==========================================================
      MARK ALL
@@ -3694,94 +3447,6 @@ const styles = StyleSheet.create({
     fontFamily:
       typography.fontFamily.semiBold,
   },
-
-
-  /* ==========================================================
-     TOAST
-  ========================================================== */
-
-  toastWrapper: {
-    position: 'absolute',
-
-    top:
-      Platform.OS === 'web'
-        ? 68
-        : 72,
-
-    left: 18,
-    right: 18,
-
-    zIndex: 9999,
-
-    alignItems: 'center',
-
-    pointerEvents: 'none',
-  },
-
-  toast: {
-    width:
-      Platform.OS === 'web'
-        ? 430
-        : '94%',
-
-    minHeight: 66,
-
-    borderRadius: 16,
-
-    borderWidth: 1,
-
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-
-    flexDirection: 'row',
-    alignItems: 'center',
-
-    shadowOffset: {
-      width: 0,
-      height: 7,
-    },
-
-    shadowOpacity: 0.14,
-    shadowRadius: 18,
-
-    elevation: 9,
-  },
-
-  toastIcon: {
-    width: 42,
-    height: 42,
-
-    borderRadius: 13,
-
-    alignItems: 'center',
-    justifyContent: 'center',
-
-    marginRight: 11,
-  },
-
-  toastContent: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  toastTitle: {
-    fontSize: 14,
-
-    fontFamily:
-      typography.fontFamily.semiBold,
-  },
-
-  toastMessage: {
-    marginTop: 2,
-
-    fontSize: 12,
-
-    lineHeight: 17,
-
-    fontFamily:
-      typography.fontFamily.regular,
-  },
-
 
   /* ==========================================================
      SUMMARY
@@ -3872,7 +3537,6 @@ const styles = StyleSheet.create({
       typography.fontFamily.medium,
   },
 
-
   /* ==========================================================
      FILTERS
   ========================================================== */
@@ -3914,7 +3578,6 @@ const styles = StyleSheet.create({
     fontFamily:
       typography.fontFamily.medium,
   },
-
 
   /* ==========================================================
      LIST
@@ -3988,7 +3651,6 @@ const styles = StyleSheet.create({
     fontFamily:
       typography.fontFamily.regular,
   },
-
 
   /* ==========================================================
      NOTIFICATION CARD
@@ -4100,7 +3762,6 @@ const styles = StyleSheet.create({
       typography.fontFamily.regular,
   },
 
-
   /* ==========================================================
      NEW BADGE
   ========================================================== */
@@ -4138,7 +3799,6 @@ const styles = StyleSheet.create({
       typography.fontFamily.bold,
   },
 
-
   /* ==========================================================
      ACTION HINT
   ========================================================== */
@@ -4167,7 +3827,6 @@ const styles = StyleSheet.create({
       typography.fontFamily.semiBold,
   },
 
-
   /* ==========================================================
      DELETE BUTTON
   ========================================================== */
@@ -4184,7 +3843,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-
   /* ==========================================================
      READING
   ========================================================== */
@@ -4196,7 +3854,6 @@ const styles = StyleSheet.create({
 
     top: 14,
   },
-
 
   /* ==========================================================
      DELETE MODAL
@@ -4377,7 +4034,6 @@ const styles = StyleSheet.create({
       typography.fontFamily.bold,
   },
 
-
   /* ==========================================================
      ACTION SHEET (menu ⋮)
   ========================================================== */
@@ -4517,7 +4173,6 @@ const styles = StyleSheet.create({
       typography.fontFamily.semiBold,
   },
 
-
   /* ==========================================================
      LOADING
   ========================================================== */
@@ -4555,7 +4210,6 @@ const styles = StyleSheet.create({
     fontFamily:
       typography.fontFamily.regular,
   },
-
 
   /* ==========================================================
      EMPTY
@@ -4612,8 +4266,7 @@ const styles = StyleSheet.create({
 
     fontFamily:
       typography.fontFamily.regular,
-  },
-
+  }
 });
 
 

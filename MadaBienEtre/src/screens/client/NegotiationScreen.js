@@ -51,6 +51,8 @@ import { formatMadagascarDateTime } from '../../utils/timeAgo';
 import useNegotiationAI from '../../hooks/useNegotiationAI';
 import AINegotiationAdvisor from '../../components/ai/AINegotiationAdvisor';
 
+import { toastAdapters } from "../../utils/toast";
+
 // ============================================================
 // CONSTANTS
 // ============================================================
@@ -648,27 +650,6 @@ const NegotiationScreen = ({
   );
 
   // ==========================================================
-  // TOAST
-  // ==========================================================
-
-  const [
-    toast,
-    setToast,
-  ] = useState({
-    visible: false,
-    message: '',
-    type: 'success',
-  });
-
-  const toastAnim =
-    useRef(
-      new Animated.Value(0)
-    ).current;
-
-  const toastTimerRef =
-    useRef(null);
-
-  // ==========================================================
   // CONFIRM MODAL
   // ==========================================================
 
@@ -691,122 +672,8 @@ const NegotiationScreen = ({
       new Animated.Value(0)
     ).current;
 
-  // ==========================================================
-  // TOAST FUNCTIONS
-  // ==========================================================
-
-  const hideToast =
-    useCallback(() => {
-      if (
-        toastTimerRef.current
-      ) {
-        clearTimeout(
-          toastTimerRef.current
-        );
-
-        toastTimerRef.current =
-          null;
-      }
-
-      Animated.timing(
-        toastAnim,
-        {
-          toValue: 0,
-          duration: 180,
-          useNativeDriver: true,
-        }
-      ).start(() => {
-        setToast(
-          (previous) => ({
-            ...previous,
-            visible: false,
-          })
-        );
-      });
-    }, [toastAnim]);
-
   const showToast =
-    useCallback(
-      (
-        messageText,
-        type = 'success'
-      ) => {
-        if (
-          toastTimerRef.current
-        ) {
-          clearTimeout(
-            toastTimerRef.current
-          );
-        }
-
-        setToast({
-          visible: true,
-          message:
-            messageText,
-          type,
-        });
-
-        Animated.timing(
-          toastAnim,
-          {
-            toValue: 1,
-            duration: 220,
-            useNativeDriver: true,
-          }
-        ).start();
-
-        toastTimerRef.current =
-          setTimeout(() => {
-            hideToast();
-          }, 2600);
-      },
-      [
-        hideToast,
-        toastAnim,
-      ]
-    );
-
-  useEffect(() => {
-    return () => {
-      if (
-        toastTimerRef.current
-      ) {
-        clearTimeout(
-          toastTimerRef.current
-        );
-      }
-    };
-  }, []);
-
-  // ==========================================================
-  // TOAST STYLE DATA
-  // ==========================================================
-
-  const toastInfo =
-    useMemo(() => {
-      switch (toast.type) {
-        case 'error':
-          return {
-            icon: 'alert-circle-outline',
-            color: RED,
-            background: '#FDECEC',
-          };
-
-        case 'warning':
-          return {
-            icon: 'warning-outline',
-            color: ORANGE,
-            background: '#FFF5DD',
-          };
-
-        default:
-          return {
-            icon: 'checkmark-circle-outline',
-            color: GREEN,
-            background: GREEN_PALE,
-          };
-      }
-    }, [toast.type]);
+    toastAdapters.msgType;
 
   // ==========================================================
   // DETERMINE OWNER
@@ -2081,96 +1948,7 @@ const NegotiationScreen = ({
           TOAST CENTRAL SOUS HEADER
       ====================================================== */}
 
-      {toast.visible && (
-        <Animated.View
-          pointerEvents="box-none"
-          style={[
-            styles.toastWrapper,
-            {
-              opacity:
-                toastAnim,
 
-              transform: [
-                {
-                  translateY:
-                    toastAnim.interpolate({
-                      inputRange: [
-                        0,
-                        1,
-                      ],
-                      outputRange: [
-                        -12,
-                        0,
-                      ],
-                    }),
-                },
-              ],
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.toast,
-              {
-                backgroundColor:
-                  themeColors.surface,
-                borderColor:
-                  toastInfo.color,
-              },
-            ]}
-          >
-            <View
-              style={[
-                styles.toastIcon,
-                {
-                  backgroundColor:
-                    toastInfo.background,
-                },
-              ]}
-            >
-              <Ionicons
-                name={
-                  toastInfo.icon
-                }
-                size={19}
-                color={
-                  toastInfo.color
-                }
-              />
-            </View>
-
-            <Text
-              style={[
-                styles.toastText,
-                {
-                  color:
-                    themeColors.text,
-                },
-              ]}
-              numberOfLines={3}
-            >
-              {toast.message}
-            </Text>
-
-            <TouchableOpacity
-              onPress={
-                hideToast
-              }
-              style={
-                styles.toastClose
-              }
-            >
-              <Ionicons
-                name="close"
-                size={18}
-                color={
-                  themeColors.textSecondary
-                }
-              />
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      )}
 
       <Animated.ScrollView
         style={[
@@ -3786,67 +3564,6 @@ const styles = StyleSheet.create({
   },
 
   // ==========================================================
-  // TOAST
-  // ==========================================================
-
-  toastWrapper: {
-    position: 'absolute',
-    top:
-      Platform.OS === 'web'
-        ? 62
-        : 76,
-    left: 18,
-    right: 18,
-    zIndex: 9999,
-    elevation: 9999,
-    alignItems: 'center',
-  },
-
-  toast: {
-    width: '100%',
-    maxWidth: 560,
-    minHeight: 54,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-    flexDirection: 'row',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-  },
-
-  toastIcon: {
-    width: 35,
-    height: 35,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 9,
-  },
-
-  toastText: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: '700',
-    lineHeight: 16,
-  },
-
-  toastClose: {
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 5,
-  },
-
-  // ==========================================================
   // THERAPIST PROFILE
   // ==========================================================
 
@@ -4658,7 +4375,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 17,
     marginTop: 5,
-  },
+  }
 });
 
 export default NegotiationScreen;
