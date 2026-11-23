@@ -82,6 +82,7 @@ import Header from '../../components/common/Header';
 
 import {
   parseServerDate,
+  toTimestamp,
   formatTimeAgo as formatTimeAgoFromTimestamp,
 } from '../../utils/timeAgo';
 
@@ -356,21 +357,57 @@ const getOfferIdFromNotification = (notification) => {
 
 
 /**
- * Temps écoulé réel.
+ * Temps écoulé réel — composant ISOLÉ.
+ *
+ * Il possède son propre timer : seul ce petit <Text> se re-rend
+ * (toutes les secondes pendant la 1re minute, puis toutes les 30 s).
+ * L'écran entier ne se re-rend donc plus chaque seconde, ce qui
+ * supprimait la stabilité de la liste (clignotements / mouvements).
  */
-const formatTimeAgo = (date) => {
-  if (!date) {
-    return '';
+const TimeAgoText = ({ value, style }) => {
+  const [now, setNow] = useState(() => Date.now());
+
+  const timestamp = toTimestamp(value);
+  const isFresh = timestamp > 0 && now - timestamp < 60000;
+
+  useEffect(() => {
+    if (!timestamp) {
+      return undefined;
+    }
+
+    setNow(Date.now());
+
+    const timer = setInterval(
+      () => setNow(Date.now()),
+      isFresh ? 1000 : 30000
+    );
+
+    return () => clearInterval(timer);
+  }, [timestamp, isFresh]);
+
+  if (!timestamp) {
+    return null;
   }
 
-  // À l'instant → 12 sec → 2 min → 1 h 25 → 3 j → 2 sem → 2 mois → 1 an
-  // calculé à partir de l'heure ACTUELLE réelle (le composant se
-  // re-rend chaque seconde grâce au timer setCurrentTime).
-  return formatTimeAgoFromTimestamp(
-    date,
-    Date.now()
+  return (
+    <Text style={style}>
+      {formatTimeAgoFromTimestamp(value, now)}
+    </Text>
   );
 };
+
+
+/**
+ * Signature légère : permet de ne PAS remplacer la liste (donc de ne
+ * pas re-rendre) quand un rechargement renvoie exactement les mêmes données.
+ */
+const buildSignature = (list) =>
+  list
+    .map(
+      (n) =>
+        `${getNotificationId(n)}|${isNotificationRead(n) ? 1 : 0}|${n?.title || ''}|${n?.body || n?.message || ''}`
+    )
+    .join('~');
 
 
 /**
@@ -427,6 +464,17 @@ const NotificationScreen = ({
     isLoading,
     setIsLoading,
   ] = useState(true);
+
+  // true après le PREMIER chargement : ensuite on recharge « en silence »
+  // (sans remplacer l'écran par le loader => plus de clignotement).
+  const hasLoadedRef = useRef(false);
+
+  // Évite qu'une vieille réponse réseau écrase une plus récente.
+  const requestIdRef = useRef(0);
+
+  // Toujours la dernière version, sans relancer les effets.
+  const refreshUnreadCountRef = useRef(refreshUnreadCount);
+  refreshUnreadCountRef.current = refreshUnreadCount;
 
   const [
     refreshing,
@@ -494,15 +542,6 @@ const NotificationScreen = ({
     ).current;
 
 
-  /* ==========================================================
-     LIST ANIMATION
-  ========================================================== */
-
-  const fadeAnim =
-    useRef(
-      new Animated.Value(0)
-    ).current;
-
 
   /* ==========================================================
      SHOW TOAST
@@ -551,13 +590,23 @@ const NotificationScreen = ({
   const loadNotifications =
     useCallback(async () => {
 
-      setIsLoading(true);
+      const requestId = ++requestIdRef.current;
+
+      // Loader plein écran UNIQUEMENT au tout premier chargement.
+      if (!hasLoadedRef.current) {
+        setIsLoading(true);
+      }
 
       try {
 
         const result =
           await notificationService
             .getNotifications();
+
+        // Une requête plus récente est partie : on ignore celle-ci.
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
 
         if (!result?.success) {
 
@@ -566,8 +615,7 @@ const NotificationScreen = ({
             result?.error
           );
 
-          setNotifications([]);
-
+          // On GARDE la liste déjà affichée (pas de vidage sur erreur réseau).
           return;
         }
 
@@ -649,9 +697,14 @@ const NotificationScreen = ({
         );
 
 
-        setNotifications(
-          normalized
+        // Même contenu qu'avant -> on garde la même référence (aucun re-rendu).
+        setNotifications((previous) =>
+          buildSignature(previous) === buildSignature(normalized)
+            ? previous
+            : normalized
         );
+
+        hasLoadedRef.current = true;
 
       } catch (error) {
 
@@ -660,38 +713,15 @@ const NotificationScreen = ({
           error
         );
 
-        setNotifications([]);
-
       } finally {
 
-        setIsLoading(false);
+        if (requestId === requestIdRef.current) {
+          setIsLoading(false);
+        }
 
       }
 
     }, []);
-
-
-  /* ==========================================================
-     INITIAL LOAD
-  ========================================================== */
-
-  useEffect(() => {
-
-    loadNotifications();
-
-    Animated.timing(
-      fadeAnim,
-      {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }
-    ).start();
-
-  }, [
-    loadNotifications,
-    fadeAnim,
-  ]);
 
 
   /* ==========================================================
@@ -703,39 +733,13 @@ const NotificationScreen = ({
 
       loadNotifications();
 
-      refreshUnreadCount?.();
+      refreshUnreadCountRef.current?.();
 
       return undefined;
 
     }, [
       loadNotifications,
-      refreshUnreadCount,
     ])
-  );
-
-
-  /* ==========================================================
-     UPDATE TIME EVERY SECOND
-  ========================================================== */
-
-  const [, setCurrentTime] =
-    useState(Date.now());
-
-  useFocusEffect(
-    useCallback(() => {
-
-      const interval =
-        setInterval(() => {
-          setCurrentTime(
-            Date.now()
-          );
-        }, 1000);
-
-      return () => {
-        clearInterval(interval);
-      };
-
-    }, [])
   );
 
 
@@ -2369,7 +2373,6 @@ const NotificationScreen = ({
     useCallback(
       ({
         item,
-        index,
       }) => {
 
         const notificationId =
@@ -2397,11 +2400,6 @@ const NotificationScreen = ({
             item
           );
 
-        const time =
-          formatTimeAgo(
-            item?.created_at
-          );
-
         const isDeleting =
           String(
             deletingId
@@ -2420,15 +2418,7 @@ const NotificationScreen = ({
 
 
         return (
-          <Animatable.View
-            animation="fadeInUp"
-            duration={350}
-            delay={
-              Math.min(
-                index * 40,
-                300
-              )
-            }
+          <View
             style={
               styles.animationWrapper
             }
@@ -2586,7 +2576,8 @@ const NotificationScreen = ({
                   </View>
 
 
-                  <Text
+                  <TimeAgoText
+                    value={item?.created_at}
                     style={[
                       styles.notificationTime,
                       {
@@ -2594,9 +2585,7 @@ const NotificationScreen = ({
                           themeColors.textSecondary,
                       },
                     ]}
-                  >
-                    {time}
-                  </Text>
+                  />
 
                 </View>
 
@@ -2776,7 +2765,7 @@ const NotificationScreen = ({
 
             </View>
 
-          </Animatable.View>
+          </View>
         );
 
       },
@@ -3242,14 +3231,8 @@ const NotificationScreen = ({
           LIST
       ====================================================== */}
 
-      <Animated.View
-        style={[
-          styles.listContainer,
-          {
-            opacity:
-              fadeAnim,
-          },
-        ]}
+      <View
+        style={styles.listContainer}
       >
 
         {filteredNotifications.length >
@@ -3283,6 +3266,10 @@ const NotificationScreen = ({
             showsVerticalScrollIndicator={
               false
             }
+
+            initialNumToRender={12}
+            windowSize={9}
+            removeClippedSubviews={false}
 
             refreshControl={
               <RefreshControl
@@ -3399,7 +3386,7 @@ const NotificationScreen = ({
 
         )}
 
-      </Animated.View>
+      </View>
 
       {/* ======================================================
           DELETE CONFIRMATION MODAL

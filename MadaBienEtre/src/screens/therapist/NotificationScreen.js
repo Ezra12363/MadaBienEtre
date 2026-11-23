@@ -1244,10 +1244,7 @@ const NotificationScreen = ({
            (écran « BookingDetail » du stack Calendrier)
         ------------------------------------------------------ */
         if (opensBookingDetail(notification?.type) && bookingId) {
-          navigation.navigate('Calendrier', {
-            screen: 'BookingDetail',
-            params: { bookingId },
-          });
+          navigation.navigate('BookingDetail', { bookingId });
           return;
         }
 
@@ -1329,18 +1326,12 @@ const NotificationScreen = ({
 
         if (bookingId) {
 
-          navigation.navigate(
-            'Calendrier',
-            {
-              screen:
-                'BookingDetail',
-
-              params: {
-                bookingId,
-                openPayment: isPaymentNotif,
-              },
-            }
-          );
+          // 'BookingDetail' est enregistré dans le stack du Tableau de
+          // bord : l'onglet "Calendrier" n'est pas sélectionné.
+          navigation.navigate('BookingDetail', {
+            bookingId,
+            openPayment: isPaymentNotif,
+          });
 
           return;
         }

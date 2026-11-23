@@ -18,6 +18,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -336,7 +337,9 @@ export const NotificationProvider = ({ children }) => {
   };
 
   // Compteur seul (après markAsRead / markAllAsRead)
-  const loadUnreadCount = async () => {
+  // useCallback([]) : identité STABLE -> les écrans qui l'utilisent dans
+  // leurs useEffect / useFocusEffect ne se relancent plus à chaque rendu.
+  const loadUnreadCount = useCallback(async () => {
     try {
       const AsyncStorage = require('@react-native-async-storage/async-storage').default;
       const token = await AsyncStorage.getItem(TOKEN_STORAGE_KEY);
@@ -357,7 +360,7 @@ export const NotificationProvider = ({ children }) => {
       console.warn('⚠️ [Notifications] loadUnreadCount:', error?.message);
       setUnreadCount(0);
     }
-  };
+  }, []);
 
   /* ------------------------------------------------------------------ */
   /* API exposée                                                          */
@@ -397,23 +400,29 @@ export const NotificationProvider = ({ children }) => {
   const sendOfferNotification = (title, body, bookingId, data = {}) =>
     notificationService.sendOfferNotification(title, body, bookingId, data);
 
-  const markAsRead = async (notificationId) => {
+  const markAsRead = useCallback(async (notificationId) => {
     const result = await notificationService.markAsRead(notificationId);
     if (result?.success) {
       await loadUnreadCount();
     }
     return result;
-  };
+  }, [loadUnreadCount]);
 
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
     const result = await notificationService.markAllAsRead();
     if (result?.success) {
       await loadUnreadCount();
     }
     return result;
-  };
+  }, [loadUnreadCount]);
 
-  const value = {
+  // pollNotifications est recréée à chaque rendu : on expose une version
+  // STABLE qui appelle toujours la plus récente.
+  const pollRef = useRef(pollNotifications);
+  pollRef.current = pollNotifications;
+  const refreshNotifications = useCallback(() => pollRef.current(), []);
+
+  const value = useMemo(() => ({
     expoPushToken,
     notification,
     unreadCount,
@@ -430,11 +439,24 @@ export const NotificationProvider = ({ children }) => {
     // alias explicite pour rafraîchir manuellement le badge
     refreshUnreadCount: loadUnreadCount,
     // relecture complète immédiate (ex. après avoir envoyé un message / une offre)
-    refreshNotifications: pollNotifications,
+    refreshNotifications,
     setActiveChatBookingId,
     setNotificationResponseHandler,
     presentBackendNotification: notificationService.presentBackendNotification.bind(notificationService),
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [
+    expoPushToken,
+    notification,
+    unreadCount,
+    permissionStatus,
+    isLoading,
+    markAsRead,
+    markAllAsRead,
+    loadUnreadCount,
+    refreshNotifications,
+    setActiveChatBookingId,
+    setNotificationResponseHandler,
+  ]);
 
   return (
     <NotificationContext.Provider value={value}>

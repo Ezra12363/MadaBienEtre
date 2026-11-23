@@ -25,6 +25,8 @@ import {
   createBottomTabNavigator,
 } from '@react-navigation/bottom-tabs';
 
+import { CommonActions } from '@react-navigation/native';
+
 import { useTheme } from '../context/ThemeContext';
 import { getLastTab, saveLastTab } from '../utils/lastTab';
 
@@ -243,6 +245,15 @@ const DashboardStack = () => {
       <Stack.Screen
         name="Offer"
         component={OfferScreen}
+      />
+
+      {/* Détail réservation ouvert depuis les notifications :
+          reste dans l'onglet "Tableau de bord" (le menu
+          "Calendrier" n'est PAS sélectionné) et le retour revient
+          aux notifications. */}
+      <Stack.Screen
+        name="BookingDetail"
+        component={BookingDetailScreen}
       />
 
       <Stack.Screen
@@ -840,8 +851,43 @@ const TherapistTabsScreen = () => {
 
         <Tab.Navigator
           initialRouteName={initialTab}
-          screenListeners={({ route }) => ({
+          screenListeners={({ route, navigation: tabNav }) => ({
             focus: () => saveLastTab('therapist', route.name),
+
+            // Appui sur le menu "Calendrier" (web + Android) : on affiche
+            // toujours la liste CalendarScreen, même si le stack contient
+            // une page "Détails de la réservation".
+            tabPress: () => {
+              if (route.name !== 'Calendrier') {
+                return;
+              }
+              // État FRAIS (pas la copie de `route` captée au rendu)
+              const tabRoute = tabNav
+                .getState()
+                ?.routes?.find((r) => r.name === 'Calendrier');
+              const nested = tabRoute?.state;
+              if (!nested?.key) {
+                return; // pas encore monté : CalendarScreen est déjà la racine
+              }
+              // Cas normal (CalendarScreen en racine + pages au-dessus) :
+              // le Stack natif fait déjà popToTop tout seul -> on ne
+              // touche à rien (sinon : "POP_TO_TOP was not handled").
+              // On ne reconstruit le stack que s'il est "bloqué" : une
+              // seule page, qui n'est pas CalendarScreen.
+              const stuck =
+                nested.routes?.length === 1 &&
+                nested.routes[0]?.name !== 'CalendarScreen';
+              if (!stuck) {
+                return;
+              }
+              tabNav.dispatch({
+                ...CommonActions.reset({
+                  index: 0,
+                  routes: [{ name: 'CalendarScreen' }],
+                }),
+                target: nested.key,
+              });
+            },
           })}
 
           tabBar={

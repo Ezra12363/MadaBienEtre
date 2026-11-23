@@ -13,9 +13,11 @@
 //     <CountBadge count={unread} borderColor="#1B7F3B" />
 //   </View>
 // ============================================================
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
-export const BADGE_SIZE = 18;
+// 22 (au lieu de 18) : la zone intérieure (22 - 2 x 2 de bordure = 18) est assez
+// grande pour afficher le chiffre en 12 px sans le rogner ni le tronquer (« … »).
+export const BADGE_SIZE = 22;
 
 const formatCount = (count, max) => (count > max ? `${max}+` : String(count));
 
@@ -32,7 +34,15 @@ const CountBadge = ({
   if (n <= 0) return null;
 
   const label = formatCount(n, max);
-  const wide = label.length > 1;
+  const chars = label.length;
+
+  // LARGEUR EXPLICITE (et non minWidth) : une vue en position absolue dans
+  // un conteneur étroit (l'icône 21x21) est sinon rétrécie => le texte était
+  // tronqué en « … » sur le web et Android.
+  const width = chars <= 1 ? size : chars === 2 ? size + 8 : size + 16;
+
+  const inner = size - 4; // hauteur intérieure (bordure 2 px de chaque côté)
+  const fontSize = chars >= 3 ? Math.round(inner * 0.6) : Math.round(inner * 0.68);
 
   return (
     <View
@@ -41,19 +51,19 @@ const CountBadge = ({
         styles.badge,
         anchored && styles.anchored,
         {
-          minWidth: size,
+          width,
           height: size,
           borderRadius: size / 2,
           backgroundColor: color,
           borderColor,
-          paddingHorizontal: wide ? 4 : 0,
         },
         style,
       ]}
     >
       <Text
-        style={[styles.text, { fontSize: size <= 18 ? 10 : 11, lineHeight: size - 4 }]}
+        style={[styles.text, { fontSize, lineHeight: inner }]}
         numberOfLines={1}
+        ellipsizeMode="clip"
         allowFontScaling={false}
       >
         {label}
@@ -73,8 +83,8 @@ const styles = StyleSheet.create({
   // Coin haut-droit de l'icône : le centre de la pastille tombe sur le coin
   anchored: {
     position: 'absolute',
-    top: -7,
-    right: -9,
+    top: -9,
+    right: -11,
   },
   text: {
     color: '#FFFFFF',
@@ -82,6 +92,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
     includeFontPadding: false,
+    ...Platform.select({
+      web: { whiteSpace: 'nowrap' },
+      default: {},
+    }),
   },
 });
 

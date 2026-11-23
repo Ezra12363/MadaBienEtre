@@ -138,7 +138,7 @@ export const openBookingNotification = (root, role, notification) => {
 
   // THERAPIST
   if (isNegotiation) return go('Negotiation', { bookingId, offerId: data.offer_id });
-  return go('Calendrier', { screen: 'BookingDetail', params: { bookingId } });
+  return go('Tableau de bord', { screen: 'BookingDetail', initial: false, params: { bookingId } });
 };
 
 /**

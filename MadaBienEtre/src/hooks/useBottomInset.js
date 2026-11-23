@@ -9,14 +9,25 @@
 //  - clavier fermé : on réserve la hauteur de la barre système (insets.bottom)
 //  - clavier ouvert : le clavier recouvre déjà la barre système -> 0
 //  - Web / iOS sans encoche : petit minimum esthétique
+//  - ÉCRAN AVEC BARRE D'ONGLETS EN BAS (Accueil / Réservations / Messages...) :
+//    la BottomTabBar réserve DÉJÀ la zone système (insets.bottom). Ajouter
+//    insets.bottom sous le champ créait un grand vide entre la saisie et la
+//    barre d'onglets -> on ne garde alors que le petit minimum.
 // ============================================================
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Keyboard, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs';
 
 export const useBottomInset = (minimum = 8) => {
   const insets = useSafeAreaInsets();
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  // undefined hors d'un Tab.Navigator ; > 0 quand une barre d'onglets est
+  // affichée sous l'écran ; 0 quand elle est masquée (menu fusionné en haut
+  // sur grand écran web).
+  const tabBarHeight = useContext(BottomTabBarHeightContext);
+  const hasBottomTabBar = typeof tabBarHeight === 'number' && tabBarHeight > 0;
 
   useEffect(() => {
     if (Platform.OS === 'web') return undefined;
@@ -31,6 +42,7 @@ export const useBottomInset = (minimum = 8) => {
   }, []);
 
   if (Platform.OS === 'web') return minimum;
+  if (hasBottomTabBar) return minimum;
   return keyboardOpen ? minimum : Math.max(insets.bottom, minimum);
 };
 

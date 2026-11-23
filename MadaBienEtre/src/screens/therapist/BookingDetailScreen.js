@@ -20,6 +20,7 @@ import {
 } from 'react';
 
 import {
+  BackHandler,
   View,
   Text,
   StyleSheet,
@@ -37,7 +38,7 @@ import {
 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, CommonActions } from '@react-navigation/native';
 
 import { useTheme } from '../../context/ThemeContext';
 import BookingReviewSection from '../../components/reviews/BookingReviewSection';
@@ -625,6 +626,84 @@ const BookingDetailScreen = ({
     useState(false);
 
   // ==========================================================
+  // RETOUR SÉCURISÉ
+  // ==========================================================
+  // Quand on arrive ici depuis une notification (onglet "Tableau de
+  // bord"), le stack "Calendrier" peut n'avoir QUE cet écran dans son
+  // historique : goBack() ne fait alors rien et la page reste bloquée.
+  // Dans ce cas on reconstruit le stack avec CalendarScreen en racine.
+  const goToCalendarRoot = useCallback(() => {
+    navigation.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [
+          {
+            name: (navigation.getState?.()?.routeNames || []).includes(
+              'CalendarScreen'
+            )
+              ? 'CalendarScreen'
+              : 'DashboardScreen',
+          },
+        ],
+      })
+    );
+  }, [navigation]);
+
+  const handleBack = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+    goToCalendarRoot();
+  }, [navigation, goToCalendarRoot]);
+
+  // Bouton retour matériel (Android)
+  useFocusEffect(
+    useCallback(() => {
+      const sub = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          if (navigation.canGoBack()) {
+            return false;
+          }
+          goToCalendarRoot();
+          return true;
+        }
+      );
+      return () => sub.remove();
+    }, [navigation, goToCalendarRoot])
+  );
+
+  // Retaper sur l'onglet "Calendrier" quand on est bloqué sur cette
+  // page -> retour à la liste du calendrier.
+  useEffect(() => {
+    const tabNav = navigation.getParent?.();
+    if (!tabNav?.addListener) {
+      return undefined;
+    }
+    const unsub = tabNav.addListener('tabPress', (e) => {
+      const pressed = tabNav
+        .getState?.()
+        ?.routes?.find((r) => r.key === e?.target)?.name;
+      const inCalendarStack = (
+        navigation.getState?.()?.routeNames || []
+      ).includes('CalendarScreen');
+      // Menu "Calendrier" pressé alors qu'on est sur cette page
+      // (si l'historique a d'autres pages, le Stack natif fait déjà
+      //  popToTop : on n'intervient que s'il est bloqué sur cette page)
+      if (
+        pressed === 'Calendrier' &&
+        inCalendarStack &&
+        navigation.isFocused() &&
+        !navigation.canGoBack()
+      ) {
+        goToCalendarRoot();
+      }
+    });
+    return unsub;
+  }, [navigation, goToCalendarRoot]);
+
+  // ==========================================================
   // CHARGEMENT DE LA RÉSERVATION
   // ==========================================================
 
@@ -1092,6 +1171,7 @@ const BookingDetailScreen = ({
         <Header
           title="Détails"
           showBack
+          onBackPress={handleBack}
         />
 
         <View style={styles.centerState}>
@@ -1134,6 +1214,7 @@ const BookingDetailScreen = ({
         <Header
           title="Détails"
           showBack
+          onBackPress={handleBack}
         />
 
         <View style={styles.centerState}>
@@ -1217,6 +1298,7 @@ const BookingDetailScreen = ({
       <Header
         title="Détails de la réservation"
         showBack
+        onBackPress={handleBack}
       />
 
       <ScrollView
