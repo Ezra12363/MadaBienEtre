@@ -2811,7 +2811,7 @@ const MassageTypesScreen = () => {
                     </Text>
                   </TouchableOpacity>
 
-                  {(iconFile || formData.icon_url) && (
+                  {!!(iconFile || formData.icon_url) && (
                     <TouchableOpacity
                       style={styles.imageRemoveButton}
                       onPress={() => clearPickedImage('icon')}
@@ -2891,7 +2891,7 @@ const MassageTypesScreen = () => {
                     </Text>
                   </TouchableOpacity>
 
-                  {(imageFile || formData.image_url) && (
+                  {!!(imageFile || formData.image_url) && (
                     <TouchableOpacity
                       style={styles.imageRemoveButton}
                       onPress={() => clearPickedImage('image')}
