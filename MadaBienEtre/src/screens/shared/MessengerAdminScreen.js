@@ -12,6 +12,7 @@ import { getChatPalette } from '../../components/chat/chatTheme';
 import { useTheme } from '../../context/ThemeContext';
 import messengerService from '../../services/messengerService';
 import { formatListTime, notifyInfo } from '../../utils/chatUi';
+import { typography } from '../../theme';
 
 const REASONS = { spam: 'Spam', harcelement: 'Harcèlement', contenu_inapproprie: 'Contenu inapproprié', arnaque: 'Arnaque', autre: 'Autre' };
 
@@ -52,25 +53,25 @@ const MessengerAdminScreen = ({ navigation }) => {
       <View style={styles.tabs}>
         {[['reports', `Signalements (${reports.length})`], ['groups', `Groupes (${groups.length})`]].map(([k, l]) => (
           <TouchableOpacity key={k} onPress={() => setTab(k)} style={[styles.tab, { borderBottomColor: tab === k ? palette.primary : 'transparent' }]}>
-            <Text style={{ color: tab === k ? palette.primary : palette.textSecondary, fontWeight: '700' }}>{l}</Text>
+            <Text style={{ fontFamily: typography.fontFamily.bold, color: tab === k ? palette.primary : palette.textSecondary, fontWeight: '700' }}>{l}</Text>
           </TouchableOpacity>
         ))}
       </View>
       {loading ? <ActivityIndicator color={palette.primary} style={{ marginTop: 40 }} /> : tab === 'reports' ? (
         <FlatList
           data={reports} keyExtractor={(r) => String(r.id)} contentContainerStyle={{ padding: 12, gap: 10 }}
-          ListEmptyComponent={<Text style={{ color: palette.textSecondary, textAlign: 'center', marginTop: 40 }}>Aucun signalement en attente 🎉</Text>}
+          ListEmptyComponent={<Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.textSecondary, textAlign: 'center', marginTop: 40 }]}>Aucun signalement en attente 🎉</Text>}
           renderItem={({ item: r }) => (
             <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
-              <Text style={{ color: palette.danger, fontWeight: '800' }}>{REASONS[r.reason] || r.reason}</Text>
-              <Text style={{ color: palette.textSecondary, fontSize: 12 }}>
+              <Text style={{ fontFamily: typography.fontFamily.bold, color: palette.danger, fontWeight: '800' }}>{REASONS[r.reason] || r.reason}</Text>
+              <Text style={{ fontFamily: typography.fontFamily.regular, color: palette.textSecondary, fontSize: 12 }}>
                 {r.reporter?.fullname} a signalé {r.reported_user?.fullname} · {r.conversation_title} · {formatListTime(r.created_at)}
               </Text>
-              <Text style={{ color: palette.text, marginVertical: 8 }}>« {r.message_snapshot || '—'} »</Text>
-              {!!r.details && <Text style={{ color: palette.textSecondary, fontSize: 12 }}>Détails : {r.details}</Text>}
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.text, marginVertical: 8 }]}>« {r.message_snapshot || '—'} »</Text>
+              {!!r.details && <Text style={{ fontFamily: typography.fontFamily.regular, color: palette.textSecondary, fontSize: 12 }}>Détails : {r.details}</Text>}
               <View style={styles.actions}>
-                <TouchableOpacity style={[styles.btn, { borderColor: palette.border, borderWidth: 1 }]} onPress={() => review(r.id, 'dismissed')}><Text style={{ color: palette.text }}>Ignorer</Text></TouchableOpacity>
-                <TouchableOpacity style={[styles.btn, { backgroundColor: palette.primary }]} onPress={() => review(r.id, 'reviewed')}><Text style={{ color: '#fff', fontWeight: '700' }}>Traité</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.btn, { borderColor: palette.border, borderWidth: 1 }]} onPress={() => review(r.id, 'dismissed')}><Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.text }]}>Ignorer</Text></TouchableOpacity>
+                <TouchableOpacity style={[styles.btn, { backgroundColor: palette.primary }]} onPress={() => review(r.id, 'reviewed')}><Text style={{ fontFamily: typography.fontFamily.bold, color: '#fff', fontWeight: '700' }}>Traité</Text></TouchableOpacity>
               </View>
             </View>
           )}
@@ -78,13 +79,13 @@ const MessengerAdminScreen = ({ navigation }) => {
       ) : (
         <FlatList
           data={groups} keyExtractor={(g) => String(g.id)} contentContainerStyle={{ padding: 12, gap: 8 }}
-          ListEmptyComponent={<Text style={{ color: palette.textSecondary, textAlign: 'center', marginTop: 40 }}>Aucun groupe.</Text>}
+          ListEmptyComponent={<Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.textSecondary, textAlign: 'center', marginTop: 40 }]}>Aucun groupe.</Text>}
           renderItem={({ item: g }) => (
             <TouchableOpacity style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border, flexDirection: 'row', alignItems: 'center', gap: 10 }]} onPress={() => openGroup(g)}>
               <Ionicons name={g.type === 'announcement' ? 'megaphone' : 'people'} size={24} color={palette.primary} />
               <View style={{ flex: 1 }}>
-                <Text style={{ color: palette.text, fontWeight: '700' }}>{g.title}</Text>
-                <Text style={{ color: palette.textSecondary, fontSize: 12 }}>{g.member_count} membres{g.joined ? '' : ' · Rejoindre pour gérer'}</Text>
+                <Text style={{ fontFamily: typography.fontFamily.bold, color: palette.text, fontWeight: '700' }}>{g.title}</Text>
+                <Text style={{ fontFamily: typography.fontFamily.regular, color: palette.textSecondary, fontSize: 12 }}>{g.member_count} membres{g.joined ? '' : ' · Rejoindre pour gérer'}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={palette.textSecondary} />
             </TouchableOpacity>
@@ -99,7 +100,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   head: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 8 },
   back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  h1: { fontSize: 22, fontWeight: '800' },
+  h1: { fontFamily: typography.fontFamily.bold, fontSize: 22, fontWeight: '800' },
   tabs: { flexDirection: 'row' },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderBottomWidth: 2 },
   card: { borderWidth: 1, borderRadius: 14, padding: 14 },

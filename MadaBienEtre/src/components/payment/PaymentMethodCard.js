@@ -72,11 +72,11 @@ const PaymentMethodCard = ({
           <Ionicons name={iconName} size={24} color={methodColor} />
         </View>
         <View style={styles.info}>
-          <Text style={[styles.name, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.name, { color: themeColors.text }]}>
             {getMethodName(method.id)}
           </Text>
           {showProvider && method.provider && (
-            <Text style={[styles.provider, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.provider, { color: themeColors.textSecondary }]}>
               {getProviderName(method.provider)}
             </Text>
           )}
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
   provider: {
     fontSize: typography.fontSize.xs,

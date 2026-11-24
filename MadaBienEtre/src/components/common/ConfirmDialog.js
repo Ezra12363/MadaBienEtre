@@ -170,7 +170,7 @@ export default function ConfirmDialog({
                 TITRE
             ================================================= */}
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.title,
                 {
                   color:
@@ -187,7 +187,7 @@ export default function ConfirmDialog({
             ================================================= */}
             {!!message && (
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.message,
                   {
                     color:
@@ -224,7 +224,7 @@ export default function ConfirmDialog({
                 ]}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.cancelText,
                     {
                       color:
@@ -263,7 +263,7 @@ export default function ConfirmDialog({
                         },
                       ]}
                     />
-                    <Text style={styles.confirmText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmText]}>
                       Traitement...
                     </Text>
                   </View>
@@ -279,7 +279,7 @@ export default function ConfirmDialog({
                       color="#FFFFFF"
                     />
 
-                    <Text style={styles.confirmText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmText]}>
                       {confirmLabel}
                     </Text>
                   </View>
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
 
   title: {
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
 
     marginBottom: 7,
   },
@@ -419,7 +419,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   // ============================================================
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSize.sm,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   // ============================================================

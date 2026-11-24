@@ -70,17 +70,17 @@ const Button = ({
       case 'small':
         return {
           button: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, minHeight: 32 },
-          text: { fontSize: typography.fontSize.sm },
+          text: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm },
         };
       case 'large':
         return {
           button: { paddingVertical: spacing.md, paddingHorizontal: spacing.xl, minHeight: 56 },
-          text: { fontSize: typography.fontSize.lg },
+          text: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.lg },
         };
       default:
         return {
           button: { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, minHeight: 44 },
-          text: { fontSize: typography.fontSize.md },
+          text: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.md },
         };
     }
   };
@@ -97,7 +97,7 @@ const Button = ({
       <>
         {icon && iconPosition === 'left' && <View style={styles.iconContainer}>{icon}</View>}
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.text,
             variantStyles.text,
             sizeStyles.text,
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   text: {
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     textAlign: 'center',
   },
   disabled: {

@@ -63,19 +63,19 @@ const BookingCard = ({ booking, onPress, compact = false }) => {
       <View style={styles.content}>
         <View style={styles.header}>
           <View style={styles.titleContainer}>
-            <Text style={[styles.massageType, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.massageType, { color: themeColors.text }]}>
               {booking.massage_type || 'Massage'}
             </Text>
             {!compact && (
               <View style={[styles.statusBadge, { backgroundColor: statusColor + '20' }]}>
-                <Text style={[styles.statusText, { color: statusColor }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statusText, { color: statusColor }]}>
                   {getStatusLabel(booking.status)}
                 </Text>
               </View>
             )}
           </View>
           {booking.final_price && (
-            <Text style={[styles.price, { color: colors.primary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.price, { color: colors.primary }]}>
               {booking.final_price.toLocaleString()} Ar
             </Text>
           )}
@@ -84,19 +84,19 @@ const BookingCard = ({ booking, onPress, compact = false }) => {
         <View style={styles.details}>
           <View style={styles.detailRow}>
             <Ionicons name="person-outline" size={14} color={themeColors.textSecondary} />
-            <Text style={[styles.detailText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.detailText, { color: themeColors.textSecondary }]}>
               {booking.client?.fullname || 'Client'}
             </Text>
           </View>
           <View style={styles.detailRow}>
             <Ionicons name="calendar-outline" size={14} color={themeColors.textSecondary} />
-            <Text style={[styles.detailText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.detailText, { color: themeColors.textSecondary }]}>
               {formatDate(booking.scheduled_date || booking.created_at)}
             </Text>
           </View>
           <View style={styles.detailRow}>
             <Ionicons name="time-outline" size={14} color={themeColors.textSecondary} />
-            <Text style={[styles.detailText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.detailText, { color: themeColors.textSecondary }]}>
               {booking.scheduled_duration_minutes || 60} min
             </Text>
           </View>
@@ -105,7 +105,7 @@ const BookingCard = ({ booking, onPress, compact = false }) => {
         {compact && (
           <View style={styles.compactStatus}>
             <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-            <Text style={[styles.compactStatusText, { color: statusColor }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.compactStatusText, { color: statusColor }]}>
               {getStatusLabel(booking.status)}
             </Text>
           </View>
@@ -118,7 +118,7 @@ const BookingCard = ({ booking, onPress, compact = false }) => {
             style={styles.actionButton}
             onPress={() => onPress && onPress(booking)}
           >
-            <Text style={[styles.actionText, { color: colors.primary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionText, { color: colors.primary }]}>
               Voir détails
             </Text>
             <Ionicons name="chevron-forward" size={16} color={colors.primary} />
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   },
   massageType: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
   statusBadge: {
     paddingHorizontal: spacing.sm,
@@ -180,11 +180,11 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 10,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
   price: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
   details: {
     gap: 2,
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   },
   compactStatusText: {
     fontSize: 10,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
   footer: {
     paddingHorizontal: spacing.md,
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 });
 

@@ -117,7 +117,7 @@ const Input = ({
   return (
     <View style={[styles.container, style]}>
       {label && (
-        <Text style={[styles.label, { color: getLabelColor() }, labelStyle]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: getLabelColor() }, labelStyle]}>
           {label}
         </Text>
       )}
@@ -140,7 +140,7 @@ const Input = ({
         
         <TextInput
           ref={inputRef}
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.input,
             { color: themeColors.text },
             multiline && styles.multilineInput,
@@ -191,13 +191,13 @@ const Input = ({
       </View>
       
       {error && (
-        <Text style={[styles.errorText, { color: colors.error }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText, { color: colors.error }]}>
           {typeof error === 'string' ? error : 'Champ invalide'}
         </Text>
       )}
       
       {success && !error && (
-        <Text style={[styles.successText, { color: colors.success }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.successText, { color: colors.success }]}>
           {typeof success === 'string' ? success : 'Valide'}
         </Text>
       )}
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginBottom: 4,
   },
   inputContainer: {

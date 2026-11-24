@@ -248,14 +248,14 @@ const AddressMapPickerModal = ({
           <TouchableOpacity onPress={onClose} style={styles.headerButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="close" size={26} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Choisir l'adresse</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.headerTitle]}>Choisir l'adresse</Text>
           <View style={{ width: 26 }} />
         </View>
 
         {/* Statut GPS */}
         <View style={styles.trackingBar}>
           <View style={[styles.trackingDot, { backgroundColor: isTracking ? colors.primary : '#999' }]} />
-          <Text style={styles.trackingText}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.trackingText]}>
             {isTracking
               ? 'Position GPS active'
               : permissionGranted === false
@@ -271,7 +271,7 @@ const AddressMapPickerModal = ({
             <View style={styles.searchBar}>
               <Ionicons name="search" size={18} color="#666" style={{ marginRight: 8 }} />
               <TextInput
-                style={styles.searchInput}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.searchInput]}
                 placeholder="Rechercher : lot, rue, adresse, ville..."
                 placeholderTextColor="#999"
                 value={searchText}
@@ -306,9 +306,9 @@ const AddressMapPickerModal = ({
                     >
                       <Ionicons name="location-outline" size={16} color={colors.primary} style={{ marginRight: 8, marginTop: 2 }} />
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.suggestionMain} numberOfLines={1}>{item.main_text}</Text>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.suggestionMain]} numberOfLines={1}>{item.main_text}</Text>
                         {item.secondary_text ? (
-                          <Text style={styles.suggestionSecondary} numberOfLines={1}>{item.secondary_text}</Text>
+                          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.suggestionSecondary]} numberOfLines={1}>{item.secondary_text}</Text>
                         ) : null}
                       </View>
                     </TouchableOpacity>
@@ -321,7 +321,7 @@ const AddressMapPickerModal = ({
               <View style={styles.suggestionsBox}>
                 <View style={styles.noResultsRow}>
                   <Ionicons name="alert-circle-outline" size={16} color="#999" style={{ marginRight: 6 }} />
-                  <Text style={styles.noResultsText}>Aucune adresse trouvée pour « {searchText} »</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noResultsText]}>Aucune adresse trouvée pour « {searchText} »</Text>
                 </View>
               </View>
             )}
@@ -348,7 +348,7 @@ const AddressMapPickerModal = ({
           {!showSuggestions && (
             <View style={styles.mapHint}>
               <Ionicons name="hand-left-outline" size={14} color="#fff" />
-              <Text style={styles.mapHintText}>Touchez la carte pour choisir un point</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mapHintText]}>Touchez la carte pour choisir un point</Text>
             </View>
           )}
 
@@ -373,10 +373,10 @@ const AddressMapPickerModal = ({
             {isResolvingAddress ? (
               <View style={styles.addressLoadingRow}>
                 <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.addressLoadingText}>Recherche de l'adresse...</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.addressLoadingText]}>Recherche de l'adresse...</Text>
               </View>
             ) : (
-              <Text style={styles.addressPreviewText} numberOfLines={2}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.addressPreviewText]} numberOfLines={2}>
                 {selectedAddress || 'Touchez la carte, recherchez, ou utilisez votre position actuelle'}
               </Text>
             )}
@@ -389,7 +389,7 @@ const AddressMapPickerModal = ({
             activeOpacity={0.85}
           >
             <Ionicons name="checkmark-circle-outline" size={20} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={styles.confirmButtonText}>Confirmer cette adresse</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmButtonText]}>Confirmer cette adresse</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
   headerButton: { padding: 4 },
   headerTitle: {
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     color: '#333',
   },
   trackingBar: {
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
-  suggestionMain: { fontSize: 13, color: '#333', fontFamily: typography.fontFamily.medium },
+  suggestionMain: { fontSize: 13, color: '#333', fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   suggestionSecondary: { fontSize: 11, color: '#888', marginTop: 2, fontFamily: typography.fontFamily.regular },
   noResultsRow: {
     flexDirection: 'row',
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  noResultsText: { fontSize: 12, color: '#888', flex: 1 },
+  noResultsText: { fontFamily: typography.fontFamily.regular, fontSize: 12, color: '#888', flex: 1 },
 
   mapHint: {
     position: 'absolute',
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
   },
-  mapHintText: { color: '#fff', fontSize: 11, fontFamily: typography.fontFamily.medium },
+  mapHintText: { color: '#fff', fontSize: 11, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   currentLocationButton: {
     position: 'absolute',
     bottom: 16,
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   confirmButtonDisabled: { opacity: 0.5 },
-  confirmButtonText: { color: '#fff', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
+  confirmButtonText: { color: '#fff', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
 });
 
 export default AddressMapPickerModal;

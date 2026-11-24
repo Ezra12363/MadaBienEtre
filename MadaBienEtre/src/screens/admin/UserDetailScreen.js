@@ -55,6 +55,7 @@ import {
   getFullAddress,
   useAdminToast,
 } from '../../components/admin/AdminDetailKit';
+import { typography } from '../../theme';
 
 /* ============================================================
    HELPERS
@@ -493,7 +494,7 @@ const UserDetailScreen = ({ navigation, route }) => {
               >
                 <Ionicons name={opt.icon} size={18} color={active ? optColor : themeColors.textSecondary} />
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.roleOptionText,
                     { color: active ? optColor : themeColors.text },
                   ]}
@@ -505,7 +506,7 @@ const UserDetailScreen = ({ navigation, route }) => {
             );
           })}
         </View>
-        <Text style={[styles.roleHint, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.roleHint, { color: themeColors.textSecondary }]}>
           {isSelf
             ? 'Vous ne pouvez pas modifier votre propre rôle.'
             : user.deleted_at
@@ -517,10 +518,10 @@ const UserDetailScreen = ({ navigation, route }) => {
       <DetailCard title="Statut du compte" icon="power-outline">
         <View style={styles.switchRow}>
           <View style={styles.switchTextWrap}>
-            <Text style={[styles.switchTitle, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.switchTitle, { color: themeColors.text }]}>
               {user.is_active ? 'Compte actif' : 'Compte inactif'}
             </Text>
-            <Text style={[styles.switchSubtitle, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.switchSubtitle, { color: themeColors.textSecondary }]}>
               Activer ou désactiver le compte
             </Text>
           </View>
@@ -564,9 +565,9 @@ const UserDetailScreen = ({ navigation, route }) => {
 
   const editCard = (
     <DetailCard title="Modifier l'utilisateur" icon="create-outline">
-      <Text style={[styles.label, { color: themeColors.textSecondary }]}>Nom complet *</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: themeColors.textSecondary }]}>Nom complet *</Text>
       <TextInput
-        style={inputStyle}
+        style={[{ fontFamily: typography.fontFamily.regular }, inputStyle]}
         value={editData.fullname}
         onChangeText={(text) => setEditData((prev) => ({ ...prev, fullname: maskFullname(text) }))}
         placeholder="Nom complet"
@@ -575,9 +576,9 @@ const UserDetailScreen = ({ navigation, route }) => {
         maxLength={100}
       />
 
-      <Text style={[styles.label, { color: themeColors.textSecondary }]}>Email *</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: themeColors.textSecondary }]}>Email *</Text>
       <TextInput
-        style={inputStyle}
+        style={[{ fontFamily: typography.fontFamily.regular }, inputStyle]}
         value={editData.email}
         onChangeText={(text) => setEditData((prev) => ({ ...prev, email: maskEmail(text) }))}
         placeholder="exemple@email.com"
@@ -587,7 +588,7 @@ const UserDetailScreen = ({ navigation, route }) => {
         autoCorrect={false}
       />
 
-      <Text style={[styles.label, { color: themeColors.textSecondary }]}>Téléphone *</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: themeColors.textSecondary }]}>Téléphone *</Text>
       <PhoneInput
         variant="admin"
         isDark={isDark}
@@ -598,9 +599,9 @@ const UserDetailScreen = ({ navigation, route }) => {
 
       {isTherapist ? (
         <>
-          <Text style={[styles.label, { color: themeColors.textSecondary }]}>Biographie</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: themeColors.textSecondary }]}>Biographie</Text>
           <TextInput
-            style={[inputStyle, styles.textArea]}
+            style={[{ fontFamily: typography.fontFamily.regular }, inputStyle, styles.textArea]}
             value={editData.bio}
             onChangeText={(text) => setEditData((prev) => ({ ...prev, bio: text }))}
             placeholder="Biographie"
@@ -618,7 +619,7 @@ const UserDetailScreen = ({ navigation, route }) => {
           onPress={() => setEditMode(false)}
           disabled={saving}
         >
-          <Text style={[styles.editButtonText, { color: themeColors.text }]}>Annuler</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.editButtonText, { color: themeColors.text }]}>Annuler</Text>
         </TouchableOpacity>
 
         <ActionButton
@@ -735,8 +736,8 @@ const UserDetailScreen = ({ navigation, route }) => {
             <Ionicons name="location" size={21} color={colors.primary} />
           </View>
           <View style={styles.addressTextWrap}>
-            <Text style={[styles.addressTitle, { color: themeColors.text }]}>Adresse enregistrée</Text>
-            <Text style={[styles.addressText, { color: themeColors.textSecondary }]} selectable>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.addressTitle, { color: themeColors.text }]}>Adresse enregistrée</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.addressText, { color: themeColors.textSecondary }]} selectable>
               {getFullAddress(user)}
             </Text>
           </View>
@@ -748,7 +749,7 @@ const UserDetailScreen = ({ navigation, route }) => {
           style={[styles.addressButton, { backgroundColor: colors.primary }]}
         >
           <Ionicons name="map-outline" size={18} color="#fff" />
-          <Text style={styles.addressButtonText}>Modifier l'adresse sur la carte</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.addressButtonText]}>Modifier l'adresse sur la carte</Text>
         </TouchableOpacity>
       </DetailCard>
     </>
@@ -811,16 +812,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 10,
   },
-  roleOptionText: { fontSize: 13, fontWeight: '700' },
-  roleHint: { fontSize: 12, lineHeight: 17, marginTop: 10 },
+  roleOptionText: { fontFamily: typography.fontFamily.bold, fontSize: 13, fontWeight: '700' },
+  roleHint: { fontFamily: typography.fontFamily.regular, fontSize: 12, lineHeight: 17, marginTop: 10 },
 
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   switchTextWrap: { flex: 1 },
-  switchTitle: { fontSize: 14, fontWeight: '700', lineHeight: 20 },
-  switchSubtitle: { fontSize: 12, lineHeight: 17, marginTop: 2 },
+  switchTitle: { fontFamily: typography.fontFamily.bold, fontSize: 14, fontWeight: '700', lineHeight: 20 },
+  switchSubtitle: { fontFamily: typography.fontFamily.regular, fontSize: 12, lineHeight: 17, marginTop: 2 },
 
-  label: { fontSize: 12, fontWeight: '700', marginBottom: 6, marginTop: 4 },
-  input: {
+  label: { fontFamily: typography.fontFamily.bold, fontSize: 12, fontWeight: '700', marginBottom: 6, marginTop: 4 },
+  input: { fontFamily: typography.fontFamily.regular,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 14,
@@ -840,7 +841,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  editButtonText: { fontSize: 14, fontWeight: '700' },
+  editButtonText: { fontFamily: typography.fontFamily.bold, fontSize: 14, fontWeight: '700' },
 
   addressBox: {
     flexDirection: 'row',
@@ -852,8 +853,8 @@ const styles = StyleSheet.create({
   },
   addressIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   addressTextWrap: { flex: 1, minWidth: 0 },
-  addressTitle: { fontSize: 14, fontWeight: '700', lineHeight: 20 },
-  addressText: { fontSize: 13, lineHeight: 19, marginTop: 2 },
+  addressTitle: { fontFamily: typography.fontFamily.bold, fontSize: 14, fontWeight: '700', lineHeight: 20 },
+  addressText: { fontFamily: typography.fontFamily.regular, fontSize: 13, lineHeight: 19, marginTop: 2 },
   addressButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -864,7 +865,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 16,
   },
-  addressButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  addressButtonText: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 14, fontWeight: '700' },
 });
 
 export default UserDetailScreen;

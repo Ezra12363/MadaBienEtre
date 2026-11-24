@@ -4,6 +4,7 @@ import { Animated, FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, Vie
 
 import messengerService from '../../services/messengerService';
 import { EMOJI_CATEGORIES } from './emojiData';
+import { typography } from '../../theme';
 
 const Sticker = ({ item, animated, size = 56 }) => {
   const scale = useRef(new Animated.Value(1)).current;
@@ -19,7 +20,7 @@ const Sticker = ({ item, animated, size = 56 }) => {
     return () => loop.stop();
   }, [animated, scale]);
   return (
-    <Animated.Text style={{ fontSize: size, transform: [{ scale }] }}>{item.emoji}</Animated.Text>
+    <Animated.Text style={{ fontFamily: typography.fontFamily.regular, fontSize: size, transform: [{ scale }] }}>{item.emoji}</Animated.Text>
   );
 };
 export { Sticker };
@@ -62,7 +63,7 @@ const EmojiStickerPanel = ({ palette, onEmoji, onSticker }) => {
       <View style={styles.tabs}>
         {['emoji', 'stickers'].map((t) => (
           <TouchableOpacity key={t} onPress={() => setTab(t)} style={[styles.tab, tab === t && { borderBottomColor: palette.primary }]}>
-            <Text style={{ color: tab === t ? palette.primary : palette.textSecondary, fontWeight: '600' }}>
+            <Text style={{ fontFamily: typography.fontFamily.semiBold, color: tab === t ? palette.primary : palette.textSecondary, fontWeight: '600' }}>
               {t === 'emoji' ? 'Emojis' : 'Stickers'}
             </Text>
           </TouchableOpacity>
@@ -74,7 +75,7 @@ const EmojiStickerPanel = ({ palette, onEmoji, onSticker }) => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cats}>
             {EMOJI_CATEGORIES.map((c) => (
               <TouchableOpacity key={c.key} onPress={() => setCat(c.key)} style={[styles.cat, cat === c.key && { backgroundColor: palette.primarySoft }]}>
-                <Text style={{ fontSize: 22 }}>{c.icon}</Text>
+                <Text style={{ fontFamily: typography.fontFamily.regular, fontSize: 22 }}>{c.icon}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -82,7 +83,7 @@ const EmojiStickerPanel = ({ palette, onEmoji, onSticker }) => {
             key="emoji" data={cur.emojis} numColumns={8} keyExtractor={(e, i) => `${e}${i}`} style={styles.grid}
             renderItem={({ item }) => (
               <TouchableOpacity style={styles.emojiCell} onPress={() => onEmoji(item)}>
-                <Text style={{ fontSize: 26 }}>{item}</Text>
+                <Text style={{ fontFamily: typography.fontFamily.regular, fontSize: 26 }}>{item}</Text>
               </TouchableOpacity>
             )}
           />
@@ -92,13 +93,13 @@ const EmojiStickerPanel = ({ palette, onEmoji, onSticker }) => {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.cats}>
             {tabs.map((t) => (
               <TouchableOpacity key={t.key} onPress={() => setPack(t.key)} style={[styles.packTab, pack === t.key && { backgroundColor: palette.primarySoft }]}>
-                <Text style={{ color: palette.text, fontSize: 13 }}>{t.label}</Text>
+                <Text style={{ fontFamily: typography.fontFamily.regular, color: palette.text, fontSize: 13 }}>{t.label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
           <FlatList
             key="stickers" data={listFor(pack)} numColumns={4} keyExtractor={(s) => s.id} style={styles.grid}
-            ListEmptyComponent={<Text style={[styles.empty, { color: palette.textSecondary }]}>Aucun sticker ici pour le moment.</Text>}
+            ListEmptyComponent={<Text style={[{ fontFamily: typography.fontFamily.regular }, styles.empty, { color: palette.textSecondary }]}>Aucun sticker ici pour le moment.</Text>}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.stickerCell}
@@ -107,11 +108,11 @@ const EmojiStickerPanel = ({ palette, onEmoji, onSticker }) => {
                 accessibilityLabel={`Sticker ${item.label}. Appui long : favori`}
               >
                 <Sticker item={item} animated={item.animated} />
-                {data.favorites.includes(item.id) && <Text style={styles.star}>⭐</Text>}
+                {data.favorites.includes(item.id) && <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.star]}>⭐</Text>}
               </TouchableOpacity>
             )}
           />
-          <Text style={[styles.hint, { color: palette.textSecondary }]}>Appui long sur un sticker = favori</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, { color: palette.textSecondary }]}>Appui long sur un sticker = favori</Text>
         </>
       )}
     </View>
@@ -128,9 +129,9 @@ const styles = StyleSheet.create({
   grid: { flex: 1, paddingHorizontal: 8 },
   emojiCell: { flex: 1 / 8, alignItems: 'center', paddingVertical: 6 },
   stickerCell: { flex: 1 / 4, alignItems: 'center', paddingVertical: 8 },
-  star: { position: 'absolute', top: 2, right: 8, fontSize: 12 },
+  star: { fontFamily: typography.fontFamily.regular, position: 'absolute', top: 2, right: 8, fontSize: 12 },
   empty: { textAlign: 'center', marginTop: 30 },
-  hint: { textAlign: 'center', fontSize: 11, paddingBottom: 6 },
+  hint: { fontFamily: typography.fontFamily.regular, textAlign: 'center', fontSize: 11, paddingBottom: 6 },
 });
 
 export default EmojiStickerPanel;

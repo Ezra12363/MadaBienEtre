@@ -17,6 +17,7 @@ import Header from '../../components/common/Header';
 import { formatAr } from '../../components/payment/paymentUtils';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
+import { typography } from '../../theme';
 
 const GREEN = '#2E8B57';
 const GREEN_DARK = '#1B5C36';
@@ -30,8 +31,8 @@ function Row({ label, value }) {
   if (value === null || value === undefined || value === '') return null;
   return (
     <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{String(value)}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowLabel]}>{label}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowValue]}>{String(value)}</Text>
     </View>
   );
 }
@@ -86,12 +87,12 @@ export default function ReceiptScreen({ route, navigation }) {
       ) : error ? (
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={40} color="#B45309" />
-          <Text style={[styles.errorText, { color: theme.text }]}>{error}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText, { color: theme.text }]}>{error}</Text>
           <TouchableOpacity style={styles.ghostBtn} onPress={load}>
-            <Text style={[styles.ghostText, { color: GREEN }]}>Réessayer</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.ghostText, { color: GREEN }]}>Réessayer</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.ghostBtn} onPress={goBack}>
-            <Text style={styles.ghostText}>Retour</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.ghostText]}>Retour</Text>
           </TouchableOpacity>
         </View>
       ) : data ? (
@@ -99,22 +100,22 @@ export default function ReceiptScreen({ route, navigation }) {
           <View style={styles.sheet}>
             {/* En-tête */}
             <View style={styles.header}>
-              <Text style={styles.company}>{data.company}</Text>
-              <Text style={styles.docTitle}>{String(data.doc_title).toUpperCase()}</Text>
-              <Text style={styles.docNo}>N° {data.receipt_no}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.company]}>{data.company}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.docTitle]}>{String(data.doc_title).toUpperCase()}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.docNo]}>N° {data.receipt_no}</Text>
             </View>
 
             {/* Montant */}
             <View style={styles.amountCard}>
-              <Text style={styles.amountCaption}>{String(data.amount_caption).toUpperCase()}</Text>
-              <Text style={styles.amount}>{formatAr(data.amount)}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.amountCaption]}>{String(data.amount_caption).toUpperCase()}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.amount]}>{formatAr(data.amount)}</Text>
               <View style={[styles.pill, !data.status_ok && { backgroundColor: '#FBEFD5' }]}>
                 <Ionicons
                   name={data.status_ok ? 'checkmark-circle' : 'time'}
                   size={13}
                   color={data.status_ok ? GREEN : '#9A6A12'}
                 />
-                <Text style={[styles.pillText, !data.status_ok && { color: '#9A6A12' }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.pillText, !data.status_ok && { color: '#9A6A12' }]}>
                   {String(data.status_label).toUpperCase()}
                 </Text>
               </View>
@@ -124,7 +125,7 @@ export default function ReceiptScreen({ route, navigation }) {
             {(data.sections || []).map((sec) =>
               sec.rows?.length ? (
                 <View key={sec.title} style={styles.section}>
-                  <Text style={styles.sectionTitle}>{String(sec.title).toUpperCase()}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionTitle]}>{String(sec.title).toUpperCase()}</Text>
                   <View style={styles.sectionLine} />
                   {sec.rows.map(([label, value]) => (
                     <Row key={`${sec.title}-${label}`} label={label} value={value} />
@@ -143,8 +144,8 @@ export default function ReceiptScreen({ route, navigation }) {
                 </View>
               )}
               <View style={{ flex: 1 }}>
-                <Text style={styles.qrTitle}>Vérifiez ce reçu</Text>
-                <Text style={styles.qrText}>Scannez le QR code pour contrôler son authenticité en ligne.</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.qrTitle]}>Vérifiez ce reçu</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.qrText]}>Scannez le QR code pour contrôler son authenticité en ligne.</Text>
               </View>
             </View>
 
@@ -157,14 +158,14 @@ export default function ReceiptScreen({ route, navigation }) {
                   <Ionicons name="barcode-outline" size={48} color={GREEN_DARK} />
                 </View>
               )}
-              <Text style={styles.barText}>{data.barcode_data}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.barText]}>{data.barcode_data}</Text>
             </View>
 
-            {data.footer ? <Text style={styles.footer}>{data.footer}</Text> : null}
+            {data.footer ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footer]}>{data.footer}</Text> : null}
           </View>
 
           {notice.text ? (
-            <Text style={[styles.notice, { color: notice.ok ? GREEN : '#B91C1C' }]}>{notice.text}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.notice, { color: notice.ok ? GREEN : '#B91C1C' }]}>{notice.text}</Text>
           ) : null}
 
           <View style={styles.actions}>
@@ -174,12 +175,12 @@ export default function ReceiptScreen({ route, navigation }) {
               ) : (
                 <>
                   <Ionicons name="download-outline" size={18} color="#fff" />
-                  <Text style={styles.primaryText}>Télécharger le reçu (PDF)</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryText]}>Télécharger le reçu (PDF)</Text>
                 </>
               )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.ghostBtn} onPress={goBack}>
-              <Text style={styles.ghostText}>Retour</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.ghostText]}>Retour</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -191,7 +192,7 @@ export default function ReceiptScreen({ route, navigation }) {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, padding: 24 },
-  errorText: { fontSize: 14, textAlign: 'center', fontWeight: '400' },
+  errorText: { fontFamily: typography.fontFamily.regular, fontSize: 14, textAlign: 'center', fontWeight: '400' },
   scroll: { padding: 16, paddingBottom: 40, alignItems: 'center' },
   sheet: {
     width: '100%',
@@ -203,9 +204,9 @@ const styles = StyleSheet.create({
     borderColor: LINE,
   },
   header: { backgroundColor: GREEN, borderRadius: 16, padding: 16, marginBottom: 12 },
-  company: { color: '#fff', fontSize: 18, fontWeight: '400' },
-  docTitle: { color: '#CFE5D8', fontSize: 11, marginTop: 6, letterSpacing: 1.2, fontWeight: '400' },
-  docNo: { color: '#CFE5D8', fontSize: 12, marginTop: 2, fontWeight: '400' },
+  company: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 18, fontWeight: '400' },
+  docTitle: { fontFamily: typography.fontFamily.regular, color: '#CFE5D8', fontSize: 11, marginTop: 6, letterSpacing: 1.2, fontWeight: '400' },
+  docNo: { fontFamily: typography.fontFamily.regular, color: '#CFE5D8', fontSize: 12, marginTop: 2, fontWeight: '400' },
   amountCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -215,8 +216,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     marginBottom: 6,
   },
-  amountCaption: { color: MUTED, fontSize: 11, letterSpacing: 1, fontWeight: '400' },
-  amount: { color: GREEN_DARK, fontSize: 30, marginTop: 4, fontWeight: '400' },
+  amountCaption: { fontFamily: typography.fontFamily.regular, color: MUTED, fontSize: 11, letterSpacing: 1, fontWeight: '400' },
+  amount: { fontFamily: typography.fontFamily.regular, color: GREEN_DARK, fontSize: 30, marginTop: 4, fontWeight: '400' },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -227,9 +228,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     marginTop: 8,
   },
-  pillText: { color: GREEN, fontSize: 11, letterSpacing: 0.8, fontWeight: '400' },
+  pillText: { fontFamily: typography.fontFamily.regular, color: GREEN, fontSize: 11, letterSpacing: 0.8, fontWeight: '400' },
   section: { marginTop: 14 },
-  sectionTitle: { color: GOLD, fontSize: 11, letterSpacing: 1, fontWeight: '400' },
+  sectionTitle: { fontFamily: typography.fontFamily.regular, color: GOLD, fontSize: 11, letterSpacing: 1, fontWeight: '400' },
   sectionLine: { height: 1, backgroundColor: GOLD, opacity: 0.6, marginTop: 5, marginBottom: 2 },
   row: {
     flexDirection: 'row',
@@ -240,8 +241,8 @@ const styles = StyleSheet.create({
     borderBottomColor: LINE,
     gap: 14,
   },
-  rowLabel: { color: MUTED, fontSize: 13, flexShrink: 0, fontWeight: '400' },
-  rowValue: { color: INK, fontSize: 14, flex: 1, textAlign: 'right', fontWeight: '400' },
+  rowLabel: { fontFamily: typography.fontFamily.regular, color: MUTED, fontSize: 13, flexShrink: 0, fontWeight: '400' },
+  rowValue: { fontFamily: typography.fontFamily.regular, color: INK, fontSize: 14, flex: 1, textAlign: 'right', fontWeight: '400' },
   qrBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -255,8 +256,8 @@ const styles = StyleSheet.create({
   },
   qr: { width: 130, height: 130 },
   fallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F0E7', borderRadius: 8 },
-  qrTitle: { color: INK, fontSize: 14, fontWeight: '400' },
-  qrText: { color: MUTED, fontSize: 12, marginTop: 4, lineHeight: 17, fontWeight: '400' },
+  qrTitle: { fontFamily: typography.fontFamily.regular, color: INK, fontSize: 14, fontWeight: '400' },
+  qrText: { fontFamily: typography.fontFamily.regular, color: MUTED, fontSize: 12, marginTop: 4, lineHeight: 17, fontWeight: '400' },
   barBox: {
     alignItems: 'center',
     marginTop: 12,
@@ -267,9 +268,9 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   bar: { width: '100%', maxWidth: 380, height: 84 },
-  barText: { color: MUTED, fontSize: 12, marginTop: 6, letterSpacing: 1, fontWeight: '400' },
-  footer: { color: MUTED, fontSize: 12, textAlign: 'center', marginTop: 14, fontWeight: '400' },
-  notice: { fontSize: 13, textAlign: 'center', marginTop: 14, fontWeight: '400' },
+  barText: { fontFamily: typography.fontFamily.regular, color: MUTED, fontSize: 12, marginTop: 6, letterSpacing: 1, fontWeight: '400' },
+  footer: { fontFamily: typography.fontFamily.regular, color: MUTED, fontSize: 12, textAlign: 'center', marginTop: 14, fontWeight: '400' },
+  notice: { fontFamily: typography.fontFamily.regular, fontSize: 13, textAlign: 'center', marginTop: 14, fontWeight: '400' },
   actions: { width: '100%', maxWidth: 520, marginTop: 14 },
   primaryBtn: {
     flexDirection: 'row',
@@ -280,7 +281,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 14,
   },
-  primaryText: { color: '#fff', fontSize: 15, fontWeight: '400' },
+  primaryText: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 15, fontWeight: '400' },
   ghostBtn: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
-  ghostText: { color: MUTED, fontSize: 14, fontWeight: '400' },
+  ghostText: { fontFamily: typography.fontFamily.regular, color: MUTED, fontSize: 14, fontWeight: '400' },
 });

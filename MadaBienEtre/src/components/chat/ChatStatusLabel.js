@@ -4,6 +4,7 @@
 import { Text } from 'react-native';
 
 import { getStatusLabel } from '../../utils/chatUi';
+import { typography } from '../../theme';
 
 const ChatStatusLabel = ({ status, palette, color }) => {
   const label = getStatusLabel(status);
@@ -18,7 +19,7 @@ const ChatStatusLabel = ({ status, palette, color }) => {
 
   return (
     <Text
-      style={{
+      style={{ fontFamily: typography.fontFamily.regular,
         fontSize: 11,
         marginLeft: 4,
         color: tint,

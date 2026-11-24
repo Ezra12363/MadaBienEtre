@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import SavedCardsManager from './SavedCardsManager';
+import { typography } from '../../theme';
 
 const GREEN = '#2E8B57';
 
@@ -93,17 +94,17 @@ export default function PaymentSettingsPanel() {
   const g = data?.gateways || {};
   const field = ({ label, k, suffix, keyboard = 'numeric', placeholder }) => (
     <View key={k} style={{ marginTop: 12 }}>
-      <Text style={[styles.label, sub]}>{label}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, sub]}>{label}</Text>
       <View style={[styles.inputWrap, { borderColor: theme.border }]}>
         <TextInput
-          style={[styles.input, txt]}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.input, txt]}
           keyboardType={keyboard}
           value={String(form[k] ?? '')}
           onChangeText={(v) => (keyboard === 'numeric' ? num(k, v) : setForm((f) => ({ ...f, [k]: v })))}
           placeholder={placeholder}
           placeholderTextColor={theme.placeholder}
         />
-        {suffix ? <Text style={sub}>{suffix}</Text> : null}
+        {suffix ? <Text style={[{ fontFamily: typography.fontFamily.regular }, sub]}>{suffix}</Text> : null}
       </View>
     </View>
   );
@@ -111,7 +112,7 @@ export default function PaymentSettingsPanel() {
   const Gate = ({ name, ok, reason }) => (
     <View style={styles.gate}>
       <Ionicons name={ok ? 'checkmark-circle' : 'close-circle'} size={18} color={ok ? '#047857' : '#B91C1C'} />
-      <Text style={[styles.gateText, txt]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.gateText, txt]}>
         {name} : {ok ? 'clé configurée' : (reason || 'clé absente (.env du backend)')}
       </Text>
     </View>
@@ -121,11 +122,11 @@ export default function PaymentSettingsPanel() {
     <View style={[styles.card, box]}>
       <View style={styles.head}>
         <Ionicons name="wallet-outline" size={22} color={GREEN} />
-        <Text style={[styles.title, txt]}>Paiements & commissions</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, txt]}>Paiements & commissions</Text>
       </View>
-      <Text style={[styles.desc, sub]}>Ces réglages s’appliquent immédiatement à toute la plateforme.</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.desc, sub]}>Ces réglages s’appliquent immédiatement à toute la plateforme.</Text>
 
-      <Text style={[styles.group, { color: GREEN }]}>MODE DE PAIEMENT (MA CARTE)</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.group, { color: GREEN }]}>MODE DE PAIEMENT (MA CARTE)</Text>
       <SavedCardsManager mode="manage" hideTitle />
 
       {field({ label: 'Commission de la plateforme', k: 'platform_commission_rate', suffix: '%' })}
@@ -134,39 +135,39 @@ export default function PaymentSettingsPanel() {
 
       {SWITCHES.map(([label, key]) =>
         key === null ? (
-          <Text key={label} style={[styles.group, { color: GREEN }]}>
+          <Text key={label} style={[{ fontFamily: typography.fontFamily.regular }, styles.group, { color: GREEN }]}>
             {label.toUpperCase()}
           </Text>
         ) : (
           <View key={key} style={styles.switchRow}>
-            <Text style={[styles.switchLabel, txt]}>{label}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.switchLabel, txt]}>{label}</Text>
             <Switch value={!!form[key]} onValueChange={(v) => setForm((f) => ({ ...f, [key]: v }))} trackColor={{ true: GREEN }} />
           </View>
         )
       )}
 
-      <Text style={[styles.group, { color: GREEN }]}>INFORMATIONS DES REÇUS</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.group, { color: GREEN }]}>INFORMATIONS DES REÇUS</Text>
       {field({ label: 'Nom de l’entreprise', k: 'company_name', keyboard: 'default' })}
       {field({ label: 'Téléphone', k: 'company_phone', keyboard: 'phone-pad', placeholder: '+261 34 00 000 00' })}
       {field({ label: 'E-mail', k: 'company_email', keyboard: 'email-address' })}
       {field({ label: 'Adresse', k: 'company_address', keyboard: 'default' })}
       {field({ label: 'Message en bas du reçu', k: 'receipt_footer', keyboard: 'default' })}
 
-      <Text style={[styles.group, { color: GREEN }]}>PASSERELLES</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.group, { color: GREEN }]}>PASSERELLES</Text>
       <Gate name="Stripe" ok={g.stripe_configured} reason={g.stripe_reason} />
       <Gate name="Vanila Pay" ok={g.vanila_configured} />
-      {g.sandbox ? <Text style={styles.warn}>Mode TEST actif (PAYMENT_SANDBOX=True) : à désactiver en production.</Text> : null}
-      <Text style={[styles.help, sub]}>{data?.keys_help}</Text>
-      <Text style={[styles.help, sub]}>Webhook Stripe : {g.stripe_webhook_url}</Text>
-      <Text style={[styles.help, sub]}>Webhook Vanila Pay : {g.vanila_webhook_url}</Text>
+      {g.sandbox ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.warn]}>Mode TEST actif (PAYMENT_SANDBOX=True) : à désactiver en production.</Text> : null}
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.help, sub]}>{data?.keys_help}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.help, sub]}>Webhook Stripe : {g.stripe_webhook_url}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.help, sub]}>Webhook Vanila Pay : {g.vanila_webhook_url}</Text>
 
-      {msg ? <Text style={[styles.msg, { color: msg.ok ? '#047857' : '#B91C1C' }]}>{msg.text}</Text> : null}
+      {msg ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.msg, { color: msg.ok ? '#047857' : '#B91C1C' }]}>{msg.text}</Text> : null}
 
       <TouchableOpacity style={styles.save} onPress={save} disabled={saving}>
-        {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Enregistrer les paramètres de paiement</Text>}
+        {saving ? <ActivityIndicator color="#fff" /> : <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.saveText]}>Enregistrer les paramètres de paiement</Text>}
       </TouchableOpacity>
       <TouchableOpacity style={styles.apply} onPress={applyAll} disabled={saving}>
-        <Text style={[styles.applyText, { color: GREEN }]}>Enregistrer et appliquer la commission à TOUS les thérapeutes</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.applyText, { color: GREEN }]}>Enregistrer et appliquer la commission à TOUS les thérapeutes</Text>
       </TouchableOpacity>
     </View>
   );
@@ -175,21 +176,21 @@ export default function PaymentSettingsPanel() {
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 16 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title: { fontSize: 16, fontWeight: '400' },
-  desc: { fontSize: 12, marginTop: 4, fontWeight: '400' },
-  label: { fontSize: 12, marginBottom: 6, fontWeight: '400' },
+  title: { fontFamily: typography.fontFamily.regular, fontSize: 16, fontWeight: '400' },
+  desc: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginTop: 4, fontWeight: '400' },
+  label: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginBottom: 6, fontWeight: '400' },
   inputWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 12 },
-  input: { flex: 1, paddingVertical: 10, fontSize: 15, fontWeight: '400' },
-  group: { fontSize: 11, letterSpacing: 1, marginTop: 20, fontWeight: '400' },
+  input: { fontFamily: typography.fontFamily.regular, flex: 1, paddingVertical: 10, fontSize: 15, fontWeight: '400' },
+  group: { fontFamily: typography.fontFamily.regular, fontSize: 11, letterSpacing: 1, marginTop: 20, fontWeight: '400' },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
-  switchLabel: { fontSize: 14, fontWeight: '400', flex: 1 },
+  switchLabel: { fontFamily: typography.fontFamily.regular, fontSize: 14, fontWeight: '400', flex: 1 },
   gate: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-  gateText: { fontSize: 13, fontWeight: '400' },
-  warn: { color: '#B45309', fontSize: 12, marginTop: 8, fontWeight: '400' },
-  help: { fontSize: 11, marginTop: 8, lineHeight: 16, fontWeight: '400' },
-  msg: { fontSize: 13, marginTop: 14, fontWeight: '400' },
+  gateText: { fontFamily: typography.fontFamily.regular, fontSize: 13, fontWeight: '400' },
+  warn: { fontFamily: typography.fontFamily.regular, color: '#B45309', fontSize: 12, marginTop: 8, fontWeight: '400' },
+  help: { fontFamily: typography.fontFamily.regular, fontSize: 11, marginTop: 8, lineHeight: 16, fontWeight: '400' },
+  msg: { fontFamily: typography.fontFamily.regular, fontSize: 13, marginTop: 14, fontWeight: '400' },
   save: { backgroundColor: GREEN, borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginTop: 16 },
-  saveText: { color: '#fff', fontSize: 14, fontWeight: '400' },
+  saveText: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 14, fontWeight: '400' },
   apply: { alignItems: 'center', paddingVertical: 12 },
-  applyText: { fontSize: 13, fontWeight: '400', textAlign: 'center' },
+  applyText: { fontFamily: typography.fontFamily.regular, fontSize: 13, fontWeight: '400', textAlign: 'center' },
 });

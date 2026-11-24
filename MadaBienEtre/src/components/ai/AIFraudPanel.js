@@ -145,7 +145,7 @@ const AIFraudPanel = () => {
 
       {scan && (
         <View style={{ marginTop: spacing.md }}>
-          <Text style={[styles.summary, { color: tc.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.summary, { color: tc.textSecondary }]}>
             {scan.analysed} réservation(s) analysée(s) · {scan.alerts.length} alerte(s)
           </Text>
           {scan.alerts.length === 0 ? (
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },
   checkBtn: { marginBottom: spacing.sm },
   divider: { height: 1, marginVertical: spacing.md },
-  summary: { fontSize: typography.fontSize.sm, marginBottom: spacing.sm },
+  summary: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, marginBottom: spacing.sm },
 });
 
 export default AIFraudPanel;

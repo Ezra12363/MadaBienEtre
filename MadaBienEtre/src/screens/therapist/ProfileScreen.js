@@ -1612,7 +1612,7 @@ const ProfileScreen = ({ navigation }) => {
                   }
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.mapTitle,
                       {
                         color:
@@ -1624,7 +1624,7 @@ const ProfileScreen = ({ navigation }) => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.mapSubtitle,
                       {
                         color:
@@ -1688,7 +1688,7 @@ const ProfileScreen = ({ navigation }) => {
                 />
 
                 <TextInput
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.mapSearchInput,
                     {
                       color:
@@ -1799,7 +1799,7 @@ const ProfileScreen = ({ navigation }) => {
                 style={{ flex: 1 }}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.currentLocationTitle,
                     {
                       color:
@@ -1811,7 +1811,7 @@ const ProfileScreen = ({ navigation }) => {
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.currentLocationSubtitle,
                     {
                       color:
@@ -1888,7 +1888,7 @@ const ProfileScreen = ({ navigation }) => {
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.mapLoadingText,
                         {
                           color:
@@ -1915,7 +1915,7 @@ const ProfileScreen = ({ navigation }) => {
 
                 <Text
                   style={
-                    styles.mapInstructionText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.mapInstructionText]
                   }
                 >
                   Appuyez sur la carte pour choisir
@@ -1955,7 +1955,7 @@ const ProfileScreen = ({ navigation }) => {
                   }
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.selectedLocationLabel,
                       {
                         color:
@@ -1968,7 +1968,7 @@ const ProfileScreen = ({ navigation }) => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.selectedLocationAddress,
                       {
                         color:
@@ -1982,7 +1982,7 @@ const ProfileScreen = ({ navigation }) => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.selectedLocationCoords,
                       {
                         color:
@@ -2036,7 +2036,7 @@ const ProfileScreen = ({ navigation }) => {
                 activeOpacity={0.8}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.mapCancelText,
                     {
                       color:
@@ -2070,7 +2070,7 @@ const ProfileScreen = ({ navigation }) => {
 
                 <Text
                   style={
-                    styles.mapConfirmText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.mapConfirmText]
                   }
                 >
                   Valider la position
@@ -2167,7 +2167,7 @@ const ProfileScreen = ({ navigation }) => {
                 >
                   <Text
                     style={
-                      styles.avatarText
+                      [{ fontFamily: typography.fontFamily.regular }, styles.avatarText]
                     }
                   >
                     {getInitials(
@@ -2198,7 +2198,7 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity>
 
             <Text
-              style={styles.heroName}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.heroName]}
             >
               {user?.fullname ||
                 'Thérapeute'}
@@ -2233,7 +2233,7 @@ const ProfileScreen = ({ navigation }) => {
                 color="#FFFFFF"
               />
 
-              <Text style={styles.verificationBadgeText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.verificationBadgeText]}>
                 {user?.verification_status === 'approved'
                   ? 'Vérifié'
                   : user?.verification_status === 'pending'
@@ -2254,7 +2254,7 @@ const ProfileScreen = ({ navigation }) => {
               />
 
               <Text
-                style={styles.heroEmail}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.heroEmail]}
               >
                 {user?.email || ''}
               </Text>
@@ -2287,7 +2287,7 @@ const ProfileScreen = ({ navigation }) => {
 
                       <Text
                         style={
-                          styles.statValue
+                          [{ fontFamily: typography.fontFamily.regular }, styles.statValue]
                         }
                       >
                         {stat.value}
@@ -2295,7 +2295,7 @@ const ProfileScreen = ({ navigation }) => {
 
                       <Text
                         style={
-                          styles.statLabel
+                          [{ fontFamily: typography.fontFamily.regular }, styles.statLabel]
                         }
                       >
                         {stat.label}
@@ -2367,7 +2367,7 @@ const ProfileScreen = ({ navigation }) => {
 
                 <View>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.sectionTitle,
                       {
                         color:
@@ -2379,7 +2379,7 @@ const ProfileScreen = ({ navigation }) => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.sectionSubtitle,
                       {
                         color:
@@ -2425,7 +2425,7 @@ const ProfileScreen = ({ navigation }) => {
 
                 <Text
                   style={
-                    styles.editActionText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.editActionText]
                   }
                 >
                   {isEditing
@@ -2441,7 +2441,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.inputGroup}
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.inputLabel,
                       {
                         color:
@@ -2474,7 +2474,7 @@ const ProfileScreen = ({ navigation }) => {
                     />
 
                     <TextInput
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.input,
                         {
                           color:
@@ -2510,7 +2510,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.inputGroup}
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.inputLabel,
                       {
                         color:
@@ -2544,7 +2544,7 @@ const ProfileScreen = ({ navigation }) => {
                     />
 
                     <TextInput
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.input,
                         {
                           color:
@@ -2573,7 +2573,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.inputGroup}
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.inputLabel,
                       {
                         color:
@@ -2606,7 +2606,7 @@ const ProfileScreen = ({ navigation }) => {
                     />
 
                     <TextInput
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.input,
                         {
                           color:
@@ -2642,7 +2642,7 @@ const ProfileScreen = ({ navigation }) => {
                   style={styles.inputGroup}
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.inputLabel,
                       {
                         color:
@@ -2666,7 +2666,7 @@ const ProfileScreen = ({ navigation }) => {
                     ]}
                   >
                     <TextInput
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.bioInput,
                         {
                           color:
@@ -2710,7 +2710,7 @@ const ProfileScreen = ({ navigation }) => {
                     ]}
                   >
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.inputLabel,
                         {
                           color:
@@ -2743,7 +2743,7 @@ const ProfileScreen = ({ navigation }) => {
                       />
 
                       <TextInput
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.input,
                           {
                             color:
@@ -2786,7 +2786,7 @@ const ProfileScreen = ({ navigation }) => {
                     ]}
                   >
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.inputLabel,
                         {
                           color:
@@ -2819,7 +2819,7 @@ const ProfileScreen = ({ navigation }) => {
                       />
 
                       <TextInput
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.input,
                           {
                             color:
@@ -2865,7 +2865,7 @@ const ProfileScreen = ({ navigation }) => {
                     }
                   >
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.inputLabel,
                         {
                           color:
@@ -2890,7 +2890,7 @@ const ProfileScreen = ({ navigation }) => {
 
                         <Text
                           style={
-                            styles.locationBadgeText
+                            [{ fontFamily: typography.fontFamily.regular }, styles.locationBadgeText]
                           }
                         >
                           Définie
@@ -2945,7 +2945,7 @@ const ProfileScreen = ({ navigation }) => {
                       }
                     >
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.locationCardTitle,
                           {
                             color:
@@ -2959,7 +2959,7 @@ const ProfileScreen = ({ navigation }) => {
                       </Text>
 
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.locationCardAddress,
                           {
                             color:
@@ -2975,7 +2975,7 @@ const ProfileScreen = ({ navigation }) => {
 
                       {hasLocation && (
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.locationCardCoords,
                             {
                               color:
@@ -2997,7 +2997,7 @@ const ProfileScreen = ({ navigation }) => {
                       {profileData.distance !=
                         null && (
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.locationCardCoords,
                             {
                               color:
@@ -3060,7 +3060,7 @@ const ProfileScreen = ({ navigation }) => {
 
                       <Text
                         style={
-                          styles.openMapText
+                          [{ fontFamily: typography.fontFamily.regular }, styles.openMapText]
                         }
                       >
                         {hasLocation
@@ -3188,7 +3188,7 @@ const ProfileScreen = ({ navigation }) => {
 
                         <Text
                           style={
-                            styles.saveText
+                            [{ fontFamily: typography.fontFamily.regular }, styles.saveText]
                           }
                         >
                           Enregistrer les modifications
@@ -3369,7 +3369,7 @@ const ProfileScreen = ({ navigation }) => {
               }
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionTitle,
                   {
                     color:
@@ -3381,7 +3381,7 @@ const ProfileScreen = ({ navigation }) => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionSubtitle,
                   {
                     color:
@@ -3435,7 +3435,7 @@ const ProfileScreen = ({ navigation }) => {
                     }
                   >
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.menuLabel,
                         {
                           color:
@@ -3447,7 +3447,7 @@ const ProfileScreen = ({ navigation }) => {
                     </Text>
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.menuDescription,
                         {
                           color:
@@ -3512,7 +3512,7 @@ const ProfileScreen = ({ navigation }) => {
                 }
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.menuLabel,
                     {
                       color:
@@ -3524,7 +3524,7 @@ const ProfileScreen = ({ navigation }) => {
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.menuDescription,
                     {
                       color:
@@ -3610,7 +3610,7 @@ const ProfileScreen = ({ navigation }) => {
 
               <Text
                 style={
-                  styles.logoutText
+                  [{ fontFamily: typography.fontFamily.regular }, styles.logoutText]
                 }
               >
                 Se déconnecter
@@ -3619,7 +3619,7 @@ const ProfileScreen = ({ navigation }) => {
           </TouchableOpacity>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.versionText,
               {
                 color:
@@ -3686,7 +3686,7 @@ const ProfileScreen = ({ navigation }) => {
             </View>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.logoutModalTitle,
                 {
                   color:
@@ -3698,7 +3698,7 @@ const ProfileScreen = ({ navigation }) => {
             </Text>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.logoutModalDescription,
                 {
                   color:
@@ -3740,7 +3740,7 @@ const ProfileScreen = ({ navigation }) => {
                 }}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.logoutCancelText,
                     {
                       color:
@@ -3762,7 +3762,7 @@ const ProfileScreen = ({ navigation }) => {
               >
                 <Text
                   style={
-                    styles.logoutConfirmText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.logoutConfirmText]
                   }
                 >
                   Se déconnecter
@@ -3834,7 +3834,7 @@ const ProfileInfoRow = ({
         }
       >
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.infoRowLabel,
             {
               color:
@@ -3847,7 +3847,7 @@ const ProfileInfoRow = ({
         </Text>
 
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.infoRowValue,
             {
               color:

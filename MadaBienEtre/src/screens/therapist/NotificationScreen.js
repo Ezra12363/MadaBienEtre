@@ -2311,7 +2311,7 @@ const NotificationScreen = ({
 
                     <Text
                       numberOfLines={2}
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.notificationTitle,
 
                         {
@@ -2354,7 +2354,7 @@ const NotificationScreen = ({
 
 
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.newBadgeText,
 
                             {
@@ -2375,7 +2375,7 @@ const NotificationScreen = ({
                   {/* TIME */}
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.notificationTime,
 
                       {
@@ -2394,7 +2394,7 @@ const NotificationScreen = ({
 
                 {!!body && (
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.notificationBody,
 
                       {
@@ -2430,7 +2430,7 @@ const NotificationScreen = ({
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.actionHintText,
                         {
                           color:
@@ -2473,7 +2473,7 @@ const NotificationScreen = ({
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.actionHintText,
                         {
                           color:
@@ -2516,7 +2516,7 @@ const NotificationScreen = ({
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.actionHintText,
                         {
                           color:
@@ -2680,7 +2680,7 @@ const NotificationScreen = ({
 
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.emptyStateTitle,
 
               {
@@ -2694,7 +2694,7 @@ const NotificationScreen = ({
 
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.emptyStateText,
 
               {
@@ -2784,7 +2784,7 @@ const NotificationScreen = ({
 
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.loadingText,
 
               {
@@ -2855,7 +2855,7 @@ const NotificationScreen = ({
 
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.markAllText,
 
                   {
@@ -2924,7 +2924,7 @@ const NotificationScreen = ({
           <View>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.summaryTitle,
 
                 {
@@ -2938,7 +2938,7 @@ const NotificationScreen = ({
 
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.summarySubtitle,
 
                 {
@@ -2975,7 +2975,7 @@ const NotificationScreen = ({
 
             <Text
               style={
-                styles.unreadCountText
+                [{ fontFamily: typography.fontFamily.regular }, styles.unreadCountText]
               }
             >
               {unreadCount}
@@ -2984,7 +2984,7 @@ const NotificationScreen = ({
 
             <Text
               style={
-                styles.unreadCountLabel
+                [{ fontFamily: typography.fontFamily.regular }, styles.unreadCountLabel]
               }
             >
               non lue
@@ -3082,7 +3082,7 @@ const NotificationScreen = ({
                     numberOfLines={
                       1
                     }
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.filterText,
 
                       {
@@ -3188,7 +3188,7 @@ const NotificationScreen = ({
 
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.listHeaderText,
 
                     {
@@ -3228,7 +3228,7 @@ const NotificationScreen = ({
 
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.listFooterText,
 
                     {
@@ -3399,7 +3399,7 @@ const NotificationScreen = ({
 
               <Text
                 numberOfLines={2}
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sheetPreviewText,
 
                   {
@@ -3472,7 +3472,7 @@ const NotificationScreen = ({
             >
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sheetOptionTitle,
 
                   {
@@ -3485,7 +3485,7 @@ const NotificationScreen = ({
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sheetOptionSubtitle,
 
                   {
@@ -3564,7 +3564,7 @@ const NotificationScreen = ({
             >
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sheetOptionTitle,
 
                   {
@@ -3577,7 +3577,7 @@ const NotificationScreen = ({
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sheetOptionSubtitle,
 
                   {
@@ -3622,7 +3622,7 @@ const NotificationScreen = ({
           >
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.sheetCancelText,
 
                 {
@@ -3710,7 +3710,7 @@ const NotificationScreen = ({
             {/* TITLE */}
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.confirmTitle,
 
                 {
@@ -3726,7 +3726,7 @@ const NotificationScreen = ({
             {/* MESSAGE */}
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.confirmMessage,
 
                 {
@@ -3771,7 +3771,7 @@ const NotificationScreen = ({
 
                 <Text
                   numberOfLines={2}
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.confirmNotificationText,
 
                     {
@@ -3826,7 +3826,7 @@ const NotificationScreen = ({
               >
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.confirmCancelText,
 
                     {
@@ -3885,7 +3885,7 @@ const NotificationScreen = ({
 
                     <Text
                       style={
-                        styles.confirmDeleteText
+                        [{ fontFamily: typography.fontFamily.regular }, styles.confirmDeleteText]
                       }
                     >
                       Supprimer
@@ -3950,7 +3950,7 @@ const styles =
         typography.fontSize.xs,
 
       fontFamily:
-        typography.fontFamily.semiBold,
+        typography.fontFamily.semiBold, fontWeight: '600',
     },
 
     /* ==========================================================
@@ -3996,7 +3996,7 @@ const styles =
         typography.fontSize.md,
 
       fontFamily:
-        typography.fontFamily.semiBold,
+        typography.fontFamily.semiBold, fontWeight: '600',
     },
 
     summarySubtitle: {
@@ -4027,7 +4027,7 @@ const styles =
       fontSize: 16,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
     },
 
     unreadCountLabel: {
@@ -4038,7 +4038,7 @@ const styles =
       marginTop: 1,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
     },
 
     /* ==========================================================
@@ -4079,7 +4079,7 @@ const styles =
         typography.fontSize.sm,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
 
       flexShrink: 0,
     },
@@ -4133,7 +4133,7 @@ const styles =
       letterSpacing: 0.7,
 
       fontFamily:
-        typography.fontFamily.semiBold,
+        typography.fontFamily.semiBold, fontWeight: '600',
     },
 
     listFooter: {
@@ -4236,12 +4236,12 @@ const styles =
       lineHeight: 20,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
     },
 
     unreadTitle: {
       fontFamily:
-        typography.fontFamily.semiBold,
+        typography.fontFamily.semiBold, fontWeight: '600',
     },
 
     notificationTime: {
@@ -4250,7 +4250,7 @@ const styles =
       lineHeight: 18,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
 
       textAlign: 'right',
 
@@ -4305,7 +4305,7 @@ const styles =
       letterSpacing: 0.4,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
     },
 
     /* ==========================================================
@@ -4333,7 +4333,7 @@ const styles =
       fontSize: 10,
 
       fontFamily:
-        typography.fontFamily.semiBold,
+        typography.fontFamily.semiBold, fontWeight: '600',
     },
 
     /* ==========================================================
@@ -4411,7 +4411,7 @@ const styles =
       fontSize: 13.5,
       lineHeight: 19,
       fontFamily:
-        typography.fontFamily.semiBold,
+        typography.fontFamily.semiBold, fontWeight: '600',
     },
 
     sheetDivider: {
@@ -4442,7 +4442,7 @@ const styles =
       fontSize: 14,
       marginBottom: 2,
       fontFamily:
-        typography.fontFamily.semiBold,
+        typography.fontFamily.semiBold, fontWeight: '600',
     },
 
     sheetOptionSubtitle: {
@@ -4462,7 +4462,7 @@ const styles =
     sheetCancelText: {
       fontSize: 14,
       fontFamily:
-        typography.fontFamily.semiBold,
+        typography.fontFamily.semiBold, fontWeight: '600',
     },
 
     /* ==========================================================
@@ -4549,7 +4549,7 @@ const styles =
         typography.fontSize.lg,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
 
       marginTop: 18,
     },
@@ -4639,7 +4639,7 @@ const styles =
       textAlign: 'center',
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
     },
 
     confirmMessage: {
@@ -4689,7 +4689,7 @@ const styles =
       marginLeft: 9,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
     },
 
     confirmButtons: {
@@ -4720,7 +4720,7 @@ const styles =
         typography.fontSize.sm,
 
       fontFamily:
-        typography.fontFamily.semiBold,
+        typography.fontFamily.semiBold, fontWeight: '600',
     },
 
     confirmDeleteButton: {
@@ -4748,7 +4748,7 @@ const styles =
         typography.fontSize.sm,
 
       fontFamily:
-        typography.fontFamily.semiBold,
+        typography.fontFamily.semiBold, fontWeight: '600',
     }
   });
 

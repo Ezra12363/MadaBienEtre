@@ -19,7 +19,7 @@ import { formatAr } from '../ai/aiHelpers';
 const Stat = ({ icon, text, color, bg }) => (
   <View style={[styles.stat, { backgroundColor: bg }]}>
     <Ionicons name={icon} size={14} color={color} />
-    <Text style={[styles.statText, { color }]} numberOfLines={1}>
+    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statText, { color }]} numberOfLines={1}>
       {text}
     </Text>
   </View>
@@ -51,7 +51,7 @@ const LockedTherapistCard = ({ therapist }) => {
     >
       <View style={styles.badge}>
         <Ionicons name="lock-closed" size={12} color="#FFFFFF" />
-        <Text style={styles.badgeText}>Thérapeute choisi</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.badgeText]}>Thérapeute choisi</Text>
       </View>
 
       <View style={styles.row}>
@@ -59,14 +59,14 @@ const LockedTherapistCard = ({ therapist }) => {
           <Image source={{ uri: photo }} style={styles.avatar} />
         ) : (
           <View style={[styles.avatar, styles.avatarFallback]}>
-            <Text style={styles.avatarText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.avatarText]}>
               {name.charAt(0).toUpperCase()}
             </Text>
           </View>
         )}
 
         <View style={styles.info}>
-          <Text style={[styles.name, { color: tc.text }]} numberOfLines={1}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.name, { color: tc.text }]} numberOfLines={1}>
             {name}
           </Text>
 
@@ -112,12 +112,12 @@ const LockedTherapistCard = ({ therapist }) => {
       </View>
 
       {therapist.reason ? (
-        <Text style={[styles.reason, { color: tc.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.reason, { color: tc.textSecondary }]}>
           {therapist.reason}
         </Text>
       ) : null}
 
-      <Text style={[styles.note, { color: tc.textSecondary }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.note, { color: tc.textSecondary }]}>
         {offline
           ? 'Ce thérapeute est actuellement hors ligne : il verra votre demande à sa prochaine connexion. '
           : ''}
@@ -187,9 +187,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  statText: { fontSize: 13, fontWeight: '600' },
-  reason: { fontSize: typography.fontSize.sm, marginTop: spacing.md },
-  note: {
+  statText: { fontFamily: typography.fontFamily.semiBold, fontSize: 13, fontWeight: '600' },
+  reason: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, marginTop: spacing.md },
+  note: { fontFamily: typography.fontFamily.regular,
     fontSize: 13,
     lineHeight: 19,
     marginTop: spacing.md,

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
 import cardService from '../../services/cardService';
+import { typography } from '../../theme';
 
 const GREEN = '#2E8B57';
 
@@ -66,7 +67,7 @@ function WebFields({ publishableKey, holderName, onSaved, title, buttonLabel }) 
             base: {
               fontSize: '16px',
               color: '#1f2937',
-              fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+              fontFamily: "'Times New Roman', Times, Tinos, 'Liberation Serif', serif",
               '::placeholder': { color: '#8792a2' },
             },
             invalid: { color: '#D93636' },
@@ -122,17 +123,17 @@ function WebFields({ publishableKey, holderName, onSaved, title, buttonLabel }) 
 
   return (
     <View>
-      <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: theme.text }]}>{title}</Text>
       <View style={[styles.field, { borderColor: fieldError ? '#D93636' : '#E5E7EB' }]}>
         <Ionicons name="card-outline" size={22} color="#8792a2" style={{ marginRight: 8 }} />
         <View ref={hostRef} style={{ flex: 1, minHeight: 24 }} />
         {!ready && !error ? <ActivityIndicator size="small" color={GREEN} /> : null}
       </View>
-      {fieldError ? <Text style={styles.err}>{fieldError}</Text> : null}
-      <Text style={styles.note}>
+      {fieldError ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.err]}>{fieldError}</Text> : null}
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.note]}>
         Champ sécurisé fourni par Stripe : les données de carte ne passent jamais par votre serveur.
       </Text>
-      {error ? <Text style={styles.err}>{error}</Text> : null}
+      {error ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.err]}>{error}</Text> : null}
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={submit}
@@ -140,7 +141,7 @@ function WebFields({ publishableKey, holderName, onSaved, title, buttonLabel }) 
         style={[styles.btn, (!ready || busy) && { opacity: 0.6 }]}
       >
         {busy ? <ActivityIndicator color="#fff" /> : <Ionicons name="lock-closed" size={16} color="#fff" />}
-        <Text style={styles.btnText}>{buttonLabel}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.btnText]}>{buttonLabel}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -168,7 +169,7 @@ export default function StripeCardForm({
 
 const styles = StyleSheet.create({
   box: { borderRadius: 16, borderWidth: 1, padding: 16, marginTop: 8 },
-  title: { fontSize: 15, fontWeight: '800', marginBottom: 12 },
+  title: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '800', marginBottom: 12 },
   field: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -178,8 +179,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 14,
   },
-  note: { fontSize: 11.5, color: '#6B7280', marginTop: 10, lineHeight: 16 },
-  err: { color: '#D93636', fontSize: 12.5, marginTop: 8 },
+  note: { fontFamily: typography.fontFamily.regular, fontSize: 11.5, color: '#6B7280', marginTop: 10, lineHeight: 16 },
+  err: { fontFamily: typography.fontFamily.regular, color: '#D93636', fontSize: 12.5, marginTop: 8 },
   btn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -190,5 +191,5 @@ const styles = StyleSheet.create({
     minHeight: 48,
     marginTop: 14,
   },
-  btnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  btnText: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 15, fontWeight: '800' },
 });

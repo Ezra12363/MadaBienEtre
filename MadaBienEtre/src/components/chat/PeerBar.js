@@ -23,12 +23,12 @@ const PeerBar = ({ palette, name, photo, statusText, statusColor, bookingId, onM
       <ChatAvatar uri={photo} name={name} size={42} palette={palette} />
 
       <View style={styles.text}>
-        <Text style={[styles.name, { color: palette.text }]} numberOfLines={1}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.name, { color: palette.text }]} numberOfLines={1}>
           {name || 'Conversation'}
         </Text>
         <View style={styles.statusRow}>
           {!!statusText && <View style={[styles.dot, { backgroundColor: statusColor }]} />}
-          <Text style={[styles.status, { color: palette.textSecondary }]} numberOfLines={1}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.status, { color: palette.textSecondary }]} numberOfLines={1}>
             {statusText}
             {bookingId ? `${statusText ? ' · ' : ''}Réservation #${bookingId}` : ''}
           </Text>

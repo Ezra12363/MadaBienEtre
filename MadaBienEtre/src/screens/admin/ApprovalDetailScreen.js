@@ -34,6 +34,7 @@ import {
   formatMoney,
   useAdminToast,
 } from '../../components/admin/AdminDetailKit';
+import { typography } from '../../theme';
 
 const ApprovalDetailScreen = ({ navigation, route }) => {
   const { colors: themeColors } = useTheme();
@@ -245,7 +246,7 @@ const ApprovalDetailScreen = ({ navigation, route }) => {
 
   const side = (
     <DetailCard title="Décision" icon="checkmark-done-outline">
-      <Text style={[styles.hint, { color: themeColors.textSecondary }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, { color: themeColors.textSecondary }]}>
         {status === 'pending'
           ? "Vérifiez le dossier puis approuvez ou rejetez la candidature. Approuver active le compte ; un motif est obligatoire en cas de rejet."
           : status === 'approved'
@@ -306,7 +307,7 @@ const ApprovalDetailScreen = ({ navigation, route }) => {
       </DetailCard>
 
       <DetailCard title="Biographie" icon="reader-outline">
-        <Text style={[styles.bio, { color: themeColors.text }]} selectable>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bio, { color: themeColors.text }]} selectable>
           {therapist.bio || 'Aucune biographie renseignée.'}
         </Text>
       </DetailCard>
@@ -378,8 +379,8 @@ const ApprovalDetailScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  hint: { fontSize: 13, lineHeight: 20, marginBottom: 14 },
-  bio: { fontSize: 14, lineHeight: 22 },
+  hint: { fontFamily: typography.fontFamily.regular, fontSize: 13, lineHeight: 20, marginBottom: 14 },
+  bio: { fontFamily: typography.fontFamily.regular, fontSize: 14, lineHeight: 22 },
 });
 
 export default ApprovalDetailScreen;

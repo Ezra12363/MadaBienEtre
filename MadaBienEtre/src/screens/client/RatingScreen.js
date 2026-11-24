@@ -21,6 +21,7 @@ import ReviewAvatar from '../../components/reviews/ReviewAvatar';
 import { CATEGORY_LABELS, RATING_LABELS, formatReviewDate } from '../../components/reviews/reviewUtils';
 import reviewService from '../../services/reviewService';
 import api from '../../services/api';
+import { typography } from '../../theme';
 
 const CATEGORY_KEYS = Object.keys(CATEGORY_LABELS);
 const MAX_COMMENT = 1000;
@@ -151,9 +152,9 @@ const RatingScreen = ({ navigation, route }) => {
         <Header title="Mon avis" showBack />
         <View style={s.center}>
           <Ionicons name="alert-circle-outline" size={46} color="#DC2626" />
-          <Text style={[s.msg, { color: c.text }]}>{loadError}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, s.msg, { color: c.text }]}>{loadError}</Text>
           <TouchableOpacity onPress={load} style={[s.linkBtn, { borderColor: colors.primary }]}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>Réessayer</Text>
+            <Text style={{ fontFamily: typography.fontFamily.bold, color: colors.primary, fontWeight: '700' }}>Réessayer</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -167,10 +168,10 @@ const RatingScreen = ({ navigation, route }) => {
         <View style={s.center}>
           <View style={s.doneBox}>
             <View style={s.successCircle}><Ionicons name="checkmark" size={44} color="#fff" /></View>
-            <Text style={[s.msg, s.doneText, { color: c.text }]}>{done}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, s.msg, s.doneText, { color: c.text }]}>{done}</Text>
             <TouchableOpacity onPress={goBack} activeOpacity={0.85} style={s.doneBtn}>
               <LinearGradient colors={[colors.primary, colors.primaryLight]} style={s.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                <Text style={s.primaryText}>Terminer</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, s.primaryText]}>Terminer</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -185,11 +186,11 @@ const RatingScreen = ({ navigation, route }) => {
         <Header title="Mon avis" showBack />
         <View style={s.center}>
           <Ionicons name="time-outline" size={46} color={c.textSecondary} />
-          <Text style={[s.msg, { color: c.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, s.msg, { color: c.text }]}>
             Vous pourrez donner votre avis une fois la séance terminée.
           </Text>
           <TouchableOpacity onPress={goBack} style={[s.linkBtn, { borderColor: colors.primary }]}>
-            <Text style={{ color: colors.primary, fontWeight: '700' }}>Retour</Text>
+            <Text style={{ fontFamily: typography.fontFamily.bold, color: colors.primary, fontWeight: '700' }}>Retour</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -210,7 +211,7 @@ const RatingScreen = ({ navigation, route }) => {
             {isEdit && (
               <View style={[s.notice, { backgroundColor: readOnly ? '#FFF3E0' : '#E8F5E9' }]}>
                 <Ionicons name={readOnly ? 'lock-closed-outline' : 'information-circle-outline'} size={18} color={readOnly ? '#E65100' : '#2E8B57'} />
-                <Text style={{ flex: 1, color: readOnly ? '#8D4B00' : '#2E8B57', fontSize: 12.5 }}>
+                <Text style={{ fontFamily: typography.fontFamily.regular, flex: 1, color: readOnly ? '#8D4B00' : '#2E8B57', fontSize: 12.5 }}>
                   {readOnly
                     ? `Cet avis ne peut plus être modifié (délai de ${existing.edit_window_days} jours dépassé ou avis masqué).`
                     : `Publié le ${formatReviewDate(existing.created_at)} · modifiable pendant ${existing.edit_window_days} jours.`}
@@ -226,25 +227,25 @@ const RatingScreen = ({ navigation, route }) => {
                 size={72}
                 style={{ marginBottom: spacing.sm }}
               />
-              <Text style={[s.title, { color: c.text }]}>Comment était votre massage ?</Text>
-              <Text style={[s.subtitle, { color: c.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, s.title, { color: c.text }]}>Comment était votre massage ?</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, s.subtitle, { color: c.textSecondary }]}>
                 {therapistName}
                 {booking?.massage_type_name ? ` · ${booking.massage_type_name}` : ''}
               </Text>
               <View style={{ marginVertical: spacing.md }}>
                 <RatingStars value={rating} size={44} gap={6} onChange={readOnly ? undefined : setRating} />
               </View>
-              <Text style={{ color: colors.primary, fontWeight: '700', fontSize: 15, minHeight: 20 }}>
+              <Text style={{ fontFamily: typography.fontFamily.bold, color: colors.primary, fontWeight: '700', fontSize: 15, minHeight: 20 }}>
                 {rating > 0 ? `${rating}/5 · ${RATING_LABELS[rating - 1]}` : 'Touchez une étoile pour noter'}
               </Text>
             </View>
 
             {/* Critères */}
             <View style={card}>
-              <Text style={[s.section, { color: c.text }]}>Évaluation détaillée <Text style={{ fontWeight: '400', color: c.textSecondary }}>(facultatif)</Text></Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, s.section, { color: c.text }]}>Évaluation détaillée <Text style={{ fontFamily: typography.fontFamily.regular, fontWeight: '400', color: c.textSecondary }}>(facultatif)</Text></Text>
               {CATEGORY_KEYS.map((k) => (
                 <View key={k} style={s.catRow}>
-                  <Text style={{ color: c.text, fontSize: 14, flex: 1 }}>{CATEGORY_LABELS[k]}</Text>
+                  <Text style={{ fontFamily: typography.fontFamily.regular, color: c.text, fontSize: 14, flex: 1 }}>{CATEGORY_LABELS[k]}</Text>
                   <RatingStars
                     value={cats[k] || 0}
                     size={24}
@@ -256,9 +257,9 @@ const RatingScreen = ({ navigation, route }) => {
 
             {/* Commentaire */}
             <View style={card}>
-              <Text style={[s.section, { color: c.text }]}>Votre commentaire</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, s.section, { color: c.text }]}>Votre commentaire</Text>
               <TextInput
-                style={[s.input, { color: c.text, borderColor: c.border || '#E0E0E0', backgroundColor: isDark ? '#1E1E1E' : '#F5F5F5' }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, s.input, { color: c.text, borderColor: c.border || '#E0E0E0', backgroundColor: isDark ? '#1E1E1E' : '#F5F5F5' }]}
                 placeholder="Qualité du massage, propreté, ponctualité, comportement du thérapeute..."
                 placeholderTextColor={c.textSecondary}
                 value={comment}
@@ -267,7 +268,7 @@ const RatingScreen = ({ navigation, route }) => {
                 multiline
                 textAlignVertical="top"
               />
-              <Text style={{ color: c.textSecondary, fontSize: 11, textAlign: 'right', marginTop: 4 }}>{comment.length}/{MAX_COMMENT}</Text>
+              <Text style={{ fontFamily: typography.fontFamily.regular, color: c.textSecondary, fontSize: 11, textAlign: 'right', marginTop: 4 }}>{comment.length}/{MAX_COMMENT}</Text>
 
               <TouchableOpacity
                 disabled={readOnly}
@@ -277,8 +278,8 @@ const RatingScreen = ({ navigation, route }) => {
               >
                 <Ionicons name={isAnonymous ? 'checkbox' : 'square-outline'} size={24} color={colors.primary} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: c.text, fontSize: 14 }}>Publier anonymement</Text>
-                  <Text style={{ color: c.textSecondary, fontSize: 12 }}>Votre nom ne sera pas affiché publiquement.</Text>
+                  <Text style={{ fontFamily: typography.fontFamily.regular, color: c.text, fontSize: 14 }}>Publier anonymement</Text>
+                  <Text style={{ fontFamily: typography.fontFamily.regular, color: c.textSecondary, fontSize: 12 }}>Votre nom ne sera pas affiché publiquement.</Text>
                 </View>
               </TouchableOpacity>
             </View>
@@ -286,10 +287,10 @@ const RatingScreen = ({ navigation, route }) => {
             {/* Aperçu */}
             {rating > 0 && (
               <View style={[card, { borderWidth: 1, borderColor: `${colors.primary}55` }]}>
-                <Text style={{ color: c.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>APERÇU DE VOTRE AVIS</Text>
+                <Text style={{ fontFamily: typography.fontFamily.bold, color: c.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 6 }}>APERÇU DE VOTRE AVIS</Text>
                 <RatingStars value={rating} size={18} />
-                {!!comment.trim() && <Text style={{ color: c.text, marginTop: 8, lineHeight: 20 }}>« {comment.trim()} »</Text>}
-                <Text style={{ color: c.textSecondary, fontSize: 12, marginTop: 8 }}>
+                {!!comment.trim() && <Text style={{ fontFamily: typography.fontFamily.regular, color: c.text, marginTop: 8, lineHeight: 20 }}>« {comment.trim()} »</Text>}
+                <Text style={{ fontFamily: typography.fontFamily.regular, color: c.textSecondary, fontSize: 12, marginTop: 8 }}>
                   {isAnonymous ? 'Client anonyme' : 'Vous'} · Après une séance terminée
                 </Text>
               </View>
@@ -298,14 +299,14 @@ const RatingScreen = ({ navigation, route }) => {
             {!!formError && (
               <View style={[s.notice, { backgroundColor: '#FEE2E2' }]}>
                 <Ionicons name="alert-circle" size={18} color="#DC2626" />
-                <Text style={{ flex: 1, color: '#B91C1C', fontSize: 13 }}>{formError}</Text>
+                <Text style={{ fontFamily: typography.fontFamily.regular, flex: 1, color: '#B91C1C', fontSize: 13 }}>{formError}</Text>
               </View>
             )}
 
             {!readOnly && (
               <TouchableOpacity style={s.primaryBtn} onPress={submit} disabled={saving} activeOpacity={0.85}>
                 <LinearGradient colors={[colors.primary, colors.primaryLight]} style={s.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                  {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryText}>{isEdit ? 'Enregistrer les modifications' : 'Envoyer mon avis'}</Text>}
+                  {saving ? <ActivityIndicator color="#fff" /> : <Text style={[{ fontFamily: typography.fontFamily.regular }, s.primaryText]}>{isEdit ? 'Enregistrer les modifications' : 'Envoyer mon avis'}</Text>}
                 </LinearGradient>
               </TouchableOpacity>
             )}
@@ -313,7 +314,7 @@ const RatingScreen = ({ navigation, route }) => {
             {isEdit && existing.can_delete && (
               <TouchableOpacity onPress={() => setConfirmDelete(true)} style={s.deleteBtn} disabled={saving}>
                 <Ionicons name="trash-outline" size={18} color="#DC2626" />
-                <Text style={{ color: '#DC2626', fontWeight: '700' }}>Supprimer mon avis</Text>
+                <Text style={{ fontFamily: typography.fontFamily.bold, color: '#DC2626', fontWeight: '700' }}>Supprimer mon avis</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -339,23 +340,23 @@ const s = StyleSheet.create({
   scroll: { paddingBottom: 40, paddingTop: spacing.sm },
   inner: { width: '100%' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 12 },
-  msg: { fontSize: 15, textAlign: 'center', lineHeight: 22 },
+  msg: { fontFamily: typography.fontFamily.regular, fontSize: 15, textAlign: 'center', lineHeight: 22 },
   card: { borderRadius: 16, padding: spacing.md, marginBottom: spacing.md, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  title: { fontSize: 18, fontWeight: '800', textAlign: 'center' },
-  subtitle: { fontSize: 14, marginTop: 3, textAlign: 'center' },
-  section: { fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  title: { fontFamily: typography.fontFamily.bold, fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  subtitle: { fontFamily: typography.fontFamily.regular, fontSize: 14, marginTop: 3, textAlign: 'center' },
+  section: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '700', marginBottom: 10 },
   catRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6, gap: 10 },
-  input: { borderWidth: 1, borderRadius: 12, padding: 12, minHeight: 120, fontSize: 14 },
+  input: { fontFamily: typography.fontFamily.regular, borderWidth: 1, borderRadius: 12, padding: 12, minHeight: 120, fontSize: 14 },
   anon: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 },
   notice: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, marginBottom: spacing.md },
   primaryBtn: { borderRadius: 14, overflow: 'hidden', marginTop: 4 },
   grad: { paddingVertical: 15, alignItems: 'center' },
-  primaryText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  primaryText: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 16, fontWeight: '800' },
   deleteBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center', padding: 14, marginTop: 6 },
   linkBtn: { borderWidth: 1.5, borderRadius: 22, paddingHorizontal: 22, paddingVertical: 10, marginTop: 6 },
   // écran de confirmation : tout est centré, bouton aligné au centre du texte
   doneBox: { width: '100%', maxWidth: 420, alignItems: 'center', alignSelf: 'center', gap: 16 },
-  doneText: { fontWeight: '800', fontSize: 18, textAlign: 'center', lineHeight: 26, alignSelf: 'stretch' },
+  doneText: { fontFamily: typography.fontFamily.bold, fontWeight: '800', fontSize: 18, textAlign: 'center', lineHeight: 26, alignSelf: 'stretch' },
   doneBtn: { alignSelf: 'stretch', borderRadius: 14, overflow: 'hidden', marginTop: 8 },
   successCircle: { width: 84, height: 84, borderRadius: 42, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
 });

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import { typography } from '../../theme';
 
 let ExpoAudio = null;
 try {
@@ -111,7 +112,7 @@ const VoiceRecorderInner = ({ palette, onCancel, onDone, onError }) => {
         <Ionicons name="trash-outline" size={24} color={palette.danger} />
       </TouchableOpacity>
       <View style={styles.dot} />
-      <Text style={{ color: palette.text, flex: 1 }}>Enregistrement… {fmt(seconds)}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.text, flex: 1 }]}>Enregistrement… {fmt(seconds)}</Text>
       <TouchableOpacity onPress={() => finish(true)} style={[styles.send, { backgroundColor: palette.primary }]} accessibilityLabel="Envoyer le message vocal">
         <Ionicons name="send" size={18} color="#fff" />
       </TouchableOpacity>

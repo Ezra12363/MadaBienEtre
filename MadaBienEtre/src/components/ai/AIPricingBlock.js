@@ -95,7 +95,7 @@ const AIPricingBlock = () => {
         />
       </View>
 
-      <Text style={[styles.label, { color: tc.textSecondary }]}>Niveau de demande (pour le calcul)</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: tc.textSecondary }]}>Niveau de demande (pour le calcul)</Text>
       <View style={styles.chips}>
         {DEMAND_LEVELS.map((l) => (
           <AIChip key={l.id} label={l.label} active={demand === l.id} onPress={() => setDemand(l.id)} />
@@ -107,12 +107,12 @@ const AIPricingBlock = () => {
 
       {suggest && (
         <View style={[styles.box, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
-          <Text style={[styles.boxTitle, { color: tc.text }]}>Tarif suggéré</Text>
-          <Text style={styles.price}>{formatAr(suggest.suggested_price)}</Text>
-          <Text style={[styles.range, { color: tc.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.boxTitle, { color: tc.text }]}>Tarif suggéré</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.price]}>{formatAr(suggest.suggested_price)}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.range, { color: tc.textSecondary }]}>
             Fourchette : {formatAr(suggest.min_price)} – {formatAr(suggest.max_price)}
           </Text>
-          <Text style={[styles.range, { color: tc.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.range, { color: tc.textSecondary }]}>
             Fiabilité : {formatPercent(suggest.confidence)}
           </Text>
           {factors &&
@@ -131,7 +131,7 @@ const AIPricingBlock = () => {
 
       {calc && (
         <View style={[styles.box, { borderColor: tc.border }]}>
-          <Text style={[styles.boxTitle, { color: tc.text }]}>Calcul détaillé — {calc.massage_type}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.boxTitle, { color: tc.text }]}>Calcul détaillé — {calc.massage_type}</Text>
           <AIStatRow label="Prix de base" value={formatAr(calc.breakdown?.base ?? calc.base_price)} />
           <AIStatRow label={`Durée (×${calc.duration_factor})`} value={formatAr(calc.breakdown?.duration_adjustment)} />
           <AIStatRow label={`Distance (×${calc.distance_factor})`} value={formatAr(calc.breakdown?.distance_adjustment)} />
@@ -146,12 +146,12 @@ const AIPricingBlock = () => {
 const styles = StyleSheet.create({
   twoCols: { flexDirection: 'row', gap: spacing.sm },
   col: { flex: 1 },
-  label: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, marginBottom: 4 },
+  label: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500', marginBottom: 4 },
   chips: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
   box: { borderWidth: 1, borderRadius: 14, padding: spacing.md, marginTop: spacing.md },
-  boxTitle: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold, marginBottom: 4 },
-  price: { fontSize: typography.fontSize.xxl, fontFamily: typography.fontFamily.bold, color: colors.primary },
-  range: { fontSize: typography.fontSize.sm, marginTop: 2 },
+  boxTitle: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold, fontWeight: '600', marginBottom: 4 },
+  price: { fontSize: typography.fontSize.xxl, fontFamily: typography.fontFamily.bold, fontWeight: '700', color: colors.primary },
+  range: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, marginTop: 2 },
 });
 
 export default AIPricingBlock;

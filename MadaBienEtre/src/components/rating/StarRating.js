@@ -67,7 +67,7 @@ const StarRating = ({
       </View>
 
       {showLabel && displayRating > 0 && (
-        <Text style={[styles.label, { color: colors.primary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: colors.primary }]}>
           {ratingLabels[displayRating - 1]}
         </Text>
       )}
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginTop: spacing.xs,
   },
 });

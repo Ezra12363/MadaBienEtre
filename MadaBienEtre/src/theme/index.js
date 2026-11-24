@@ -1,6 +1,6 @@
 // src/theme/index.js
 import { Platform } from 'react-native';
-import { DefaultTheme } from 'react-native-paper';
+import { DefaultTheme, configureFonts } from 'react-native-paper';
 
 export const colors = {
   primary: '#2E8B57',
@@ -38,26 +38,42 @@ export const spacing = {
   xxxl: 64,
 };
 
-// Les polices « Poppins-* » ne sont chargées nulle part dans le projet
-// (aucun useFonts / @font-face). Sur le web, un nom de police inconnu fait
-// retomber le navigateur sur une police À EMPATTEMENTS (Times) : c'est ce
-// qui rendait les titres, onglets et cartes « différents » du reste de
-// l'application. On utilise donc une pile de polices système sur le web ;
-// sur Android / iOS on laisse la police système (undefined), et le
-// fontWeight des styles continue de fonctionner normalement.
-const WEB_FONT_STACK =
-  "Inter, 'Segoe UI', Roboto, -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif";
+// ============================================================
+// POLICE UNIQUE DU PROJET : TIMES NEW ROMAN
+//  - Web  : Times New Roman (repli : Tinos / Liberation Serif / Times / serif)
+//  - iOS  : Times New Roman (police système d'iOS)
+//  - Android : Times New Roman n'existe pas sur Android ; on embarque
+//    Tinos (clone métrique de Times New Roman, licence Apache 2.0),
+//    chargé dans App.js sous les noms « Tinos-Regular » / « Tinos-Bold ».
+// Toutes les familles passent par typography.fontFamily : pour changer de
+// police dans toute l'application, il suffit de modifier ce bloc.
+// ============================================================
+export const WEB_FONT_STACK =
+  "'Times New Roman', Times, Tinos, 'Liberation Serif', serif";
 
-const pickFont = () =>
-  Platform.OS === 'web' ? WEB_FONT_STACK : undefined;
+const ANDROID_FONT = {
+  regular: 'Tinos-Regular',
+  medium: 'Tinos-Regular',
+  light: 'Tinos-Regular',
+  semiBold: 'Tinos-Bold',
+  bold: 'Tinos-Bold',
+};
+
+export const pickFont = (weight = 'regular') =>
+  Platform.select({
+    web: WEB_FONT_STACK,
+    ios: 'Times New Roman',
+    android: ANDROID_FONT[weight] || ANDROID_FONT.regular,
+    default: WEB_FONT_STACK,
+  });
 
 export const typography = {
   fontFamily: {
-    regular: pickFont(),
-    medium: pickFont(),
-    semiBold: pickFont(),
-    bold: pickFont(),
-    light: pickFont(),
+    regular: pickFont('regular'),
+    medium: pickFont('medium'),
+    semiBold: pickFont('semiBold'),
+    bold: pickFont('bold'),
+    light: pickFont('light'),
   },
   fontSize: {
     xs: 10,
@@ -139,6 +155,7 @@ export const borderRadius = {
 
 export const theme = {
   ...DefaultTheme,
+  fonts: configureFonts({ config: { fontFamily: pickFont('regular') } }),
   colors: {
     ...DefaultTheme.colors,
     primary: colors.primary,

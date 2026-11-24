@@ -6,6 +6,7 @@ import { View, Text, Image } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { resolvePhotoUrl } from '../../utils/chatUi';
 import { getInitials } from './reviewUtils';
+import { typography } from '../../theme';
 
 export default function ReviewAvatar({ photo, name, size = 40, style }) {
   const { colors: c } = useTheme();
@@ -38,7 +39,7 @@ export default function ReviewAvatar({ photo, name, size = 40, style }) {
           accessibilityLabel={name ? `Photo de ${name}` : 'Photo de profil'}
         />
       ) : (
-        <Text style={{ color: c.primary, fontWeight: '800', fontSize: Math.max(10, size * 0.36) }}>
+        <Text style={{ fontFamily: typography.fontFamily.bold, color: c.primary, fontWeight: '800', fontSize: Math.max(10, size * 0.36) }}>
           {getInitials(name)}
         </Text>
       )}

@@ -107,21 +107,21 @@ const MessengerListScreen = ({ navigation }) => {
         </View>
         <View style={{ flex: 1 }}>
           <View style={styles.line}>
-            <Text style={[styles.name, { color: palette.text }]} numberOfLines={1}>{c.title}{c.booking_id ? <Text style={{ color: palette.textSecondary, fontWeight: '400', fontSize: 12 }}>{`  ·  Réservation #${c.booking_id}`}</Text> : null}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.name, { color: palette.text }]} numberOfLines={1}>{c.title}{c.booking_id ? <Text style={{ fontFamily: typography.fontFamily.regular, color: palette.textSecondary, fontWeight: '400', fontSize: 12 }}>{`  ·  Réservation #${c.booking_id}`}</Text> : null}</Text>
             {c.is_muted && <Ionicons name="notifications-off" size={13} color={palette.textSecondary} />}
             {c.is_pinned && <Ionicons name="pin" size={13} color={palette.textSecondary} />}
-            <Text style={{ color: c.unread_count ? palette.primary : palette.textSecondary, fontSize: 12 }}>{formatListTime(c.last_message_at)}</Text>
+            <Text style={{ fontFamily: typography.fontFamily.regular, color: c.unread_count ? palette.primary : palette.textSecondary, fontSize: 12 }}>{formatListTime(c.last_message_at)}</Text>
           </View>
           <View style={styles.line}>
             <Text
-              style={{ flex: 1, color: c.unread_count ? palette.text : palette.textSecondary, fontWeight: c.unread_count ? '600' : '400', fontStyle: last?.deleted ? 'italic' : 'normal' }}
+              style={{ fontFamily: typography.fontFamily.regular, flex: 1, color: c.unread_count ? palette.text : palette.textSecondary, fontWeight: c.unread_count ? '600' : '400', fontStyle: last?.deleted ? 'italic' : 'normal' }}
               numberOfLines={1}
             >
               {last ? `${prefix}${last.preview}` : 'Aucun message'}
             </Text>
             {c.unread_count > 0 && (
               <View style={[styles.unread, { backgroundColor: c.is_muted ? palette.textSecondary : palette.primary }]}>
-                <Text style={styles.unreadTxt}>{c.unread_count > 99 ? '99+' : c.unread_count}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.unreadTxt]}>{c.unread_count > 99 ? '99+' : c.unread_count}</Text>
               </View>
             )}
           </View>
@@ -134,7 +134,7 @@ const MessengerListScreen = ({ navigation }) => {
     <View style={[styles.screen, { backgroundColor: palette.screenBg }]}>
       <Header title={archived ? 'Archives' : 'Messages'} showBack onBackPress={goBack} />
       <View style={styles.top}>
-        <Text style={[styles.h1, { color: palette.text }]} numberOfLines={1}>{archived ? 'Archives' : 'Discussions'}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.h1, { color: palette.text }]} numberOfLines={1}>{archived ? 'Archives' : 'Discussions'}</Text>
         <View style={styles.actions}>
           <TouchableOpacity style={[styles.hBtn, { backgroundColor: `${ICON_COLORS.search}1A` }]} onPress={() => navigation.navigate('MessengerSearch')} accessibilityLabel="Rechercher">
             <Ionicons name="search" size={20} color={ICON_COLORS.search} />
@@ -157,12 +157,12 @@ const MessengerListScreen = ({ navigation }) => {
         <Ionicons name="search" size={18} color={palette.textSecondary} />
         <TextInput
           value={query} onChangeText={setQuery} placeholder="Rechercher une conversation" placeholderTextColor={palette.placeholder}
-          style={[styles.searchInput, { color: palette.inputText }, Platform.OS === 'web' && { outlineStyle: 'none' }]}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.searchInput, { color: palette.inputText }, Platform.OS === 'web' && { outlineStyle: 'none' }]}
         />
       </View>
 
       {!!user?.id && !connected && (
-        <Text style={[styles.offline, { color: palette.warning }]}>Connexion en cours… les messages arriveront dès le retour du réseau.</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offline, { color: palette.warning }]}>Connexion en cours… les messages arriveront dès le retour du réseau.</Text>
       )}
 
       {loading ? <ActivityIndicator color={palette.primary} size="large" style={{ marginTop: 40 }} /> : (
@@ -173,7 +173,7 @@ const MessengerListScreen = ({ navigation }) => {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="chatbubbles-outline" size={56} color={palette.textSecondary} />
-              <Text style={{ color: palette.textSecondary, textAlign: 'center', marginTop: 10 }}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.textSecondary, textAlign: 'center', marginTop: 10 }]}>
                 {error || (archived ? 'Aucune conversation archivée.' : 'Aucune conversation. Touchez ✎ pour écrire.')}
               </Text>
             </View>
@@ -209,15 +209,15 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   hBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   search: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginTop: 4, paddingHorizontal: 12, height: 42, borderRadius: 21, borderWidth: 1 },
-  searchInput: { flex: 1, fontSize: 15 },
-  offline: { textAlign: 'center', fontSize: 12, marginTop: 6 },
+  searchInput: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 15 },
+  offline: { fontFamily: typography.fontFamily.regular, textAlign: 'center', fontSize: 12, marginTop: 6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth },
   line: { flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 1 },
-  name: { flex: 1, fontSize: 16, fontWeight: '700' },
+  name: { fontFamily: typography.fontFamily.bold, flex: 1, fontSize: 16, fontWeight: '700' },
   dot: { position: 'absolute', right: 0, bottom: 0, width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
   badgeType: { position: 'absolute', right: -2, bottom: -2, width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   unread: { minWidth: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  unreadTxt: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  unreadTxt: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 12, fontWeight: '700' },
   empty: { alignItems: 'center', marginTop: 80, paddingHorizontal: 30 },
   fab: { position: 'absolute', right: 20, bottom: 24, width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
 });

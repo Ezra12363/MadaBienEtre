@@ -390,7 +390,7 @@ const TimeAgoText = ({ value, style }) => {
   }
 
   return (
-    <Text style={style}>
+    <Text style={[{ fontFamily: typography.fontFamily.regular }, style]}>
       {formatTimeAgoFromTimestamp(value, now)}
     </Text>
   );
@@ -1920,7 +1920,7 @@ const NotificationScreen = ({
               ------------------------------------------------ */}
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.confirmTitle,
                   {
                     color:
@@ -1937,7 +1937,7 @@ const NotificationScreen = ({
               ------------------------------------------------ */}
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.confirmMessage,
                   {
                     color:
@@ -1948,7 +1948,7 @@ const NotificationScreen = ({
                 Voulez-vous vraiment supprimer
                 {' '}
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.confirmStrong,
                     {
                       color:
@@ -1963,7 +1963,7 @@ const NotificationScreen = ({
 
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.confirmWarning,
                   {
                     color:
@@ -2010,7 +2010,7 @@ const NotificationScreen = ({
                   activeOpacity={0.8}
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.cancelButtonText,
                       {
                         color:
@@ -2051,7 +2051,7 @@ const NotificationScreen = ({
 
                       <Text
                         style={
-                          styles.deleteConfirmText
+                          [{ fontFamily: typography.fontFamily.regular }, styles.deleteConfirmText]
                         }
                       >
                         Supprimer
@@ -2206,7 +2206,7 @@ const NotificationScreen = ({
 
                 <Text
                   numberOfLines={2}
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.sheetPreviewTitle,
                     {
                       color:
@@ -2259,7 +2259,7 @@ const NotificationScreen = ({
                 </View>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.sheetOptionText,
                     { color: '#D32F2F' },
                   ]}
@@ -2313,7 +2313,7 @@ const NotificationScreen = ({
                 </View>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.sheetOptionText,
                     { color: themeColors.text },
                   ]}
@@ -2347,7 +2347,7 @@ const NotificationScreen = ({
                 }
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.sheetCancelText,
                     { color: themeColors.text },
                   ]}
@@ -2519,7 +2519,7 @@ const NotificationScreen = ({
 
                     <Text
                       numberOfLines={2}
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.notificationTitle,
                         {
                           color:
@@ -2559,7 +2559,7 @@ const NotificationScreen = ({
                         />
 
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.newBadgeText,
                             {
                               color:
@@ -2593,7 +2593,7 @@ const NotificationScreen = ({
                 {/* BODY */}
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.notificationBody,
                     {
                       color:
@@ -2633,7 +2633,7 @@ const NotificationScreen = ({
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.actionHintText,
                         {
                           color,
@@ -2676,7 +2676,7 @@ const NotificationScreen = ({
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.actionHintText,
                         {
                           color,
@@ -2832,7 +2832,7 @@ const NotificationScreen = ({
 
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.emptyStateTitle,
               {
                 color:
@@ -2845,7 +2845,7 @@ const NotificationScreen = ({
 
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.emptyStateText,
               {
                 color:
@@ -2924,7 +2924,7 @@ const NotificationScreen = ({
 
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.loadingText,
               {
                 color:
@@ -2990,7 +2990,7 @@ const NotificationScreen = ({
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.markAllText,
                   {
                     color:
@@ -3060,7 +3060,7 @@ const NotificationScreen = ({
           <View>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.summaryTitle,
                 {
                   color:
@@ -3073,7 +3073,7 @@ const NotificationScreen = ({
 
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.summarySubtitle,
                 {
                   color:
@@ -3107,7 +3107,7 @@ const NotificationScreen = ({
 
             <Text
               style={
-                styles.unreadCountText
+                [{ fontFamily: typography.fontFamily.regular }, styles.unreadCountText]
               }
             >
               {unreadCount}
@@ -3115,7 +3115,7 @@ const NotificationScreen = ({
 
             <Text
               style={
-                styles.unreadCountLabel
+                [{ fontFamily: typography.fontFamily.regular }, styles.unreadCountLabel]
               }
             >
               non lue
@@ -3204,7 +3204,7 @@ const NotificationScreen = ({
                   />
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.filterText,
                       {
                         color:
@@ -3302,7 +3302,7 @@ const NotificationScreen = ({
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.listHeaderText,
                     {
                       color:
@@ -3338,7 +3338,7 @@ const NotificationScreen = ({
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.listFooterText,
                     {
                       color:
@@ -3432,7 +3432,7 @@ const styles = StyleSheet.create({
       typography.fontSize.xs,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ==========================================================
@@ -3479,7 +3479,7 @@ const styles = StyleSheet.create({
       typography.fontSize.md,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   summarySubtitle: {
@@ -3510,7 +3510,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   unreadCountLabel: {
@@ -3521,7 +3521,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   /* ==========================================================
@@ -3563,7 +3563,7 @@ const styles = StyleSheet.create({
       typography.fontSize.sm,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   /* ==========================================================
@@ -3615,7 +3615,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   listFooter: {
@@ -3716,12 +3716,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   unreadTitle: {
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   notificationTime: {
@@ -3730,7 +3730,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
 
     textAlign: 'right',
 
@@ -3783,7 +3783,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   /* ==========================================================
@@ -3811,7 +3811,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ==========================================================
@@ -3911,7 +3911,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   confirmMessage: {
@@ -3931,7 +3931,7 @@ const styles = StyleSheet.create({
 
   confirmStrong: {
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   confirmWarning: {
@@ -3977,7 +3977,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   deleteConfirmButton: {
@@ -4018,7 +4018,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   /* ==========================================================
@@ -4110,7 +4110,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   sheetOption: {
@@ -4138,7 +4138,7 @@ const styles = StyleSheet.create({
       typography.fontSize.md,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   sheetCancel: {
@@ -4157,7 +4157,7 @@ const styles = StyleSheet.create({
       typography.fontSize.md,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ==========================================================
@@ -4234,7 +4234,7 @@ const styles = StyleSheet.create({
       typography.fontSize.lg,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
 
     marginTop: 18,
   },

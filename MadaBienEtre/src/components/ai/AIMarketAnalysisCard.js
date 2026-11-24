@@ -64,29 +64,29 @@ const AIMarketAnalysisCard = () => {
         <>
           <View style={styles.kpis}>
             <View style={[styles.kpi, { backgroundColor: colors.primary + '10' }]}>
-              <Text style={[styles.kpiValue, { color: colors.primary }]}>{formatAr(data.average_price)}</Text>
-              <Text style={[styles.kpiLabel, { color: tc.textSecondary }]}>Prix moyen</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.kpiValue, { color: colors.primary }]}>{formatAr(data.average_price)}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.kpiLabel, { color: tc.textSecondary }]}>Prix moyen</Text>
             </View>
             <View style={[styles.kpi, { backgroundColor: colors.primary + '10' }]}>
-              <Text style={[styles.kpiValue, { color: colors.primary }]}>{data.total_bookings}</Text>
-              <Text style={[styles.kpiLabel, { color: tc.textSecondary }]}>Réservations</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.kpiValue, { color: colors.primary }]}>{data.total_bookings}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.kpiLabel, { color: tc.textSecondary }]}>Réservations</Text>
             </View>
           </View>
           <AIStatRow label="Prix minimum" value={formatAr(data.min_price)} />
           <AIStatRow label="Prix maximum" value={formatAr(data.max_price)} />
 
-          <Text style={[styles.sub, { color: tc.text }]}>Répartition des prix</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sub, { color: tc.text }]}>Répartition des prix</Text>
           {distribution.map((d, i) => {
             const count = Number(d.count) || 0;
             return (
               <View key={`${d.range}-${i}`} style={styles.distRow}>
-                <Text style={[styles.distLabel, { color: tc.textSecondary }]} numberOfLines={1}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.distLabel, { color: tc.textSecondary }]} numberOfLines={1}>
                   {d.range}
                 </Text>
                 <View style={[styles.track, { backgroundColor: tc.border }]}>
                   <View style={[styles.fill, { width: `${(count / maxCount) * 100}%` }]} />
                 </View>
-                <Text style={[styles.distCount, { color: tc.text }]}>{count}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.distCount, { color: tc.text }]}>{count}</Text>
               </View>
             );
           })}
@@ -100,14 +100,14 @@ const styles = StyleSheet.create({
   filterRow: { gap: spacing.sm, marginBottom: spacing.sm },
   kpis: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
   kpi: { flex: 1, borderRadius: 12, padding: spacing.md, alignItems: 'center' },
-  kpiValue: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold },
-  kpiLabel: { fontSize: typography.fontSize.xs, marginTop: 2 },
-  sub: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold, marginTop: spacing.md, marginBottom: 4 },
+  kpiValue: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
+  kpiLabel: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, marginTop: 2 },
+  sub: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold, fontWeight: '600', marginTop: spacing.md, marginBottom: 4 },
   distRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 4 },
-  distLabel: { width: 110, fontSize: typography.fontSize.xs },
+  distLabel: { fontFamily: typography.fontFamily.regular, width: 110, fontSize: typography.fontSize.xs },
   track: { flex: 1, height: 8, borderRadius: 4, overflow: 'hidden' },
   fill: { height: 8, borderRadius: 4, backgroundColor: colors.primary },
-  distCount: { width: 28, textAlign: 'right', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold },
+  distCount: { width: 28, textAlign: 'right', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
 });
 
 export default AIMarketAnalysisCard;

@@ -67,7 +67,7 @@ export const TypeBadge = ({ type, compact = false }) => {
         marginTop: compact ? 0 : 4,
       }}
     >
-      <Text style={{ color: b.fg, fontSize: compact ? 10 : 11, fontFamily: typography.fontFamily.bold }}>{b.label}</Text>
+      <Text style={{ color: b.fg, fontSize: compact ? 10 : 11, fontFamily: typography.fontFamily.bold, fontWeight: '700' }}>{b.label}</Text>
     </View>
   );
 };
@@ -97,7 +97,7 @@ export const Avatar = ({ uri, name, size = 44 }) => {
   }
   return (
     <View style={[box, { backgroundColor: colors.primary + '25', alignItems: 'center', justifyContent: 'center' }]}>
-      <Text style={{ color: colors.primary, fontSize: size * 0.4, fontFamily: typography.fontFamily.bold }}>
+      <Text style={{ color: colors.primary, fontSize: size * 0.4, fontFamily: typography.fontFamily.bold, fontWeight: '700' }}>
         {(name || '?').trim().charAt(0).toUpperCase()}
       </Text>
     </View>

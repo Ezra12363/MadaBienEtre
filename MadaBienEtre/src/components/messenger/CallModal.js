@@ -34,8 +34,8 @@ const CallModal = ({ call, onAccept, onDecline, onToggleMute }) => {
             size={120}
             palette={PALETTE}
           />
-          <Text style={styles.name} numberOfLines={1}>{call.peer?.fullname || 'Appel'}</Text>
-          <Text style={styles.status}>{statusText}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.name]} numberOfLines={1}>{call.peer?.fullname || 'Appel'}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.status]}>{statusText}</Text>
         </View>
 
         {call.status !== 'ended' && (

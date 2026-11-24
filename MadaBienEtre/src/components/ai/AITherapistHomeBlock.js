@@ -42,10 +42,10 @@ const AITherapistHomeBlock = ({ onOpenAssistant, showPopular = true, compact = f
               <Ionicons name={t.icon} size={20} color={t.color} />
             </View>
             <View style={styles.tileText}>
-              <Text style={[styles.tileLabel, { color: tc.text }]} numberOfLines={1}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tileLabel, { color: tc.text }]} numberOfLines={1}>
                 {t.label}
               </Text>
-              <Text style={[styles.tileDesc, { color: tc.textSecondary }]} numberOfLines={1}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tileDesc, { color: tc.textSecondary }]} numberOfLines={1}>
                 {t.desc}
               </Text>
             </View>
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   },
   tileText: { flex: 1 },
   tileLabel: { fontSize: typography.fontSize.md, fontWeight: '700', fontFamily: typography.fontFamily.semiBold },
-  tileDesc: { fontSize: typography.fontSize.xs },
+  tileDesc: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs },
 });
 
 export default AITherapistHomeBlock;

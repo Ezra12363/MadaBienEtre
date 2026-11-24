@@ -523,7 +523,7 @@ const avatarStyles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  initial: {
+  initial: { fontFamily: typography.fontFamily.bold,
     color: PRIMARY_COLOR,
     fontWeight: '900',
     marginTop: 2,
@@ -561,7 +561,7 @@ const ProfileInfoRow = ({
 
       <View style={styles.profileInfoContent}>
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.profileInfoLabel,
             {
               color: themeColors.textSecondary,
@@ -573,7 +573,7 @@ const ProfileInfoRow = ({
 
         <Text
           numberOfLines={numberOfLines}
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.profileInfoValue,
             {
               color: themeColors.text,
@@ -1181,7 +1181,7 @@ const BookingDetailScreen = ({
           />
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.loadingText,
               {
                 color:
@@ -1235,7 +1235,7 @@ const BookingDetailScreen = ({
           </View>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.errorTitle,
               {
                 color: themeColors.text,
@@ -1246,7 +1246,7 @@ const BookingDetailScreen = ({
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.errorText,
               {
                 color:
@@ -1270,7 +1270,7 @@ const BookingDetailScreen = ({
               />
 
               <Text
-                style={styles.retryButtonText}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.retryButtonText]}
               >
                 Réessayer
               </Text>
@@ -1328,16 +1328,16 @@ const BookingDetailScreen = ({
             </View>
 
             <View style={styles.statusContent}>
-              <Text style={styles.statusSmall}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statusSmall]}>
                 STATUT
               </Text>
 
-              <Text style={styles.statusTitle}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statusTitle]}>
                 {statusInfo.label}
               </Text>
 
               <Text
-                style={styles.statusDescription}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.statusDescription]}
               >
                 {statusInfo.description}
               </Text>
@@ -1363,7 +1363,7 @@ const BookingDetailScreen = ({
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.sectionTitle,
                 {
                   color: themeColors.text,
@@ -1392,7 +1392,7 @@ const BookingDetailScreen = ({
 
               <View style={styles.infoContent}>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoLabel,
                     {
                       color:
@@ -1404,7 +1404,7 @@ const BookingDetailScreen = ({
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoValue,
                     {
                       color: themeColors.text,
@@ -1434,7 +1434,7 @@ const BookingDetailScreen = ({
 
               <View style={styles.infoContent}>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoLabel,
                     {
                       color:
@@ -1446,7 +1446,7 @@ const BookingDetailScreen = ({
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoValue,
                     {
                       color: themeColors.text,
@@ -1476,7 +1476,7 @@ const BookingDetailScreen = ({
 
               <View style={styles.infoContent}>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoLabel,
                     {
                       color:
@@ -1488,7 +1488,7 @@ const BookingDetailScreen = ({
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoValue,
                     {
                       color: themeColors.text,
@@ -1519,7 +1519,7 @@ const BookingDetailScreen = ({
 
                 <View style={styles.infoContent}>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.infoLabel,
                       {
                         color:
@@ -1531,7 +1531,7 @@ const BookingDetailScreen = ({
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.infoValue,
                       {
                         color: themeColors.text,
@@ -1565,7 +1565,7 @@ const BookingDetailScreen = ({
 
                 <View style={styles.infoContent}>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.infoLabel,
                       {
                         color:
@@ -1577,7 +1577,7 @@ const BookingDetailScreen = ({
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.infoValue,
                       {
                         color: themeColors.text,
@@ -1611,7 +1611,7 @@ const BookingDetailScreen = ({
 
                 <View style={styles.infoContent}>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.infoLabel,
                       {
                         color:
@@ -1623,7 +1623,7 @@ const BookingDetailScreen = ({
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.infoValue,
                       {
                         color: themeColors.text,
@@ -1664,7 +1664,7 @@ const BookingDetailScreen = ({
 
               <View style={styles.infoContent}>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoLabel,
                     {
                       color:
@@ -1676,7 +1676,7 @@ const BookingDetailScreen = ({
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoValue,
                     {
                       color: themeColors.text,
@@ -1706,7 +1706,7 @@ const BookingDetailScreen = ({
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.priceLabel,
                     {
                       color: themeColors.text,
@@ -1718,7 +1718,7 @@ const BookingDetailScreen = ({
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.priceValue,
                   {
                     color: PRIMARY_COLOR,
@@ -1733,7 +1733,7 @@ const BookingDetailScreen = ({
               therapistPrice !== undefined && (
                 <View style={styles.subPriceRow}>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.subPriceLabel,
                       {
                         color:
@@ -1745,7 +1745,7 @@ const BookingDetailScreen = ({
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.subPriceValue,
                       {
                         color: themeColors.text,
@@ -1761,7 +1761,7 @@ const BookingDetailScreen = ({
               finalPrice !== undefined && (
                 <View style={styles.subPriceRow}>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.subPriceLabel,
                       {
                         color:
@@ -1773,7 +1773,7 @@ const BookingDetailScreen = ({
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.finalPriceValue,
                       {
                         color: '#2E8B57',
@@ -1794,7 +1794,7 @@ const BookingDetailScreen = ({
                     color="#7C3AED"
                   />
 
-                  <Text style={styles.offerText}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offerText]}>
                     Offre client active :{' '}
                     {formatPrice(
                       activeClientOffer.price_offered ??
@@ -1854,7 +1854,7 @@ const BookingDetailScreen = ({
 
                   <View>
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.sectionTitle,
                         styles.clientSectionTitle,
                         {
@@ -1866,7 +1866,7 @@ const BookingDetailScreen = ({
                     </Text>
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.clientHeaderSubtitle,
                         {
                           color:
@@ -1917,7 +1917,7 @@ const BookingDetailScreen = ({
 
                 <View style={styles.clientMainDetails}>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.clientName,
                       {
                         color: themeColors.text,
@@ -1929,7 +1929,7 @@ const BookingDetailScreen = ({
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.clientRole,
                       {
                         color:
@@ -1997,7 +1997,7 @@ const BookingDetailScreen = ({
                       />
 
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.secondaryActionText,
                           {
                             color: PRIMARY_COLOR,
@@ -2031,7 +2031,7 @@ const BookingDetailScreen = ({
                         />
 
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.secondaryActionText,
                             {
                               color: PRIMARY_COLOR,
@@ -2067,7 +2067,7 @@ const BookingDetailScreen = ({
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.sectionTitle,
                 {
                   color: themeColors.text,
@@ -2130,7 +2130,7 @@ const BookingDetailScreen = ({
                   </View>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.timelineText,
                       {
                         color: active
@@ -2165,7 +2165,7 @@ const BookingDetailScreen = ({
                 />
 
                 <Text
-                  style={styles.primaryButtonText}
+                  style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryButtonText]}
                 >
                   Voir l'adresse et naviguer
                 </Text>
@@ -2185,7 +2185,7 @@ const BookingDetailScreen = ({
                   />
 
                   <Text
-                    style={styles.primaryButtonText}
+                    style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryButtonText]}
                   >
                     Continuer la négociation
                   </Text>
@@ -2206,7 +2206,7 @@ const BookingDetailScreen = ({
                     />
 
                     <Text
-                      style={styles.sosButtonText}
+                      style={[{ fontFamily: typography.fontFamily.regular }, styles.sosButtonText]}
                     >
                       SOS Urgence
                     </Text>
@@ -2235,7 +2235,7 @@ const BookingDetailScreen = ({
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.cancelledInfoText,
                     {
                       color: themeColors.text,
@@ -2251,7 +2251,7 @@ const BookingDetailScreen = ({
 
         <View style={styles.bookingIdContainer}>
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.bookingIdText,
               {
                 color:
@@ -2296,7 +2296,7 @@ const BookingDetailScreen = ({
           >
             <View style={styles.menuHeader}>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.menuTitle,
                   {
                     color: themeColors.text,
@@ -2353,7 +2353,7 @@ const BookingDetailScreen = ({
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.menuItemText,
                   {
                     color: themeColors.text,
@@ -2415,11 +2415,11 @@ const styles = StyleSheet.create({
   errorTitle: {
     marginTop: spacing.md,
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     textAlign: 'center',
   },
 
-  errorText: {
+  errorText: { fontFamily: typography.fontFamily.regular,
     marginTop: spacing.xs,
     fontSize: typography.fontSize.sm,
     lineHeight: 21,
@@ -2445,7 +2445,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#FFFFFF',
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   card: {
@@ -2499,7 +2499,7 @@ const styles = StyleSheet.create({
   statusSmall: {
     color: 'rgba(255,255,255,0.75)',
     fontSize: 10,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     letterSpacing: 1,
     marginBottom: 3,
   },
@@ -2507,10 +2507,10 @@ const styles = StyleSheet.create({
   statusTitle: {
     color: '#FFFFFF',
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
-  statusDescription: {
+  statusDescription: { fontFamily: typography.fontFamily.regular,
     color: 'rgba(255,255,255,0.90)',
     fontSize: typography.fontSize.xs,
     lineHeight: 17,
@@ -2519,7 +2519,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     marginBottom: spacing.md,
   },
 
@@ -2543,14 +2543,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
 
-  infoLabel: {
+  infoLabel: { fontFamily: typography.fontFamily.regular,
     fontSize: typography.fontSize.xs,
     marginBottom: 2,
   },
 
   infoValue: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     lineHeight: 20,
   },
 
@@ -2571,12 +2571,12 @@ const styles = StyleSheet.create({
 
   priceLabel: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   priceValue: {
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   subPriceRow: {
@@ -2587,18 +2587,18 @@ const styles = StyleSheet.create({
     paddingLeft: 30,
   },
 
-  subPriceLabel: {
+  subPriceLabel: { fontFamily: typography.fontFamily.regular,
     fontSize: typography.fontSize.xs,
   },
 
   subPriceValue: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   finalPriceValue: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   offerBox: {
@@ -2611,7 +2611,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  offerText: {
+  offerText: { fontFamily: typography.fontFamily.bold,
     color: '#6B21A8',
     fontSize: 13,
     fontWeight: '700',
@@ -2652,7 +2652,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
 
-  clientHeaderSubtitle: {
+  clientHeaderSubtitle: { fontFamily: typography.fontFamily.regular,
     fontSize: typography.fontSize.xs,
     lineHeight: 17,
   },
@@ -2685,11 +2685,11 @@ const styles = StyleSheet.create({
 
   clientName: {
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     lineHeight: 25,
   },
 
-  clientRole: {
+  clientRole: { fontFamily: typography.fontFamily.regular,
     fontSize: typography.fontSize.xs,
     marginTop: 3,
   },
@@ -2719,14 +2719,14 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
 
-  profileInfoLabel: {
+  profileInfoLabel: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     marginBottom: 2,
   },
 
   profileInfoValue: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     lineHeight: 19,
   },
 
@@ -2755,7 +2755,7 @@ const styles = StyleSheet.create({
 
   secondaryActionText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   // ==========================================================
@@ -2791,7 +2791,7 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
     paddingTop: 6,
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   // ==========================================================
@@ -2820,7 +2820,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   sosButton: {
@@ -2837,7 +2837,7 @@ const styles = StyleSheet.create({
   sosButtonText: {
     color: '#FFFFFF',
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     letterSpacing: 0.5,
   },
 
@@ -2852,7 +2852,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  cancelledInfoText: {
+  cancelledInfoText: { fontFamily: typography.fontFamily.regular,
     flex: 1,
     fontSize: typography.fontSize.sm,
     lineHeight: 19,
@@ -2864,7 +2864,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
   },
 
-  bookingIdText: {
+  bookingIdText: { fontFamily: typography.fontFamily.regular,
     fontSize: typography.fontSize.xs,
   },
 
@@ -2905,7 +2905,7 @@ const styles = StyleSheet.create({
 
   menuTitle: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   menuCloseButton: {
@@ -2939,7 +2939,7 @@ const styles = StyleSheet.create({
   menuItemText: {
     flex: 1,
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 });
 

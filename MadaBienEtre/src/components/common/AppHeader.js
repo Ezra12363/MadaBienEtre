@@ -28,6 +28,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavBridge, useTopNavLayout } from './AppNavigation';
 import LiveShareChip from './LiveShareChip';
 import { useLiveSharing } from '../../context/LiveSharingContext';
+import { typography } from '../../theme';
 
 /* =========================================================
    COLORS — un jeu de couleurs par plateforme
@@ -269,7 +270,7 @@ export default function AppHeader({
           ]}
         >
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.logoTitle,
 
               isMobile && styles.logoTitleMobile,
@@ -282,7 +283,7 @@ export default function AppHeader({
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.logoSubtitle,
 
               isMobile && styles.logoSubtitleMobile,
@@ -610,7 +611,7 @@ const styles = StyleSheet.create({
     maxWidth: 155,
   },
 
-  logoTitle: {
+  logoTitle: { fontFamily: typography.fontFamily.bold,
     color: HEADER_COLORS.text,
 
     fontSize: 18,
@@ -622,13 +623,13 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
 
-  logoTitleMobile: {
+  logoTitleMobile: { fontFamily: typography.fontFamily.regular,
     fontSize: 16,
 
     lineHeight: 19,
   },
 
-  logoSubtitle: {
+  logoSubtitle: { fontFamily: typography.fontFamily.regular,
     marginTop: 2,
 
     color: HEADER_COLORS.subtitle,
@@ -640,7 +641,7 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
 
-  logoSubtitleMobile: {
+  logoSubtitleMobile: { fontFamily: typography.fontFamily.regular,
     fontSize: 9,
 
     lineHeight: 11,

@@ -192,7 +192,7 @@ const AdminUserAddressModal = ({ visible, onClose, userId, userName, onSaved }) 
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close" size={26} color={themeColors.text} />
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: themeColors.text }]} numberOfLines={1}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.headerTitle, { color: themeColors.text }]} numberOfLines={1}>
               📍 Adresse — {userName || `Utilisateur #${userId}`}
             </Text>
             <View style={{ width: 26 }} />
@@ -201,7 +201,7 @@ const AdminUserAddressModal = ({ visible, onClose, userId, userName, onSaved }) 
           {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={colors.primary} />
-              <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>Chargement de l'adresse...</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText, { color: themeColors.textSecondary }]}>Chargement de l'adresse...</Text>
             </View>
           ) : (
             <View style={[styles.bodyWrapper, IS_WEB && styles.bodyWrapperWebFull]}>
@@ -210,7 +210,7 @@ const AdminUserAddressModal = ({ visible, onClose, userId, userName, onSaved }) 
                   <View style={[styles.searchBar, { backgroundColor: isDark ? '#1a1a1a' : '#F5F5F5' }]}>
                     <Ionicons name="search-outline" size={20} color={themeColors.textSecondary} />
                     <TextInput
-                      style={[styles.searchInput, { color: themeColors.text }]}
+                      style={[{ fontFamily: typography.fontFamily.regular }, styles.searchInput, { color: themeColors.text }]}
                       placeholder="Rechercher une adresse, un lot ou un lieu..."
                       placeholderTextColor={themeColors.textSecondary}
                       // ✅ FIXÉ: "addressSearchQuery" no ampiasaina
@@ -226,12 +226,12 @@ const AdminUserAddressModal = ({ visible, onClose, userId, userName, onSaved }) 
                     onPress={handleAddressSearch}
                     disabled={isSearching}
                   >
-                    <Text style={styles.searchButtonText}>🔍</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.searchButtonText]}>🔍</Text>
                   </TouchableOpacity>
                 </View>
 
                 <TextInput
-                  style={[styles.addressInput, {
+                  style={[{ fontFamily: typography.fontFamily.regular }, styles.addressInput, {
                     backgroundColor: isDark ? '#1a1a1a' : '#F5F5F5',
                     color: themeColors.text,
                   }]}
@@ -268,7 +268,7 @@ const AdminUserAddressModal = ({ visible, onClose, userId, userName, onSaved }) 
                 {!selectedLocation.latitude && (
                   <View style={styles.emptyMapHint}>
                     <Ionicons name="location-outline" size={32} color={themeColors.textSecondary} />
-                    <Text style={[styles.emptyMapHintText, { color: themeColors.textSecondary }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyMapHintText, { color: themeColors.textSecondary }]}>
                       Aucune position définie — recherchez une adresse ou touchez la carte
                     </Text>
                   </View>
@@ -278,7 +278,7 @@ const AdminUserAddressModal = ({ visible, onClose, userId, userName, onSaved }) 
               {selectedLocation.latitude && (
                 <View style={styles.coordsRow}>
                   <Ionicons name="navigate-outline" size={14} color={colors.primary} />
-                  <Text style={[styles.coordsText, { color: themeColors.textSecondary }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.coordsText, { color: themeColors.textSecondary }]}>
                     {selectedLocation.latitude.toFixed(6)}, {selectedLocation.longitude.toFixed(6)}
                   </Text>
                 </View>
@@ -289,7 +289,7 @@ const AdminUserAddressModal = ({ visible, onClose, userId, userName, onSaved }) 
                   style={[styles.button, styles.cancelButton, { borderColor: themeColors.border || '#e0e0e0' }]}
                   onPress={onClose}
                 >
-                  <Text style={[styles.cancelButtonText, { color: themeColors.text }]}>Annuler</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cancelButtonText, { color: themeColors.text }]}>Annuler</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.button, styles.saveButton, { backgroundColor: colors.primary }]}
@@ -301,7 +301,7 @@ const AdminUserAddressModal = ({ visible, onClose, userId, userName, onSaved }) 
                   ) : (
                     <>
                       <Ionicons name="checkmark" size={18} color="#fff" />
-                      <Text style={styles.saveButtonText}>Enregistrer</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.saveButtonText]}>Enregistrer</Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -364,13 +364,13 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
   loadingContainer: {
     padding: spacing.xl,
     alignItems: 'center',
   },
-  loadingText: {
+  loadingText: { fontFamily: typography.fontFamily.regular,
     marginTop: spacing.sm,
     fontSize: 13,
   },
@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  searchInput: {
+  searchInput: { fontFamily: typography.fontFamily.regular,
     flex: 1,
     fontSize: 14,
   },
@@ -409,10 +409,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
   },
-  searchButtonText: {
+  searchButtonText: { fontFamily: typography.fontFamily.regular,
     fontSize: 16,
   },
-  addressInput: {
+  addressInput: { fontFamily: typography.fontFamily.regular,
     margin: spacing.md,
     marginBottom: spacing.sm,
     borderRadius: 10,
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     backgroundColor: 'rgba(255,255,255,0.7)',
   },
-  emptyMapHintText: {
+  emptyMapHintText: { fontFamily: typography.fontFamily.regular,
     textAlign: 'center',
     fontSize: 12,
     marginTop: 8,
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
   },
-  coordsText: {
+  coordsText: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
   },
   footerButtons: {
@@ -490,12 +490,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 1,
   },
-  cancelButtonText: {
+  cancelButtonText: { fontFamily: typography.fontFamily.semiBold,
     fontSize: 14,
     fontWeight: '600',
   },
   saveButton: {},
-  saveButtonText: {
+  saveButtonText: { fontFamily: typography.fontFamily.bold,
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',

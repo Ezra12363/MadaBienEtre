@@ -42,8 +42,8 @@ const AISearchPanel = ({
           <Ionicons name="sparkles" size={16} color={colors.primary} />
         </View>
         <View style={styles.flex}>
-          <Text style={[styles.title, { color: tc.text }]}>Assistant IA</Text>
-          <Text style={[styles.subtitle, { color: tc.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: tc.text }]}>Assistant IA</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.subtitle, { color: tc.textSecondary }]}>
             Classe les thérapeutes selon vos critères
           </Text>
         </View>
@@ -61,24 +61,24 @@ const AISearchPanel = ({
           {rankingLoading ? (
             <>
               <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.statusText, { color: tc.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statusText, { color: tc.textSecondary }]}>
                 L'IA classe les thérapeutes…
               </Text>
             </>
           ) : rankingError ? (
             <>
               <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
-              <Text style={[styles.statusText, { color: tc.text }]} numberOfLines={2}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statusText, { color: tc.text }]} numberOfLines={2}>
                 {rankingError}
               </Text>
               <TouchableOpacity onPress={refresh}>
-                <Text style={styles.retry}>Réessayer</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.retry]}>Réessayer</Text>
               </TouchableOpacity>
             </>
           ) : (
             <>
               <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-              <Text style={[styles.statusText, { color: tc.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statusText, { color: tc.textSecondary }]}>
                 {rankingCount > 0
                   ? `${rankingCount} thérapeute${rankingCount > 1 ? 's' : ''} classé${rankingCount > 1 ? 's' : ''} par compatibilité`
                   : 'Aucun thérapeute à classer pour le moment'}
@@ -91,16 +91,16 @@ const AISearchPanel = ({
       {/* Estimation du prix */}
       {massageTypeName ? (
         <View style={[styles.estimate, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
-          <Text style={[styles.estimateLabel, { color: tc.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.estimateLabel, { color: tc.textSecondary }]}>
             Prix estimé · {massageTypeName} · {duration} min
           </Text>
           {estimateLoading ? (
             <ActivityIndicator size="small" color={colors.primary} style={styles.alignStart} />
           ) : hasEstimate ? (
             <>
-              <Text style={styles.estimatePrice}>{formatAr(estimate.price)}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.estimatePrice]}>{formatAr(estimate.price)}</Text>
               {Number.isFinite(estimate.min) && Number.isFinite(estimate.max) ? (
-                <Text style={[styles.estimateRange, { color: tc.textSecondary }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.estimateRange, { color: tc.textSecondary }]}>
                   Fourchette : {formatAr(estimate.min)} – {formatAr(estimate.max)}
                   {Number.isFinite(estimate.confidence)
                     ? ` · fiabilité ${formatPercent(estimate.confidence)}`
@@ -109,11 +109,11 @@ const AISearchPanel = ({
               ) : null}
             </>
           ) : estimateError ? (
-            <Text style={[styles.estimateRange, { color: colors.error }]}>{estimateError}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.estimateRange, { color: colors.error }]}>{estimateError}</Text>
           ) : null}
         </View>
       ) : (
-        <Text style={[styles.hint, { color: tc.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, { color: tc.textSecondary }]}>
           Choisissez un type de massage pour voir son prix estimé.
         </Text>
       )}
@@ -121,7 +121,7 @@ const AISearchPanel = ({
       {/* Massages les plus demandés */}
       {(popularLoading || popular.length > 0) && (
         <View style={styles.popular}>
-          <Text style={[styles.popularTitle, { color: tc.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.popularTitle, { color: tc.textSecondary }]}>
             Les plus demandés ce mois-ci
           </Text>
           {popularLoading && popular.length === 0 ? (
@@ -136,10 +136,10 @@ const AISearchPanel = ({
                   style={[styles.chip, { borderColor: tc.border, backgroundColor: tc.background }]}
                 >
                   <Ionicons name="flame-outline" size={13} color={colors.secondary} />
-                  <Text style={[styles.chipText, { color: tc.text }]} numberOfLines={1}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.chipText, { color: tc.text }]} numberOfLines={1}>
                     {row.name}
                   </Text>
-                  <Text style={[styles.chipCount, { color: tc.textSecondary }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.chipCount, { color: tc.textSecondary }]}>
                     {row.bookings_count}
                   </Text>
                 </TouchableOpacity>
@@ -171,18 +171,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold },
+  title: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   subtitle: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
   statusText: { flex: 1, fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular },
-  retry: { color: colors.primary, fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold },
+  retry: { color: colors.primary, fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   estimate: { borderWidth: 1, borderRadius: 12, padding: spacing.sm, marginTop: spacing.md },
-  estimateLabel: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
-  estimatePrice: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold, color: colors.primary },
+  estimateLabel: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
+  estimatePrice: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold, fontWeight: '700', color: colors.primary },
   estimateRange: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular, marginTop: 2 },
-  hint: { fontSize: typography.fontSize.sm, marginTop: spacing.sm },
+  hint: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, marginTop: spacing.sm },
   popular: { marginTop: spacing.md },
-  popularTitle: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, marginBottom: 6 },
+  popularTitle: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500', marginBottom: 6 },
   chips: { gap: spacing.sm },
   chip: {
     flexDirection: 'row',
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     maxWidth: 200,
   },
-  chipText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, flexShrink: 1 },
+  chipText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500', flexShrink: 1 },
   chipCount: { fontSize: 11, fontFamily: typography.fontFamily.regular },
 });
 

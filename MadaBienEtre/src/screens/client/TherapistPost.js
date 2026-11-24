@@ -246,13 +246,13 @@ const PostMassageTile = ({ spec, style, overlay, textSize = 11, gallery, gallery
         style={postStyles.tileShade}
         pointerEvents="none"
       />
-      <Text numberOfLines={1} style={[postStyles.tileLabel, { fontSize: textSize }]}>
+      <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, postStyles.tileLabel, { fontFamily: typography.fontFamily.regular, fontSize: textSize }]}>
         {spec?.name}
       </Text>
 
       {overlay ? (
         <View style={postStyles.tileMore}>
-          <Text style={postStyles.tileMoreText}>{overlay}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, postStyles.tileMoreText]}>{overlay}</Text>
         </View>
       ) : null}
     </ViewableImage>
@@ -350,7 +350,7 @@ const PostAvatar = ({ uri, name }) => {
 
   return (
     <View style={[postStyles.avatar, postStyles.avatarFallback]}>
-      <Text style={postStyles.avatarInitial}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, postStyles.avatarInitial]}>
         {String(name || '?').charAt(0).toUpperCase()}
       </Text>
     </View>
@@ -417,16 +417,16 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
 
         <TouchableOpacity activeOpacity={0.85} onPress={onOpen} style={postStyles.headerInfo}>
           <View style={postStyles.nameRow}>
-            <Text numberOfLines={1} style={[postStyles.name, { color: text }]}>{post.name}</Text>
+            <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, postStyles.name, { color: text }]}>{post.name}</Text>
             {post.verified && <Ionicons name="checkmark-circle" size={15} color={FB_BLUE} style={{ marginLeft: 4 }} />}
           </View>
           <View style={postStyles.metaRow}>
             {post.online && (
-              <Text style={[postStyles.metaText, { color: '#31A24C', fontFamily: typography.fontFamily.semiBold }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, postStyles.metaText, { color: '#31A24C', fontFamily: typography.fontFamily.semiBold, fontWeight: '600' }]}>
                 En ligne ·{' '}
               </Text>
             )}
-            <Text numberOfLines={1} style={[postStyles.metaText, { color: textSecondary, flexShrink: 1 }]}>
+            <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, postStyles.metaText, { color: textSecondary, flexShrink: 1 }]}>
               Massothérapeute{ago ? ` · ${ago}` : ''}
             </Text>
             <Ionicons name="earth" size={12} color={textSecondary} style={{ marginLeft: 4 }} />
@@ -434,7 +434,7 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
           {!!post.address && (
             <View style={postStyles.metaRow}>
               <Ionicons name="location-outline" size={11} color={textSecondary} />
-              <Text numberOfLines={1} style={[postStyles.metaText, { color: textSecondary, marginLeft: 3, flexShrink: 1 }]}>
+              <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, postStyles.metaText, { color: textSecondary, marginLeft: 3, flexShrink: 1 }]}>
                 {post.address}
                 {post.distance != null && post.distance < 900 ? ` · ${post.distance.toFixed(1)} km` : ''}
               </Text>
@@ -457,13 +457,13 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
       <View style={postStyles.textBlock}>
         <Text
           numberOfLines={expanded ? undefined : 3}
-          style={[postStyles.bio, { color: text }]}
+          style={[{ fontFamily: typography.fontFamily.regular }, postStyles.bio, { color: text }]}
         >
           {shownBio}
         </Text>
         {longBio && (
           <TouchableOpacity onPress={() => setExpanded((v) => !v)} activeOpacity={0.7}>
-            <Text style={[postStyles.moreLink, { color: textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, postStyles.moreLink, { color: textSecondary }]}>
               {expanded ? 'Voir moins' : 'Voir plus'}
             </Text>
           </TouchableOpacity>
@@ -475,7 +475,7 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
             {stats.map((s, i) => (
               <View key={`${post.id}-st-${i}`} style={postStyles.statLine}>
                 <Ionicons name={s.icon} size={14} color={PRIMARY} />
-                <Text numberOfLines={2} style={[postStyles.statText, { color: text }]}>{s.label}</Text>
+                <Text numberOfLines={2} style={[{ fontFamily: typography.fontFamily.regular }, postStyles.statText, { color: text }]}>{s.label}</Text>
               </View>
             ))}
           </View>
@@ -483,7 +483,7 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
 
         {/* Fahaizana (compétences) en hashtags */}
         {post.skills.length > 0 && (
-          <Text numberOfLines={2} style={postStyles.hashtags}>
+          <Text numberOfLines={2} style={[{ fontFamily: typography.fontFamily.regular }, postStyles.hashtags]}>
             {post.skills.slice(0, 8).map((s) => `#${s.replace(/[^\p{L}\p{N}]+/gu, '')}`).join('  ')}
           </Text>
         )}
@@ -504,7 +504,7 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
                     size={12}
                     color={PRIMARY}
                   />
-                  <Text style={[postStyles.tagText, { color: text }]}>{s.name}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, postStyles.tagText, { color: text }]}>{s.name}</Text>
                 </View>
               ))}
             </View>
@@ -514,7 +514,7 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
               {post.categories.map((c) => (
                 <View key={`${post.id}-c-${c}`} style={[postStyles.catTag, { borderColor: `${PRIMARY}40`, backgroundColor: `${PRIMARY}10` }]}>
                   <MaterialCommunityIcons name={getMassageTypeFallbackIcon(c)} size={11} color={PRIMARY} />
-                  <Text style={postStyles.catTagText}>{getMassageCategoryLabel(c)}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, postStyles.catTagText]}>{getMassageCategoryLabel(c)}</Text>
                 </View>
               ))}
             </View>
@@ -534,14 +534,14 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
           <View style={postStyles.starBubble}>
             <Ionicons name="star" size={10} color="#FFFFFF" />
           </View>
-          <Text style={[postStyles.counterText, { color: textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, postStyles.counterText, { color: textSecondary }]}>
             {post.reviews > 0
               ? `${post.rating.toFixed(1).replace('.', ',')} · ${post.reviews} avis`
               : 'Aucun avis'}
           </Text>
         </TouchableOpacity>
         {post.price > 0 && (
-          <Text style={[postStyles.priceText, { color: PRIMARY }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, postStyles.priceText, { color: PRIMARY }]}>
             dès {fmtAr(post.price)}
           </Text>
         )}
@@ -553,19 +553,19 @@ export const TherapistPost = ({ post, isDark, surface, border, text, textSeconda
       <View style={[postStyles.actions, { borderTopColor: border }]}>
         <TouchableOpacity activeOpacity={0.7} style={postStyles.actionBtn} onPress={onBook}>
           <Ionicons name="calendar-outline" size={18} color={PRIMARY} />
-          <Text style={[postStyles.actionText, { color: PRIMARY }]}>Réserver</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, postStyles.actionText, { color: PRIMARY }]}>Réserver</Text>
         </TouchableOpacity>
         <TouchableOpacity activeOpacity={0.7} style={postStyles.actionBtn} onPress={handleCall}>
           <Ionicons name="call-outline" size={18} color={textSecondary} />
-          <Text style={[postStyles.actionText, { color: textSecondary }]}>Appeler</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, postStyles.actionText, { color: textSecondary }]}>Appeler</Text>
         </TouchableOpacity>
         <TouchableOpacity activeOpacity={0.7} style={postStyles.actionBtn} onPress={onOpen}>
           <Ionicons name="person-circle-outline" size={19} color={textSecondary} />
-          <Text style={[postStyles.actionText, { color: textSecondary }]}>Profil</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, postStyles.actionText, { color: textSecondary }]}>Profil</Text>
         </TouchableOpacity>
         <TouchableOpacity activeOpacity={0.7} style={postStyles.actionBtn} onPress={handleShare}>
           <Ionicons name="arrow-redo-outline" size={18} color={textSecondary} />
-          <Text style={[postStyles.actionText, { color: textSecondary }]}>Partager</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, postStyles.actionText, { color: textSecondary }]}>Partager</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -587,50 +587,50 @@ const postStyles = StyleSheet.create({
   avatarWrap: { position: 'relative', marginRight: 10 },
   avatar: { width: 44, height: 44, borderRadius: 22 },
   avatarFallback: { backgroundColor: '#E3F1E7', alignItems: 'center', justifyContent: 'center' },
-  avatarInitial: { color: PRIMARY, fontSize: 19, fontFamily: typography.fontFamily.bold },
+  avatarInitial: { color: PRIMARY, fontSize: 19, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   onlineDot: { position: 'absolute', right: -1, bottom: -1, width: 13, height: 13, borderRadius: 7, borderWidth: 2 },
   headerInfo: { flex: 1, minWidth: 0 },
   nameRow: { flexDirection: 'row', alignItems: 'center' },
-  name: { flexShrink: 1, fontSize: 15, fontFamily: typography.fontFamily.bold },
+  name: { flexShrink: 1, fontSize: 15, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   metaText: { fontSize: 12, fontFamily: typography.fontFamily.regular },
   moreBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
   statusPill: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, marginLeft: 6 },
   statusDot: { width: 6, height: 6, borderRadius: 3, marginRight: 4 },
-  statusText: { fontSize: 9, fontFamily: typography.fontFamily.bold },
+  statusText: { fontSize: 9, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
 
   textBlock: { paddingHorizontal: 12, paddingTop: 10, paddingBottom: 10 },
   bio: { fontSize: 14, lineHeight: 20, fontFamily: typography.fontFamily.regular },
-  moreLink: { fontSize: 13, marginTop: 3, fontFamily: typography.fontFamily.semiBold },
+  moreLink: { fontSize: 13, marginTop: 3, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   statsBox: { marginTop: 8, gap: 4 },
   statLine: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  statText: { flex: 1, fontSize: 12.5, fontFamily: typography.fontFamily.medium },
-  hashtags: { marginTop: 8, fontSize: 13, lineHeight: 18, color: FB_BLUE, fontFamily: typography.fontFamily.medium },
+  statText: { flex: 1, fontSize: 12.5, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
+  hashtags: { marginTop: 8, fontSize: 13, lineHeight: 18, color: FB_BLUE, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
 
   tile: { overflow: 'hidden', backgroundColor: '#DDE5E0', justifyContent: 'flex-end' },
   tileIconWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   tileShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 54 },
-  tileLabel: { color: '#FFFFFF', paddingHorizontal: 9, paddingBottom: 7, fontFamily: typography.fontFamily.bold },
+  tileLabel: { color: '#FFFFFF', paddingHorizontal: 9, paddingBottom: 7, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   tileMore: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
-  tileMoreText: { color: '#FFFFFF', fontSize: 20, fontFamily: typography.fontFamily.bold },
+  tileMoreText: { color: '#FFFFFF', fontSize: 20, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   mosaicRow: { flexDirection: 'row', gap: 2, marginTop: 2 },
 
   tagsBlock: { paddingHorizontal: 12, paddingTop: 10 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   tag: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 14 },
-  tagText: { fontSize: 11.5, fontFamily: typography.fontFamily.medium },
+  tagText: { fontSize: 11.5, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   catTag: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 14, borderWidth: 1 },
-  catTagText: { color: PRIMARY, fontSize: 11, fontFamily: typography.fontFamily.semiBold },
+  catTagText: { color: PRIMARY, fontSize: 11, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
 
   counters: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingTop: 11, paddingBottom: 10 },
   counterLeft: { flexDirection: 'row', alignItems: 'center' },
   starBubble: { width: 18, height: 18, borderRadius: 9, backgroundColor: STAR_COLOR, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
   counterText: { fontSize: 13, fontFamily: typography.fontFamily.regular },
-  priceText: { fontSize: 13, fontFamily: typography.fontFamily.bold },
+  priceText: { fontSize: 13, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
 
   actions: { flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, marginHorizontal: 8, paddingVertical: 2 },
   actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, paddingVertical: 10, borderRadius: 8 },
-  actionText: { fontSize: 12.5, fontFamily: typography.fontFamily.semiBold },
+  actionText: { fontSize: 12.5, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
 
   emptyBox: { alignItems: 'center', paddingVertical: 28, gap: 8 },
   emptyText: { fontSize: 11, fontFamily: typography.fontFamily.regular, textAlign: 'center' },

@@ -31,6 +31,7 @@
 // jamais `isMobile`.
 
 import { useWindowDimensions, Platform } from 'react-native';
+import { typography } from '../theme';
 
 export const BREAKPOINTS = {
   tablet: 768,
@@ -107,7 +108,7 @@ const useResponsive = () => {
     return `${(usable / columns).toFixed(2)}%`;
   };
 
-  return {
+  return { fontFamily: typography.fontFamily.regular,
     // Plateforme (comportements natifs uniquement, pas le layout)
     isWeb,
     isNativeApp,

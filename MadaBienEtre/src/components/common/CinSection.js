@@ -89,11 +89,11 @@ const CinSection = ({
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.inputLabel, { color: themeColors.text }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.inputLabel, { color: themeColors.text }]}>
         🪪 Numéro CIN
       </Text>
       <TextInput
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.input,
           {
             color: themeColors.text,
@@ -129,12 +129,12 @@ const CinSection = ({
         {isUploading ? (
           <View style={styles.uploadButtonContent}>
             <ActivityIndicator size="small" color="#fff" />
-            <Text style={styles.uploadButtonText}>Envoi en cours...</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.uploadButtonText]}>Envoi en cours...</Text>
           </View>
         ) : (
           <View style={styles.uploadButtonContent}>
             <Ionicons name="camera-outline" size={20} color="#fff" />
-            <Text style={styles.uploadButtonText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.uploadButtonText]}>
               {localPreview ? 'Remplacer le CIN' : 'Uploader mon CIN'}
             </Text>
           </View>
@@ -150,10 +150,10 @@ const styles = StyleSheet.create({
   },
   inputLabel: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginBottom: 6,
   },
-  input: {
+  input: { fontFamily: typography.fontFamily.regular,
     borderWidth: 1,
     borderRadius: 8,
     paddingHorizontal: spacing.md,
@@ -185,12 +185,12 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
     paddingHorizontal: spacing.md,
   },
-  pdfPreviewText: {
+  pdfPreviewText: { fontFamily: typography.fontFamily.medium,
     fontSize: 13,
     fontWeight: '500',
     maxWidth: '90%',
   },
-  pdfPreviewSubText: {
+  pdfPreviewSubText: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
   },
   uploadButton: {
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   uploadButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 });
 

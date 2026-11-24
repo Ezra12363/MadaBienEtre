@@ -6,6 +6,7 @@ import { useTheme } from '../../context/ThemeContext';
 import Header from '../../components/common/Header';
 import useResponsive from '../../hooks/useResponsive';
 import TherapistReviewsPanel from '../../components/reviews/TherapistReviewsPanel';
+import { typography } from '../../theme';
 
 export default function TherapistReviewsScreen({ route }) {
   const { colors: c } = useTheme();
@@ -21,7 +22,7 @@ export default function TherapistReviewsScreen({ route }) {
           {therapistId ? (
             <TherapistReviewsPanel therapistId={therapistId} mode="public" />
           ) : (
-            <Text style={{ color: c.textSecondary, textAlign: 'center', marginTop: 40 }}>Thérapeute introuvable.</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: c.textSecondary, textAlign: 'center', marginTop: 40 }]}>Thérapeute introuvable.</Text>
           )}
         </View>
       </ScrollView>

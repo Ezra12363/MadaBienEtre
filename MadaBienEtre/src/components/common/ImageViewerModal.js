@@ -31,6 +31,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { normalizeMediaUrl } from '../../utils/mediaUrl';
+import { typography } from '../../theme';
 
 const IS_WEB = Platform.OS === 'web';
 const MIN_SCALE = 1;
@@ -230,7 +231,7 @@ const ZoomableImage = ({ uri, zoomRequest }) => {
       {status === 'error' ? (
         <View style={styles.centerOverlay} pointerEvents="none">
           <Ionicons name="image-outline" size={46} color="rgba(255,255,255,0.7)" />
-          <Text style={styles.errorText}>Impossible d’afficher cette image.</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}>Impossible d’afficher cette image.</Text>
         </View>
       ) : null}
     </View>
@@ -302,12 +303,12 @@ export const ImageViewerModal = ({ visible, images, index = 0, title, onClose })
         <View style={styles.topBar} pointerEvents="box-none">
           <View style={styles.captionWrap} pointerEvents="none">
             {caption ? (
-              <Text style={styles.caption} numberOfLines={1}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.caption]} numberOfLines={1}>
                 {caption}
               </Text>
             ) : null}
             {multiple ? (
-              <Text style={styles.counter}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.counter]}>
                 {current + 1} / {items.length}
               </Text>
             ) : null}
@@ -444,7 +445,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 10,
   },
-  errorText: {
+  errorText: { fontFamily: typography.fontFamily.regular,
     color: 'rgba(255,255,255,0.8)',
     fontSize: 13,
   },
@@ -464,12 +465,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: 12,
   },
-  caption: {
+  caption: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
   },
-  counter: {
+  counter: { fontFamily: typography.fontFamily.regular,
     color: 'rgba(255,255,255,0.75)',
     fontSize: 12,
     marginTop: 2,

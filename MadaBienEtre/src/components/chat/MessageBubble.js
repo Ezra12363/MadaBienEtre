@@ -100,7 +100,7 @@ const MessageBubble = ({ message, isOwn, showTime, isGroupStart, palette, token,
     >
       {showTime && (
         <View style={[styles.metaRow, isOwn ? styles.metaOwn : styles.metaOther]}>
-          <Text style={[styles.time, { color: palette.meta }]}>{formatClock(message.createdAt)}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.time, { color: palette.meta }]}>{formatClock(message.createdAt)}</Text>
           {isOwn && !message.deleted && <StatusIcon status={message.status} palette={palette} />}
           {isOwn && !message.deleted && <ChatStatusLabel status={message.status} palette={palette} />}
         </View>
@@ -135,7 +135,7 @@ const MessageBubble = ({ message, isOwn, showTime, isGroupStart, palette, token,
 
       {failed && (
         <View style={styles.failedRow}>
-          <Text style={[styles.failedText, { color: palette.danger }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.failedText, { color: palette.danger }]}>
             Échec de l'envoi · Appuyez pour réessayer
           </Text>
           {!!onDelete && (

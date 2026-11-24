@@ -17,6 +17,7 @@ import { useTheme } from '../../context/ThemeContext';
 import messengerService from '../../services/messengerService';
 import { notifyInfo, resolvePhotoUrl } from '../../utils/chatUi';
 import { isAdminUser, roleLabel } from '../../utils/messengerUtils';
+import { typography } from '../../theme';
 
 const MAX_USER_GROUP_MEMBERS = 50; // ✏️ NOUVEAU : même limite que le backend (perm.MAX_USER_GROUP_MEMBERS)
 
@@ -89,7 +90,7 @@ const MessengerNewScreen = ({ navigation }) => {
 
   const Chip = ({ active, label, onPress }) => (
     <TouchableOpacity onPress={onPress} style={[styles.chip, { borderColor: active ? palette.primary : palette.border, backgroundColor: active ? palette.primarySoft : 'transparent' }]}>
-      <Text style={{ color: active ? palette.primary : palette.text, fontSize: 13, fontWeight: '600' }}>{label}</Text>
+      <Text style={{ fontFamily: typography.fontFamily.semiBold, color: active ? palette.primary : palette.text, fontSize: 13, fontWeight: '600' }}>{label}</Text>
     </TouchableOpacity>
   );
 
@@ -106,7 +107,7 @@ const MessengerNewScreen = ({ navigation }) => {
         <View style={styles.form}>
           <TextInput
             value={title} onChangeText={setTitle} placeholder="Nom du groupe" placeholderTextColor={palette.placeholder} maxLength={150}
-            style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.inputBorder, color: palette.inputText }]}
+            style={[{ fontFamily: typography.fontFamily.regular }, styles.input, { backgroundColor: palette.inputBg, borderColor: palette.inputBorder, color: palette.inputText }]}
           />
           {admin && (
             <View style={styles.chips}>
@@ -114,23 +115,23 @@ const MessengerNewScreen = ({ navigation }) => {
               <Chip active={kind === 'announcement'} label="Annonces uniquement" onPress={() => setKind('announcement')} />
             </View>
           )}
-          {admin && <Text style={[styles.label, { color: palette.textSecondary }]}>Audience</Text>}
+          {admin && <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: palette.textSecondary }]}>Audience</Text>}
           {admin && <View style={styles.chips}>{AUDIENCES.map(([k, l]) => <Chip key={k} active={audience === k} label={l} onPress={() => setAudience(k)} />)}</View>}
           {admin && (AUDIENCES.find((a) => a[0] === audience)?.[2] || []).length > 0 && (
             <View style={styles.switchRow}>
-              <Text style={{ color: palette.text, flex: 1 }}>Ajouter tous les utilisateurs de cette audience</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.text, flex: 1 }]}>Ajouter tous les utilisateurs de cette audience</Text>
               <Switch value={everyone} onValueChange={setEveryone} trackColor={{ true: palette.primary }} />
             </View>
           )}
           {admin && kind === 'group' && (
             <View style={styles.switchRow}>
-              <Text style={{ color: palette.text, flex: 1 }}>Les membres peuvent s'écrire entre eux</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.text, flex: 1 }]}>Les membres peuvent s'écrire entre eux</Text>
               <Switch value={membersChat} onValueChange={setMembersChat} trackColor={{ true: palette.primary }} />
             </View>
           )}
-          <Text style={[styles.label, { color: palette.textSecondary }]}>{admin ? 'Membres supplémentaires' : 'Membres'} ({picked.length})</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: palette.textSecondary }]}>{admin ? 'Membres supplémentaires' : 'Membres'} ({picked.length})</Text>
           {!admin && ( // ✏️ NOUVEAU : explication pour client / thérapeute
-            <Text style={{ color: palette.textSecondary, fontSize: 12, marginHorizontal: 2, marginBottom: 4 }}>
+            <Text style={{ fontFamily: typography.fontFamily.regular, color: palette.textSecondary, fontSize: 12, marginHorizontal: 2, marginBottom: 4 }}>
               Vous pouvez ajouter les personnes avec qui vous avez une réservation, ainsi que l'administration.
             </Text>
           )}
@@ -141,14 +142,14 @@ const MessengerNewScreen = ({ navigation }) => {
         <Ionicons name="search" size={18} color={palette.textSecondary} />
         <TextInput
           value={q} onChangeText={setQ} placeholder="Rechercher par nom" placeholderTextColor={palette.placeholder}
-          style={[styles.searchInput, { color: palette.inputText }, Platform.OS === 'web' && { outlineStyle: 'none' }]}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.searchInput, { color: palette.inputText }, Platform.OS === 'web' && { outlineStyle: 'none' }]}
         />
       </View>
 
       {loading ? <ActivityIndicator color={palette.primary} style={{ marginTop: 30 }} /> : (
         <FlatList
           data={contacts} keyExtractor={(c) => String(c.id)} contentContainerStyle={{ padding: 12, gap: 6 }}
-          ListEmptyComponent={<Text style={{ color: palette.textSecondary, textAlign: 'center', marginTop: 30, paddingHorizontal: 24 }}>
+          ListEmptyComponent={<Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.textSecondary, textAlign: 'center', marginTop: 30, paddingHorizontal: 24 }]}>
             {user?.role === 'ADMIN' ? 'Aucun résultat.' : 'Aucun contact disponible. Vous pouvez écrire à un thérapeute / client après une réservation, ou à l\'administration.'}
           </Text>}
           renderItem={({ item: c }) => {
@@ -160,8 +161,8 @@ const MessengerNewScreen = ({ navigation }) => {
               >
                 <ChatAvatar uri={resolvePhotoUrl(c.profile_image)} name={c.fullname} size={44} palette={palette} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: palette.text, fontWeight: '700', fontSize: 15 }} numberOfLines={1}>{c.fullname}</Text>
-                  <Text style={{ color: palette.textSecondary, fontSize: 12 }}>{roleLabel(c.role)}{c.is_online ? ' · En ligne' : ''}</Text>
+                  <Text style={{ fontFamily: typography.fontFamily.bold, color: palette.text, fontWeight: '700', fontSize: 15 }} numberOfLines={1}>{c.fullname}</Text>
+                  <Text style={{ fontFamily: typography.fontFamily.regular, color: palette.textSecondary, fontSize: 12 }}>{roleLabel(c.role)}{c.is_online ? ' · En ligne' : ''}</Text>
                 </View>
                 {mode === 'group' && <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={on ? palette.primary : palette.border} />}
               </TouchableOpacity>
@@ -172,7 +173,7 @@ const MessengerNewScreen = ({ navigation }) => {
 
       {mode === 'group' && (
         <TouchableOpacity onPress={createGroup} disabled={saving} style={[styles.create, { backgroundColor: palette.primary, marginBottom: insets.bottom + 12 }]}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>Créer</Text>}
+          {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ fontFamily: typography.fontFamily.bold, color: '#fff', fontWeight: '700', fontSize: 16 }}>Créer</Text>}
         </TouchableOpacity>
       )}
     </View>
@@ -183,15 +184,15 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   head: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 8 },
   back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  h1: { fontSize: 20, fontWeight: '800' },
+  h1: { fontFamily: typography.fontFamily.bold, fontSize: 20, fontWeight: '800' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 12, marginVertical: 6 },
   chip: { borderWidth: 1, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 7 },
   form: { paddingHorizontal: 12 },
-  input: { borderWidth: 1, borderRadius: 12, height: 46, paddingHorizontal: 12, fontSize: 15, marginBottom: 6 },
-  label: { fontSize: 12, fontWeight: '700', marginTop: 8, marginHorizontal: 2 },
+  input: { fontFamily: typography.fontFamily.regular, borderWidth: 1, borderRadius: 12, height: 46, paddingHorizontal: 12, fontSize: 15, marginBottom: 6 },
+  label: { fontFamily: typography.fontFamily.bold, fontSize: 12, fontWeight: '700', marginTop: 8, marginHorizontal: 2 },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   search: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 12, marginTop: 6, paddingHorizontal: 12, height: 42, borderRadius: 21, borderWidth: 1 },
-  searchInput: { flex: 1, fontSize: 15 },
+  searchInput: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 15 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 10, borderRadius: 14, borderWidth: 1 },
   create: { marginHorizontal: 12, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
 });

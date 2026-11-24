@@ -13,6 +13,7 @@ import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TouchableOpac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../context/ThemeContext';
+import { typography } from '../../theme';
 
 /**
  * @param {{
@@ -44,7 +45,7 @@ export default function BottomSheetModal({ visible, onClose, title, right, maxWi
         >
           {!isWeb ? <View style={styles.handle} /> : null}
           <View style={[styles.header, { borderBottomColor: tc.border }]}>
-            <Text style={[styles.title, { color: tc.text }]} numberOfLines={1}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: tc.text }]} numberOfLines={1}>
               {title}
             </Text>
             {right ? <View style={styles.right}>{right}</View> : null}
@@ -97,7 +98,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  title: { flex: 1, minWidth: 0, fontSize: 15, fontWeight: '600' },
+  title: { fontFamily: typography.fontFamily.semiBold, flex: 1, minWidth: 0, fontSize: 15, fontWeight: '600' },
   right: { flexShrink: 0 },
   close: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F1F3F5' },
   scroll: { flexGrow: 0 },

@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import Header from '../../components/common/Header';
 import useResponsive from '../../hooks/useResponsive';
 import TherapistReviewsPanel from '../../components/reviews/TherapistReviewsPanel';
+import { typography } from '../../theme';
 
 const ReviewsScreen = () => {
   const { colors: c } = useTheme();
@@ -24,7 +25,7 @@ const ReviewsScreen = () => {
           {user?.id ? (
             <TherapistReviewsPanel therapistId={user.id} mode="therapist" />
           ) : (
-            <Text style={{ color: c.textSecondary, textAlign: 'center', marginTop: 40 }}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: c.textSecondary, textAlign: 'center', marginTop: 40 }]}>
               Profil introuvable.
             </Text>
           )}

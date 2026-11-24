@@ -116,7 +116,7 @@ const Section = ({ title, children, right, style }) => {
   return (
     <View style={[styles.section, { backgroundColor: themeColors.surface, borderColor: themeColors.border || '#E5E7EB' }, style]}>
       <View style={styles.sectionHead}>
-        <Text style={[styles.sectionTitle, { color: themeColors.text }]}>{title}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionTitle, { color: themeColors.text }]}>{title}</Text>
         {right}
       </View>
       {children}
@@ -179,11 +179,11 @@ const AnalyticsScreen = () => {
         <Ionicons name={icon} size={22} color={color} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={[styles.statValue, { color: themeColors.text }]} numberOfLines={1} adjustsFontSizeToFit>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statValue, { color: themeColors.text }]} numberOfLines={1} adjustsFontSizeToFit>
           {value}
-          {star ? <Text style={{ color: '#F5A623' }}>  ★</Text> : null}
+          {star ? <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: '#F5A623' }]}>  ★</Text> : null}
         </Text>
-        <Text style={[styles.statLabel, { color: themeColors.textSecondary }]} numberOfLines={2}>{label}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statLabel, { color: themeColors.textSecondary }]} numberOfLines={2}>{label}</Text>
       </View>
     </View>
   );
@@ -195,7 +195,7 @@ const AnalyticsScreen = () => {
           <Header title="Analyses" showBack />
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>Chargement...</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText, { color: themeColors.textSecondary }]}>Chargement...</Text>
           </View>
         </View>
       </SafeAreaView>
@@ -248,8 +248,8 @@ const AnalyticsScreen = () => {
   const StatusLegendItem = ({ k }) => (
     <View style={styles.legendRow}>
       <View style={[styles.legendDot, { backgroundColor: statusColor(k) }]} />
-      <Text style={[styles.legendLabel, { color: themeColors.text }]} numberOfLines={1}>{statusLabel(k)}</Text>
-      <Text style={[styles.legendPct, { color: txtSecondary }]}>{statusPct(k)} %</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.legendLabel, { color: themeColors.text }]} numberOfLines={1}>{statusLabel(k)}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.legendPct, { color: txtSecondary }]}>{statusPct(k)} %</Text>
     </View>
   );
 
@@ -272,9 +272,9 @@ const AnalyticsScreen = () => {
     <Section title="Taux de complétion" style={wide ? { flex: 1 } : null}>
       <View style={styles.completionContainer}>
         <Donut percent={completion} size={112} thickness={12} color={colors.primary} track={gridColor + '88'}>
-          <Text style={[styles.completionValue, { color: colors.primary }]}>{completion} %</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.completionValue, { color: colors.primary }]}>{completion} %</Text>
         </Donut>
-        <Text style={[styles.completionLabel, { color: txtSecondary }]}>Réservations terminées sur la période</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.completionLabel, { color: txtSecondary }]}>Réservations terminées sur la période</Text>
       </View>
     </Section>
   );
@@ -314,7 +314,7 @@ const AnalyticsScreen = () => {
   const statusCard = (
     <Section title="Réservations par statut" style={wide ? { flex: 1 } : null}>
       {barStatuses.length === 0 ? (
-        <Text style={{ color: txtSecondary, fontSize: 13 }}>Aucune réservation pour le moment.</Text>
+        <Text style={{ fontFamily: typography.fontFamily.regular, color: txtSecondary, fontSize: 13 }}>Aucune réservation pour le moment.</Text>
       ) : (
         <>
           <View style={styles.statusBar}>
@@ -344,15 +344,15 @@ const AnalyticsScreen = () => {
   const topCard = (
     <Section title="Meilleurs thérapeutes" style={wide ? { flex: 1 } : null}>
       {topTherapists.length === 0 ? (
-        <Text style={{ color: txtSecondary, fontSize: 13 }}>Aucune réservation terminée pour le moment.</Text>
+        <Text style={{ fontFamily: typography.fontFamily.regular, color: txtSecondary, fontSize: 13 }}>Aucune réservation terminée pour le moment.</Text>
       ) : (
         topTherapists.map((t, i) => (
           <View key={t.id ?? i} style={styles.topRow}>
             <View style={styles.topLine}>
-              <Text style={[styles.topRank, { color: txtSecondary }]}>{i + 1}</Text>
-              <Text style={[styles.topName, { color: themeColors.text }]} numberOfLines={1}>{t.name}</Text>
-              <Text style={[styles.topBookings, { color: txtSecondary }]}>{t.bookings} rés.</Text>
-              <Text style={[styles.topEarn, { color: themeColors.text }]}>{formatAr(t.earnings)}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.topRank, { color: txtSecondary }]}>{i + 1}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.topName, { color: themeColors.text }]} numberOfLines={1}>{t.name}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.topBookings, { color: txtSecondary }]}>{t.bookings} rés.</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.topEarn, { color: themeColors.text }]}>{formatAr(t.earnings)}</Text>
             </View>
             <View style={[styles.topTrack, { backgroundColor: gridColor + '88' }]}>
               <View style={[styles.topFill, { width: `${Math.max(3, ((Number(t.earnings) || 0) / topMax) * 100)}%`, backgroundColor: colors.primary }]} />
@@ -370,11 +370,11 @@ const AnalyticsScreen = () => {
         const col = n >= 4 ? '#27AE60' : n === 3 ? '#F5A623' : '#E74C3C';
         return (
           <View key={n} style={styles.ratingRow}>
-            <Text style={[styles.ratingLabel, { color: themeColors.text }]}>{n} ★</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.ratingLabel, { color: themeColors.text }]}>{n} ★</Text>
             <View style={[styles.ratingTrack, { backgroundColor: gridColor + '88' }]}>
               <View style={[styles.ratingFill, { width: `${v > 0 ? Math.max(4, (v / ratingMax) * 100) : 0}%`, backgroundColor: col }]} />
             </View>
-            <Text style={[styles.ratingCount, { color: themeColors.text }]}>{formatCount(v)}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.ratingCount, { color: themeColors.text }]}>{formatCount(v)}</Text>
           </View>
         );
       })}
@@ -392,9 +392,9 @@ const AnalyticsScreen = () => {
           {error ? (
             <View style={[styles.errorBox, { backgroundColor: themeColors.surface }]}>
               <Ionicons name="warning-outline" size={18} color="#F59E0B" />
-              <Text style={[styles.errorText, { color: themeColors.text }]}>{error}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText, { color: themeColors.text }]}>{error}</Text>
               <TouchableOpacity onPress={onRefresh}>
-                <Text style={{ color: colors.primary }}>Réessayer</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: colors.primary }]}>Réessayer</Text>
               </TouchableOpacity>
             </View>
           ) : null}
@@ -407,7 +407,7 @@ const AnalyticsScreen = () => {
                 activeOpacity={0.8}
                 style={[styles.periodBtn, period === p.id && { backgroundColor: colors.primary }]}
               >
-                <Text style={{ color: period === p.id ? '#fff' : txtSecondary, fontSize: 12, fontWeight: period === p.id ? '700' : '500' }}>{p.label}</Text>
+                <Text style={{ fontFamily: typography.fontFamily.regular, color: period === p.id ? '#fff' : txtSecondary, fontSize: 12, fontWeight: period === p.id ? '700' : '500' }}>{p.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -454,11 +454,11 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { padding: spacing.md, paddingBottom: spacing.xl, gap: 12 },
   errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: spacing.md, borderRadius: 12 },
-  errorText: { flex: 1, fontSize: typography.fontSize.sm },
+  errorText: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: typography.fontSize.sm },
   periodBar: { flexDirection: 'row', alignSelf: 'flex-start', borderWidth: 1, borderRadius: 999, padding: 3, gap: 2 },
   periodBtn: { paddingHorizontal: 16, paddingVertical: 7, borderRadius: 999 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: spacing.md, fontSize: typography.fontSize.md },
+  loadingText: { fontFamily: typography.fontFamily.regular, marginTop: spacing.md, fontSize: typography.fontSize.md },
   rowGap: { flexDirection: 'row', gap: 12, alignItems: 'stretch' },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statCard: { flexGrow: 1, flexBasis: '47%', flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, borderWidth: 1 },
@@ -476,21 +476,21 @@ const styles = StyleSheet.create({
   legendCol: { flex: 1, gap: 8 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendLabel: { flex: 1, fontSize: 12.5 },
-  legendPct: { fontSize: 12.5, fontWeight: '700' },
+  legendLabel: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 12.5 },
+  legendPct: { fontFamily: typography.fontFamily.bold, fontSize: 12.5, fontWeight: '700' },
   topRow: { marginBottom: 10 },
   topLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  topRank: { width: 16, fontSize: 12.5, fontWeight: '700' },
-  topName: { flexShrink: 1, fontSize: 13 },
-  topBookings: { flex: 1, fontSize: 11.5 },
-  topEarn: { fontSize: 13, fontWeight: '700' },
+  topRank: { fontFamily: typography.fontFamily.bold, width: 16, fontSize: 12.5, fontWeight: '700' },
+  topName: { fontFamily: typography.fontFamily.regular, flexShrink: 1, fontSize: 13 },
+  topBookings: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 11.5 },
+  topEarn: { fontFamily: typography.fontFamily.bold, fontSize: 13, fontWeight: '700' },
   topTrack: { height: 6, borderRadius: 3, marginTop: 4, marginLeft: 24 },
   topFill: { height: 6, borderRadius: 3 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  ratingLabel: { width: 34, fontSize: 13 },
+  ratingLabel: { fontFamily: typography.fontFamily.regular, width: 34, fontSize: 13 },
   ratingTrack: { flex: 1, height: 10, borderRadius: 5, overflow: 'hidden' },
   ratingFill: { height: 10, borderRadius: 5 },
-  ratingCount: { width: 28, textAlign: 'right', fontSize: 13, fontWeight: '700' },
+  ratingCount: { fontFamily: typography.fontFamily.bold, width: 28, textAlign: 'right', fontSize: 13, fontWeight: '700' },
   footer: { height: 20 },
 });
 

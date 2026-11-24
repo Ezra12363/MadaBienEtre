@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { confirmAsync, resolveChatImageUrl } from '../../utils/chatImage';
 import LocationMessageCard from './LocationMessageCard';
+import { typography } from '../../theme';
 
 const ChatMessageContent = ({
   message,
@@ -45,7 +46,7 @@ const ChatMessageContent = ({
     return (
       <View style={styles.deletedRow}>
         <Ionicons name="ban-outline" size={14} color={textColor} style={{ opacity: 0.7 }} />
-        <Text style={[textStyle, styles.deletedText, { color: textColor }]}>Message supprimé</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, textStyle, styles.deletedText, { color: textColor }]}>Message supprimé</Text>
       </View>
     );
   }
@@ -78,7 +79,7 @@ const ChatMessageContent = ({
           {failed || !uri ? (
             <View style={[styles.image, styles.imageError]}>
               <Ionicons name="image-outline" size={28} color="#9CA3AF" />
-              <Text style={styles.imageErrorText}>Image indisponible</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.imageErrorText]}>Image indisponible</Text>
             </View>
           ) : (
             <View>
@@ -104,7 +105,7 @@ const ChatMessageContent = ({
         </Pressable>
 
         {Boolean(message.content) && (
-          <Text style={[textStyle, { color: textColor, marginTop: 4 }]}>{message.content}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, textStyle, { color: textColor, marginTop: 4 }]}>{message.content}</Text>
         )}
 
         <Modal visible={zoom} transparent animationType="fade" onRequestClose={() => setZoom(false)}>
@@ -127,7 +128,7 @@ const ChatMessageContent = ({
   /* ---------- texte ---------- */
   return (
     <Text
-      style={[textStyle, { color: textColor }]}
+      style={[{ fontFamily: typography.fontFamily.regular }, textStyle, { color: textColor }]}
       onLongPress={askDelete}
       selectable
     >
@@ -146,7 +147,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   imageError: { alignItems: 'center', justifyContent: 'center', gap: 6 },
-  imageErrorText: { fontSize: 12, color: '#6B7280' },
+  imageErrorText: { fontFamily: typography.fontFamily.regular, fontSize: 12, color: '#6B7280' },
   deletedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   deletedText: { fontStyle: 'italic', opacity: 0.75 },
   lightbox: {

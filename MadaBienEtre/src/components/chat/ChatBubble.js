@@ -42,14 +42,14 @@ const ChatBubble = ({
         return (
           <View style={styles.locationContainer}>
             <Ionicons name="location" size={20} color={colors.primary} />
-            <Text style={[styles.locationText, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.locationText, { color: themeColors.text }]}>
               {message.content}
             </Text>
           </View>
         );
       default:
         return (
-          <Text style={[
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.messageText,
             isOwn ? styles.ownText : styles.otherText,
             { color: isOwn ? '#fff' : themeColors.text }
@@ -75,7 +75,7 @@ const ChatBubble = ({
             <Image source={{ uri: avatar }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.defaultAvatar]}>
-              <Text style={styles.defaultAvatarText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.defaultAvatarText]}>
                 {message.senderName?.charAt(0) || '?'}
               </Text>
             </View>
@@ -89,7 +89,7 @@ const ChatBubble = ({
         { backgroundColor: isOwn ? colors.primary : themeColors.surface },
       ]}>
         {!isOwn && message.senderName && (
-          <Text style={[styles.senderName, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.senderName, { color: themeColors.textSecondary }]}>
             {message.senderName}
           </Text>
         )}
@@ -97,14 +97,14 @@ const ChatBubble = ({
         {renderContent()}
 
         <View style={styles.timeContainer}>
-          <Text style={[
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.timeText,
             { color: isOwn ? 'rgba(255,255,255,0.7)' : themeColors.textSecondary }
           ]}>
             {formatTime(message.createdAt || Date.now())}
           </Text>
           {isOwn && message.status && (
-            <Text style={[
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.statusText,
               { color: isOwn ? 'rgba(255,255,255,0.7)' : themeColors.textSecondary }
             ]}>
@@ -120,7 +120,7 @@ const ChatBubble = ({
             <Image source={{ uri: avatar }} style={styles.avatar} />
           ) : (
             <View style={[styles.avatar, styles.defaultAvatar]}>
-              <Text style={styles.defaultAvatarText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.defaultAvatarText]}>
                 {message.senderName?.charAt(0) || 'M'}
               </Text>
             </View>
@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
   defaultAvatarText: {
     color: '#fff',
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
   bubble: {
     maxWidth: '80%',
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   senderName: {
     fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginBottom: 2,
   },
   messageText: {

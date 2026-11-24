@@ -51,11 +51,11 @@ const AIInsightCard = ({ insight, type = 'info', onPress, actionLabel }) => {
       </View>
 
       <View style={styles.content}>
-        <Text style={[styles.title, { color: themeColors.text }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: themeColors.text }]}>
           {insight.title}
         </Text>
         {insight.description ? (
-          <Text style={[styles.description, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.description, { color: themeColors.textSecondary }]}>
             {insight.description}
           </Text>
         ) : null}
@@ -66,7 +66,7 @@ const AIInsightCard = ({ insight, type = 'info', onPress, actionLabel }) => {
               <View key={`${detail}-${index}`} style={styles.detailRow}>
                 <Ionicons name="chevron-forward" size={13} color={color} />
                 <Text
-                  style={[styles.detailText, { color: themeColors.textSecondary }]}
+                  style={[{ fontFamily: typography.fontFamily.regular }, styles.detailText, { color: themeColors.textSecondary }]}
                 >
                   {detail}
                 </Text>
@@ -77,15 +77,15 @@ const AIInsightCard = ({ insight, type = 'info', onPress, actionLabel }) => {
 
         {hasValue && (
           <View style={[styles.valueContainer, { borderTopColor: themeColors.border }]}>
-            <Text style={[styles.valueLabel, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.valueLabel, { color: themeColors.textSecondary }]}>
               {insight.valueLabel || 'Valeur'}
             </Text>
-            <Text style={[styles.value, { color }]}>{String(insight.value)}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.value, { color }]}>{String(insight.value)}</Text>
           </View>
         )}
 
         {onPress && actionLabel ? (
-          <Text style={[styles.action, { color }]}>{actionLabel} →</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.action, { color }]}>{actionLabel} →</Text>
         ) : null}
       </View>
     </Wrapper>
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   content: { flex: 1 },
   title: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
   description: {
     fontSize: typography.fontSize.sm,
@@ -141,12 +141,12 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
   action: {
     marginTop: spacing.sm,
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 });
 

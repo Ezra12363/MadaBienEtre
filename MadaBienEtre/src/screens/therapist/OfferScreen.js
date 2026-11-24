@@ -68,6 +68,7 @@ import {
 } from '../../utils/timeAgo';
 
 import { toastAdapters } from "../../utils/toast";
+import { typography } from '../../theme';
 
 // ============================================================
 // COLORS
@@ -984,10 +985,10 @@ export default function OfferScreen({ route, navigation }) {
           </View>
 
           <View style={styles.offerUser}>
-            <Text style={styles.offerUserName} numberOfLines={1}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offerUserName]} numberOfLines={1}>
               {offerName}
             </Text>
-            <Text style={styles.offerRole}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offerRole]}>
               {isTherapist ? 'Thérapeute' : 'Client'}
             </Text>
           </View>
@@ -995,15 +996,15 @@ export default function OfferScreen({ route, navigation }) {
           <View
             style={[styles.offerStatus, { backgroundColor: `${color}18` }]}
           >
-            <Text style={[styles.offerStatusText, { color }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offerStatusText, { color }]}>
               {statusLabel(status)}
             </Text>
           </View>
         </View>
 
         <View style={styles.offerPriceBox}>
-          <Text style={styles.offerPriceLabel}>Prix proposé</Text>
-          <Text style={styles.offerPrice}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offerPriceLabel]}>Prix proposé</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offerPrice]}>
             {money(offer?.price_offered ?? offer?.price ?? 0)}
           </Text>
         </View>
@@ -1015,14 +1016,14 @@ export default function OfferScreen({ route, navigation }) {
               size={14}
               color={colors.textSecondary}
             />
-            <Text style={styles.offerMessage} numberOfLines={4}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offerMessage]} numberOfLines={4}>
               {offer.message}
             </Text>
           </View>
         ) : null}
 
         <View style={styles.offerFooter}>
-          <Text style={styles.offerDate}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offerDate]}>
             {dateText(offer?.created_at)}
           </Text>
         </View>
@@ -1039,7 +1040,7 @@ export default function OfferScreen({ route, navigation }) {
               size={16}
               color={COLORS.primary}
             />
-            <Text style={styles.counterButtonText}>Contre-offre</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.counterButtonText]}>Contre-offre</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -1065,7 +1066,7 @@ export default function OfferScreen({ route, navigation }) {
         />
         <View style={styles.center}>
           <ActivityIndicator size="large" color={COLORS.primary} />
-          <Text style={styles.loadingText}>Chargement…</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText]}>Chargement…</Text>
         </View>
       </SafeAreaView>
     );
@@ -1136,8 +1137,8 @@ export default function OfferScreen({ route, navigation }) {
             </View>
 
             <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.statusSmall}>STATUT</Text>
-              <Text style={styles.statusTitle}>{statusInfo.label}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statusSmall]}>STATUT</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statusTitle]}>{statusInfo.label}</Text>
             </View>
 
             {expiresAt ? (
@@ -1148,7 +1149,7 @@ export default function OfferScreen({ route, navigation }) {
                   color={isExpired ? COLORS.red : '#FFFFFF'}
                 />
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.timerPillText,
                     isExpired && { color: COLORS.red },
                   ]}
@@ -1194,10 +1195,10 @@ export default function OfferScreen({ route, navigation }) {
                 </View>
 
                 <View style={styles.profileInfo}>
-                  <Text style={styles.profileName} numberOfLines={1}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.profileName]} numberOfLines={1}>
                     {clientName}
                   </Text>
-                  <Text style={styles.profileId} numberOfLines={1}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.profileId]} numberOfLines={1}>
                     Client #{booking?.client_id ?? client?.id ?? '-'}
                   </Text>
                 </View>
@@ -1228,7 +1229,7 @@ export default function OfferScreen({ route, navigation }) {
                       size={15}
                       color={COLORS.primary}
                     />
-                    <Text style={styles.inlineActionText}>Message</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.inlineActionText]}>Message</Text>
                   </TouchableOpacity>
 
                   {clientPhone ? (
@@ -1242,7 +1243,7 @@ export default function OfferScreen({ route, navigation }) {
                         size={15}
                         color={COLORS.primary}
                       />
-                      <Text style={styles.inlineActionText}>Appeler</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.inlineActionText]}>Appeler</Text>
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -1262,12 +1263,12 @@ export default function OfferScreen({ route, navigation }) {
                   />
                 </View>
                 <View style={styles.serviceInfo}>
-                  <Text style={styles.serviceName} numberOfLines={1}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.serviceName]} numberOfLines={1}>
                     {massageName}
                   </Text>
                   {category ? (
                     <Text
-                      style={styles.serviceCategory}
+                      style={[{ fontFamily: typography.fontFamily.regular }, styles.serviceCategory]}
                       numberOfLines={1}
                     >
                       Catégorie : {category}
@@ -1333,7 +1334,7 @@ export default function OfferScreen({ route, navigation }) {
                       color={isNegotiating ? COLORS.orange : COLORS.primary}
                     />
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.inlineActionText,
                         isNegotiating && styles.inlineActionNegotiationText,
                       ]}
@@ -1392,7 +1393,7 @@ export default function OfferScreen({ route, navigation }) {
                       size={15}
                       color={COLORS.primary}
                     />
-                    <Text style={styles.inlineActionText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.inlineActionText]}>
                       Naviguer
                     </Text>
                   </TouchableOpacity>
@@ -1409,7 +1410,7 @@ export default function OfferScreen({ route, navigation }) {
                   icon="information-circle-outline"
                   label="État"
                   value={statusInfo.label}
-                  valueStyle={{
+                  valueStyle={{ fontFamily: typography.fontFamily.bold,
                     color: statusInfo.color,
                     fontWeight: '900',
                   }}
@@ -1438,7 +1439,7 @@ export default function OfferScreen({ route, navigation }) {
                       color={COLORS.red}
                     />
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.inlineActionText,
                         { color: COLORS.red },
                       ]}
@@ -1503,7 +1504,7 @@ export default function OfferScreen({ route, navigation }) {
                   size={18}
                   color={COLORS.primary}
                 />
-                <Text style={styles.instructionsText}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.instructionsText]}>
                   {instructions}
                 </Text>
               </View>
@@ -1518,10 +1519,10 @@ export default function OfferScreen({ route, navigation }) {
             <Section title="Mon offre actuelle">
               <View style={styles.myOfferCard}>
                 <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={styles.myOfferLabel}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.myOfferLabel]}>
                     Montant proposé
                   </Text>
-                  <Text style={styles.myOfferPrice}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.myOfferPrice]}>
                     {money(
                       myOffer?.price_offered ?? myOffer?.price ?? 0
                     )}
@@ -1540,7 +1541,7 @@ export default function OfferScreen({ route, navigation }) {
                     ]}
                   >
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.offerStatusText,
                         { color: statusColor(myOffer.status) },
                       ]}
@@ -1552,7 +1553,7 @@ export default function OfferScreen({ route, navigation }) {
               </View>
 
               {myOffer?.message ? (
-                <Text style={styles.myOfferMessage}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.myOfferMessage]}>
                   {myOffer.message}
                 </Text>
               ) : null}
@@ -1578,10 +1579,10 @@ export default function OfferScreen({ route, navigation }) {
                   />
                 </View>
                 <View style={styles.historyNegotiationContent}>
-                  <Text style={styles.historyNegotiationTitle}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.historyNegotiationTitle]}>
                     Négociation en cours
                   </Text>
-                  <Text style={styles.historyNegotiationSubtitle}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.historyNegotiationSubtitle]}>
                     Ouvrir la négociation pour continuer l’échange
                   </Text>
                 </View>
@@ -1600,8 +1601,8 @@ export default function OfferScreen({ route, navigation }) {
                   size={32}
                   color={colors.textSecondary}
                 />
-                <Text style={styles.noOffersTitle}>Aucune offre</Text>
-                <Text style={styles.noOffersText}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noOffersTitle]}>Aucune offre</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noOffersText]}>
                   La négociation commencera lorsqu'une offre sera envoyée.
                 </Text>
               </View>
@@ -1630,7 +1631,7 @@ function Section({ title, children, style }) {
 
   return (
     <View style={[styles.section, style]}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionTitle]}>{title}</Text>
       {children}
     </View>
   );
@@ -1661,9 +1662,9 @@ function InfoRow({
         <Ionicons name={icon} size={14} color={COLORS.primary} />
       </View>
       <View style={styles.infoContent}>
-        <Text style={styles.infoLabel}>{label}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.infoLabel]}>{label}</Text>
         <Text
-          style={[styles.infoValue, valueStyle]}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.infoValue, valueStyle]}
           numberOfLines={numberOfLines}
           ellipsizeMode={ellipsizeMode}
           selectable={selectable}
@@ -1693,7 +1694,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       backgroundColor: colors.background,
     },
 
-    loadingText: {
+    loadingText: { fontFamily: typography.fontFamily.regular,
       marginTop: 10,
       color: colors.textSecondary,
       fontSize: 12,
@@ -1770,14 +1771,14 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       justifyContent: 'center',
     },
 
-    statusSmall: {
+    statusSmall: { fontFamily: typography.fontFamily.bold,
       color: 'rgba(255,255,255,0.85)',
       fontSize: 9,
       fontWeight: '900',
       letterSpacing: 0.8,
     },
 
-    statusTitle: {
+    statusTitle: { fontFamily: typography.fontFamily.bold,
       color: '#FFFFFF',
       fontSize: screenWidth >= 900 ? 16 : 14,
       fontWeight: '900',
@@ -1795,7 +1796,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       maxWidth: 140,
     },
 
-    timerPillText: {
+    timerPillText: { fontFamily: typography.fontFamily.bold,
       color: '#FFFFFF',
       fontSize: 11,
       fontWeight: '800',
@@ -1828,7 +1829,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       }),
     },
 
-    sectionTitle: {
+    sectionTitle: { fontFamily: typography.fontFamily.bold,
       fontSize: screenWidth >= 900 ? 14 : 12.5,
       fontWeight: '900',
       color: colors.text,
@@ -1860,13 +1861,13 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
     profileAvatarImage: { width: '100%', height: '100%' },
     profileInfo: { flex: 1, minWidth: 0 },
 
-    profileName: {
+    profileName: { fontFamily: typography.fontFamily.bold,
       fontSize: 13,
       fontWeight: '900',
       color: colors.text,
     },
 
-    profileId: {
+    profileId: { fontFamily: typography.fontFamily.regular,
       marginTop: 2,
       fontSize: 10.5,
       color: colors.textSecondary,
@@ -1896,7 +1897,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
 
     infoContent: { flex: 1, minWidth: 0 },
 
-    infoLabel: {
+    infoLabel: { fontFamily: typography.fontFamily.bold,
       fontSize: 9,
       fontWeight: '800',
       color: colors.textSecondary,
@@ -1904,7 +1905,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       letterSpacing: 0.3,
     },
 
-    infoValue: {
+    infoValue: { fontFamily: typography.fontFamily.semiBold,
       marginTop: 2,
       fontSize: 11.5,
       lineHeight: 16,
@@ -1912,19 +1913,19 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       color: colors.text,
     },
 
-    priceValue: {
+    priceValue: { fontFamily: typography.fontFamily.bold,
       fontSize: 12.5,
       fontWeight: '900',
       color: COLORS.primary,
     },
 
-    finalPrice: {
+    finalPrice: { fontFamily: typography.fontFamily.bold,
       fontSize: 12.5,
       fontWeight: '900',
       color: COLORS.primary,
     },
 
-    successValue: { color: COLORS.primary, fontWeight: '800' },
+    successValue: { fontFamily: typography.fontFamily.bold, color: COLORS.primary, fontWeight: '800' },
     mutedValue: { color: colors.textSecondary },
 
     // --------------------------------------------------------
@@ -1949,13 +1950,13 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
 
     serviceInfo: { flex: 1, minWidth: 0 },
 
-    serviceName: {
+    serviceName: { fontFamily: typography.fontFamily.bold,
       fontSize: 13,
       fontWeight: '900',
       color: colors.text,
     },
 
-    serviceCategory: {
+    serviceCategory: { fontFamily: typography.fontFamily.regular,
       marginTop: 2,
       fontSize: 10.5,
       color: colors.textSecondary,
@@ -1991,7 +1992,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       backgroundColor: isDark ? '#3A1717' : COLORS.redSoft,
     },
 
-    inlineActionText: {
+    inlineActionText: { fontFamily: typography.fontFamily.bold,
       fontSize: 11.5,
       fontWeight: '800',
       color: COLORS.primary,
@@ -2025,7 +2026,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       gap: 8,
     },
 
-    instructionsText: {
+    instructionsText: { fontFamily: typography.fontFamily.regular,
       flex: 1,
       fontSize: 11.5,
       lineHeight: 17,
@@ -2048,7 +2049,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       gap: 10,
     },
 
-    myOfferLabel: {
+    myOfferLabel: { fontFamily: typography.fontFamily.bold,
       fontSize: 9.5,
       color: colors.textSecondary,
       fontWeight: '800',
@@ -2056,14 +2057,14 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       textTransform: 'uppercase',
     },
 
-    myOfferPrice: {
+    myOfferPrice: { fontFamily: typography.fontFamily.bold,
       marginTop: 3,
       fontSize: 16,
       fontWeight: '900',
       color: COLORS.primary,
     },
 
-    myOfferMessage: {
+    myOfferMessage: { fontFamily: typography.fontFamily.regular,
       marginTop: 8,
       fontSize: 11.5,
       lineHeight: 17,
@@ -2074,14 +2075,14 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
     // INPUTS
     // --------------------------------------------------------
 
-    helper: {
+    helper: { fontFamily: typography.fontFamily.regular,
       fontSize: 11,
       lineHeight: 16,
       color: colors.textSecondary,
       marginBottom: 10,
     },
 
-    input: {
+    input: { fontFamily: typography.fontFamily.regular,
       minHeight: 48,
       paddingHorizontal: 14,
       paddingVertical: 11,
@@ -2132,7 +2133,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       paddingHorizontal: 8,
     },
 
-    primaryButtonText: {
+    primaryButtonText: { fontFamily: typography.fontFamily.bold,
       color: COLORS.white,
       fontSize: 12,
       fontWeight: '900',
@@ -2149,14 +2150,14 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       paddingVertical: 18,
     },
 
-    noOffersTitle: {
+    noOffersTitle: { fontFamily: typography.fontFamily.bold,
       marginTop: 7,
       fontSize: 12.5,
       fontWeight: '900',
       color: colors.text,
     },
 
-    noOffersText: {
+    noOffersText: { fontFamily: typography.fontFamily.regular,
       marginTop: 4,
       textAlign: 'center',
       fontSize: 11,
@@ -2194,13 +2195,13 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       minWidth: 0,
     },
 
-    historyNegotiationTitle: {
+    historyNegotiationTitle: { fontFamily: typography.fontFamily.bold,
       fontSize: 11.5,
       fontWeight: '900',
       color: COLORS.orange,
     },
 
-    historyNegotiationSubtitle: {
+    historyNegotiationSubtitle: { fontFamily: typography.fontFamily.regular,
       marginTop: 2,
       fontSize: 10,
       lineHeight: 14,
@@ -2241,13 +2242,13 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
 
     offerUser: { flex: 1, minWidth: 0 },
 
-    offerUserName: {
+    offerUserName: { fontFamily: typography.fontFamily.bold,
       fontSize: 12,
       fontWeight: '900',
       color: colors.text,
     },
 
-    offerRole: {
+    offerRole: { fontFamily: typography.fontFamily.regular,
       marginTop: 1,
       fontSize: 10,
       color: colors.textSecondary,
@@ -2259,7 +2260,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       borderRadius: 999,
     },
 
-    offerStatusText: {
+    offerStatusText: { fontFamily: typography.fontFamily.bold,
       fontSize: 9.5,
       fontWeight: '800',
     },
@@ -2271,7 +2272,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       backgroundColor: colors.surfaceLight,
     },
 
-    offerPriceLabel: {
+    offerPriceLabel: { fontFamily: typography.fontFamily.bold,
       fontSize: 9,
       color: colors.textSecondary,
       fontWeight: '700',
@@ -2279,7 +2280,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       letterSpacing: 0.3,
     },
 
-    offerPrice: {
+    offerPrice: { fontFamily: typography.fontFamily.bold,
       marginTop: 2,
       fontSize: 14,
       fontWeight: '900',
@@ -2295,7 +2296,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       gap: 6,
     },
 
-    offerMessage: {
+    offerMessage: { fontFamily: typography.fontFamily.regular,
       flex: 1,
       fontSize: 11,
       lineHeight: 16,
@@ -2309,7 +2310,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       marginTop: 6,
     },
 
-    offerDate: {
+    offerDate: { fontFamily: typography.fontFamily.regular,
       fontSize: 9.5,
       color: colors.textSecondary,
     },
@@ -2327,7 +2328,7 @@ const createStyles = (colors, isDark, screenWidth = 390) =>
       gap: 5,
     },
 
-    counterButtonText: {
+    counterButtonText: { fontFamily: typography.fontFamily.bold,
       color: COLORS.primary,
       fontSize: 11,
       fontWeight: '800',

@@ -14,6 +14,7 @@
 //   </View>
 // ============================================================
 import { Platform, StyleSheet, Text, View } from 'react-native';
+import { typography } from '../../theme';
 
 // 22 (au lieu de 18) : la zone intérieure (22 - 2 x 2 de bordure = 18) est assez
 // grande pour afficher le chiffre en 12 px sans le rogner ni le tronquer (« … »).
@@ -61,7 +62,7 @@ const CountBadge = ({
       ]}
     >
       <Text
-        style={[styles.text, { fontSize, lineHeight: inner }]}
+        style={[{ fontFamily: typography.fontFamily.regular }, styles.text, { fontFamily: typography.fontFamily.regular, fontSize, lineHeight: inner }]}
         numberOfLines={1}
         ellipsizeMode="clip"
         allowFontScaling={false}
@@ -86,7 +87,7 @@ const styles = StyleSheet.create({
     top: -9,
     right: -11,
   },
-  text: {
+  text: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontWeight: '800',
     textAlign: 'center',

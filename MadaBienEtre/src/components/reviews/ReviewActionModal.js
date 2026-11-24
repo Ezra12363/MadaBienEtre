@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { typography } from '../../theme';
 
 export default function ReviewActionModal({
   visible,
@@ -50,8 +51,8 @@ export default function ReviewActionModal({
         <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={loading ? undefined : onCancel} />
         <View style={[s.card, { backgroundColor: c.surface }]}>
           <ScrollView keyboardShouldPersistTaps="handled">
-            <Text style={[s.title, { color: c.text }]}>{title}</Text>
-            {!!subtitle && <Text style={[s.subtitle, { color: c.textSecondary }]}>{subtitle}</Text>}
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, s.title, { color: c.text }]}>{title}</Text>
+            {!!subtitle && <Text style={[{ fontFamily: typography.fontFamily.regular }, s.subtitle, { color: c.textSecondary }]}>{subtitle}</Text>}
 
             {reasons && (
               <View style={s.reasons}>
@@ -66,7 +67,7 @@ export default function ReviewActionModal({
                         { borderColor: active ? accent : c.border || '#DDD', backgroundColor: active ? `${accent}18` : 'transparent' },
                       ]}
                     >
-                      <Text style={{ color: active ? accent : c.text, fontSize: 13, fontWeight: active ? '700' : '500' }}>
+                      <Text style={{ fontFamily: typography.fontFamily.regular, color: active ? accent : c.text, fontSize: 13, fontWeight: active ? '700' : '500' }}>
                         {r.label}
                       </Text>
                     </TouchableOpacity>
@@ -82,27 +83,27 @@ export default function ReviewActionModal({
               placeholderTextColor={c.textSecondary}
               multiline
               textAlignVertical="top"
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 s.input,
                 { color: c.text, borderColor: c.border || '#DDD', backgroundColor: isDark ? '#1E1E1E' : '#F7F8FA' },
               ]}
             />
-            <Text style={[s.counter, { color: c.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, s.counter, { color: c.textSecondary }]}>
               {trimmed.length}/{maxLength}
             </Text>
-            {!!error && <Text style={s.error}>{error}</Text>}
+            {!!error && <Text style={[{ fontFamily: typography.fontFamily.regular }, s.error]}>{error}</Text>}
           </ScrollView>
 
           <View style={s.actions}>
             <TouchableOpacity onPress={onCancel} disabled={loading} style={[s.btn, { borderColor: c.border || '#DDD', borderWidth: 1 }]}>
-              <Text style={{ color: c.text, fontWeight: '600' }}>Annuler</Text>
+              <Text style={{ fontFamily: typography.fontFamily.semiBold, color: c.text, fontWeight: '600' }}>Annuler</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => canSubmit && onConfirm({ text: trimmed, reason })}
               disabled={!canSubmit}
               style={[s.btn, { backgroundColor: accent, opacity: canSubmit ? 1 : 0.45 }]}
             >
-              {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>{confirmLabel}</Text>}
+              {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ fontFamily: typography.fontFamily.bold, color: '#fff', fontWeight: '700' }}>{confirmLabel}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -114,13 +115,13 @@ export default function ReviewActionModal({
 const s = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 16 },
   card: { width: '100%', maxWidth: 480, maxHeight: '88%', borderRadius: 18, padding: 18 },
-  title: { fontSize: 18, fontWeight: '800' },
-  subtitle: { fontSize: 13, marginTop: 4, marginBottom: 8 },
+  title: { fontFamily: typography.fontFamily.bold, fontSize: 18, fontWeight: '800' },
+  subtitle: { fontFamily: typography.fontFamily.regular, fontSize: 13, marginTop: 4, marginBottom: 8 },
   reasons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8, marginBottom: 4 },
   chip: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
-  input: { borderWidth: 1, borderRadius: 12, padding: 12, minHeight: 100, fontSize: 14, marginTop: 10 },
-  counter: { fontSize: 11, textAlign: 'right', marginTop: 4 },
-  error: { color: '#DC2626', fontSize: 13, marginTop: 6 },
+  input: { fontFamily: typography.fontFamily.regular, borderWidth: 1, borderRadius: 12, padding: 12, minHeight: 100, fontSize: 14, marginTop: 10 },
+  counter: { fontFamily: typography.fontFamily.regular, fontSize: 11, textAlign: 'right', marginTop: 4 },
+  error: { fontFamily: typography.fontFamily.regular, color: '#DC2626', fontSize: 13, marginTop: 6 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 14 },
   btn: { flex: 1, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 });

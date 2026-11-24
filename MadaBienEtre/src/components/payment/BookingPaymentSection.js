@@ -19,6 +19,7 @@ import paymentService from '../../services/paymentService';
 import { confirmAsync } from '../../utils/chatImage';
 import PaymentStatusBadge from './PaymentStatusBadge';
 import { formatAr, formatDateTime, isPayableBooking, stateOf, useBookingPayment } from './paymentUtils';
+import { typography } from '../../theme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -37,8 +38,8 @@ function Line({ label, value, tc }) {
   if (!value) return null;
   return (
     <View style={styles.line}>
-      <Text style={[styles.lineLabel, { color: tc.textSecondary }]}>{label}</Text>
-      <Text style={[styles.lineValue, { color: tc.text }]} numberOfLines={2}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.lineLabel, { color: tc.textSecondary }]}>{label}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.lineValue, { color: tc.text }]} numberOfLines={2}>
         {value}
       </Text>
     </View>
@@ -170,7 +171,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
         <View style={styles.headLeft}>
           <Ionicons name="wallet-outline" size={15} color={GREEN} />
           {/* UNE seule ligne : le détail (summary) est affiché une fois ouvert */}
-          <Text style={[styles.title, { color: tc.text }]} numberOfLines={1}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: tc.text }]} numberOfLines={1}>
             Statut du paiement
           </Text>
         </View>
@@ -187,7 +188,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
         right={<PaymentStatusBadge state={state} small />}
       >
         <View style={styles.sheetBody}>
-          <Text style={[styles.summary, { color: tc.textSecondary }]}>{summary}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.summary, { color: tc.textSecondary }]}>{summary}</Text>
           {/* ✏️ NOUVEAU : numéro de réservation */}
           <Line tc={tc} label="N° de réservation" value={booking?.id ? `#${booking.id}` : null} />
           <Line tc={tc} label={pending ? 'Montant à payer' : isTherapist ? 'Montant payé par le client' : 'Montant payé'} value={formatAr(amount)} />
@@ -206,18 +207,18 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
           {state === 'paid' ? (
             <TouchableOpacity style={styles.primary} onPress={() => go('Receipt', { kind: 'payment', id: payment.id, view })} activeOpacity={0.85}>
               <Ionicons name="receipt-outline" size={15} color="#fff" />
-              <Text style={styles.primaryText}>{isTherapist ? 'Voir le reçu du client' : 'Voir le reçu'}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryText]}>{isTherapist ? 'Voir le reçu du client' : 'Voir le reçu'}</Text>
             </TouchableOpacity>
           ) : null}
 
           {state === 'paid' && !isTherapist && refundStatus === 'pending' ? (
             <View style={styles.notice}>
               <Ionicons name="time-outline" size={15} color="#B45309" />
-              <Text style={styles.noticeText}>Demande de remboursement envoyée : en attente de la décision de l’administrateur.</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noticeText]}>Demande de remboursement envoyée : en attente de la décision de l’administrateur.</Text>
             </View>
           ) : null}
           {state === 'paid' && !isTherapist && refundStatus === 'rejected' ? (
-            <Text style={[styles.hint, { color: '#B91C1C' }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, { color: '#B91C1C' }]}>
               Votre dernière demande de remboursement a été refusée
               {payment?.refund_request?.reject_reason ? ` : ${payment.refund_request.reject_reason}` : '.'}
             </Text>
@@ -225,7 +226,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
           {state === 'paid' && !isTherapist && refundStatus !== 'pending' ? (
             <TouchableOpacity style={[styles.primary, styles.secondary]} onPress={() => { setOpen(false); setTimeout(() => setRefundOpen(true), 350); }} disabled={busy} activeOpacity={0.85}>
               {busy ? <ActivityIndicator size="small" color={GREEN} /> : <Ionicons name="return-down-back-outline" size={15} color={GREEN} />}
-              <Text style={[styles.primaryText, { color: GREEN }]}>Demander un remboursement</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryText, { color: GREEN }]}>Demander un remboursement</Text>
             </TouchableOpacity>
           ) : null}
 
@@ -236,19 +237,19 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
               activeOpacity={0.85}
             >
               <Ionicons name="card-outline" size={15} color="#fff" />
-              <Text style={styles.primaryText}>{cashWaiting ? 'Modifier le mode de paiement' : 'Payer maintenant'}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryText]}>{cashWaiting ? 'Modifier le mode de paiement' : 'Payer maintenant'}</Text>
             </TouchableOpacity>
           ) : null}
 
           {pending && !isTherapist && cashWaiting && !payment?.client_sent_at ? (
             <TouchableOpacity style={[styles.primary, styles.secondary]} onPress={notifyTherapist} disabled={busy} activeOpacity={0.85}>
               {busy ? <ActivityIndicator size="small" color={GREEN} /> : <Ionicons name="paper-plane-outline" size={15} color={GREEN} />}
-              <Text style={[styles.primaryText, { color: GREEN }]}>J’ai remis les espèces — prévenir le thérapeute</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryText, { color: GREEN }]}>J’ai remis les espèces — prévenir le thérapeute</Text>
             </TouchableOpacity>
           ) : null}
 
           {pending && !isTherapist && cashWaiting ? (
-            <Text style={[styles.hint, { color: tc.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, { color: tc.textSecondary }]}>
               {payment?.client_sent_at
                 ? 'Votre thérapeute a été prévenu. Le paiement sera validé dès qu’il aura confirmé la réception.'
                 : 'Espèces choisies : après avoir remis l’argent, appuyez sur le bouton ci-dessus ; le thérapeute confirmera la réception.'}
@@ -258,7 +259,7 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
           {pending && isTherapist && payment?.awaiting_confirmation ? (
             <View style={styles.notice}>
               <Ionicons name="alert-circle-outline" size={15} color="#B45309" />
-              <Text style={styles.noticeText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noticeText]}>
                 Le client indique vous avoir remis {formatAr(amount)} le {formatDateTime(payment.client_sent_at)}. Vérifiez puis confirmez la réception.
               </Text>
             </View>
@@ -267,12 +268,12 @@ export default function BookingPaymentSection({ booking, role = 'client', naviga
           {pending && isTherapist && cashWaiting ? (
             <TouchableOpacity style={styles.primary} onPress={confirmCash} disabled={busy} activeOpacity={0.85}>
               {busy ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="cash-outline" size={15} color="#fff" />}
-              <Text style={styles.primaryText}>Confirmer la réception des espèces</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryText]}>Confirmer la réception des espèces</Text>
             </TouchableOpacity>
           ) : null}
 
           {pending && isTherapist && !cashWaiting ? (
-            <Text style={[styles.hint, { color: tc.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, { color: tc.textSecondary }]}>
               Le reçu sera disponible dès que le client aura payé.
             </Text>
           ) : null}
@@ -302,13 +303,13 @@ const styles = StyleSheet.create({
   bodyFlat: { borderTopWidth: 0, paddingHorizontal: 0 },
   headLeft: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 },
   headRight: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 0 },
-  title: { fontSize: 12, fontWeight: '400', flexShrink: 1, minWidth: 0 },
-  summary: { fontSize: 11, paddingVertical: 6, fontWeight: '400' },
+  title: { fontFamily: typography.fontFamily.regular, fontSize: 12, fontWeight: '400', flexShrink: 1, minWidth: 0 },
+  summary: { fontFamily: typography.fontFamily.regular, fontSize: 11, paddingVertical: 6, fontWeight: '400' },
   body: { borderTopWidth: 1, paddingHorizontal: 12, paddingBottom: 12, paddingTop: 6 },
   sheetBody: { paddingBottom: 4 }, // ✏️ NOUVEAU : contenu de la fenêtre modale
   line: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 6, gap: 12 },
-  lineLabel: { fontSize: 11.5, fontWeight: '400', flexShrink: 0 },
-  lineValue: { fontSize: 12, fontWeight: '400', flex: 1, textAlign: 'right' },
+  lineLabel: { fontFamily: typography.fontFamily.regular, fontSize: 11.5, fontWeight: '400', flexShrink: 0 },
+  lineValue: { fontFamily: typography.fontFamily.regular, fontSize: 12, fontWeight: '400', flex: 1, textAlign: 'right' },
   primary: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -319,9 +320,9 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     marginTop: 8,
   },
-  primaryText: { color: '#fff', fontSize: 12.5, fontWeight: '400' },
+  primaryText: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 12.5, fontWeight: '400' },
   secondary: { backgroundColor: '#E8F3EC', borderWidth: 1, borderColor: GREEN },
   notice: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: '#FEF3C7', borderRadius: 10, padding: 10, marginTop: 10 },
-  noticeText: { flex: 1, color: '#92400E', fontSize: 11.5, lineHeight: 16, fontWeight: '400' },
-  hint: { fontSize: 11, marginTop: 8, lineHeight: 15, fontWeight: '400' },
+  noticeText: { fontFamily: typography.fontFamily.regular, flex: 1, color: '#92400E', fontSize: 11.5, lineHeight: 16, fontWeight: '400' },
+  hint: { fontFamily: typography.fontFamily.regular, fontSize: 11, marginTop: 8, lineHeight: 15, fontWeight: '400' },
 });

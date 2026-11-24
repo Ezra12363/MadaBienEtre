@@ -207,7 +207,7 @@ const TherapistPhoto = ({ photoUrl, name, online, size = 62 }) => {
         />
       ) : (
         <View style={[photoStyles.fallback, dimension]}>
-          <Text style={[photoStyles.fallbackText, { fontSize: size * 0.36 }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, photoStyles.fallbackText, { fontFamily: typography.fontFamily.regular, fontSize: size * 0.36 }]}>
             {initial}
           </Text>
         </View>
@@ -238,7 +238,7 @@ const photoStyles = StyleSheet.create({
       default: { elevation: 3 },
     }),
   },
-  fallbackText: { color: PRIMARY, fontWeight: '900' },
+  fallbackText: { fontFamily: typography.fontFamily.bold, color: PRIMARY, fontWeight: '900' },
   onlineDot: {
     position: 'absolute',
     bottom: -2,
@@ -777,7 +777,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
         <Header title="Suivi en direct" showBack />
         <View style={styles.centerFlex}>
           <ActivityIndicator size="large" color={PRIMARY} />
-          <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText, { color: themeColors.textSecondary }]}>
             Chargement du suivi...
           </Text>
         </View>
@@ -791,10 +791,10 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
         <Header title="Suivi en direct" showBack />
         <View style={styles.centerFlex}>
           <Ionicons name="cloud-offline-outline" size={48} color={PRIMARY} />
-          <Text style={[styles.errorTitle, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorTitle, { color: themeColors.text }]}>
             Impossible de charger le suivi
           </Text>
-          <Text style={[styles.errorText, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText, { color: themeColors.textSecondary }]}>
             {loadError}
           </Text>
           <TouchableOpacity
@@ -803,7 +803,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
             activeOpacity={0.85}
           >
             <Ionicons name="refresh" size={18} color="#fff" />
-            <Text style={styles.retryButtonText}>Réessayer</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.retryButtonText]}>Réessayer</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -894,7 +894,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
             color={autoFollow ? '#FFFFFF' : PRIMARY}
           />
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.autoFollowText,
               { color: autoFollow ? '#FFFFFF' : PRIMARY },
             ]}
@@ -917,7 +917,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
                 { backgroundColor: liveActive ? '#fff' : '#BDBDBD' },
               ]}
             />
-            <Text style={styles.liveBadgeText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.liveBadgeText]}>
               {liveActive
                 ? 'EN DIRECT'
                 : socketStatus === 'connected'
@@ -930,7 +930,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
         {refreshingLocation && (
           <View style={styles.refreshBadge}>
             <ActivityIndicator size="small" color="#fff" />
-            <Text style={styles.refreshBadgeText}>Actualisation…</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.refreshBadgeText]}>Actualisation…</Text>
           </View>
         )}
 
@@ -947,14 +947,14 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
         <View style={[styles.statusCard, { backgroundColor: themeColors.surface }]}>
           <View style={styles.statusHeader}>
             <Ionicons name={statusInfo.icon} size={22} color={statusInfo.color} />
-            <Text style={[styles.statusLabel, { color: statusInfo.color }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statusLabel, { color: statusInfo.color }]}>
               {statusInfo.label}
             </Text>
           </View>
 
           <View style={styles.statusItem}>
             <Ionicons name="location-outline" size={18} color={themeColors.textSecondary} />
-            <Text style={[styles.statusItemText, { color: themeColors.text }]} numberOfLines={2}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statusItemText, { color: themeColors.text }]} numberOfLines={2}>
               {address}
             </Text>
           </View>
@@ -991,14 +991,14 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
               ) : (
                 <Ionicons name="chatbubble-ellipses-outline" size={18} color={PRIMARY} />
               )}
-              <Text style={{ color: PRIMARY, fontWeight: '700', fontSize: 14 }}>
+              <Text style={{ fontFamily: typography.fontFamily.bold, color: PRIMARY, fontWeight: '700', fontSize: 14 }}>
                 Partager l'adresse dans la messagerie
               </Text>
             </TouchableOpacity>
           )}
 
           {liveActive && lastLiveAt ? (
-            <Text style={[styles.liveUpdateText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.liveUpdateText, { color: themeColors.textSecondary }]}>
               Position mise à jour à {new Date(lastLiveAt).toLocaleTimeString('fr-FR')}
             </Text>
           ) : null}
@@ -1007,7 +1007,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
             <View style={styles.statusMetaRow}>
               <View style={styles.statusMetaBadge}>
                 <Ionicons name="navigate-outline" size={13} color={PRIMARY} />
-                <Text style={styles.statusMetaText}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statusMetaText]}>
                   {routeInfo?.distanceText || `${distanceKm.toFixed(1)} km`}
                 </Text>
               </View>
@@ -1015,7 +1015,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
               {routeInfo?.durationText && (
                 <View style={styles.statusMetaBadge}>
                   <Ionicons name="time-outline" size={13} color={PRIMARY} />
-                  <Text style={styles.statusMetaText}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statusMetaText]}>
                     Arrivée estimée : {routeInfo.durationText}
                   </Text>
                 </View>
@@ -1041,7 +1041,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
               />
 
               <View style={styles.therapistInfo}>
-                <Text style={[styles.therapistName, { color: themeColors.text }]} numberOfLines={1}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.therapistName, { color: themeColors.text }]} numberOfLines={1}>
                   {therapistName || 'Thérapeute'}
                 </Text>
 
@@ -1049,7 +1049,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
                   {therapistRating !== null && therapistRating !== undefined && (
                     <View style={styles.metaBadge}>
                       <Ionicons name="star" size={11} color="#F5A623" />
-                      <Text style={styles.metaBadgeText}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.metaBadgeText]}>
                         {Number(therapistRating).toFixed(1)}
                       </Text>
                     </View>
@@ -1058,7 +1058,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
                   {therapistExperience !== null && therapistExperience !== undefined && (
                     <View style={styles.metaBadge}>
                       <Ionicons name="ribbon-outline" size={11} color={PRIMARY} />
-                      <Text style={styles.metaBadgeText}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.metaBadgeText]}>
                         {therapistExperience} an{Number(therapistExperience) > 1 ? 's' : ''}
                       </Text>
                     </View>
@@ -1071,14 +1071,14 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
                         { backgroundColor: therapistOnline ? '#4CAF50' : '#BDBDBD' },
                       ]}
                     />
-                    <Text style={styles.metaBadgeText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.metaBadgeText]}>
                       {therapistOnline ? 'En ligne' : 'Hors ligne'}
                     </Text>
                   </View>
                 </View>
 
                 {!!therapistPhone && (
-                  <Text style={[styles.therapistPhone, { color: themeColors.textSecondary }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.therapistPhone, { color: themeColors.textSecondary }]}>
                     <Ionicons name="call-outline" size={11} /> {therapistPhone}
                   </Text>
                 )}
@@ -1092,7 +1092,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
                 activeOpacity={0.85}
               >
                 <Ionicons name="chatbubble-outline" size={18} color={PRIMARY} />
-                <Text style={[styles.secondaryActionText, { color: PRIMARY }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.secondaryActionText, { color: PRIMARY }]}>
                   Contacter
                 </Text>
               </TouchableOpacity>
@@ -1104,7 +1104,7 @@ const TrackingScreen = ({ navigation, route: navRoute }) => {
                   activeOpacity={0.85}
                 >
                   <Ionicons name="call" size={18} color="#fff" />
-                  <Text style={[styles.secondaryActionText, { color: '#fff' }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.secondaryActionText, { color: '#fff' }]}>
                     Appeler
                   </Text>
                 </TouchableOpacity>
@@ -1136,10 +1136,10 @@ const styles = StyleSheet.create({
   errorTitle: {
     marginTop: spacing.md,
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     textAlign: 'center',
   },
-  errorText: {
+  errorText: { fontFamily: typography.fontFamily.regular,
     marginTop: spacing.xs,
     fontSize: typography.fontSize.sm,
     textAlign: 'center',
@@ -1158,7 +1158,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: '#fff',
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   scrollView: {
@@ -1189,7 +1189,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 20,
   },
-  refreshBadgeText: { color: '#fff', fontSize: 10.5, fontWeight: '700' },
+  refreshBadgeText: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 10.5, fontWeight: '700' },
 
   autoFollowButton: {
     position: 'absolute',
@@ -1204,7 +1204,7 @@ const styles = StyleSheet.create({
     elevation: 3,
     zIndex: 5,
   },
-  autoFollowText: { fontSize: 12, fontWeight: '700' },
+  autoFollowText: { fontFamily: typography.fontFamily.bold, fontSize: 12, fontWeight: '700' },
 
   liveBadgeWrap: {
     position: 'absolute',
@@ -1222,8 +1222,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   liveDot: { width: 8, height: 8, borderRadius: 4 },
-  liveBadgeText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
-  liveUpdateText: { fontSize: 11, marginTop: 6 },
+  liveBadgeText: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  liveUpdateText: { fontFamily: typography.fontFamily.regular, fontSize: 11, marginTop: 6 },
 
   sosButtonContainer: { position: 'absolute', bottom: 20, left: 20 },
 
@@ -1241,7 +1241,7 @@ const styles = StyleSheet.create({
   statusHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   statusLabel: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
   statusItem: {
     flexDirection: 'row',
@@ -1264,7 +1264,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: `${PRIMARY}12`,
   },
-  statusMetaText: { fontSize: 11, fontWeight: '700', color: PRIMARY },
+  statusMetaText: { fontFamily: typography.fontFamily.bold, fontSize: 11, fontWeight: '700', color: PRIMARY },
 
   therapistCard: {
     marginHorizontal: spacing.md,
@@ -1282,9 +1282,9 @@ const styles = StyleSheet.create({
   therapistInfo: { flex: 1, marginLeft: spacing.md, minWidth: 0 },
   therapistName: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
-  therapistPhone: { marginTop: 6, fontSize: typography.fontSize.sm },
+  therapistPhone: { fontFamily: typography.fontFamily.regular, marginTop: 6, fontSize: typography.fontSize.sm },
 
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
   metaBadge: {
@@ -1296,7 +1296,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: `${PRIMARY}0D`,
   },
-  metaBadgeText: { fontSize: 10.5, fontWeight: '700', color: PRIMARY },
+  metaBadgeText: { fontFamily: typography.fontFamily.bold, fontSize: 10.5, fontWeight: '700', color: PRIMARY },
   dot: { width: 7, height: 7, borderRadius: 3.5 },
 
   therapistActions: {
@@ -1320,7 +1320,7 @@ const styles = StyleSheet.create({
   callAction: { backgroundColor: PRIMARY, borderColor: PRIMARY },
   secondaryActionText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 });
 

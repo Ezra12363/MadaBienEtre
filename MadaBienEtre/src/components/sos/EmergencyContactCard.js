@@ -23,23 +23,23 @@ const EmergencyContactCard = ({ contact, onEdit, onDelete }) => {
     <View style={[styles.card, { backgroundColor: themeColors.surface }]}>
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
-          <Text style={styles.avatarText}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.avatarText]}>
             {contact.name.charAt(0)}
           </Text>
           {contact.is_primary && (
             <View style={styles.primaryBadge}>
-              <Text style={styles.primaryBadgeText}>Principal</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryBadgeText]}>Principal</Text>
             </View>
           )}
         </View>
         <View style={styles.info}>
-          <Text style={[styles.name, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.name, { color: themeColors.text }]}>
             {contact.name}
           </Text>
-          <Text style={[styles.relationship, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.relationship, { color: themeColors.textSecondary }]}>
             {contact.relationship || 'Contact d\'urgence'}
           </Text>
-          <Text style={[styles.phone, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.phone, { color: themeColors.textSecondary }]}>
             {contact.phone}
           </Text>
         </View>
@@ -50,7 +50,7 @@ const EmergencyContactCard = ({ contact, onEdit, onDelete }) => {
           <View style={[styles.actionIcon, { backgroundColor: colors.primary + '20' }]}>
             <Ionicons name="call-outline" size={20} color={colors.primary} />
           </View>
-          <Text style={[styles.actionLabel, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionLabel, { color: themeColors.text }]}>
             Appeler
           </Text>
         </TouchableOpacity>
@@ -59,7 +59,7 @@ const EmergencyContactCard = ({ contact, onEdit, onDelete }) => {
           <View style={[styles.actionIcon, { backgroundColor: colors.secondary + '20' }]}>
             <Ionicons name="chatbubble-outline" size={20} color={colors.secondary} />
           </View>
-          <Text style={[styles.actionLabel, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionLabel, { color: themeColors.text }]}>
             Message
           </Text>
         </TouchableOpacity>
@@ -69,7 +69,7 @@ const EmergencyContactCard = ({ contact, onEdit, onDelete }) => {
             <View style={[styles.actionIcon, { backgroundColor: colors.accent + '20' }]}>
               <Ionicons name="pencil-outline" size={20} color={colors.accent} />
             </View>
-            <Text style={[styles.actionLabel, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionLabel, { color: themeColors.text }]}>
               Modifier
             </Text>
           </TouchableOpacity>
@@ -80,7 +80,7 @@ const EmergencyContactCard = ({ contact, onEdit, onDelete }) => {
             <View style={[styles.actionIcon, { backgroundColor: colors.error + '20' }]}>
               <Ionicons name="trash-outline" size={20} color={colors.error} />
             </View>
-            <Text style={[styles.actionLabel, { color: colors.error }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionLabel, { color: colors.error }]}>
               Supprimer
             </Text>
           </TouchableOpacity>
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
     fontSize: typography.fontSize.xl,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     color: colors.primary,
   },
   primaryBadge: {
@@ -132,14 +132,14 @@ const styles = StyleSheet.create({
   primaryBadgeText: {
     color: '#fff',
     fontSize: 8,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
   info: {
     flex: 1,
   },
   name: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
   relationship: {
     fontSize: typography.fontSize.sm,
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 });
 

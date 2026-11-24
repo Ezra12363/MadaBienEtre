@@ -14,6 +14,7 @@ import { Animated, Platform, StyleSheet, Text, TouchableOpacity, View } from 're
 import { Ionicons } from '@expo/vector-icons';
 
 import { subscribeToast, TOAST_ENABLED } from '../../utils/toast';
+import { typography } from '../../theme';
 
 export const TOAST_THEME = {
   success: { bg: '#2E8B57', icon: 'checkmark-circle', label: 'Succès' },
@@ -70,8 +71,8 @@ const GlobalToastHost = () => {
           <Ionicons name={look.icon} size={20} color="#fff" />
         </View>
         <View style={styles.texts}>
-          <Text style={styles.title}>{toast.title || look.label}</Text>
-          <Text style={styles.message}>{toast.message}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title]}>{toast.title || look.label}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.message]}>{toast.message}</Text>
         </View>
         <TouchableOpacity onPress={hide} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} accessibilityLabel="Fermer">
           <Ionicons name="close" size={18} color="#fff" />
@@ -114,8 +115,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.22)',
   },
   texts: { flex: 1 },
-  title: { color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 2 },
-  message: { color: '#fff', fontSize: 13, lineHeight: 18 },
+  title: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  message: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 13, lineHeight: 18 },
 });
 
 export default GlobalToastHost;

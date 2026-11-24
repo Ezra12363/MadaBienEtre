@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { formatMadagascarDateTime } from '../../utils/timeAgo';
 import { GridBarChart, HBars, formatAr, formatCount } from '../charts/SimpleCharts';
+import { typography } from '../../theme';
 
 const BLUE = '#2F6DB5';
 const GOLD = '#F59E0B';
@@ -43,10 +44,10 @@ const ClientStatsSection = ({
   if (error && !data) {
     return (
       <View style={[styles.card, card]}>
-        <Text style={{ color: textSecondary }}>{error}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: textSecondary }]}>{error}</Text>
         {onRetry ? (
           <TouchableOpacity onPress={onRetry} style={{ marginTop: 8 }}>
-            <Text style={{ color: primary }}>Réessayer</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: primary }]}>Réessayer</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -76,8 +77,8 @@ const ClientStatsSection = ({
         <View style={[styles.card, card, cell(1)]}>
           <View style={styles.cardHeader}>
             <View>
-              <Text style={[styles.cardTitle, { color: text }]}>Mes dépenses</Text>
-              <Text style={[styles.cardSubtitle, { color: textSecondary }]}>Résumé financier</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, { color: text }]}>Mes dépenses</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardSubtitle, { color: textSecondary }]}>Résumé financier</Text>
             </View>
           </View>
 
@@ -86,8 +87,8 @@ const ClientStatsSection = ({
               <View style={styles.boxIcon}>
                 <Ionicons name="wallet-outline" size={13} color={primary} />
               </View>
-              <Text style={[styles.boxLabel, { color: textSecondary }]}>Total dépensé</Text>
-              <Text style={[styles.boxValue, { color: primary }]} numberOfLines={1} adjustsFontSizeToFit>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.boxLabel, { color: textSecondary }]}>Total dépensé</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.boxValue, { color: primary }]} numberOfLines={1} adjustsFontSizeToFit>
                 {formatAr(sp.total)}
               </Text>
             </View>
@@ -96,8 +97,8 @@ const ClientStatsSection = ({
               <View style={styles.boxIcon}>
                 <Ionicons name="calendar-outline" size={13} color="#D97706" />
               </View>
-              <Text style={[styles.boxLabel, { color: textSecondary }]}>Ce mois</Text>
-              <Text style={[styles.boxValue, { color: '#B45309' }]} numberOfLines={1} adjustsFontSizeToFit>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.boxLabel, { color: textSecondary }]}>Ce mois</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.boxValue, { color: '#B45309' }]} numberOfLines={1} adjustsFontSizeToFit>
                 {formatAr(sp.month)}
               </Text>
             </View>
@@ -111,7 +112,7 @@ const ClientStatsSection = ({
               accessibilityRole="button"
               accessibilityLabel="Réserver un massage"
             >
-              <Text style={styles.ctaText}>Réserver un massage</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.ctaText]}>Réserver un massage</Text>
               <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
             </TouchableOpacity>
           ) : null}
@@ -120,8 +121,8 @@ const ClientStatsSection = ({
         <View style={[styles.card, card, cell(2)]}>
           <View style={styles.cardHeader}>
             <View>
-              <Text style={[styles.cardTitle, { color: text }]}>Mes réservations</Text>
-              <Text style={[styles.cardSubtitle, { color: textSecondary }]}>Votre activité sur Mada Bien-être</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, { color: text }]}>Mes réservations</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardSubtitle, { color: textSecondary }]}>Votre activité sur Mada Bien-être</Text>
             </View>
           </View>
 
@@ -131,8 +132,8 @@ const ClientStatsSection = ({
                 <Ionicons name="calendar-outline" size={14} color={primary} />
               </View>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[styles.nextTitle, { color: text }]}>Prochain rendez-vous</Text>
-                <Text style={{ color: textSecondary, fontSize: 12 }} numberOfLines={2}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.nextTitle, { color: text }]}>Prochain rendez-vous</Text>
+                <Text style={{ fontFamily: typography.fontFamily.regular, color: textSecondary, fontSize: 12 }} numberOfLines={2}>
                   {formatMadagascarDateTime(next.scheduled_date)}
                   {next.massage_type ? ` · ${next.massage_type}` : ''}
                   {next.therapist_name ? ` · ${next.therapist_name}` : ''}
@@ -140,21 +141,21 @@ const ClientStatsSection = ({
               </View>
             </View>
           ) : (
-            <Text style={[styles.empty, { color: textSecondary }]}>Aucun rendez-vous à venir pour le moment.</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.empty, { color: textSecondary }]}>Aucun rendez-vous à venir pour le moment.</Text>
           )}
 
           <View style={styles.tiles}>
             {tiles.map((t) => (
               <View key={t.label} style={[styles.tile, { borderColor: border }]}>
-                <Text style={[styles.tileLabel, { color: textSecondary }]} numberOfLines={1}>{t.label}</Text>
-                <Text style={[styles.tileValue, { color: t.color }]} numberOfLines={1} adjustsFontSizeToFit>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tileLabel, { color: textSecondary }]} numberOfLines={1}>{t.label}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tileValue, { color: t.color }]} numberOfLines={1} adjustsFontSizeToFit>
                   {t.value}
                 </Text>
               </View>
             ))}
           </View>
 
-          <Text style={[styles.foot, { color: textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.foot, { color: textSecondary }]}>
             {formatCount(data?.reviews_given)} avis donné(s)
           </Text>
         </View>
@@ -163,7 +164,7 @@ const ClientStatsSection = ({
       {/* ---------- ligne 2 ---------- */}
       <View style={rowStyle}>
         <View style={[styles.card, card, cell(1)]}>
-          <Text style={[styles.cardTitle, { color: text, marginBottom: 4 }]}>Mes dépenses (6 derniers mois)</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, { color: text, marginBottom: 4 }]}>Mes dépenses (6 derniers mois)</Text>
           <GridBarChart
             data={spentData}
             color={primary}
@@ -176,7 +177,7 @@ const ClientStatsSection = ({
         </View>
 
         <View style={[styles.card, card, cell(1)]}>
-          <Text style={[styles.cardTitle, { color: text, marginBottom: 4 }]}>Mes réservations par mois</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, { color: text, marginBottom: 4 }]}>Mes réservations par mois</Text>
           <GridBarChart
             data={bookingsData}
             color={BLUE}
@@ -190,7 +191,7 @@ const ClientStatsSection = ({
         </View>
 
         <View style={[styles.card, card, cell(1)]}>
-          <Text style={[styles.cardTitle, { color: text, marginBottom: 10 }]}>Mes massages préférés</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, { color: text, marginBottom: 10 }]}>Mes massages préférés</Text>
           <HBars
             items={(data?.by_massage_type || []).map((t) => ({ label: t.label, value: t.count, color: GOLD }))}
             format={formatCount}
@@ -208,8 +209,8 @@ const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 14, padding: 16 },
   center: { alignItems: 'center', justifyContent: 'center', minHeight: 90 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  cardTitle: { fontSize: 15, fontWeight: '800' },
-  cardSubtitle: { fontSize: 11, marginTop: 3 },
+  cardTitle: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '800' },
+  cardSubtitle: { fontFamily: typography.fontFamily.regular, fontSize: 11, marginTop: 3 },
   boxes: { flexDirection: 'row', gap: 10 },
   box: { flex: 1, minHeight: 82, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12 },
   boxIcon: {
@@ -221,8 +222,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 8,
   },
-  boxLabel: { fontSize: 11, fontWeight: '600' },
-  boxValue: { fontSize: 16, fontWeight: '800', marginTop: 3 },
+  boxLabel: { fontFamily: typography.fontFamily.semiBold, fontSize: 11, fontWeight: '600' },
+  boxValue: { fontFamily: typography.fontFamily.bold, fontSize: 16, fontWeight: '800', marginTop: 3 },
   cta: {
     marginTop: 12,
     minHeight: 40,
@@ -232,15 +233,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
   },
-  ctaText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  ctaText: { fontFamily: typography.fontFamily.bold, color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
   nextRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 10, padding: 10, marginBottom: 10 },
-  nextTitle: { fontSize: 13, fontWeight: '700' },
-  empty: { fontSize: 12, marginBottom: 10 },
+  nextTitle: { fontFamily: typography.fontFamily.bold, fontSize: 13, fontWeight: '700' },
+  empty: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginBottom: 10 },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tile: { flexGrow: 1, flexBasis: '28%', borderWidth: 1, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12 },
-  tileLabel: { fontSize: 11 },
-  tileValue: { fontSize: 16, fontWeight: '800', marginTop: 2 },
-  foot: { fontSize: 11, marginTop: 10 },
+  tileLabel: { fontFamily: typography.fontFamily.regular, fontSize: 11 },
+  tileValue: { fontFamily: typography.fontFamily.bold, fontSize: 16, fontWeight: '800', marginTop: 2 },
+  foot: { fontFamily: typography.fontFamily.regular, fontSize: 11, marginTop: 10 },
 });
 
 export default ClientStatsSection;

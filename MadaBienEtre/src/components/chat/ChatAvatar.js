@@ -28,7 +28,7 @@ const ChatAvatar = ({ uri, name, size = 48, palette, style }) => {
 
   return (
     <View style={[box, styles.fallback, { backgroundColor: palette.avatarBg }, style]}>
-      <Text style={[styles.initial, { color: palette.avatarText, fontSize: size * 0.4 }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.initial, { fontFamily: typography.fontFamily.regular, color: palette.avatarText, fontSize: size * 0.4 }]}>
         {getInitial(name)}
       </Text>
     </View>

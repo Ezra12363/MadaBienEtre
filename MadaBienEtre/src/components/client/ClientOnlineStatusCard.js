@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
 import clientStatusService from '../../services/clientStatusService';
+import { typography } from '../../theme';
 
 /**
  * Carte "Mon statut" — permet au client d'indiquer s'il apparaît
@@ -198,9 +199,9 @@ export default function ClientOnlineStatusCard({
 
       <View style={styles.content}>
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.title,
-            { color: text, fontSize: compact ? 13.5 : 15 },
+            { fontFamily: typography.fontFamily.regular, color: text, fontSize: compact ? 13.5 : 15 },
           ]}
         >
           Mon statut
@@ -218,7 +219,7 @@ export default function ClientOnlineStatusCard({
           />
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.statusText,
               { color: isOnline ? onlineText : secondary },
             ]}
@@ -228,7 +229,7 @@ export default function ClientOnlineStatusCard({
         </View>
 
         {!compact && (
-          <Text style={[styles.description, { color: secondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.description, { color: secondary }]}>
             {isOnline
               ? 'Vous apparaissez comme actif dans l’application.'
               : 'Vous n’apparaissez pas comme actif pour le moment.'}
@@ -303,7 +304,7 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
 
-  title: {
+  title: { fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     marginBottom: 5,
   },
@@ -321,12 +322,12 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
 
-  statusText: {
+  statusText: { fontFamily: typography.fontFamily.bold,
     fontSize: 13,
     fontWeight: '700',
   },
 
-  description: {
+  description: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     lineHeight: 16,
   },

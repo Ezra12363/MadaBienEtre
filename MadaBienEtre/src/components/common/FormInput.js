@@ -71,7 +71,7 @@ const FormInput = memo(
     return (
       <View style={styles.inputGroup}>
         {label ? (
-          <Text style={[styles.label, { color: isDark ? '#FFFFFF' : '#1A1A1A' }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: isDark ? '#FFFFFF' : '#1A1A1A' }]}>
             {label}
           </Text>
         ) : null}
@@ -95,7 +95,7 @@ const FormInput = memo(
 
           <TextInput
             ref={inputRef}
-            style={[styles.input, { color: isDark ? '#FFFFFF' : '#1A1A1A' }]}
+            style={[{ fontFamily: typography.fontFamily.regular }, styles.input, { color: isDark ? '#FFFFFF' : '#1A1A1A' }]}
             placeholder={placeholder}
             placeholderTextColor={isDark ? '#666' : '#999'}
             value={value}
@@ -133,7 +133,7 @@ const FormInput = memo(
           )}
         </View>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}>{error}</Text> : null}
       </View>
     );
   }
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   inputGroup: { marginBottom: spacing.md },
   label: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginBottom: spacing.xs,
   },
   inputWrapper: {

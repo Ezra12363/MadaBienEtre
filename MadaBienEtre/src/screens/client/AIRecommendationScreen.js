@@ -177,7 +177,7 @@ const AIRecommendationScreen = ({ navigation, route }) => {
           >
             {tab === 'reco' && (
               <>
-                <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionTitle, { color: themeColors.text }]}>
                   Que recherchez-vous ?
                 </Text>
                 <View style={styles.quickGrid}>
@@ -194,8 +194,8 @@ const AIRecommendationScreen = ({ navigation, route }) => {
                       <View style={styles.quickIcon}>
                         <MaterialCommunityIcons name={o.icon} size={24} color={colors.primary} />
                       </View>
-                      <Text style={[styles.quickLabel, { color: themeColors.text }]}>{o.label}</Text>
-                      <Text style={[styles.quickDesc, { color: themeColors.textSecondary }]}>{o.desc}</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.quickLabel, { color: themeColors.text }]}>{o.label}</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.quickDesc, { color: themeColors.textSecondary }]}>{o.desc}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -226,7 +226,7 @@ const AIRecommendationScreen = ({ navigation, route }) => {
 
                 {recommendations.length > 0 && (
                   <>
-                    <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionTitle, { color: themeColors.text }]}>
                       {recommendations.length} thérapeute(s) recommandé(s)
                     </Text>
                     {recommendations.map((t, i) => (
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, paddingBottom: spacing.xxl },
   sectionTitle: {
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     marginBottom: spacing.sm,
   },
   quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
@@ -315,8 +315,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 4,
   },
-  quickLabel: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold },
-  quickDesc: { fontSize: typography.fontSize.xs },
+  quickLabel: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
+  quickDesc: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs },
 });
 
 export default AIRecommendationScreen;

@@ -51,21 +51,21 @@ const AIChatBubble = ({
         ]}
       >
         {isUser ? (
-          <Text style={styles.userMessage}>{text}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.userMessage]}>{text}</Text>
         ) : (
           <>
             <View style={styles.aiHeader}>
               <View style={styles.aiAvatar}>
                 <Ionicons name="sparkles" size={13} color="#fff" />
               </View>
-              <Text style={[styles.aiName, { color: colors.primary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.aiName, { color: colors.primary }]}>
                 Assistant IA
               </Text>
             </View>
 
             <Text
               selectable
-              style={[styles.aiMessage, { color: themeColors.text }]}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.aiMessage, { color: themeColors.text }]}
               numberOfLines={isLong && !isExpanded ? COLLAPSED_LINES : undefined}
             >
               {text}
@@ -73,7 +73,7 @@ const AIChatBubble = ({
 
             {isLong && (
               <TouchableOpacity onPress={() => setIsExpanded((v) => !v)}>
-                <Text style={[styles.readMore, { color: colors.primary }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.readMore, { color: colors.primary }]}>
                   {isExpanded ? 'Voir moins' : 'Voir plus'}
                 </Text>
               </TouchableOpacity>
@@ -90,7 +90,7 @@ const AIChatBubble = ({
                     ]}
                     onPress={() => onSuggestionPress && onSuggestionPress(suggestion)}
                   >
-                    <Text style={[styles.suggestionText, { color: colors.primary }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.suggestionText, { color: colors.primary }]}>
                       {suggestion}
                     </Text>
                   </TouchableOpacity>
@@ -102,7 +102,7 @@ const AIChatBubble = ({
 
         {timestamp ? (
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.timeText,
               {
                 color: isUser
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   },
   aiName: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
   aiMessage: {
     fontSize: typography.fontSize.md,
@@ -175,11 +175,11 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
   readMore: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginTop: 4,
   },
   timeText: {

@@ -566,7 +566,7 @@ const CalendarPanel = ({
           </View>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.calendarPanelTitle,
               {
                 color: themeColors.text,
@@ -589,7 +589,7 @@ const CalendarPanel = ({
             }}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.calendarClearLink,
                 {
                   color: PRIMARY_GREEN,
@@ -627,7 +627,7 @@ const CalendarPanel = ({
           onPress={onToday}
         >
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.calendarHeaderTitle,
               {
                 color: themeColors.text,
@@ -663,7 +663,7 @@ const CalendarPanel = ({
         {WEEKDAY_LABELS.map((label, index) => (
           <Text
             key={`${label}-${index}`}
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.calendarWeekLabel,
               {
                 color: themeColors.textSecondary,
@@ -757,7 +757,7 @@ const CalendarPanel = ({
                   ]}
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.calendarDayText,
                       {
                         color: isEdge
@@ -781,7 +781,7 @@ const CalendarPanel = ({
                       },
                     ]}
                   >
-                    <Text style={styles.calendarCountBadgeText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.calendarCountBadgeText]}>
                       {count > 9 ? '9+' : count}
                     </Text>
                   </View>
@@ -834,7 +834,7 @@ const CalendarPanel = ({
 
                 <Text
                   numberOfLines={1}
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.calendarLegendLabel,
                     {
                       color: themeColors.textSecondary,
@@ -852,7 +852,7 @@ const CalendarPanel = ({
       {/* INDICATION DE SELECTION */}
 
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.calendarSelectionHint,
           {
             color: themeColors.textSecondary,
@@ -937,7 +937,7 @@ const BookingMenuSheet = ({
             <View style={styles.menuClientInfo}>
               <Text
                 numberOfLines={1}
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.actionSheetTitle,
                   {
                     color: themeColors.text,
@@ -950,7 +950,7 @@ const BookingMenuSheet = ({
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.actionSheetSubtitle,
                   {
                     color: statusConfig.color,
@@ -979,7 +979,7 @@ const BookingMenuSheet = ({
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.menuSummaryText,
                   {
                     color: themeColors.text,
@@ -1000,7 +1000,7 @@ const BookingMenuSheet = ({
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.menuSummaryText,
                   {
                     color: themeColors.text,
@@ -1033,7 +1033,7 @@ const BookingMenuSheet = ({
             </View>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.actionSheetRowText,
                 {
                   color: themeColors.text,
@@ -1072,7 +1072,7 @@ const BookingMenuSheet = ({
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.actionSheetRowText,
                   {
                     color: themeColors.text,
@@ -1112,7 +1112,7 @@ const BookingMenuSheet = ({
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.actionSheetRowText,
                   {
                     color: themeColors.text,
@@ -1141,7 +1141,7 @@ const BookingMenuSheet = ({
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.actionSheetCloseText,
                 {
                   color: themeColors.textSecondary,
@@ -1178,7 +1178,7 @@ const Legend = ({
       />
 
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.legendText,
           {
             color: themeColors.textSecondary,
@@ -1216,20 +1216,20 @@ const ConfirmationModal = ({ visible, type, booking, themeColors, onCancel, onCo
             />
           </View>
 
-          <Text style={[styles.confirmationTitle, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmationTitle, { color: themeColors.text }]}>
             {title}
           </Text>
 
-          <Text style={[styles.confirmationMessage, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmationMessage, { color: themeColors.textSecondary }]}>
             {message}
           </Text>
 
           {!!booking && (
             <View style={[styles.confirmationBookingInfo, { backgroundColor: themeColors.background, borderColor: themeColors.border }]}>
-              <Text numberOfLines={1} style={[styles.confirmationClient, { color: themeColors.text }]}>
+              <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmationClient, { color: themeColors.text }]}>
                 {getClientName(booking)}
               </Text>
-              <Text numberOfLines={1} style={[styles.confirmationDetails, { color: themeColors.textSecondary }]}>
+              <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmationDetails, { color: themeColors.textSecondary }]}>
                 {getMassageName(booking)} · {getBookingDate(booking) ? formatShortDate(getBookingDate(booking)) : 'Date inconnue'} · {getBookingTime(booking)}
               </Text>
             </View>
@@ -1237,11 +1237,11 @@ const ConfirmationModal = ({ visible, type, booking, themeColors, onCancel, onCo
 
           <View style={styles.confirmationActions}>
             <TouchableOpacity activeOpacity={0.8} onPress={onCancel} style={[styles.confirmationCancelButton, { borderColor: themeColors.border }]}>
-              <Text style={[styles.confirmationCancelText, { color: themeColors.textSecondary }]}>Annuler</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmationCancelText, { color: themeColors.textSecondary }]}>Annuler</Text>
             </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.85} onPress={onConfirm} style={[styles.confirmationConfirmButton, { backgroundColor: actionColor }]}>
               <Ionicons name={isStart ? 'play' : 'checkmark'} size={16} color="#FFFFFF" />
-              <Text style={styles.confirmationConfirmText}>{actionLabel}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmationConfirmText]}>{actionLabel}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -1297,7 +1297,7 @@ const CalendarModal = ({
 
           <View style={styles.calendarModalHeader}>
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.calendarModalTitle,
                 { color: themeColors.text },
               ]}
@@ -1339,7 +1339,7 @@ const CalendarModal = ({
                 ]}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.calendarModalSecondaryText,
                     { color: themeColors.text },
                   ]}
@@ -1354,7 +1354,7 @@ const CalendarModal = ({
               onPress={onClose}
               style={styles.calendarModalPrimary}
             >
-              <Text style={styles.calendarModalPrimaryText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.calendarModalPrimaryText]}>
                 Voir les rendez-vous ({resultCount})
               </Text>
             </TouchableOpacity>
@@ -1941,7 +1941,7 @@ const CalendarScreen = ({ navigation }) => {
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.timeText,
                     {
                       color: themeColors.text,
@@ -1986,7 +1986,7 @@ const CalendarScreen = ({ navigation }) => {
                   <View style={styles.clientTextBox}>
                     <Text
                       numberOfLines={1}
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.clientName,
                         {
                           color: themeColors.text,
@@ -1998,7 +1998,7 @@ const CalendarScreen = ({ navigation }) => {
 
                     <Text
                       numberOfLines={1}
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.clientEmail,
                         {
                           color: themeColors.textSecondary,
@@ -2017,7 +2017,7 @@ const CalendarScreen = ({ navigation }) => {
 
                       <Text
                         numberOfLines={1}
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.massageName,
                           {
                             color: themeColors.textSecondary,
@@ -2037,7 +2037,7 @@ const CalendarScreen = ({ navigation }) => {
 
                       <Text
                         numberOfLines={1}
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.massageDuration,
                           {
                             color: themeColors.textSecondary,
@@ -2060,7 +2060,7 @@ const CalendarScreen = ({ navigation }) => {
 
                     <Text
                       numberOfLines={1}
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.detailText,
                         {
                           color: themeColors.textSecondary,
@@ -2082,7 +2082,7 @@ const CalendarScreen = ({ navigation }) => {
 
                     <Text
                       numberOfLines={1}
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.detailText,
                         {
                           color: themeColors.textSecondary,
@@ -2102,7 +2102,7 @@ const CalendarScreen = ({ navigation }) => {
                   />
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.priceText,
                       {
                         color: PRIMARY_GREEN,
@@ -2131,7 +2131,7 @@ const CalendarScreen = ({ navigation }) => {
                   />
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.statusText,
                       {
                         color: statusConfig.color,
@@ -2185,7 +2185,7 @@ const CalendarScreen = ({ navigation }) => {
                       size={20}
                       color="#FFFFFF"
                     />
-                    <Text style={styles.cardActionText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardActionText]}>
                       Commencer le massage
                     </Text>
                   </TouchableOpacity>
@@ -2204,7 +2204,7 @@ const CalendarScreen = ({ navigation }) => {
                       color={PRIMARY_GREEN}
                     />
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.cardActionHintText,
                         { color: themeColors.textSecondary },
                       ]}
@@ -2245,7 +2245,7 @@ const CalendarScreen = ({ navigation }) => {
                     size={20}
                     color="#FFFFFF"
                   />
-                  <Text style={styles.cardActionText}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardActionText]}>
                     Terminer le massage
                   </Text>
                 </TouchableOpacity>
@@ -2286,7 +2286,7 @@ const CalendarScreen = ({ navigation }) => {
         />
 
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.loadingText,
             {
               color: themeColors.textSecondary,
@@ -2319,7 +2319,7 @@ const CalendarScreen = ({ navigation }) => {
       <View style={styles.pageIntro}>
         <View>
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.pageTitle,
               {
                 color: themeColors.text,
@@ -2330,7 +2330,7 @@ const CalendarScreen = ({ navigation }) => {
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.pageSubtitle,
               {
                 color: themeColors.textSecondary,
@@ -2360,7 +2360,7 @@ const CalendarScreen = ({ navigation }) => {
             color={PRIMARY_GREEN}
           />
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.pageCountText,
               {
                 color: PRIMARY_GREEN,
@@ -2395,7 +2395,7 @@ const CalendarScreen = ({ navigation }) => {
           />
 
           <TextInput
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.searchInput,
               {
                 color: themeColors.text,
@@ -2473,7 +2473,7 @@ const CalendarScreen = ({ navigation }) => {
 
             <View style={styles.errorContent}>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.errorTitle,
                   {
                     color: themeColors.text,
@@ -2484,7 +2484,7 @@ const CalendarScreen = ({ navigation }) => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.errorText,
                   {
                     color: themeColors.textSecondary,
@@ -2510,7 +2510,7 @@ const CalendarScreen = ({ navigation }) => {
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.retryText,
                     {
                       color: PRIMARY_GREEN,
@@ -2556,7 +2556,7 @@ const CalendarScreen = ({ navigation }) => {
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.emptyStateTitle,
                   {
                     color: themeColors.text,
@@ -2567,7 +2567,7 @@ const CalendarScreen = ({ navigation }) => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.emptyStateText,
                   {
                     color: themeColors.textSecondary,
@@ -2600,7 +2600,7 @@ const CalendarScreen = ({ navigation }) => {
                   />
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.emptyResetButtonText,
                       {
                         color: PRIMARY_GREEN,
@@ -2647,7 +2647,7 @@ const CalendarScreen = ({ navigation }) => {
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.globalEmptyTitle,
                   {
                     color: themeColors.text,
@@ -2658,7 +2658,7 @@ const CalendarScreen = ({ navigation }) => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.globalEmptyText,
                   {
                     color: themeColors.textSecondary,
@@ -2813,7 +2813,7 @@ const styles = StyleSheet.create({
 
   pageTitle: {
     fontSize: 21,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   pageSubtitle: {
@@ -2836,7 +2836,7 @@ const styles = StyleSheet.create({
   pageCountText: {
     marginLeft: 4,
     fontSize: 11.5,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   // ========================================================
@@ -2899,7 +2899,7 @@ const styles = StyleSheet.create({
 
   errorTitle: {
     fontSize: 14,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   errorText: {
@@ -2923,7 +2923,7 @@ const styles = StyleSheet.create({
   retryText: {
     marginLeft: 5,
     fontSize: 12,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   // ========================================================
@@ -2970,12 +2970,12 @@ const styles = StyleSheet.create({
 
   calendarPanelTitle: {
     fontSize: 14.5,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   calendarClearLink: {
     fontSize: 12.5,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   rangeFieldsRow: {
@@ -2996,13 +2996,13 @@ const styles = StyleSheet.create({
 
   rangeFieldLabel: {
     fontSize: 9,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   rangeFieldValue: {
     marginTop: 3,
     fontSize: 11,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   calendarHeaderRow: {
@@ -3024,7 +3024,7 @@ const styles = StyleSheet.create({
 
   calendarHeaderTitle: {
     fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     textTransform: 'capitalize',
   },
 
@@ -3037,7 +3037,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: 9.5,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   calendarGrid: {
@@ -3071,7 +3071,7 @@ const styles = StyleSheet.create({
 
   calendarDayText: {
     fontSize: 11.5,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   calendarCountBadge: {
@@ -3091,7 +3091,7 @@ const styles = StyleSheet.create({
   calendarCountBadgeText: {
     color: '#FFFFFF',
     fontSize: 8,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   calendarDotsRow: {
@@ -3194,7 +3194,7 @@ const styles = StyleSheet.create({
 
   summaryTitle: {
     fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   summarySubtitle: {
@@ -3215,7 +3215,7 @@ const styles = StyleSheet.create({
   totalBadgeText: {
     color: '#FFFFFF',
     fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   legendRow: {
@@ -3289,7 +3289,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 12,
     marginTop: 4,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   bookingMain: {
@@ -3325,7 +3325,7 @@ const styles = StyleSheet.create({
 
   clientName: {
     fontSize: 13.5,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   clientEmail: {
@@ -3390,7 +3390,7 @@ const styles = StyleSheet.create({
   priceText: {
     marginLeft: 5,
     fontSize: 11.5,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   rightColumn: {
@@ -3420,7 +3420,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     marginLeft: 4,
     fontSize: 9.5,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   menuButton: {
@@ -3464,7 +3464,7 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     marginTop: 14,
     fontSize: 15,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   emptyStateText: {
@@ -3489,7 +3489,7 @@ const styles = StyleSheet.create({
   emptyResetButtonText: {
     marginLeft: 6,
     fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   globalEmptyCard: {
@@ -3512,7 +3512,7 @@ const styles = StyleSheet.create({
   globalEmptyTitle: {
     fontSize: 16,
     marginTop: 14,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   globalEmptyText: {
@@ -3555,7 +3555,7 @@ const styles = StyleSheet.create({
 
   calendarModalTitle: {
     fontSize: 18,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   calendarModalScroll: {
@@ -3583,7 +3583,7 @@ const styles = StyleSheet.create({
 
   calendarModalSecondaryText: {
     fontSize: 14,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   calendarModalPrimary: {
@@ -3598,7 +3598,7 @@ const styles = StyleSheet.create({
   calendarModalPrimaryText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   bookingActions: {
@@ -3619,7 +3619,7 @@ const styles = StyleSheet.create({
   cardActionText: {
     color: '#FFFFFF',
     fontSize: 14,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   cardActionHint: {
@@ -3634,7 +3634,7 @@ const styles = StyleSheet.create({
 
   cardActionHintText: {
     fontSize: 12.5,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   menuModalBackdrop: {
@@ -3690,7 +3690,7 @@ const styles = StyleSheet.create({
 
   confirmationTitle: {
     fontSize: 19,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     textAlign: 'center',
   },
 
@@ -3713,7 +3713,7 @@ const styles = StyleSheet.create({
 
   confirmationClient: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   confirmationDetails: {
@@ -3740,7 +3740,7 @@ const styles = StyleSheet.create({
 
   confirmationCancelText: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   confirmationConfirmButton: {
@@ -3756,7 +3756,7 @@ const styles = StyleSheet.create({
   confirmationConfirmText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   // ========================================================
@@ -3797,13 +3797,13 @@ const styles = StyleSheet.create({
 
   actionSheetTitle: {
     fontSize: 16,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   actionSheetSubtitle: {
     marginTop: 3,
     fontSize: 11.5,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   menuBookingSummary: {
@@ -3826,7 +3826,7 @@ const styles = StyleSheet.create({
   menuSummaryText: {
     marginLeft: 6,
     fontSize: 11.5,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   actionSheetRow: {
@@ -3849,7 +3849,7 @@ const styles = StyleSheet.create({
   actionSheetRowText: {
     flex: 1,
     fontSize: 13.5,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   actionSheetCloseButton: {
@@ -3863,7 +3863,7 @@ const styles = StyleSheet.create({
 
   actionSheetCloseText: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   }
 });
 

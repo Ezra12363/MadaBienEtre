@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
+import { typography } from '../../theme';
 
 /* =========================================================
    CONFIGURATION
@@ -284,7 +285,7 @@ export default function WelcomeScreen({ navigation }) {
 
           <View style={styles.logoTexts}>
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.logoTitle,
                 isMobile && styles.logoTitleMobile,
               ]}
@@ -294,7 +295,7 @@ export default function WelcomeScreen({ navigation }) {
             </Text>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.logoSubtitle,
                 isMobile && styles.logoSubtitleMobile,
               ]}
@@ -313,7 +314,7 @@ export default function WelcomeScreen({ navigation }) {
               style={styles.navItem}
               onPress={() => scrollToSection(0)}
             >
-              <Text style={styles.navText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.navText]}>
                 Accueil
               </Text>
             </Pressable>
@@ -322,7 +323,7 @@ export default function WelcomeScreen({ navigation }) {
               style={styles.navItem}
               onPress={() => scrollToSection(650)}
             >
-              <Text style={styles.navText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.navText]}>
                 Services
               </Text>
             </Pressable>
@@ -331,7 +332,7 @@ export default function WelcomeScreen({ navigation }) {
               style={styles.navItem}
               onPress={() => scrollToSection(1200)}
             >
-              <Text style={styles.navText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.navText]}>
                 Avantages
               </Text>
             </Pressable>
@@ -340,7 +341,7 @@ export default function WelcomeScreen({ navigation }) {
               style={styles.navItem}
               onPress={() => scrollToSection(1800)}
             >
-              <Text style={styles.navText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.navText]}>
                 Comment ça marche
               </Text>
             </Pressable>
@@ -355,7 +356,7 @@ export default function WelcomeScreen({ navigation }) {
               onPress={handleLogin}
               style={[styles.loginButton, styles.headerWhiteButton]}
             >
-              <Text style={styles.loginButtonText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loginButtonText]}>
                 Connexion
               </Text>
             </Pressable>
@@ -364,7 +365,7 @@ export default function WelcomeScreen({ navigation }) {
               onPress={handleRegister}
               style={[styles.registerButton, styles.headerWhiteButton]}
             >
-              <Text style={styles.registerButtonText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.registerButtonText]}>
                 Créer un compte
               </Text>
             </Pressable>
@@ -401,7 +402,7 @@ export default function WelcomeScreen({ navigation }) {
               color={COLORS.primary}
             />
 
-            <Text style={styles.mobileNavText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mobileNavText]}>
               Accueil
             </Text>
           </Pressable>
@@ -416,7 +417,7 @@ export default function WelcomeScreen({ navigation }) {
               color={COLORS.primary}
             />
 
-            <Text style={styles.mobileNavText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mobileNavText]}>
               Services
             </Text>
           </Pressable>
@@ -431,7 +432,7 @@ export default function WelcomeScreen({ navigation }) {
               color={COLORS.primary}
             />
 
-            <Text style={styles.mobileNavText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mobileNavText]}>
               Avantages
             </Text>
           </Pressable>
@@ -446,7 +447,7 @@ export default function WelcomeScreen({ navigation }) {
               color={COLORS.primary}
             />
 
-            <Text style={styles.mobileNavText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mobileNavText]}>
               Comment ça marche
             </Text>
           </Pressable>
@@ -457,7 +458,7 @@ export default function WelcomeScreen({ navigation }) {
             onPress={handleLogin}
             style={styles.mobileLogin}
           >
-            <Text style={styles.mobileLoginText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mobileLoginText]}>
               Connexion
             </Text>
           </Pressable>
@@ -466,7 +467,7 @@ export default function WelcomeScreen({ navigation }) {
             onPress={handleRegister}
             style={styles.mobileRegister}
           >
-            <Text style={styles.mobileRegisterText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mobileRegisterText]}>
               Créer un compte
             </Text>
           </Pressable>
@@ -513,7 +514,7 @@ export default function WelcomeScreen({ navigation }) {
             <View style={styles.heroBadgeDot} />
 
             <Text
-              style={styles.heroBadgeText}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.heroBadgeText]}
               numberOfLines={1}
             >
               BIEN-ÊTRE • SANTÉ • SÉRÉNITÉ
@@ -521,7 +522,7 @@ export default function WelcomeScreen({ navigation }) {
           </View>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.heroTitle,
 
               isMobile && styles.heroTitleMobile,
@@ -530,13 +531,13 @@ export default function WelcomeScreen({ navigation }) {
           >
             Prenez soin de vous,
             {'\n'}
-            <Text style={styles.heroTitleGreen}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroTitleGreen]}>
               simplement.
             </Text>
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.heroDescription,
               isMobile && styles.heroDescriptionMobile,
             ]}
@@ -564,7 +565,7 @@ export default function WelcomeScreen({ navigation }) {
                   styles.primaryHeroButtonMobile,
               ]}
             >
-              <Text style={styles.primaryHeroButtonText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryHeroButtonText]}>
                 Commencer maintenant
               </Text>
 
@@ -591,7 +592,7 @@ export default function WelcomeScreen({ navigation }) {
               />
 
               <Text
-                style={styles.secondaryHeroButtonText}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.secondaryHeroButtonText]}
               >
                 Découvrir nos services
               </Text>
@@ -608,7 +609,7 @@ export default function WelcomeScreen({ navigation }) {
                 color={COLORS.primary}
               />
 
-              <Text style={styles.trustText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.trustText]}>
                 Simple
               </Text>
             </View>
@@ -620,7 +621,7 @@ export default function WelcomeScreen({ navigation }) {
                 color={COLORS.primary}
               />
 
-              <Text style={styles.trustText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.trustText]}>
                 Pratique
               </Text>
             </View>
@@ -632,7 +633,7 @@ export default function WelcomeScreen({ navigation }) {
                 color={COLORS.primary}
               />
 
-              <Text style={styles.trustText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.trustText]}>
                 Accessible
               </Text>
             </View>
@@ -682,12 +683,12 @@ export default function WelcomeScreen({ navigation }) {
             >
               <View style={styles.heroCardTop}>
                 <View style={styles.heroCardText}>
-                  <Text style={styles.heroCardSmall}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroCardSmall]}>
                     MADA BIEN-ÊTRE
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.heroCardTitle,
 
                       isMobile &&
@@ -698,7 +699,7 @@ export default function WelcomeScreen({ navigation }) {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.heroCardTitle,
 
                       isMobile &&
@@ -740,7 +741,7 @@ export default function WelcomeScreen({ navigation }) {
                     color="#FFFFFF"
                   />
 
-                  <Text style={styles.heroStatText}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroStatText]}>
                     Bien-être
                   </Text>
                 </View>
@@ -752,7 +753,7 @@ export default function WelcomeScreen({ navigation }) {
                     color="#FFFFFF"
                   />
 
-                  <Text style={styles.heroStatText}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroStatText]}>
                     À domicile
                   </Text>
                 </View>
@@ -780,11 +781,11 @@ export default function WelcomeScreen({ navigation }) {
             </View>
 
             <View style={styles.floatingCardText}>
-              <Text style={styles.floatingTitle}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.floatingTitle]}>
                 Bien-être
               </Text>
 
-              <Text style={styles.floatingText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.floatingText]}>
                 Au quotidien
               </Text>
             </View>
@@ -810,11 +811,11 @@ export default function WelcomeScreen({ navigation }) {
             </View>
 
             <View style={styles.floatingCardText}>
-              <Text style={styles.floatingTitle}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.floatingTitle]}>
                 Proche de vous
               </Text>
 
-              <Text style={styles.floatingText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.floatingText]}>
                 Services disponibles
               </Text>
             </View>
@@ -862,11 +863,11 @@ export default function WelcomeScreen({ navigation }) {
             </View>
 
             <View style={styles.quickContent}>
-              <Text style={styles.quickTitle}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.quickTitle]}>
                 Trouver un service
               </Text>
 
-              <Text style={styles.quickText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.quickText]}>
                 Recherchez rapidement une prestation.
               </Text>
             </View>
@@ -902,11 +903,11 @@ export default function WelcomeScreen({ navigation }) {
             </View>
 
             <View style={styles.quickContent}>
-              <Text style={styles.quickTitle}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.quickTitle]}>
                 Réserver une séance
               </Text>
 
-              <Text style={styles.quickText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.quickText]}>
                 Organisez facilement votre moment de détente.
               </Text>
             </View>
@@ -944,11 +945,11 @@ export default function WelcomeScreen({ navigation }) {
             </View>
 
             <View style={styles.quickContent}>
-              <Text style={styles.quickTitle}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.quickTitle]}>
                 Télécharger l'application
               </Text>
 
-              <Text style={styles.quickText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.quickText]}>
                 Installez Mada Bien-être sur Android.
               </Text>
             </View>
@@ -981,12 +982,12 @@ export default function WelcomeScreen({ navigation }) {
           styles.sectionHeadingMobile,
       ]}
     >
-      <Text style={styles.sectionEyebrow}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionEyebrow]}>
         {eyebrow}
       </Text>
 
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.sectionTitle,
 
           isMobile &&
@@ -997,7 +998,7 @@ export default function WelcomeScreen({ navigation }) {
       </Text>
 
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.sectionDescription,
 
           isMobile &&
@@ -1056,11 +1057,11 @@ export default function WelcomeScreen({ navigation }) {
                 />
               </View>
 
-              <Text style={styles.serviceTitle}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.serviceTitle]}>
                 {service.title}
               </Text>
 
-              <Text style={styles.serviceText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.serviceText]}>
                 {service.text}
               </Text>
 
@@ -1068,7 +1069,7 @@ export default function WelcomeScreen({ navigation }) {
                 onPress={handleRegister}
                 style={styles.serviceLink}
               >
-                <Text style={styles.serviceLinkText}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.serviceLinkText]}>
                   En savoir plus
                 </Text>
 
@@ -1137,13 +1138,13 @@ export default function WelcomeScreen({ navigation }) {
 
               <View style={styles.advantageContent}>
                 <Text
-                  style={styles.advantageTitle}
+                  style={[{ fontFamily: typography.fontFamily.regular }, styles.advantageTitle]}
                   numberOfLines={2}
                 >
                   {item.title}
                 </Text>
 
-                <Text style={styles.advantageText}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.advantageText]}>
                   {item.text}
                 </Text>
               </View>
@@ -1197,16 +1198,16 @@ export default function WelcomeScreen({ navigation }) {
               ]}
             >
               <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.stepNumberText]}>
                   {step.number}
                 </Text>
               </View>
 
-              <Text style={styles.stepTitle}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.stepTitle]}>
                 {step.title}
               </Text>
 
-              <Text style={styles.stepText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.stepText]}>
                 {step.text}
               </Text>
 
@@ -1269,13 +1270,13 @@ export default function WelcomeScreen({ navigation }) {
                 color="#FFFFFF"
               />
 
-              <Text style={styles.downloadBadgeText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.downloadBadgeText]}>
                 APPLICATION MOBILE
               </Text>
             </View>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.downloadTitle,
 
                 isMobile &&
@@ -1285,7 +1286,7 @@ export default function WelcomeScreen({ navigation }) {
               Emportez votre bien-être partout
             </Text>
 
-            <Text style={styles.downloadText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.downloadText]}>
               Téléchargez l'application Mada Bien-être
               pour accéder facilement aux services depuis
               votre téléphone Android.
@@ -1304,11 +1305,11 @@ export default function WelcomeScreen({ navigation }) {
               />
 
               <View>
-                <Text style={styles.downloadButtonSmall}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.downloadButtonSmall]}>
                   TÉLÉCHARGER SUR
                 </Text>
 
-                <Text style={styles.downloadButtonText}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.downloadButtonText]}>
                   Android APK
                 </Text>
               </View>
@@ -1341,7 +1342,7 @@ export default function WelcomeScreen({ navigation }) {
                   color={COLORS.primary}
                 />
 
-                <Text style={styles.phoneTitle}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.phoneTitle]}>
                   Mada Bien-être
                 </Text>
 
@@ -1354,7 +1355,7 @@ export default function WelcomeScreen({ navigation }) {
                     color={COLORS.primary}
                   />
 
-                  <Text style={styles.phoneSmallText}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.phoneSmallText]}>
                     Votre bien-être
                   </Text>
                 </View>
@@ -1388,7 +1389,7 @@ export default function WelcomeScreen({ navigation }) {
           </View>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.ctaTitle,
 
               isMobile &&
@@ -1398,7 +1399,7 @@ export default function WelcomeScreen({ navigation }) {
             Prêt à prendre soin de vous ?
           </Text>
 
-          <Text style={styles.ctaText}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.ctaText]}>
             Rejoignez Mada Bien-être et découvrez une
             nouvelle façon de prendre soin de votre corps
             et de votre esprit.
@@ -1408,7 +1409,7 @@ export default function WelcomeScreen({ navigation }) {
             onPress={handleRegister}
             style={styles.ctaButton}
           >
-            <Text style={styles.ctaButtonText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.ctaButtonText]}>
               Créer mon compte
             </Text>
 
@@ -1450,12 +1451,12 @@ export default function WelcomeScreen({ navigation }) {
               />
             </View>
 
-            <Text style={styles.footerBrandName}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footerBrandName]}>
               Mada Bien-être
             </Text>
           </View>
 
-          <Text style={styles.footerDescription}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footerDescription]}>
             Votre plateforme dédiée au bien-être,
             aux massages et aux services de détente
             à Madagascar.
@@ -1465,14 +1466,14 @@ export default function WelcomeScreen({ navigation }) {
         {/* NAVIGATION */}
 
         <View style={styles.footerColumn}>
-          <Text style={styles.footerColumnTitle}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footerColumnTitle]}>
             Navigation
           </Text>
 
           <Pressable
             onPress={() => scrollToSection(0)}
           >
-            <Text style={styles.footerLink}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footerLink]}>
               Accueil
             </Text>
           </Pressable>
@@ -1480,7 +1481,7 @@ export default function WelcomeScreen({ navigation }) {
           <Pressable
             onPress={() => scrollToSection(650)}
           >
-            <Text style={styles.footerLink}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footerLink]}>
               Services
             </Text>
           </Pressable>
@@ -1488,7 +1489,7 @@ export default function WelcomeScreen({ navigation }) {
           <Pressable
             onPress={() => scrollToSection(1200)}
           >
-            <Text style={styles.footerLink}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footerLink]}>
               Avantages
             </Text>
           </Pressable>
@@ -1497,7 +1498,7 @@ export default function WelcomeScreen({ navigation }) {
         {/* APPLICATION */}
 
         <View style={styles.footerColumn}>
-          <Text style={styles.footerColumnTitle}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footerColumnTitle]}>
             Application
           </Text>
 
@@ -1506,19 +1507,19 @@ export default function WelcomeScreen({ navigation }) {
               openExternalUrl(ANDROID_APK_URL)
             }
           >
-            <Text style={styles.footerLink}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footerLink]}>
               Télécharger Android
             </Text>
           </Pressable>
 
           <Pressable onPress={handleLogin}>
-            <Text style={styles.footerLink}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footerLink]}>
               Connexion
             </Text>
           </Pressable>
 
           <Pressable onPress={handleRegister}>
-            <Text style={styles.footerLink}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footerLink]}>
               Inscription
             </Text>
           </Pressable>
@@ -1527,7 +1528,7 @@ export default function WelcomeScreen({ navigation }) {
         {/* CONTACT */}
 
         <View style={styles.footerColumn}>
-          <Text style={styles.footerColumnTitle}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footerColumnTitle]}>
             Contact
           </Text>
 
@@ -1538,7 +1539,7 @@ export default function WelcomeScreen({ navigation }) {
               color="#A7B8AA"
             />
 
-            <Text style={styles.footerContactText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footerContactText]}>
               Contactez-nous
             </Text>
           </View>
@@ -1550,7 +1551,7 @@ export default function WelcomeScreen({ navigation }) {
               color="#A7B8AA"
             />
 
-            <Text style={styles.footerContactText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footerContactText]}>
               Madagascar
             </Text>
           </View>
@@ -1561,7 +1562,7 @@ export default function WelcomeScreen({ navigation }) {
 
       <View style={styles.footerBottom}>
         <View style={styles.container}>
-          <Text style={styles.copyright}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.copyright]}>
             © {new Date().getFullYear()} Mada Bien-être.
             Tous droits réservés.
           </Text>
@@ -1674,7 +1675,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginRight: 7,
     tintColor: '#FFFFFF',
   },
-  headerButtonLabel: {
+  headerButtonLabel: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 13,
@@ -1778,19 +1779,19 @@ const createStyles = (COLORS) => StyleSheet.create({
     alignItems: 'flex-start',
   },
 
-  logoTitle: {
+  logoTitle: { fontFamily: typography.fontFamily.bold,
     fontSize: 18,
     fontWeight: '800',
     color: COLORS.white,
   },
 
-  logoTitleMobile: {
+  logoTitleMobile: { fontFamily: typography.fontFamily.regular,
     fontSize: 16,
     color: COLORS.white,
     textAlign: 'center',
   },
 
-  logoSubtitle: {
+  logoSubtitle: { fontFamily: typography.fontFamily.regular,
     marginTop: 2,
 
     fontSize: 10,
@@ -1798,7 +1799,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     color: '#DDF0E1',
   },
 
-  logoSubtitleMobile: {
+  logoSubtitleMobile: { fontFamily: typography.fontFamily.regular,
     fontSize: 8,
     color: '#DDF0E1',
     textAlign: 'center',
@@ -1818,7 +1819,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     paddingVertical: 10,
   },
 
-  navText: {
+  navText: { fontFamily: typography.fontFamily.semiBold,
     fontSize: 14,
     fontWeight: '600',
 
@@ -1839,7 +1840,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     borderRadius: 10,
   },
 
-  loginButtonText: {
+  loginButtonText: { fontFamily: typography.fontFamily.bold,
     color: COLORS.white,
 
     fontSize: 14,
@@ -1855,7 +1856,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     borderRadius: 10,
   },
 
-  registerButtonText: {
+  registerButtonText: { fontFamily: typography.fontFamily.bold,
     color: COLORS.white,
 
     fontSize: 14,
@@ -1898,7 +1899,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     gap: 12,
   },
 
-  mobileNavText: {
+  mobileNavText: { fontFamily: typography.fontFamily.bold,
     fontSize: 15,
     fontWeight: '700',
 
@@ -1927,7 +1928,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 8,
   },
 
-  mobileLoginText: {
+  mobileLoginText: { fontFamily: typography.fontFamily.bold,
     fontSize: 14,
     fontWeight: '700',
 
@@ -1945,7 +1946,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     justifyContent: 'center',
   },
 
-  mobileRegisterText: {
+  mobileRegisterText: { fontFamily: typography.fontFamily.bold,
     fontSize: 14,
     fontWeight: '700',
 
@@ -2046,7 +2047,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginRight: 8,
   },
 
-  heroBadgeText: {
+  heroBadgeText: { fontFamily: typography.fontFamily.bold,
     fontSize: 9,
     fontWeight: '800',
 
@@ -2055,7 +2056,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     letterSpacing: 0.7,
   },
 
-  heroTitle: {
+  heroTitle: { fontFamily: typography.fontFamily.bold,
     fontSize: 53,
     lineHeight: 61,
 
@@ -2066,14 +2067,14 @@ const createStyles = (COLORS) => StyleSheet.create({
     letterSpacing: -1.5,
   },
 
-  heroTitleMobile: {
+  heroTitleMobile: { fontFamily: typography.fontFamily.regular,
     fontSize: 38,
     lineHeight: 46,
 
     letterSpacing: -0.8,
   },
 
-  heroTitleTablet: {
+  heroTitleTablet: { fontFamily: typography.fontFamily.regular,
     fontSize: 45,
     lineHeight: 54,
   },
@@ -2082,7 +2083,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     color: COLORS.primary,
   },
 
-  heroDescription: {
+  heroDescription: { fontFamily: typography.fontFamily.regular,
     maxWidth: 590,
 
     marginTop: 20,
@@ -2093,7 +2094,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     color: COLORS.textSoft,
   },
 
-  heroDescriptionMobile: {
+  heroDescriptionMobile: { fontFamily: typography.fontFamily.regular,
     fontSize: 15,
     lineHeight: 24,
 
@@ -2144,7 +2145,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     width: '100%',
   },
 
-  primaryHeroButtonText: {
+  primaryHeroButtonText: { fontFamily: typography.fontFamily.bold,
     color: COLORS.white,
 
     fontSize: 14,
@@ -2174,7 +2175,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     width: '100%',
   },
 
-  secondaryHeroButtonText: {
+  secondaryHeroButtonText: { fontFamily: typography.fontFamily.bold,
     color: COLORS.primaryDark,
 
     fontSize: 14,
@@ -2201,7 +2202,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     gap: 6,
   },
 
-  trustText: {
+  trustText: { fontFamily: typography.fontFamily.semiBold,
     color: COLORS.textSoft,
 
     fontSize: 12,
@@ -2311,7 +2312,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     paddingRight: 8,
   },
 
-  heroCardSmall: {
+  heroCardSmall: { fontFamily: typography.fontFamily.bold,
     fontSize: 9,
     fontWeight: '800',
 
@@ -2322,7 +2323,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 11,
   },
 
-  heroCardTitle: {
+  heroCardTitle: { fontFamily: typography.fontFamily.bold,
     color: COLORS.white,
 
     fontSize: 28,
@@ -2331,7 +2332,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     fontWeight: '900',
   },
 
-  heroCardTitleMobile: {
+  heroCardTitleMobile: { fontFamily: typography.fontFamily.regular,
     fontSize: 22,
     lineHeight: 27,
   },
@@ -2379,7 +2380,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     gap: 6,
   },
 
-  heroStatText: {
+  heroStatText: { fontFamily: typography.fontFamily.bold,
     color: COLORS.white,
 
     fontSize: 10,
@@ -2472,14 +2473,14 @@ const createStyles = (COLORS) => StyleSheet.create({
     justifyContent: 'center',
   },
 
-  floatingTitle: {
+  floatingTitle: { fontFamily: typography.fontFamily.bold,
     color: COLORS.text,
 
     fontSize: 11,
     fontWeight: '800',
   },
 
-  floatingText: {
+  floatingText: { fontFamily: typography.fontFamily.regular,
     color: COLORS.muted,
 
     fontSize: 9,
@@ -2570,14 +2571,14 @@ const createStyles = (COLORS) => StyleSheet.create({
     minWidth: 0,
   },
 
-  quickTitle: {
+  quickTitle: { fontFamily: typography.fontFamily.bold,
     fontSize: 14,
     fontWeight: '800',
 
     color: COLORS.text,
   },
 
-  quickText: {
+  quickText: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     lineHeight: 16,
 
@@ -2616,7 +2617,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 30,
   },
 
-  sectionEyebrow: {
+  sectionEyebrow: { fontFamily: typography.fontFamily.bold,
     fontSize: 11,
     fontWeight: '900',
 
@@ -2627,7 +2628,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 9,
   },
 
-  sectionTitle: {
+  sectionTitle: { fontFamily: typography.fontFamily.bold,
     textAlign: 'center',
 
     fontSize: 35,
@@ -2640,14 +2641,14 @@ const createStyles = (COLORS) => StyleSheet.create({
     letterSpacing: -0.5,
   },
 
-  sectionTitleMobile: {
+  sectionTitleMobile: { fontFamily: typography.fontFamily.regular,
     fontSize: 27,
     lineHeight: 34,
 
     paddingHorizontal: 5,
   },
 
-  sectionDescription: {
+  sectionDescription: { fontFamily: typography.fontFamily.regular,
     textAlign: 'center',
 
     marginTop: 12,
@@ -2658,7 +2659,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     lineHeight: 24,
   },
 
-  sectionDescriptionMobile: {
+  sectionDescriptionMobile: { fontFamily: typography.fontFamily.regular,
     fontSize: 14,
     lineHeight: 22,
 
@@ -2738,7 +2739,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 17,
   },
 
-  serviceTitle: {
+  serviceTitle: { fontFamily: typography.fontFamily.bold,
     color: COLORS.text,
 
     fontSize: 18,
@@ -2747,7 +2748,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 8,
   },
 
-  serviceText: {
+  serviceText: { fontFamily: typography.fontFamily.regular,
     color: COLORS.textSoft,
 
     fontSize: 13,
@@ -2763,7 +2764,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     gap: 7,
   },
 
-  serviceLinkText: {
+  serviceLinkText: { fontFamily: typography.fontFamily.bold,
     color: COLORS.primary,
 
     fontSize: 12,
@@ -2857,7 +2858,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     minWidth: 0,
   },
 
-  advantageTitle: {
+  advantageTitle: { fontFamily: typography.fontFamily.bold,
     color: COLORS.text,
 
     fontSize: 14,
@@ -2868,7 +2869,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 5,
   },
 
-  advantageText: {
+  advantageText: { fontFamily: typography.fontFamily.regular,
     color: COLORS.textSoft,
 
     fontSize: 11,
@@ -2938,14 +2939,14 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 17,
   },
 
-  stepNumberText: {
+  stepNumberText: { fontFamily: typography.fontFamily.bold,
     color: COLORS.white,
 
     fontSize: 14,
     fontWeight: '900',
   },
 
-  stepTitle: {
+  stepTitle: { fontFamily: typography.fontFamily.bold,
     color: COLORS.text,
 
     fontSize: 18,
@@ -2954,7 +2955,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 7,
   },
 
-  stepText: {
+  stepText: { fontFamily: typography.fontFamily.regular,
     color: COLORS.textSoft,
 
     fontSize: 12,
@@ -3045,7 +3046,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 16,
   },
 
-  downloadBadgeText: {
+  downloadBadgeText: { fontFamily: typography.fontFamily.bold,
     color: '#DCEFE0',
 
     fontSize: 9,
@@ -3054,7 +3055,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     letterSpacing: 1,
   },
 
-  downloadTitle: {
+  downloadTitle: { fontFamily: typography.fontFamily.bold,
     color: COLORS.white,
 
     fontSize: 32,
@@ -3065,12 +3066,12 @@ const createStyles = (COLORS) => StyleSheet.create({
     maxWidth: 570,
   },
 
-  downloadTitleMobile: {
+  downloadTitleMobile: { fontFamily: typography.fontFamily.regular,
     fontSize: 27,
     lineHeight: 34,
   },
 
-  downloadText: {
+  downloadText: { fontFamily: typography.fontFamily.regular,
     color: '#D6E9DA',
 
     fontSize: 14,
@@ -3100,7 +3101,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     gap: 10,
   },
 
-  downloadButtonSmall: {
+  downloadButtonSmall: { fontFamily: typography.fontFamily.bold,
     color: COLORS.textSoft,
 
     fontSize: 8,
@@ -3109,7 +3110,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     letterSpacing: 0.7,
   },
 
-  downloadButtonText: {
+  downloadButtonText: { fontFamily: typography.fontFamily.bold,
     color: COLORS.primaryDark,
 
     fontSize: 15,
@@ -3187,7 +3188,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     paddingHorizontal: 15,
   },
 
-  phoneTitle: {
+  phoneTitle: { fontFamily: typography.fontFamily.bold,
     color: COLORS.primaryDark,
 
     fontSize: 13,
@@ -3225,7 +3226,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     gap: 8,
   },
 
-  phoneSmallText: {
+  phoneSmallText: { fontFamily: typography.fontFamily.bold,
     fontSize: 10,
 
     fontWeight: '700',
@@ -3267,7 +3268,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 18,
   },
 
-  ctaTitle: {
+  ctaTitle: { fontFamily: typography.fontFamily.bold,
     textAlign: 'center',
 
     color: COLORS.text,
@@ -3278,12 +3279,12 @@ const createStyles = (COLORS) => StyleSheet.create({
     fontWeight: '900',
   },
 
-  ctaTitleMobile: {
+  ctaTitleMobile: { fontFamily: typography.fontFamily.regular,
     fontSize: 27,
     lineHeight: 34,
   },
 
-  ctaText: {
+  ctaText: { fontFamily: typography.fontFamily.regular,
     textAlign: 'center',
 
     color: COLORS.textSoft,
@@ -3314,7 +3315,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginTop: 24,
   },
 
-  ctaButtonText: {
+  ctaButtonText: { fontFamily: typography.fontFamily.bold,
     color: COLORS.white,
 
     fontSize: 14,
@@ -3373,14 +3374,14 @@ const createStyles = (COLORS) => StyleSheet.create({
     height: 32,
   },
 
-  footerBrandName: {
+  footerBrandName: { fontFamily: typography.fontFamily.bold,
     color: COLORS.white,
 
     fontSize: 17,
     fontWeight: '900',
   },
 
-  footerDescription: {
+  footerDescription: { fontFamily: typography.fontFamily.regular,
     maxWidth: 330,
 
     color: '#A7B8AA',
@@ -3395,7 +3396,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     flex: 1,
   },
 
-  footerColumnTitle: {
+  footerColumnTitle: { fontFamily: typography.fontFamily.bold,
     color: COLORS.white,
 
     fontSize: 13,
@@ -3404,7 +3405,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 14,
   },
 
-  footerLink: {
+  footerLink: { fontFamily: typography.fontFamily.regular,
     color: '#A7B8AA',
 
     fontSize: 12,
@@ -3421,7 +3422,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 12,
   },
 
-  footerContactText: {
+  footerContactText: { fontFamily: typography.fontFamily.regular,
     color: '#A7B8AA',
 
     fontSize: 12,
@@ -3434,7 +3435,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     paddingVertical: 18,
   },
 
-  copyright: {
+  copyright: { fontFamily: typography.fontFamily.regular,
     color: '#77877B',
 
     fontSize: 11,

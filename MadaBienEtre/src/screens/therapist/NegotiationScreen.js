@@ -61,6 +61,7 @@ import useNegotiationAI from '../../hooks/useNegotiationAI';
 import AINegotiationAdvisor from '../../components/ai/AINegotiationAdvisor';
 
 import { toastAdapters } from "../../utils/toast";
+import { typography } from '../../theme';
 
 // ============================================================
 // CONFIRMATION MODAL
@@ -91,11 +92,11 @@ function ConfirmationModal({
             color={destructive ? '#D93636' : colors.primary}
           />
         </View>
-        <Text style={confirmationStyles.title}>{title}</Text>
-        <Text style={confirmationStyles.message}>{message}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, confirmationStyles.title]}>{title}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, confirmationStyles.message]}>{message}</Text>
         <View style={confirmationStyles.buttons}>
           <Pressable style={confirmationStyles.cancelButton} onPress={onCancel}>
-            <Text style={confirmationStyles.cancelText}>Annuler</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, confirmationStyles.cancelText]}>Annuler</Text>
           </Pressable>
           <Pressable
             style={[
@@ -104,7 +105,7 @@ function ConfirmationModal({
             ]}
             onPress={onConfirm}
           >
-            <Text style={confirmationStyles.confirmText}>{confirmLabel}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, confirmationStyles.confirmText]}>{confirmLabel}</Text>
           </Pressable>
         </View>
       </View>
@@ -144,10 +145,10 @@ const confirmationStyles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     alignSelf: 'center', marginBottom: 12,
   },
-  title: {
+  title: { fontFamily: typography.fontFamily.bold,
     fontSize: 18, fontWeight: '900', color: '#111111', textAlign: 'center',
   },
-  message: {
+  message: { fontFamily: typography.fontFamily.regular,
     marginTop: 8, fontSize: 13, lineHeight: 20,
     color: '#555555', textAlign: 'center',
   },
@@ -165,8 +166,8 @@ const confirmationStyles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   confirmDanger: { backgroundColor: '#D93636' },
-  cancelText: { color: '#333333', fontSize: 12, fontWeight: '800' },
-  confirmText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+  cancelText: { fontFamily: typography.fontFamily.bold, color: '#333333', fontSize: 12, fontWeight: '800' },
+  confirmText: { fontFamily: typography.fontFamily.bold, color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
 });
 
 // ============================================================
@@ -1621,7 +1622,7 @@ const NegotiationScreen = ({
           />
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.errorTitle,
               {
                 color:
@@ -1633,7 +1634,7 @@ const NegotiationScreen = ({
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.errorText,
               {
                 color:
@@ -1679,7 +1680,7 @@ const NegotiationScreen = ({
           />
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.loadingText,
               {
                 color:
@@ -1773,7 +1774,7 @@ const NegotiationScreen = ({
               style={styles.headerInfo}
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.headerTitle,
                   {
                     color:
@@ -1786,7 +1787,7 @@ const NegotiationScreen = ({
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.clientName,
                   {
                     color:
@@ -1806,7 +1807,7 @@ const NegotiationScreen = ({
                   color={themeColors.textSecondary}
                 />
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.clientContactText,
                     { color: themeColors.textSecondary },
                   ]}
@@ -1827,7 +1828,7 @@ const NegotiationScreen = ({
               >
                 <Text
                   style={
-                    styles.bookingBadgeText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.bookingBadgeText]
                   }
                 >
                   #{bookingId}
@@ -1847,7 +1848,7 @@ const NegotiationScreen = ({
                 ]}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.bookingBadgeText,
                     {
                       color:
@@ -1880,7 +1881,7 @@ const NegotiationScreen = ({
           >
             <View>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.smallLabel,
                   {
                     color:
@@ -1892,7 +1893,7 @@ const NegotiationScreen = ({
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.currentPrice,
                   {
                     color:
@@ -1919,7 +1920,7 @@ const NegotiationScreen = ({
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.offerIdText,
                     {
                       color:
@@ -1947,7 +1948,7 @@ const NegotiationScreen = ({
                   />
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.offerIdText,
                       {
                         color:
@@ -1991,7 +1992,7 @@ const NegotiationScreen = ({
           {suggestedPrices.length > 0 && (
             <>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionTitle,
                   {
                     color:
@@ -2039,7 +2040,7 @@ const NegotiationScreen = ({
                         ]}
                       >
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.suggestionLabel,
                             {
                               color:
@@ -2053,7 +2054,7 @@ const NegotiationScreen = ({
                         </Text>
 
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.suggestionPrice,
                             {
                               color:
@@ -2067,7 +2068,7 @@ const NegotiationScreen = ({
                         </Text>
 
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.suggestionDiff,
                             {
                               color:
@@ -2119,7 +2120,7 @@ const NegotiationScreen = ({
                 }}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.formTitle,
                     {
                       color:
@@ -2133,7 +2134,7 @@ const NegotiationScreen = ({
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.formSubtitle,
                     {
                       color:
@@ -2175,7 +2176,7 @@ const NegotiationScreen = ({
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.warningText,
                     {
                       color:
@@ -2210,7 +2211,7 @@ const NegotiationScreen = ({
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.warningText,
                     {
                       color:
@@ -2243,7 +2244,7 @@ const NegotiationScreen = ({
                   />
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.warningText,
                       {
                         color:
@@ -2264,7 +2265,7 @@ const NegotiationScreen = ({
             ================================================== */}
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.inputLabel,
                 {
                   color:
@@ -2291,7 +2292,7 @@ const NegotiationScreen = ({
               ]}
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.currency,
                   {
                     color:
@@ -2326,7 +2327,7 @@ const NegotiationScreen = ({
                 }
                 keyboardType="numeric"
                 returnKeyType="done"
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.priceInput,
                   {
                     color:
@@ -2337,7 +2338,7 @@ const NegotiationScreen = ({
             </View>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.minimumText,
                 {
                   color:
@@ -2353,7 +2354,7 @@ const NegotiationScreen = ({
             ================================================== */}
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.inputLabel,
                 {
                   color:
@@ -2376,7 +2377,7 @@ const NegotiationScreen = ({
               numberOfLines={4}
               maxLength={500}
               textAlignVertical="top"
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.messageInput,
                 {
                   color:
@@ -2441,7 +2442,7 @@ const NegotiationScreen = ({
 
                         <Text
                           style={
-                            styles.actionText
+                            [{ fontFamily: typography.fontFamily.regular }, styles.actionText]
                           }
                         >
                           Accepter
@@ -2495,7 +2496,7 @@ const NegotiationScreen = ({
 
                         <Text
                           style={
-                            styles.actionText
+                            [{ fontFamily: typography.fontFamily.regular }, styles.actionText]
                           }
                         >
                           Envoyer
@@ -2548,7 +2549,7 @@ const NegotiationScreen = ({
 
                         <Text
                           style={
-                            styles.actionText
+                            [{ fontFamily: typography.fontFamily.regular }, styles.actionText]
                           }
                         >
                           Refuser
@@ -2586,7 +2587,7 @@ const NegotiationScreen = ({
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.buttonInfoText,
                   {
                     color:
@@ -2623,7 +2624,7 @@ const NegotiationScreen = ({
             >
               <View>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.sectionTitle,
                     {
                       color:
@@ -2635,7 +2636,7 @@ const NegotiationScreen = ({
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.historySubtitle,
                     {
                       color:
@@ -2697,7 +2698,7 @@ const NegotiationScreen = ({
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.emptyHistoryTitle,
                     {
                       color:
@@ -2709,7 +2710,7 @@ const NegotiationScreen = ({
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.emptyHistoryText,
                     {
                       color:
@@ -2804,7 +2805,7 @@ const NegotiationScreen = ({
                           />
 
                           <Text
-                            style={[
+                            style={[{ fontFamily: typography.fontFamily.regular }, 
                               styles.userBadgeText,
                               {
                                 color:
@@ -2821,7 +2822,7 @@ const NegotiationScreen = ({
                         </View>
 
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.historyDate,
                             {
                               color:
@@ -2843,7 +2844,7 @@ const NegotiationScreen = ({
                       >
                         <View>
                           <Text
-                            style={[
+                            style={[{ fontFamily: typography.fontFamily.regular }, 
                               styles.historyPrice,
                               {
                                 color:
@@ -2858,7 +2859,7 @@ const NegotiationScreen = ({
 
                           {itemId ? (
                             <Text
-                              style={[
+                              style={[{ fontFamily: typography.fontFamily.regular }, 
                                 styles.historyOfferId,
                                 {
                                   color:
@@ -2883,7 +2884,7 @@ const NegotiationScreen = ({
                           ]}
                         >
                           <Text
-                            style={[
+                            style={[{ fontFamily: typography.fontFamily.regular }, 
                               styles.statusText,
                               {
                                 color:
@@ -2903,7 +2904,7 @@ const NegotiationScreen = ({
 
                       {item?.message ? (
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.historyMessage,
                             {
                               color:
@@ -2949,7 +2950,7 @@ const NegotiationScreen = ({
               }
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.tipTitle,
                   {
                     color:
@@ -2961,7 +2962,7 @@ const NegotiationScreen = ({
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.tipText,
                   {
                     color:
@@ -3047,7 +3048,7 @@ const styles =
       minWidth: 0,
     },
 
-    clientContactText: {
+    clientContactText: { fontFamily: typography.fontFamily.medium,
       fontSize: 9,
       fontWeight: '500',
       flexShrink: 1,
@@ -3071,17 +3072,17 @@ const styles =
       marginRight: 5,
     },
 
-    onlineStatusText: {
+    onlineStatusText: { fontFamily: typography.fontFamily.bold,
       fontSize: 9,
       fontWeight: '700',
     },
 
-    headerTitle: {
+    headerTitle: { fontFamily: typography.fontFamily.semiBold,
       fontSize: 12,
       fontWeight: '600',
     },
 
-    clientName: {
+    clientName: { fontFamily: typography.fontFamily.bold,
       fontSize: 18,
       fontWeight: '800',
       marginTop: 1,
@@ -3095,7 +3096,7 @@ const styles =
         `${colors.primary}14`,
     },
 
-    bookingBadgeText: {
+    bookingBadgeText: { fontFamily: typography.fontFamily.bold,
       color:
         colors.primary,
       fontSize: 11,
@@ -3112,12 +3113,12 @@ const styles =
       elevation: 2,
     },
 
-    smallLabel: {
+    smallLabel: { fontFamily: typography.fontFamily.semiBold,
       fontSize: 11,
       fontWeight: '600',
     },
 
-    currentPrice: {
+    currentPrice: { fontFamily: typography.fontFamily.bold,
       fontSize: 24,
       fontWeight: '900',
       marginTop: 2,
@@ -3132,13 +3133,13 @@ const styles =
       alignItems: 'center',
     },
 
-    offerIdText: {
+    offerIdText: { fontFamily: typography.fontFamily.semiBold,
       fontSize: 9,
       fontWeight: '600',
       marginLeft: 4,
     },
 
-    sectionTitle: {
+    sectionTitle: { fontFamily: typography.fontFamily.bold,
       fontSize: 15,
       fontWeight: '800',
       marginTop: 16,
@@ -3157,18 +3158,18 @@ const styles =
       elevation: 1,
     },
 
-    suggestionLabel: {
+    suggestionLabel: { fontFamily: typography.fontFamily.bold,
       fontSize: 12,
       fontWeight: '700',
     },
 
-    suggestionPrice: {
+    suggestionPrice: { fontFamily: typography.fontFamily.bold,
       fontSize: 13,
       fontWeight: '900',
       marginTop: 4,
     },
 
-    suggestionDiff: {
+    suggestionDiff: { fontFamily: typography.fontFamily.regular,
       fontSize: 9,
       marginTop: 3,
     },
@@ -3197,12 +3198,12 @@ const styles =
       marginRight: 10,
     },
 
-    formTitle: {
+    formTitle: { fontFamily: typography.fontFamily.bold,
       fontSize: 15,
       fontWeight: '800',
     },
 
-    formSubtitle: {
+    formSubtitle: { fontFamily: typography.fontFamily.regular,
       fontSize: 10,
       marginTop: 2,
     },
@@ -3216,14 +3217,14 @@ const styles =
       marginBottom: 13,
     },
 
-    warningText: {
+    warningText: { fontFamily: typography.fontFamily.regular,
       flex: 1,
       fontSize: 10,
       lineHeight: 15,
       marginLeft: 7,
     },
 
-    inputLabel: {
+    inputLabel: { fontFamily: typography.fontFamily.bold,
       fontSize: 11,
       fontWeight: '700',
       marginBottom: 6,
@@ -3239,25 +3240,25 @@ const styles =
       marginBottom: 4,
     },
 
-    currency: {
+    currency: { fontFamily: typography.fontFamily.bold,
       fontSize: 14,
       fontWeight: '900',
       marginRight: 10,
     },
 
-    priceInput: {
+    priceInput: { fontFamily: typography.fontFamily.bold,
       flex: 1,
       fontSize: 17,
       fontWeight: '800',
       paddingVertical: 9,
     },
 
-    minimumText: {
+    minimumText: { fontFamily: typography.fontFamily.regular,
       fontSize: 9,
       marginBottom: 5,
     },
 
-    messageInput: {
+    messageInput: { fontFamily: typography.fontFamily.regular,
       minHeight: 88,
       maxHeight: 130,
       borderRadius: 11,
@@ -3292,7 +3293,7 @@ const styles =
       paddingHorizontal: 10,
     },
 
-    actionText: {
+    actionText: { fontFamily: typography.fontFamily.bold,
       color: '#FFFFFF',
       fontSize: 12,
       fontWeight: '800',
@@ -3311,7 +3312,7 @@ const styles =
       minHeight: 20,
     },
 
-    buttonInfoText: {
+    buttonInfoText: { fontFamily: typography.fontFamily.regular,
       fontSize: 9,
       marginLeft: 5,
       textAlign: 'center',
@@ -3327,7 +3328,7 @@ const styles =
       justifyContent: 'space-between',
     },
 
-    historySubtitle: {
+    historySubtitle: { fontFamily: typography.fontFamily.regular,
       fontSize: 10,
       marginTop: 1,
     },
@@ -3364,13 +3365,13 @@ const styles =
       borderRadius: 8,
     },
 
-    userBadgeText: {
+    userBadgeText: { fontFamily: typography.fontFamily.bold,
       fontSize: 10,
       fontWeight: '800',
       marginLeft: 4,
     },
 
-    historyDate: {
+    historyDate: { fontFamily: typography.fontFamily.regular,
       fontSize: 9,
     },
 
@@ -3381,12 +3382,12 @@ const styles =
       marginTop: 8,
     },
 
-    historyPrice: {
+    historyPrice: { fontFamily: typography.fontFamily.bold,
       fontSize: 18,
       fontWeight: '900',
     },
 
-    historyOfferId: {
+    historyOfferId: { fontFamily: typography.fontFamily.regular,
       fontSize: 8,
       marginTop: 1,
     },
@@ -3397,12 +3398,12 @@ const styles =
       borderRadius: 7,
     },
 
-    statusText: {
+    statusText: { fontFamily: typography.fontFamily.bold,
       fontSize: 9,
       fontWeight: '700',
     },
 
-    historyMessage: {
+    historyMessage: { fontFamily: typography.fontFamily.regular,
       fontSize: 11,
       fontStyle: 'italic',
       marginTop: 7,
@@ -3421,13 +3422,13 @@ const styles =
       marginLeft: 9,
     },
 
-    tipTitle: {
+    tipTitle: { fontFamily: typography.fontFamily.bold,
       fontSize: 13,
       fontWeight: '800',
       marginBottom: 3,
     },
 
-    tipText: {
+    tipText: { fontFamily: typography.fontFamily.regular,
       fontSize: 10,
       lineHeight: 16,
     },
@@ -3439,18 +3440,18 @@ const styles =
       padding: 30,
     },
 
-    loadingText: {
+    loadingText: { fontFamily: typography.fontFamily.regular,
       marginTop: 10,
       fontSize: 12,
     },
 
-    errorTitle: {
+    errorTitle: { fontFamily: typography.fontFamily.bold,
       marginTop: 12,
       fontSize: 17,
       fontWeight: '800',
     },
 
-    errorText: {
+    errorText: { fontFamily: typography.fontFamily.regular,
       marginTop: 5,
       fontSize: 12,
       textAlign: 'center',
@@ -3463,13 +3464,13 @@ const styles =
       marginTop: 9,
     },
 
-    emptyHistoryTitle: {
+    emptyHistoryTitle: { fontFamily: typography.fontFamily.bold,
       marginTop: 8,
       fontSize: 14,
       fontWeight: '800',
     },
 
-    emptyHistoryText: {
+    emptyHistoryText: { fontFamily: typography.fontFamily.regular,
       marginTop: 3,
       fontSize: 10,
     }

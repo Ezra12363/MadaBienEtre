@@ -127,7 +127,7 @@ const PasswordStrength = ({ password, isDark }) => {
       </View>
 
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.passwordStrengthText,
           { color: strength.color },
         ]}
@@ -189,7 +189,7 @@ const StepsIndicator = ({ currentStep, isDark }) => {
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.stepText,
                   {
                     color:
@@ -253,7 +253,7 @@ const Field = ({
     <View style={styles.fieldGroup}>
       <View style={styles.fieldLabelRow}>
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.fieldLabel,
             { color: isDark ? '#E5E7EB' : '#1F2937' },
           ]}
@@ -287,7 +287,7 @@ const Field = ({
 
         <TextInput
           ref={inputRef}
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.input,
             {
               color: isDark ? WHITE : '#17201A',
@@ -335,7 +335,7 @@ const Field = ({
             size={12}
             color="#EF4444"
           />
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}>{error}</Text>
         </View>
       ) : null}
     </View>
@@ -398,7 +398,7 @@ const RoleCard = ({
 
     <View style={styles.roleInfo}>
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.roleTitle,
           { color: isDark ? WHITE : '#17201A' },
         ]}
@@ -407,7 +407,7 @@ const RoleCard = ({
       </Text>
 
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.roleDescription,
           { color: isDark ? '#9CA3AF' : '#66736A' },
         ]}
@@ -861,7 +861,7 @@ const RegisterScreen = ({ navigation }) => {
 
         <View style={styles.formIntroText}>
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.formTitle,
               isSmallPhone && styles.formTitleSmall,
               { color: isDark ? WHITE : '#17201A' },
@@ -871,7 +871,7 @@ const RegisterScreen = ({ navigation }) => {
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.formDescription,
               { color: isDark ? '#9CA3AF' : '#66736A' },
             ]}
@@ -925,7 +925,7 @@ const RegisterScreen = ({ navigation }) => {
       <View style={styles.fieldGroup}>
         <View style={styles.fieldLabelRow}>
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.fieldLabel,
               { color: isDark ? '#E5E7EB' : '#1F2937' },
             ]}
@@ -958,7 +958,7 @@ const RegisterScreen = ({ navigation }) => {
               size={12}
               color="#EF4444"
             />
-            <Text style={styles.errorText}>{errors.phone}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}>{errors.phone}</Text>
           </View>
         ) : null}
       </View>
@@ -1020,7 +1020,7 @@ const RegisterScreen = ({ navigation }) => {
         <View style={styles.sectionHeader}>
           <View>
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.sectionTitle,
                 { color: isDark ? '#E5E7EB' : '#1F2937' },
               ]}
@@ -1029,7 +1029,7 @@ const RegisterScreen = ({ navigation }) => {
             </Text>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.sectionHint,
                 { color: isDark ? '#6B7280' : '#8A948C' },
               ]}
@@ -1078,13 +1078,13 @@ const RegisterScreen = ({ navigation }) => {
           {isLoading ? (
             <>
               <ActivityIndicator color={WHITE} size="small" />
-              <Text style={styles.registerButtonText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.registerButtonText]}>
                 Création du compte...
               </Text>
             </>
           ) : (
             <>
-              <Text style={styles.registerButtonText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.registerButtonText]}>
                 Créer mon compte
               </Text>
               <Ionicons
@@ -1098,7 +1098,7 @@ const RegisterScreen = ({ navigation }) => {
       </TouchableOpacity>
 
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.terms,
           { color: isDark ? '#6B7280' : '#8A948C' },
         ]}
@@ -1109,7 +1109,7 @@ const RegisterScreen = ({ navigation }) => {
 
       <View style={styles.loginRow}>
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.loginText,
             { color: isDark ? '#9CA3AF' : '#66736A' },
           ]}
@@ -1121,7 +1121,7 @@ const RegisterScreen = ({ navigation }) => {
           onPress={() => navigation.navigate('Login')}
           style={styles.loginLinkButton}
         >
-          <Text style={styles.loginLink}>Se connecter</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loginLink]}>Se connecter</Text>
           <Ionicons
             name="arrow-forward"
             size={14}
@@ -1232,7 +1232,7 @@ const RegisterScreen = ({ navigation }) => {
               />
             </View>
 
-            <Text style={styles.desktopBrandName}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.desktopBrandName]}>
               Mada Bien-être
             </Text>
           </View>
@@ -1244,17 +1244,17 @@ const RegisterScreen = ({ navigation }) => {
                 size={14}
                 color={WHITE}
               />
-              <Text style={styles.pillText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.pillText]}>
                 ESPACE BIEN-ÊTRE
               </Text>
             </View>
 
-            <Text style={styles.desktopTitle}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.desktopTitle]}>
               Votre bien-être,{'\n'}
               commence ici.
             </Text>
 
-            <Text style={styles.desktopDescription}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.desktopDescription]}>
               Créez votre compte et profitez d'une expérience
               simple, proche et personnalisée avec Mada Bien-être.
             </Text>
@@ -1290,10 +1290,10 @@ const RegisterScreen = ({ navigation }) => {
                   </View>
 
                   <View style={styles.desktopFeatureText}>
-                    <Text style={styles.desktopFeatureTitle}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureTitle]}>
                       {item.title}
                     </Text>
-                    <Text style={styles.desktopFeatureDescription}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureDescription]}>
                       {item.text}
                     </Text>
                   </View>
@@ -1303,10 +1303,10 @@ const RegisterScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.desktopFooter}>
-            <Text style={styles.desktopFooterText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.desktopFooterText]}>
               © 2026 Mada Bien-être
             </Text>
-            <Text style={styles.desktopFooterText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.desktopFooterText]}>
               Bien-être • Confiance • Proximité
             </Text>
           </View>
@@ -1339,7 +1339,7 @@ const RegisterScreen = ({ navigation }) => {
                 color={isDark ? '#E5E7EB' : '#64748B'}
               />
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.desktopBackText,
                   { color: isDark ? '#E5E7EB' : '#64748B' },
                 ]}
@@ -1466,7 +1466,7 @@ const styles = StyleSheet.create({
   mobileBrandName: {
     color: WHITE,
     fontSize: 18,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   mobileHeaderText: {
@@ -1477,7 +1477,7 @@ const styles = StyleSheet.create({
     color: WHITE,
     fontSize: 26,
     lineHeight: 32,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   mobileHeaderSubtitle: {
@@ -1561,11 +1561,11 @@ const styles = StyleSheet.create({
   formTitle: {
     fontSize: 23,
     lineHeight: 29,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     marginBottom: 2,
   },
 
-  formTitleSmall: {
+  formTitleSmall: { fontFamily: typography.fontFamily.regular,
     fontSize: 21,
     lineHeight: 27,
   },
@@ -1605,7 +1605,7 @@ const styles = StyleSheet.create({
   stepText: {
     fontSize: 10.5,
     marginLeft: 5,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   stepLine: {
@@ -1633,7 +1633,7 @@ const styles = StyleSheet.create({
 
   fieldLabel: {
     fontSize: 12.5,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   inputWrapper: {
@@ -1711,7 +1711,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginLeft: 7,
     fontSize: 10.5,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   // ----------------------------------------------------------
@@ -1730,7 +1730,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontSize: 12.5,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   sectionHint: {
@@ -1777,7 +1777,7 @@ const styles = StyleSheet.create({
 
   roleTitle: {
     fontSize: 13.5,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   roleDescription: {
@@ -1838,7 +1838,7 @@ const styles = StyleSheet.create({
   registerButtonText: {
     color: WHITE,
     fontSize: 14,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   // ----------------------------------------------------------
@@ -1878,7 +1878,7 @@ const styles = StyleSheet.create({
     color: GREEN,
     fontSize: 12,
     marginRight: 3,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   // ----------------------------------------------------------
@@ -1928,7 +1928,7 @@ const styles = StyleSheet.create({
   desktopBrandName: {
     color: WHITE,
     fontSize: 21,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   desktopCenter: {
@@ -1953,14 +1953,14 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.88)',
     fontSize: 9.5,
     letterSpacing: 1,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   desktopTitle: {
     color: WHITE,
     fontSize: 39,
     lineHeight: 47,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     marginBottom: 16,
   },
 
@@ -2001,7 +2001,7 @@ const styles = StyleSheet.create({
   desktopFeatureTitle: {
     color: WHITE,
     fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     marginBottom: 2,
   },
 
@@ -2067,7 +2067,7 @@ const styles = StyleSheet.create({
   desktopBackText: {
     fontSize: 12,
     marginLeft: 6,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   }
 });
 

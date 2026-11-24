@@ -64,7 +64,7 @@ const ChatHeader = ({
               <Ionicons name="chevron-back" size={28} color={palette.headerText} />
             </TouchableOpacity>
 
-            <Text style={[styles.title, { color: palette.headerText }]} numberOfLines={1}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: palette.headerText }]} numberOfLines={1}>
               {title}
             </Text>
 
@@ -77,14 +77,14 @@ const ChatHeader = ({
           <ChatAvatar uri={photo} name={name} size={50} radius={13} palette={palette} />
 
           <View style={styles.peerText}>
-            <Text style={[styles.name, { color: palette.headerText }]} numberOfLines={1}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.name, { color: palette.headerText }]} numberOfLines={1}>
               {name || 'Conversation'}
             </Text>
 
             {!!statusText && (
               <View style={styles.statusRow}>
                 <View style={[styles.dot, { backgroundColor: statusColor || palette.online }]} />
-                <Text style={[styles.status, { color: palette.headerSubText }]} numberOfLines={1}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.status, { color: palette.headerSubText }]} numberOfLines={1}>
                   {statusText}
                 </Text>
               </View>

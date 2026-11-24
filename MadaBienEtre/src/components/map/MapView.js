@@ -76,7 +76,7 @@ const MapViewComponent = ({ children, style }) => {
     return (
       <View style={[styles.container, style, { backgroundColor: themeColors.surface }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText, { color: themeColors.textSecondary }]}>
           Chargement de la carte...
         </Text>
       </View>
@@ -88,10 +88,10 @@ const MapViewComponent = ({ children, style }) => {
       {/* Carte simulée */}
       <View style={styles.mapPlaceholder}>
         <Ionicons name="map-outline" size={50} color={colors.primary} />
-        <Text style={[styles.mapTitle, { color: themeColors.text }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mapTitle, { color: themeColors.text }]}>
           Carte
         </Text>
-        <Text style={[styles.mapSubtitle, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mapSubtitle, { color: themeColors.textSecondary }]}>
           {location ? (
             `Position: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`
           ) : (
@@ -103,7 +103,7 @@ const MapViewComponent = ({ children, style }) => {
           onPress={getLocation}
         >
           <Ionicons name="refresh-outline" size={20} color="#fff" />
-          <Text style={styles.refreshButtonText}>Actualiser</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.refreshButtonText]}>Actualiser</Text>
         </TouchableOpacity>
       </View>
       
@@ -150,7 +150,7 @@ export const Marker = ({ children, title, pinColor, status, available }) => {
       <View style={styles.markerShadow} />
 
       {title && (
-        <Text style={[styles.markerTitle, { color: themeColors.text }]} numberOfLines={1}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.markerTitle, { color: themeColors.text }]} numberOfLines={1}>
           {title}
         </Text>
       )}
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   },
   mapTitle: {
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     marginTop: 10,
   },
   mapSubtitle: {
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   refreshButtonText: {
     color: '#fff',
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
   childrenContainer: {
     position: 'absolute',
@@ -283,7 +283,7 @@ const styles = StyleSheet.create({
   },
   markerTitle: {
     fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginTop: 4,
   },
   circle: {

@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { colors } from '../../theme';
 import { formatBytes } from '../../utils/chatImage';
+import { typography } from '../../theme';
 
 const ChatImagePreviewModal = ({ visible, asset, onCancel, onConfirm }) => {
   const { width, height } = useWindowDimensions();
@@ -32,7 +33,7 @@ const ChatImagePreviewModal = ({ visible, asset, onCancel, onConfirm }) => {
     >
       <View style={styles.backdrop}>
         <View style={[styles.card, { width: boxWidth }]}>
-          <Text style={styles.title}>Envoyer cette photo ?</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title]}>Envoyer cette photo ?</Text>
 
           {asset?.uri ? (
             <Image
@@ -42,7 +43,7 @@ const ChatImagePreviewModal = ({ visible, asset, onCancel, onConfirm }) => {
             />
           ) : null}
 
-          <Text style={styles.meta} numberOfLines={1}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.meta]} numberOfLines={1}>
             {asset?.name || 'photo'}
             {asset?.size ? ` · ${formatBytes(asset.size)}` : ''}
           </Text>
@@ -55,7 +56,7 @@ const ChatImagePreviewModal = ({ visible, asset, onCancel, onConfirm }) => {
               accessibilityRole="button"
               accessibilityLabel="Annuler l'envoi"
             >
-              <Text style={styles.cancelText}>Annuler</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cancelText]}>Annuler</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -66,7 +67,7 @@ const ChatImagePreviewModal = ({ visible, asset, onCancel, onConfirm }) => {
               accessibilityLabel="Envoyer la photo"
             >
               <Ionicons name="send" size={16} color="#fff" />
-              <Text style={styles.confirmText}>Envoyer</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmText]}>Envoyer</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -92,9 +93,9 @@ const styles = StyleSheet.create({
       default: { elevation: 12 },
     }),
   },
-  title: { fontSize: 17, fontWeight: '700', color: '#1F2937', marginBottom: 12 },
+  title: { fontFamily: typography.fontFamily.bold, fontSize: 17, fontWeight: '700', color: '#1F2937', marginBottom: 12 },
   image: { width: '100%', borderRadius: 12, backgroundColor: '#F1F5F3' },
-  meta: { fontSize: 12, color: '#6B7280', marginTop: 8, marginBottom: 14 },
+  meta: { fontFamily: typography.fontFamily.regular, fontSize: 12, color: '#6B7280', marginTop: 8, marginBottom: 14 },
   actions: { flexDirection: 'row', gap: 10 },
   button: {
     flex: 1,
@@ -106,8 +107,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cancel: { backgroundColor: '#EEF1EF' },
-  cancelText: { color: '#374151', fontWeight: '600', fontSize: 15 },
-  confirmText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  cancelText: { fontFamily: typography.fontFamily.semiBold, color: '#374151', fontWeight: '600', fontSize: 15 },
+  confirmText: { fontFamily: typography.fontFamily.bold, color: '#fff', fontWeight: '700', fontSize: 15 },
 });
 
 export default ChatImagePreviewModal;

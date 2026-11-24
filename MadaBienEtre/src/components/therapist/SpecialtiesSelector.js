@@ -202,11 +202,11 @@ const SpecialtiesSelector = ({
           )}
           
           <View style={styles.typeInfo}>
-            <Text style={[styles.typeName, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.typeName, { color: themeColors.text }]}>
               {item.name}
             </Text>
             {item.category && (
-              <Text style={[styles.typeCategory, { color: themeColors.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.typeCategory, { color: themeColors.textSecondary }]}>
                 {item.category}
               </Text>
             )}
@@ -230,7 +230,7 @@ const SpecialtiesSelector = ({
     
     if (selectedTypes.length === 0) {
       return (
-        <Text style={[styles.noSpecialtyText, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noSpecialtyText, { color: themeColors.textSecondary }]}>
           {readOnly ? 'Aucune spécialité définie' : 'Aucune spécialité sélectionnée'}
         </Text>
       );
@@ -243,7 +243,7 @@ const SpecialtiesSelector = ({
             key={type.id}
             style={[styles.tag, { backgroundColor: `${colors.primary}12` }]}
           >
-            <Text style={[styles.tagText, { color: colors.primary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tagText, { color: colors.primary }]}>
               {type.name}
             </Text>
           </View>
@@ -257,7 +257,7 @@ const SpecialtiesSelector = ({
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="small" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText, { color: themeColors.textSecondary }]}>
           Chargement...
         </Text>
       </View>
@@ -272,10 +272,10 @@ const SpecialtiesSelector = ({
             <Ionicons name="ribbon-outline" size={20} color={colors.primary} />
           </View>
           <View>
-            <Text style={[styles.title, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: themeColors.text }]}>
               Spécialités
             </Text>
-            <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.subtitle, { color: themeColors.textSecondary }]}>
               {readOnly 
                 ? 'Types de massage pratiqués' 
                 : 'Sélectionnez vos types de massage'}
@@ -290,7 +290,7 @@ const SpecialtiesSelector = ({
             disabled={submitting}
           >
             <Ionicons name="create-outline" size={18} color={colors.primary} />
-            <Text style={[styles.editButtonText, { color: colors.primary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.editButtonText, { color: colors.primary }]}>
               Modifier
             </Text>
           </TouchableOpacity>
@@ -312,10 +312,10 @@ const SpecialtiesSelector = ({
           <View style={[styles.modalContainer, { backgroundColor: themeColors.surface }]}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={[styles.modalTitle, { color: themeColors.text }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalTitle, { color: themeColors.text }]}>
                   Mes spécialités
                 </Text>
-                <Text style={[styles.modalSubtitle, { color: themeColors.textSecondary }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalSubtitle, { color: themeColors.textSecondary }]}>
                   Sélectionnez les types de massage que vous pratiquez
                 </Text>
               </View>
@@ -337,7 +337,7 @@ const SpecialtiesSelector = ({
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Ionicons name="fitness-outline" size={40} color={themeColors.textSecondary} />
-                  <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyText, { color: themeColors.textSecondary }]}>
                     Aucun type de massage disponible
                   </Text>
                 </View>
@@ -350,7 +350,7 @@ const SpecialtiesSelector = ({
                 onPress={() => setShowSelectorModal(false)}
                 disabled={submitting}
               >
-                <Text style={[styles.modalCancelText, { color: themeColors.text }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalCancelText, { color: themeColors.text }]}>
                   Annuler
                 </Text>
               </TouchableOpacity>
@@ -365,7 +365,7 @@ const SpecialtiesSelector = ({
                 ) : (
                   <>
                     <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                    <Text style={styles.modalSaveText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalSaveText]}>
                       Enregistrer ({selectedIds.length})
                     </Text>
                   </>

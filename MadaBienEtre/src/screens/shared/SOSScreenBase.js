@@ -116,7 +116,7 @@ const SOSScreenBase = ({ route }) => {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <SOSButton variant="hero" bookingId={bookingId} />
 
-        <Text style={[styles.description, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.description, { color: themeColors.textSecondary }]}>
           Un appui, puis une confirmation : votre position GPS est envoyée à notre équipe et à vos
           contacts d'urgence. Les secours ne sont pas prévenus automatiquement.
         </Text>
@@ -125,20 +125,20 @@ const SOSScreenBase = ({ route }) => {
         <View style={[styles.locationCard, { backgroundColor: themeColors.surface }]}>
           <Ionicons name={location ? 'location' : 'location-outline'} size={24} color={locError ? colors.error : colors.primary} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.locationLabel, { color: themeColors.text }]}>Votre position</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.locationLabel, { color: themeColors.text }]}>Votre position</Text>
             {location ? (
               <>
                 {!!location.address && (
-                  <Text style={[styles.locationCoords, { color: themeColors.text }]} numberOfLines={2}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.locationCoords, { color: themeColors.text }]} numberOfLines={2}>
                     {location.address}
                   </Text>
                 )}
-                <Text style={[styles.locationCoords, { color: themeColors.textSecondary }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.locationCoords, { color: themeColors.textSecondary }]}>
                   {sosService.formatCoordinates(location.latitude, location.longitude)}
                 </Text>
               </>
             ) : (
-              <Text style={[styles.locationCoords, { color: locError ? colors.error : themeColors.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.locationCoords, { color: locError ? colors.error : themeColors.textSecondary }]}>
                 {locError || 'Localisation en cours...'}
               </Text>
             )}
@@ -157,16 +157,16 @@ const SOSScreenBase = ({ route }) => {
         {/* Mes contacts d'urgence */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Mes contacts d'urgence</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionTitle, { color: themeColors.text }]}>Mes contacts d'urgence</Text>
             <TouchableOpacity onPress={openAdd} style={styles.addBtn}>
               <Ionicons name="add" size={18} color="#fff" />
-              <Text style={styles.addBtnText}>Ajouter</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.addBtnText]}>Ajouter</Text>
             </TouchableOpacity>
           </View>
           {loadingContacts ? (
             <ActivityIndicator color={colors.primary} />
           ) : contacts.length === 0 ? (
-            <Text style={[styles.empty, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.empty, { color: themeColors.textSecondary }]}>
               Aucun contact. Ajoutez un proche : il sera prévenu par SMS en cas d'alerte SOS.
             </Text>
           ) : (
@@ -178,7 +178,7 @@ const SOSScreenBase = ({ route }) => {
 
         {/* Numéros d'urgence locaux */}
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Numéros d'urgence</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionTitle, { color: themeColors.text }]}>Numéros d'urgence</Text>
           <View style={styles.grid}>
             {EMERGENCY_NUMBERS.map((n) => (
               <TouchableOpacity
@@ -188,8 +188,8 @@ const SOSScreenBase = ({ route }) => {
                 activeOpacity={0.7}
               >
                 <Ionicons name={n.icon} size={28} color={colors.error} />
-                <Text style={[styles.numberName, { color: themeColors.text }]}>{n.name}</Text>
-                <Text style={styles.numberValue}>{n.number}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.numberName, { color: themeColors.text }]}>{n.name}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.numberValue]}>{n.number}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -198,10 +198,10 @@ const SOSScreenBase = ({ route }) => {
         <View style={[styles.tipsCard, { backgroundColor: colors.error + '10' }]}>
           <Ionicons name="bulb-outline" size={24} color={colors.error} />
           <View style={{ flex: 1 }}>
-            <Text style={[styles.tipsTitle, { color: colors.error }]}>Conseils de sécurité</Text>
-            <Text style={[styles.tipsText, { color: themeColors.text }]}>• Restez calme et en sécurité</Text>
-            <Text style={[styles.tipsText, { color: themeColors.text }]}>• Envoyez votre position à un proche</Text>
-            <Text style={[styles.tipsText, { color: themeColors.text }]}>• Appelez les secours si nécessaire</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tipsTitle, { color: colors.error }]}>Conseils de sécurité</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tipsText, { color: themeColors.text }]}>• Restez calme et en sécurité</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tipsText, { color: themeColors.text }]}>• Envoyez votre position à un proche</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tipsText, { color: themeColors.text }]}>• Appelez les secours si nécessaire</Text>
           </View>
         </View>
       </ScrollView>
@@ -230,22 +230,22 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md, gap: spacing.sm, elevation: 2,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4,
   },
-  locationLabel: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
+  locationLabel: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   locationCoords: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular },
   iconBtn: { padding: 6 },
   section: { marginBottom: spacing.lg },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  sectionTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, marginBottom: spacing.sm },
+  sectionTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, fontWeight: '700', marginBottom: spacing.sm },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.primary, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 16 },
-  addBtnText: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
+  addBtnText: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   empty: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, lineHeight: 20 },
   grid: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm },
   numberCard: { flex: 1, padding: spacing.md, borderRadius: 12, alignItems: 'center', elevation: 2,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4 },
-  numberName: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, marginTop: 4 },
-  numberValue: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, color: colors.error },
+  numberName: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500', marginTop: 4 },
+  numberValue: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, fontWeight: '700', color: colors.error },
   tipsCard: { flexDirection: 'row', padding: spacing.md, borderRadius: 12, marginBottom: spacing.md, gap: spacing.md },
-  tipsTitle: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, marginBottom: 4 },
+  tipsTitle: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, fontWeight: '700', marginBottom: 4 },
   tipsText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, lineHeight: 22 },
 });
 

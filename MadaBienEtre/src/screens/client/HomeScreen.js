@@ -790,7 +790,7 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.quickActionContent}>
             <Text
               numberOfLines={1}
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.quickActionLabel,
                 { color: text },
               ]}
@@ -800,7 +800,7 @@ const HomeScreen = ({ navigation }) => {
 
             <Text
               numberOfLines={1}
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.quickActionDescription,
                 { color: textSecondary },
               ]}
@@ -912,7 +912,7 @@ const HomeScreen = ({ navigation }) => {
 
         <Text
           numberOfLines={2}
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.massageName,
             { color: text },
           ]}
@@ -938,7 +938,7 @@ const HomeScreen = ({ navigation }) => {
 
           <Text
             numberOfLines={1}
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.massageCategoryText,
               { color: SUCCESS },
             ]}
@@ -950,7 +950,7 @@ const HomeScreen = ({ navigation }) => {
         {!!item.description && (
           <Text
             numberOfLines={2}
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.massageDescription,
               { color: textSecondary },
             ]}
@@ -975,7 +975,7 @@ const HomeScreen = ({ navigation }) => {
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.durationText,
                 { color: PRIMARY },
               ]}
@@ -994,7 +994,7 @@ const HomeScreen = ({ navigation }) => {
           ]}
         >
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.priceLabel,
               { color: textSecondary },
             ]}
@@ -1002,7 +1002,7 @@ const HomeScreen = ({ navigation }) => {
             À partir de
           </Text>
 
-          <Text style={styles.massagePrice}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.massagePrice]}>
             {Number(item.minPrice || 0).toLocaleString()} Ar
           </Text>
         </View>
@@ -1065,30 +1065,30 @@ const HomeScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.discountText]}>
                 -{item.discount}%
               </Text>
             </View>
           </View>
 
-          <Text style={styles.promotionTitle}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.promotionTitle]}>
             {item.title}
           </Text>
 
           <Text
             numberOfLines={2}
-            style={styles.promotionDescription}
+            style={[{ fontFamily: typography.fontFamily.regular }, styles.promotionDescription]}
           >
             {item.description}
           </Text>
 
           <View style={styles.promotionFooter}>
             <View>
-              <Text style={styles.promotionSmall}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.promotionSmall]}>
                 Offre valable jusqu’au
               </Text>
 
-              <Text style={styles.promotionDate}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.promotionDate]}>
                 {item.endDate}
               </Text>
             </View>
@@ -1164,7 +1164,7 @@ const HomeScreen = ({ navigation }) => {
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.bookingStatus,
                   {
                     color: statusColor,
@@ -1177,7 +1177,7 @@ const HomeScreen = ({ navigation }) => {
 
             <Text
               numberOfLines={1}
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.bookingType,
                 { color: text },
               ]}
@@ -1187,7 +1187,7 @@ const HomeScreen = ({ navigation }) => {
 
             <Text
               numberOfLines={1}
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.bookingTherapist,
                 { color: textSecondary },
               ]}
@@ -1203,7 +1203,7 @@ const HomeScreen = ({ navigation }) => {
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.bookingDate,
                   { color: textSecondary },
                 ]}
@@ -1214,7 +1214,7 @@ const HomeScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.bookingRight}>
-            <Text style={styles.bookingPrice}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bookingPrice]}>
               {item.price}
             </Text>
 
@@ -1427,27 +1427,27 @@ const HomeScreen = ({ navigation }) => {
 
             <View style={[styles.heroTop, isWide && { flex: 1 }]}>
               <View style={styles.heroTextContainer}>
-                <Text style={styles.heroGreeting}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroGreeting]}>
                   {greeting},
                 </Text>
 
                 <View style={styles.heroNameRow}>
                   <Text
                     numberOfLines={1}
-                    style={styles.heroName}
+                    style={[{ fontFamily: typography.fontFamily.regular }, styles.heroName]}
                   >
                     {displayName}
                   </Text>
 
                   <View style={styles.heroPill}>
                     <View style={styles.heroPillDot} />
-                    <Text style={styles.heroPillText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroPillText]}>
                       Espace client
                     </Text>
                   </View>
                 </View>
 
-                <Text style={styles.heroDescription}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroDescription]}>
                   Prenez soin de vous. Trouvez un professionnel
                   adapté à vos besoins.
                 </Text>
@@ -1461,10 +1461,10 @@ const HomeScreen = ({ navigation }) => {
               ]}
             >
               <View style={styles.heroStat}>
-                <Text style={styles.heroStatValue}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroStatValue]}>
                   {clientStats?.bookings?.total ?? 0}
                 </Text>
-                <Text style={styles.heroStatLabel}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroStatLabel]}>
                   Réservations
                 </Text>
               </View>
@@ -1472,10 +1472,10 @@ const HomeScreen = ({ navigation }) => {
               <View style={styles.heroStatDivider} />
 
               <View style={styles.heroStat}>
-                <Text style={styles.heroStatValue}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroStatValue]}>
                   {clientStats?.bookings?.upcoming ?? 0}
                 </Text>
-                <Text style={styles.heroStatLabel}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroStatLabel]}>
                   À venir
                 </Text>
               </View>
@@ -1484,12 +1484,12 @@ const HomeScreen = ({ navigation }) => {
 
               <View style={styles.heroStat}>
                 <Text
-                  style={styles.heroStatValue}
+                  style={[{ fontFamily: typography.fontFamily.regular }, styles.heroStatValue]}
                   numberOfLines={1}
                 >
                   {shortAr(clientStats?.spending?.month)}
                 </Text>
-                <Text style={styles.heroStatLabel}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroStatLabel]}>
                   Dépensé ce mois (Ar)
                 </Text>
               </View>
@@ -1516,11 +1516,11 @@ const HomeScreen = ({ navigation }) => {
                 </View>
 
                 <View style={styles.heroCTAContent}>
-                  <Text style={styles.heroCTATitle}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroCTATitle]}>
                     Trouver mon massage
                   </Text>
 
-                  <Text style={styles.heroCTASubtitle}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroCTASubtitle]}>
                     Thérapeutes disponibles près de vous
                   </Text>
                 </View>
@@ -1574,7 +1574,7 @@ const HomeScreen = ({ navigation }) => {
 
               <View style={{ flex: 1 }}>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.notifTitle,
                     { color: text },
                   ]}
@@ -1585,7 +1585,7 @@ const HomeScreen = ({ navigation }) => {
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.notifSubtitle,
                     { color: textSecondary },
                   ]}
@@ -1620,9 +1620,9 @@ const HomeScreen = ({ navigation }) => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.sectionTitle,
-                isWide && { fontSize: 14 },
+                isWide && { fontFamily: typography.fontFamily.regular, fontSize: 14 },
                 { color: text },
               ]}
             >
@@ -1630,7 +1630,7 @@ const HomeScreen = ({ navigation }) => {
             </Text>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.sectionSubtitle,
                 isWide && { marginTop: 0, marginLeft: 14 },
                 { color: textSecondary },
@@ -1824,14 +1824,14 @@ const HomeScreen = ({ navigation }) => {
                     size={12}
                     color={SUCCESS}
                   />
-                  <Text style={styles.aiEyebrowText}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.aiEyebrowText]}>
                     SERVICE INTELLIGENT
                   </Text>
                 </View>
 
                 <View style={styles.aiTitleRow}>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.aiTitle,
                       {
                         color: isDark
@@ -1844,7 +1844,7 @@ const HomeScreen = ({ navigation }) => {
                   </Text>
 
                   <View style={styles.aiBadge}>
-                    <Text style={styles.aiBadgeText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.aiBadgeText]}>
                       IA
                     </Text>
                   </View>
@@ -1852,7 +1852,7 @@ const HomeScreen = ({ navigation }) => {
 
                 <Text
                   numberOfLines={2}
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.aiDescription,
                     {
                       color: isDark
@@ -1874,7 +1874,7 @@ const HomeScreen = ({ navigation }) => {
                       color={SUCCESS}
                     />
 
-                    <Text style={styles.aiFeatureText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.aiFeatureText]}>
                       Personnalisé
                     </Text>
                   </View>
@@ -1886,7 +1886,7 @@ const HomeScreen = ({ navigation }) => {
                       color={SUCCESS}
                     />
 
-                    <Text style={styles.aiFeatureText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.aiFeatureText]}>
                       Localisé
                     </Text>
                   </View>
@@ -1898,7 +1898,7 @@ const HomeScreen = ({ navigation }) => {
                       color={SUCCESS}
                     />
 
-                    <Text style={styles.aiFeatureText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.aiFeatureText]}>
                       Rapide
                     </Text>
                   </View>
@@ -1929,7 +1929,7 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.sectionHeader}>
             <View>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionTitle,
                   { color: text },
                 ]}
@@ -1938,7 +1938,7 @@ const HomeScreen = ({ navigation }) => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionSubtitle,
                   { color: textSecondary },
                 ]}
@@ -1957,7 +1957,7 @@ const HomeScreen = ({ navigation }) => {
               }
               style={styles.seeAllButton}
             >
-              <Text style={styles.seeAllText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.seeAllText]}>
                 Voir tout
               </Text>
 
@@ -2000,7 +2000,7 @@ const HomeScreen = ({ navigation }) => {
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.massagesLoadingText,
                     { color: textSecondary },
                   ]}
@@ -2018,7 +2018,7 @@ const HomeScreen = ({ navigation }) => {
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.massagesLoadingText,
                     { color: textSecondary },
                   ]}
@@ -2116,7 +2116,7 @@ const HomeScreen = ({ navigation }) => {
               <View style={styles.locationContent}>
                 <View style={styles.locationTitleRow}>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.locationTitle,
                       { color: text },
                     ]}
@@ -2127,7 +2127,7 @@ const HomeScreen = ({ navigation }) => {
                   <View style={styles.liveBadge}>
                     <View style={styles.liveDot} />
 
-                    <Text style={styles.liveText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.liveText]}>
                       EN DIRECT
                     </Text>
                   </View>
@@ -2135,7 +2135,7 @@ const HomeScreen = ({ navigation }) => {
 
                 <Text
                   numberOfLines={2}
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.locationDescription,
                     { color: textSecondary },
                   ]}
@@ -2169,7 +2169,7 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.sectionHeader}>
             <View>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionTitle,
                   { color: text },
                 ]}
@@ -2178,7 +2178,7 @@ const HomeScreen = ({ navigation }) => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionSubtitle,
                   { color: textSecondary },
                 ]}
@@ -2196,7 +2196,7 @@ const HomeScreen = ({ navigation }) => {
                 )
               }
             >
-              <Text style={styles.seeAllText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.seeAllText]}>
                 Tout voir
               </Text>
             </TouchableOpacity>
@@ -2210,7 +2210,7 @@ const HomeScreen = ({ navigation }) => {
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.massagesLoadingText,
                   { color: textSecondary },
                 ]}
@@ -2227,7 +2227,7 @@ const HomeScreen = ({ navigation }) => {
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.massagesLoadingText,
                   { color: textSecondary },
                 ]}
@@ -2318,7 +2318,7 @@ const HomeScreen = ({ navigation }) => {
               style={{
                 color: '#FFFFFF',
                 fontSize: 13,
-                fontFamily: typography.fontFamily.bold,
+                fontFamily: typography.fontFamily.bold, fontWeight: '700',
               }}
             >
               Voir toutes les publications
@@ -2340,7 +2340,7 @@ const HomeScreen = ({ navigation }) => {
             <View>
               <View style={styles.titleWithIcon}>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.sectionTitle,
                     { color: text },
                   ]}
@@ -2348,13 +2348,13 @@ const HomeScreen = ({ navigation }) => {
                   Offres du moment
                 </Text>
 
-                <Text style={styles.fireEmoji}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.fireEmoji]}>
                   🔥
                 </Text>
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionSubtitle,
                   { color: textSecondary },
                 ]}
@@ -2372,7 +2372,7 @@ const HomeScreen = ({ navigation }) => {
                 )
               }
             >
-              <Text style={styles.seeAllText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.seeAllText]}>
                 Tout voir
               </Text>
             </TouchableOpacity>
@@ -2406,7 +2406,7 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.sectionHeader}>
             <View>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionTitle,
                   { color: text },
                 ]}
@@ -2415,7 +2415,7 @@ const HomeScreen = ({ navigation }) => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionSubtitle,
                   { color: textSecondary },
                 ]}
@@ -2433,7 +2433,7 @@ const HomeScreen = ({ navigation }) => {
                 )
               }
             >
-              <Text style={styles.seeAllText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.seeAllText]}>
                 Voir tout
               </Text>
             </TouchableOpacity>
@@ -2494,7 +2494,7 @@ const HomeScreen = ({ navigation }) => {
 
             <View style={styles.sosContent}>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sosTitle,
                   { color: text },
                 ]}
@@ -2504,7 +2504,7 @@ const HomeScreen = ({ navigation }) => {
 
               <Text
                 numberOfLines={2}
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sosDescription,
                   { color: textSecondary },
                 ]}
@@ -2515,7 +2515,7 @@ const HomeScreen = ({ navigation }) => {
             </View>
 
             <View style={styles.sosButton}>
-              <Text style={styles.sosButtonText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sosButtonText]}>
                 SOS
               </Text>
             </View>
@@ -2536,7 +2536,7 @@ const HomeScreen = ({ navigation }) => {
           </View>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.footerText,
               { color: textSecondary },
             ]}
@@ -2545,7 +2545,7 @@ const HomeScreen = ({ navigation }) => {
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.footerDot,
               { color: textSecondary },
             ]}
@@ -2554,7 +2554,7 @@ const HomeScreen = ({ navigation }) => {
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.footerText,
               { color: textSecondary },
             ]}
@@ -2632,12 +2632,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  notifTitle: {
+  notifTitle: { fontFamily: typography.fontFamily.bold,
     fontSize: 13,
     fontWeight: '800',
   },
 
-  notifSubtitle: {
+  notifSubtitle: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     marginTop: 2,
   },
@@ -2755,7 +2755,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     textAlignVertical: 'center',
     includeFontPadding: false,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   /* ==========================================================
@@ -2820,7 +2820,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
   },
 
-  heroName: {
+  heroName: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontSize: 24,
     fontWeight: '800',
@@ -2852,7 +2852,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
 
-  heroPillText: {
+  heroPillText: { fontFamily: typography.fontFamily.bold,
     color: '#2E8B57',
     fontSize: 11,
     fontWeight: '800',
@@ -2880,13 +2880,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  heroStatValue: {
+  heroStatValue: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '800',
   },
 
-  heroStatLabel: {
+  heroStatLabel: { fontFamily: typography.fontFamily.regular,
     color: 'rgba(255,255,255,0.72)',
     fontSize: 11,
     marginTop: 4,
@@ -2937,7 +2937,7 @@ const styles = StyleSheet.create({
   heroCTATitle: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   heroCTASubtitle: {
@@ -2960,7 +2960,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontSize: 17,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   sectionSubtitle: {
@@ -2977,7 +2977,7 @@ const styles = StyleSheet.create({
   seeAllText: {
     color: PRIMARY,
     fontSize: 11,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ==========================================================
@@ -3029,7 +3029,7 @@ const styles = StyleSheet.create({
 
   quickActionLabel: {
     fontSize: 12.5,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   quickActionDescription: {
@@ -3068,7 +3068,7 @@ const styles = StyleSheet.create({
     fontSize: 8,
     letterSpacing: 1,
     color: SUCCESS,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   aiGradient: {
@@ -3100,7 +3100,7 @@ const styles = StyleSheet.create({
 
   aiTitle: {
     fontSize: 14,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   aiBadge: {
@@ -3115,7 +3115,7 @@ const styles = StyleSheet.create({
     color: SUCCESS,
     fontSize: 7,
     letterSpacing: 0.5,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   aiDescription: {
@@ -3146,7 +3146,7 @@ const styles = StyleSheet.create({
     color: SUCCESS,
     fontSize: 7.5,
     marginLeft: 3,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   aiArrow: {
@@ -3260,7 +3260,7 @@ const styles = StyleSheet.create({
   massageName: {
     fontSize: 14,
     lineHeight: 18,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   massageCategoryBadge: {
@@ -3284,7 +3284,7 @@ const styles = StyleSheet.create({
   massageCategoryText: {
     fontSize: 8,
     lineHeight: 10,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   massageDescription: {
@@ -3310,7 +3310,7 @@ const styles = StyleSheet.create({
   durationText: {
     fontSize: 8,
     marginLeft: 3,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   massagePriceRow: {
@@ -3330,7 +3330,7 @@ const styles = StyleSheet.create({
   massagePrice: {
     color: PRIMARY,
     fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   /* ==========================================================
@@ -3373,7 +3373,7 @@ const styles = StyleSheet.create({
 
   locationTitle: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   liveBadge: {
@@ -3398,7 +3398,7 @@ const styles = StyleSheet.create({
   liveText: {
     color: SUCCESS,
     fontSize: 6.5,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   locationDescription: {
@@ -3427,7 +3427,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  fireEmoji: {
+  fireEmoji: { fontFamily: typography.fontFamily.regular,
     fontSize: 15,
     marginLeft: 4,
   },
@@ -3499,14 +3499,14 @@ const styles = StyleSheet.create({
   discountText: {
     color: '#FFFFFF',
     fontSize: 10,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   promotionTitle: {
     color: '#FFFFFF',
     fontSize: 15,
     marginTop: 12,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   promotionDescription: {
@@ -3535,7 +3535,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 9,
     marginTop: 2,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   promotionArrow: {
@@ -3598,12 +3598,12 @@ const styles = StyleSheet.create({
 
   bookingStatus: {
     fontSize: 8.5,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   bookingType: {
     fontSize: 12.5,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   bookingTherapist: {
@@ -3634,7 +3634,7 @@ const styles = StyleSheet.create({
   bookingPrice: {
     color: PRIMARY,
     fontSize: 10.5,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   bookingChevron: {
@@ -3680,7 +3680,7 @@ const styles = StyleSheet.create({
 
   sosTitle: {
     fontSize: 12.5,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   sosDescription: {
@@ -3704,7 +3704,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     letterSpacing: 0.5,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   /* ==========================================================
@@ -3735,7 +3735,7 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.regular,
   },
 
-  footerDot: {
+  footerDot: { fontFamily: typography.fontFamily.regular,
     fontSize: 10,
     marginHorizontal: 5,
   }

@@ -27,7 +27,7 @@ const TypingLine = ({ label, color }) => {
   }, []);
 
   return (
-    <Text style={[styles.typing, { color }]} numberOfLines={1}>
+    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.typing, { color }]} numberOfLines={1}>
       {label}
       {'.'.repeat(dots)}
     </Text>
@@ -104,7 +104,7 @@ const ChatComposer = ({ palette, value, onChangeText, onSend, onAttach, onShareL
             ]}
           >
             <TextInput
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.input,
                 { color: palette.text, height },
                 Platform.OS === 'web' && styles.inputWeb,
@@ -144,7 +144,7 @@ const ChatComposer = ({ palette, value, onChangeText, onSend, onAttach, onShareL
 
         {value.length > MAX_MESSAGE_LENGTH - 200 && (
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.counter,
               { color: value.length >= MAX_MESSAGE_LENGTH ? palette.danger : palette.textSecondary },
             ]}

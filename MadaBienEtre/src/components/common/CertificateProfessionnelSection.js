@@ -88,8 +88,8 @@ const CertificateProfessionnelSection = ({
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.label, { color: themeColors.text }]}>Certificat professionnel</Text>
-      <Text style={[styles.subLabel, { color: themeColors.textSecondary }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: themeColors.text }]}>Certificat professionnel</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.subLabel, { color: themeColors.textSecondary }]}>
         Diplôme, attestation ou certification (PDF, JPG, PNG - max 10MB)
       </Text>
 
@@ -115,14 +115,14 @@ const CertificateProfessionnelSection = ({
         {isUploading ? (
           <View style={styles.uploadZoneContent}>
             <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={[styles.uploadZoneText, { color: colors.primary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.uploadZoneText, { color: colors.primary }]}>
               Envoi en cours...
             </Text>
           </View>
         ) : (
           <View style={styles.uploadZoneContent}>
             <Ionicons name="cloud-upload-outline" size={24} color={colors.primary} />
-            <Text style={[styles.uploadZoneText, { color: colors.primary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.uploadZoneText, { color: colors.primary }]}>
               {localPreview ? 'Remplacer le certificat' : 'Télécharger le certificat'}
             </Text>
           </View>
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginBottom: 2,
   },
   subLabel: {
@@ -167,11 +167,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
   },
-  pdfPreviewText: {
+  pdfPreviewText: { fontFamily: typography.fontFamily.medium,
     fontSize: 13,
     fontWeight: '500',
   },
-  pdfPreviewSubText: {
+  pdfPreviewSubText: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
   },
   uploadZone: {
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   },
   uploadZoneText: {
     fontSize: 15,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 });
 

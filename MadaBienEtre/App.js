@@ -6,7 +6,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Font from 'expo-font';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Platform } from 'react-native';
 
 // Contexts
 import { AuthProvider } from './src/context/AuthContext';
@@ -29,6 +29,19 @@ import { theme } from './src/theme';
 
 installGlobalAlertOverrides();
 
+// Web : police de base de la page + cartes Leaflet (qui ont leur propre font).
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const styleId = 'app-global-font';
+  if (!document.getElementById(styleId)) {
+    const el = document.createElement('style');
+    el.id = styleId;
+    el.textContent =
+      "html,body,#root,.leaflet-container,.leaflet-popup-content,.leaflet-tooltip{font-family:'Times New Roman',Times,Tinos,'Liberation Serif',serif;}" +
+      "input,textarea,select,button{font-family:inherit;}";
+    document.head.appendChild(el);
+  }
+}
+
 SplashScreen.preventAutoHideAsync();
 
 export default function App() {
@@ -38,11 +51,10 @@ export default function App() {
     async function prepare() {
       try {
         await Font.loadAsync({
-          'Poppins-Regular': require('../assets/fonts/Poppins-Regular.ttf'),
-          'Poppins-Medium': require('../assets/fonts/Poppins-Medium.ttf'),
-          'Poppins-SemiBold': require('../assets/fonts/Poppins-SemiBold.ttf'),
-          'Poppins-Bold': require('../assets/fonts/Poppins-Bold.ttf'),
-          'Poppins-Light': require('../assets/fonts/Poppins-Light.ttf'),
+          // Tinos = clone métrique de Times New Roman (utilisé sur Android,
+          // et en repli sur web si Times New Roman n'est pas installé).
+          'Tinos-Regular': require('./assets/fonts/Tinos-Regular.ttf'),
+          'Tinos-Bold': require('./assets/fonts/Tinos-Bold.ttf'),
         });
         await new Promise(resolve => setTimeout(resolve, 1500));
       } catch (_e) {

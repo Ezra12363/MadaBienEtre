@@ -431,10 +431,10 @@ export const TopNavBar = ({
           </View>
 
           <View style={styles.brandTextWrap}>
-            <Text numberOfLines={1} style={styles.brandText}>
+            <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.brandText]}>
               {brandLabel}
             </Text>
-            <Text numberOfLines={1} style={styles.brandSubtitle}>
+            <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.brandSubtitle]}>
               Bien-être &amp; massages
             </Text>
           </View>
@@ -484,7 +484,7 @@ export const TopNavBar = ({
                 >
                   <Text
                     numberOfLines={1}
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.menuItemLabel,
                       focused && styles.menuItemLabelActive,
                     ]}
@@ -642,7 +642,7 @@ export const TopNavBar = ({
                           resizeMode="cover"
                         />
                       ) : (
-                        <Text style={styles.avatarInitial}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.avatarInitial]}>
                           {initial}
                         </Text>
                       )}
@@ -651,7 +651,7 @@ export const TopNavBar = ({
                     <View style={styles.profileDropdownTexts}>
                       <Text
                         numberOfLines={1}
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.profileDropdownName,
                           { color: themeColors.text },
                         ]}
@@ -662,7 +662,7 @@ export const TopNavBar = ({
                       {!!user?.email && (
                         <Text
                           numberOfLines={1}
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.profileDropdownEmail,
                             {
                               color:
@@ -677,7 +677,7 @@ export const TopNavBar = ({
 
                       <Text
                         numberOfLines={1}
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.profileDropdownRole,
                           {
                             color:
@@ -724,7 +724,7 @@ export const TopNavBar = ({
                       </View>
 
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.dropdownLabel,
                           { color: themeColors.text },
                         ]}
@@ -753,7 +753,7 @@ export const TopNavBar = ({
                     </View>
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.dropdownLabel,
                         { color: '#E74C3C' },
                       ]}
@@ -796,7 +796,7 @@ export const TopNavBar = ({
           {pageContext.title ? (
             <Text
               numberOfLines={1}
-              style={[styles.subBarTitle, { color: themeColors.text }]}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.subBarTitle, { color: themeColors.text }]}
             >
               {pageContext.title}
             </Text>
@@ -894,14 +894,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 17,
     lineHeight: 21,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   brandSubtitle: {
     color: 'rgba(255,255,255,0.82)',
     fontSize: 9.5,
     lineHeight: 13,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginTop: 1,
   },
 
@@ -958,7 +958,7 @@ const styles = StyleSheet.create({
   menuItemLabel: {
     color: 'rgba(255,255,255,0.92)',
     fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   menuItemLabelActive: {
@@ -1206,7 +1206,7 @@ const styles = StyleSheet.create({
   avatarInitial: {
     color: PRIMARY,
     fontSize: 17,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   profileDropdownTexts: {
@@ -1216,15 +1216,15 @@ const styles = StyleSheet.create({
 
   profileDropdownName: {
     fontSize: 13.5,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
-  profileDropdownEmail: {
+  profileDropdownEmail: { fontFamily: typography.fontFamily.regular,
     fontSize: 11.5,
     marginTop: 2,
   },
 
-  profileDropdownRole: {
+  profileDropdownRole: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     marginTop: 2,
   },
@@ -1291,7 +1291,7 @@ const styles = StyleSheet.create({
 
   dropdownLabel: {
     fontSize: 13.5,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   dropdownDivider: {
@@ -1322,6 +1322,6 @@ const styles = StyleSheet.create({
 
   subBarTitle: {
     fontSize: 14,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 });

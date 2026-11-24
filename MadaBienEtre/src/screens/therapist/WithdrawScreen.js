@@ -37,6 +37,7 @@ import HideAmountsToggle from '../../components/common/HideAmountsToggle';
 import { useHideAmounts } from '../../hooks/useHideAmounts';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
+import { typography } from '../../theme';
 
 const GREEN = '#2E8B57';
 
@@ -165,14 +166,14 @@ const WithdrawScreen = ({ navigation }) => {
         <Header title="Retrait d'argent" showBack />
         <View style={styles.center}>
           <Ionicons name="checkmark-circle" size={64} color={GREEN} />
-          <Text style={[styles.title, txt]}>Demande envoyée</Text>
-          <Text style={[styles.centerText, sub]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, txt]}>Demande envoyée</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.centerText, sub]}>
             {formatAr(done.amount)} sont bloqués sur votre wallet. L’administrateur va accepter puis payer votre
             demande ; vous serez notifié et le reçu PDF sera disponible dans « Mes gains &gt; Retraits ».
           </Text>
-          <Text style={[styles.centerText, sub]}>Référence : {done.reference}</Text>
-          {done.created_at ? <Text style={[styles.centerText, sub]}>Demandé le {formatDateTime(done.created_at)} (heure de Madagascar)</Text> : null}
-          <Text style={[styles.title, txt]}>Nouveau solde disponible : {formatAr(available)}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.centerText, sub]}>Référence : {done.reference}</Text>
+          {done.created_at ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.centerText, sub]}>Demandé le {formatDateTime(done.created_at)} (heure de Madagascar)</Text> : null}
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, txt]}>Nouveau solde disponible : {formatAr(available)}</Text>
           <TouchableOpacity
             style={styles.primary}
             onPress={() => {
@@ -183,7 +184,7 @@ const WithdrawScreen = ({ navigation }) => {
               }
             }}
           >
-            <Text style={styles.primaryText}>Voir mes retraits</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryText]}>Voir mes retraits</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -204,18 +205,18 @@ const WithdrawScreen = ({ navigation }) => {
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           <View style={styles.balance}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text style={styles.balanceLabel}>Solde disponible</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.balanceLabel]}>Solde disponible</Text>
               <HideAmountsToggle color="#FFFFFF" />
             </View>
-            <Text style={styles.balanceValue}>{show(formatAr(available))}</Text>
-            <Text style={styles.balanceHint}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.balanceValue]}>{show(formatAr(available))}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.balanceHint]}>
               Minimum {formatAr(minWithdrawal)}
               {feePercent > 0 ? ` · frais ${feePercent} %` : ''}
             </Text>
             {value > 0 ? (
               <View style={styles.afterRow}>
-                <Text style={styles.balanceHint}>Solde après cette demande</Text>
-                <Text style={[styles.afterValue, value > available && { color: '#FECACA' }]}>{show(formatAr(available - value))}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.balanceHint]}>Solde après cette demande</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.afterValue, value > available && { color: '#FECACA' }]}>{show(formatAr(available - value))}</Text>
               </View>
             ) : null}
           </View>
@@ -237,19 +238,19 @@ const WithdrawScreen = ({ navigation }) => {
               style={{ marginBottom: 4 }}
             />
             <TouchableOpacity onPress={() => setAmount(maskAmount(String(Math.floor(available))))}>
-              <Text style={[styles.link, { color: GREEN }]}>Tout retirer</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.link, { color: GREEN }]}>Tout retirer</Text>
             </TouchableOpacity>
             {value > 0 && feePercent > 0 ? (
-              <Text style={[styles.hint, sub]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, sub]}>
                 Frais : {formatAr(fee)} · Vous recevrez : {formatAr(net)}
               </Text>
             ) : null}
           </View>
 
           <View style={[styles.card, box]}>
-            <Text style={[styles.label, sub]}>Mode de retrait</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, sub]}>Mode de retrait</Text>
             {allowed.length === 0 ? (
-              <Text style={[styles.hint, sub]}>Les retraits sont momentanément désactivés par l’administrateur.</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, sub]}>Les retraits sont momentanément désactivés par l’administrateur.</Text>
             ) : null}
             {allowed.map((m) => (
               <TouchableOpacity
@@ -259,7 +260,7 @@ const WithdrawScreen = ({ navigation }) => {
                 activeOpacity={0.85}
               >
                 <Ionicons name={m.icon} size={20} color={method === m.id ? GREEN : theme.textSecondary} />
-                <Text style={[styles.modeText, { color: method === m.id ? GREEN : theme.text }]}>{m.label}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modeText, { color: method === m.id ? GREEN : theme.text }]}>{m.label}</Text>
                 {method === m.id ? <Ionicons name="checkmark-circle" size={18} color={GREEN} /> : null}
               </TouchableOpacity>
             ))}
@@ -273,7 +274,7 @@ const WithdrawScreen = ({ navigation }) => {
                       style={[styles.prov, provider === p.id && { backgroundColor: GREEN, borderColor: GREEN }]}
                       onPress={() => setProvider(p.id)}
                     >
-                      <Text style={{ color: provider === p.id ? '#fff' : theme.text, fontSize: 13 }}>{p.label}</Text>
+                      <Text style={{ fontFamily: typography.fontFamily.regular, color: provider === p.id ? '#fff' : theme.text, fontSize: 13 }}>{p.label}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -341,20 +342,20 @@ const WithdrawScreen = ({ navigation }) => {
             ) : null}
 
             {method === 'cash' ? (
-              <Text style={[styles.hint, sub]}>L’administrateur vous remettra l’argent en main propre.</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, sub]}>L’administrateur vous remettra l’argent en main propre.</Text>
             ) : null}
           </View>
 
           <View style={styles.notice}>
             <Ionicons name="information-circle-outline" size={18} color={GREEN} />
-            <Text style={[styles.noticeText, sub]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noticeText, sub]}>
               Le montant est bloqué dès l’envoi de la demande. S’il est refusé ou annulé, il revient sur votre solde.
             </Text>
           </View>
 
           {/* Résumé SOUS le formulaire : rouge s'il reste des erreurs, vert si tout est valide */}
           <FormSummary errors={fieldErrors} show={submitted} successText="Formulaire valide : la demande peut être envoyée." />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {error ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.error]}>{error}</Text> : null}
 
           <TouchableOpacity
             style={[styles.primary, (submitting || allowed.length === 0) && { opacity: 0.6 }]}
@@ -362,7 +363,7 @@ const WithdrawScreen = ({ navigation }) => {
             disabled={submitting || allowed.length === 0}
             activeOpacity={0.85}
           >
-            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryText}>Envoyer la demande à l’admin</Text>}
+            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryText]}>Envoyer la demande à l’admin</Text>}
           </TouchableOpacity>
         </ScrollView>
       )}
@@ -373,29 +374,29 @@ const WithdrawScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 10 },
-  centerText: { fontSize: 14, textAlign: 'center', lineHeight: 20, fontWeight: '400' },
-  title: { fontSize: 20, fontWeight: '400' },
+  centerText: { fontFamily: typography.fontFamily.regular, fontSize: 14, textAlign: 'center', lineHeight: 20, fontWeight: '400' },
+  title: { fontFamily: typography.fontFamily.regular, fontSize: 20, fontWeight: '400' },
   scroll: { padding: 16, paddingBottom: 40, gap: 14, width: '100%', maxWidth: 1100, alignSelf: 'center' },
   afterRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.4)' },
-  afterValue: { color: '#fff', fontSize: 18, fontWeight: '400' },
+  afterValue: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 18, fontWeight: '400' },
   balance: { backgroundColor: GREEN, borderRadius: 18, padding: 18 },
-  balanceLabel: { color: '#CFE5D8', fontSize: 13, fontWeight: '400' },
-  balanceValue: { color: '#fff', fontSize: 30, marginTop: 4, fontWeight: '400' },
-  balanceHint: { color: '#CFE5D8', fontSize: 12, marginTop: 4, fontWeight: '400' },
+  balanceLabel: { fontFamily: typography.fontFamily.regular, color: '#CFE5D8', fontSize: 13, fontWeight: '400' },
+  balanceValue: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 30, marginTop: 4, fontWeight: '400' },
+  balanceHint: { fontFamily: typography.fontFamily.regular, color: '#CFE5D8', fontSize: 12, marginTop: 4, fontWeight: '400' },
   card: { borderWidth: 1, borderRadius: 16, padding: 14 },
-  label: { fontSize: 12, marginTop: 10, marginBottom: 6, fontWeight: '400' },
-  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, fontWeight: '400' },
-  link: { fontSize: 13, marginTop: 8, fontWeight: '400' },
-  hint: { fontSize: 12, marginTop: 8, lineHeight: 17, fontWeight: '400' },
+  label: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginTop: 10, marginBottom: 6, fontWeight: '400' },
+  input: { fontFamily: typography.fontFamily.regular, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, fontWeight: '400' },
+  link: { fontFamily: typography.fontFamily.regular, fontSize: 13, marginTop: 8, fontWeight: '400' },
+  hint: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginTop: 8, lineHeight: 17, fontWeight: '400' },
   mode: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 8 },
-  modeText: { flex: 1, fontSize: 14, fontWeight: '400' },
+  modeText: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 14, fontWeight: '400' },
   provRow: { flexDirection: 'row', gap: 8, marginTop: 12, flexWrap: 'wrap' },
   prov: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: '#CCC' },
   notice: { flexDirection: 'row', gap: 8, alignItems: 'flex-start', paddingHorizontal: 4 },
-  noticeText: { flex: 1, fontSize: 12, lineHeight: 17, fontWeight: '400' },
-  error: { color: '#B91C1C', fontSize: 13, fontWeight: '400' },
+  noticeText: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 12, lineHeight: 17, fontWeight: '400' },
+  error: { fontFamily: typography.fontFamily.regular, color: '#B91C1C', fontSize: 13, fontWeight: '400' },
   primary: { backgroundColor: GREEN, borderRadius: 14, paddingVertical: 14, alignItems: 'center', justifyContent: 'center', minWidth: 200, paddingHorizontal: 18 },
-  primaryText: { color: '#fff', fontSize: 15, fontWeight: '400' },
+  primaryText: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 15, fontWeight: '400' },
   ghost: { alignItems: 'center', paddingVertical: 12 },
 });
 

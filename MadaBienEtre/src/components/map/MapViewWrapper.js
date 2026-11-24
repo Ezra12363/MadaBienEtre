@@ -25,6 +25,7 @@ import {
   MAP_TYPES,
 } from '../../config/googleMaps';
 import { getRouteArrowPoints, haversineDistance } from '../../services/routing';
+import { typography } from '../../theme';
 
 let RNMapView = null;
 let RNMarker = null;
@@ -281,7 +282,7 @@ const MapTypeToggle = ({ mapType, onToggle, style }) => {
       accessibilityLabel="Basculer mode satellite"
     >
       <Ionicons name={isSatellite ? 'map-outline' : 'globe-outline'} size={18} color="#333" />
-      <Text style={styles.mapTypeButtonText}>{isSatellite ? 'Plan' : 'Satellite'}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mapTypeButtonText]}>{isSatellite ? 'Plan' : 'Satellite'}</Text>
     </TouchableOpacity>
   );
 };
@@ -297,10 +298,10 @@ const ScrollableMarkerList = ({ markers = [], onMarkerPress }) => {
           <TouchableOpacity key={m.id} style={styles.embedMarkerItem} onPress={() => onMarkerPress && onMarkerPress(m)} activeOpacity={0.7}>
             <View style={[styles.embedMarkerDot, { backgroundColor: color }]} />
             <View style={styles.embedMarkerInfo}>
-              <Text style={styles.embedMarkerName} numberOfLines={1}>{m.title || 'Thérapeute'}</Text>
-              {m.description ? <Text style={styles.embedMarkerDesc} numberOfLines={1}>{m.description}</Text> : null}
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.embedMarkerName]} numberOfLines={1}>{m.title || 'Thérapeute'}</Text>
+              {m.description ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.embedMarkerDesc]} numberOfLines={1}>{m.description}</Text> : null}
             </View>
-            {m.distance != null && <Text style={styles.embedMarkerDistance}>{m.distance.toFixed(1)} km</Text>}
+            {m.distance != null && <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.embedMarkerDistance]}>{m.distance.toFixed(1)} km</Text>}
           </TouchableOpacity>
         );
       })}
@@ -985,7 +986,7 @@ const MapViewWrapper = forwardRef(({
           'margin-top:-6px',
           'padding:4px 8px',
           'border-radius:10px',
-          'font:600 11px/1.3 system-ui,-apple-system,Segoe UI,Roboto,sans-serif',
+          "font:600 11px/1.3 'Times New Roman',Times,Tinos,serif",
           'white-space:nowrap',
           'cursor:pointer',
           'text-align:center',
@@ -1271,17 +1272,17 @@ const MapViewWrapper = forwardRef(({
             {hasSelectionMarker && (
               <View style={styles.embedSelectionBanner}>
                 <Ionicons name="location" size={16} color="#F59E0B" />
-                <Text style={styles.embedSelectionBannerText} numberOfLines={2}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.embedSelectionBannerText]} numberOfLines={2}>
                   📍 Position sélectionnée : {selectionMarker.latitude.toFixed(5)}, {selectionMarker.longitude.toFixed(5)}
                 </Text>
               </View>
             )}
             <View style={styles.embedErrorBanner}>
               <Ionicons name="warning-outline" size={16} color="#B45309" />
-              <Text style={styles.embedErrorBannerText} numberOfLines={2}>{webErrorMessage}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.embedErrorBannerText]} numberOfLines={2}>{webErrorMessage}</Text>
               <TouchableOpacity onPress={retryWebMap} style={styles.retryButton}>
                 <Ionicons name="refresh" size={14} color="#fff" />
-                <Text style={styles.retryButtonText}>Réessayer</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.retryButtonText]}>Réessayer</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1290,7 +1291,7 @@ const MapViewWrapper = forwardRef(({
         {isLoading && !mapError && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color="#4CAF50" />
-            <Text style={styles.loadingText}>Chargement de la carte...</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText]}>Chargement de la carte...</Text>
           </View>
         )}
 
@@ -1301,7 +1302,7 @@ const MapViewWrapper = forwardRef(({
         {!mapError && !isLoading && hasSelectionMarker && (
           <View style={styles.selectionInfoBanner}>
             <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-            <Text style={styles.selectionInfoText} numberOfLines={1}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.selectionInfoText]} numberOfLines={1}>
               📍 Position: {selectionMarker.latitude.toFixed(5)}, {selectionMarker.longitude.toFixed(5)}
             </Text>
           </View>
@@ -1439,7 +1440,7 @@ const MapViewWrapper = forwardRef(({
                       size={10}
                       color={isSelected ? '#FFFFFF' : '#333333'}
                     />
-                    <Text style={[styles.routeLabelText, isSelected && styles.routeLabelTextSelected]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routeLabelText, isSelected && styles.routeLabelTextSelected]}>
                       {option.drivingDurationText || option.durationText}
                     </Text>
 
@@ -1455,7 +1456,7 @@ const MapViewWrapper = forwardRef(({
                       size={10}
                       color={isSelected ? '#FFFFFF' : '#333333'}
                     />
-                    <Text style={[styles.routeLabelText, isSelected && styles.routeLabelTextSelected]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routeLabelText, isSelected && styles.routeLabelTextSelected]}>
                       {option.walkingDurationText}
                     </Text>
 
@@ -1466,7 +1467,7 @@ const MapViewWrapper = forwardRef(({
                       ]}
                     />
 
-                    <Text style={[styles.routeLabelText, isSelected && styles.routeLabelTextSelected]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routeLabelText, isSelected && styles.routeLabelTextSelected]}>
                       {option.distanceText}
                     </Text>
                   </View>
@@ -1552,7 +1553,7 @@ const MapViewWrapper = forwardRef(({
         {isLoading && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color="#4CAF50" />
-            <Text style={styles.loadingText}>Chargement de la carte...</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText]}>Chargement de la carte...</Text>
           </View>
         )}
 
@@ -1569,8 +1570,8 @@ const MapViewWrapper = forwardRef(({
   return (
     <View style={[styles.fallbackContainer, style]}>
       <Ionicons name="warning-outline" size={40} color="#FF9800" />
-      <Text style={styles.fallbackTitle}>react-native-maps tsy voa-install</Text>
-      <Text style={styles.fallbackText}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.fallbackTitle]}>react-native-maps tsy voa-install</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.fallbackText]}>
         Ataovy `npx expo install react-native-maps` ao anaty projet mba hampiasa ny sarintany.
       </Text>
     </View>
@@ -1663,8 +1664,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
   },
-  routeLabelText: { fontSize: 9, fontWeight: '700', color: '#333333' },
-  routeLabelSub: { fontSize: 9, fontWeight: '500', color: '#555555' },
+  routeLabelText: { fontFamily: typography.fontFamily.bold, fontSize: 9, fontWeight: '700', color: '#333333' },
+  routeLabelSub: { fontFamily: typography.fontFamily.medium, fontSize: 9, fontWeight: '500', color: '#555555' },
   routeLabelTextSelected: { color: '#FFFFFF' },
   routeLabelDivider: {
     width: 1,
@@ -1685,7 +1686,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', 
     backgroundColor: 'rgba(255,255,255,0.85)' 
   },
-  loadingText: { marginTop: 12, fontSize: 14, color: '#666' },
+  loadingText: { fontFamily: typography.fontFamily.regular, marginTop: 12, fontSize: 14, color: '#666' },
   mapTypeButton: { 
     flexDirection: 'row', 
     alignItems: 'center', 
@@ -1700,7 +1701,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4, 
     elevation: 3 
   },
-  mapTypeButtonText: { fontSize: 12, fontWeight: '600', color: '#333' },
+  mapTypeButtonText: { fontFamily: typography.fontFamily.semiBold, fontSize: 12, fontWeight: '600', color: '#333' },
   mapTypeButtonWeb: { position: 'absolute', top: 10, left: 10 },
   mapTypeButtonNative: { position: 'absolute', top: 10, left: 10 },
   
@@ -1715,9 +1716,9 @@ const styles = StyleSheet.create({
   },
   embedMarkerDot: { width: 10, height: 10, borderRadius: 5 },
   embedMarkerInfo: { flex: 1 },
-  embedMarkerName: { fontSize: 12, fontWeight: '600', color: '#333' },
-  embedMarkerDesc: { fontSize: 10, color: '#777' },
-  embedMarkerDistance: { fontSize: 11, fontWeight: '600', color: '#4CAF50' },
+  embedMarkerName: { fontFamily: typography.fontFamily.semiBold, fontSize: 12, fontWeight: '600', color: '#333' },
+  embedMarkerDesc: { fontFamily: typography.fontFamily.regular, fontSize: 10, color: '#777' },
+  embedMarkerDistance: { fontFamily: typography.fontFamily.semiBold, fontSize: 11, fontWeight: '600', color: '#4CAF50' },
   
   embedSelectionBanner: { 
     position: 'absolute', 
@@ -1733,7 +1734,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, 
     borderColor: '#FDE68A' 
   },
-  embedSelectionBannerText: { flex: 1, fontSize: 11, color: '#92400E' },
+  embedSelectionBannerText: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 11, color: '#92400E' },
   
   embedErrorBanner: { 
     position: 'absolute', 
@@ -1752,7 +1753,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4, 
     elevation: 3 
   },
-  embedErrorBannerText: { flex: 1, fontSize: 11, color: '#92400E' },
+  embedErrorBannerText: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 11, color: '#92400E' },
   
   retryButton: { 
     flexDirection: 'row', 
@@ -1763,7 +1764,7 @@ const styles = StyleSheet.create({
     borderRadius: 8, 
     gap: 4 
   },
-  retryButtonText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  retryButtonText: { fontFamily: typography.fontFamily.semiBold, color: '#fff', fontSize: 11, fontWeight: '600' },
   
   selectionInfoBanner: {
     position: 'absolute',
@@ -1786,7 +1787,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     color: '#333',
-    fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier',
+    fontFamily: typography.fontFamily.regular,
   },
   
   fallbackContainer: { 
@@ -1798,8 +1799,8 @@ const styles = StyleSheet.create({
     borderRadius: 12, 
     minHeight: 250 
   },
-  fallbackTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginTop: 8, textAlign: 'center' },
-  fallbackText: { fontSize: 13, color: '#666', marginTop: 6, textAlign: 'center' },
+  fallbackTitle: { fontFamily: typography.fontFamily.bold, fontSize: 16, fontWeight: 'bold', color: '#333', marginTop: 8, textAlign: 'center' },
+  fallbackText: { fontFamily: typography.fontFamily.regular, fontSize: 13, color: '#666', marginTop: 6, textAlign: 'center' },
 });
 
 export default MapViewWrapper;

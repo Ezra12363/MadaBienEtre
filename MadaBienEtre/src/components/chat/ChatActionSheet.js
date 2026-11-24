@@ -53,12 +53,12 @@ const ChatActionSheet = ({ visible, title, subtitle, actions = [], onClose, pale
           {(!!title || !!subtitle) && (
             <View style={styles.head}>
               {!!title && (
-                <Text style={[styles.title, { color: palette.text }]} numberOfLines={1}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: palette.text }]} numberOfLines={1}>
                   {title}
                 </Text>
               )}
               {!!subtitle && (
-                <Text style={[styles.subtitle, { color: palette.textSecondary }]} numberOfLines={2}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.subtitle, { color: palette.textSecondary }]} numberOfLines={2}>
                   {subtitle}
                 </Text>
               )}
@@ -92,7 +92,7 @@ const ChatActionSheet = ({ visible, title, subtitle, actions = [], onClose, pale
                     color={action.destructive ? palette.danger : palette.primary}
                   />
                 </View>
-                <Text style={[styles.actionText, { color }]}>{action.label}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionText, { color }]}>{action.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -104,7 +104,7 @@ const ChatActionSheet = ({ visible, title, subtitle, actions = [], onClose, pale
             accessibilityRole="button"
             accessibilityLabel="Annuler"
           >
-            <Text style={[styles.cancelText, { color: palette.textSecondary }]}>Annuler</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cancelText, { color: palette.textSecondary }]}>Annuler</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   actionText: { flex: 1, fontSize: 15, fontFamily: typography.fontFamily.medium, fontWeight: '600' },
 
   cancel: { justifyContent: 'center' },
-  cancelText: { flex: 1, textAlign: 'center', fontSize: 15, fontFamily: typography.fontFamily.medium },
+  cancelText: { flex: 1, textAlign: 'center', fontSize: 15, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
 });
 
 export default ChatActionSheet;

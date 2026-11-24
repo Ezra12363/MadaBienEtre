@@ -8,6 +8,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { formatSize } from '../../utils/messengerUtils';
+import { typography } from '../../theme';
 
 const AttachmentPreviewModal = ({ file, palette, sending, onCancel, onSend }) => {
   const [caption, setCaption] = useState('');
@@ -20,7 +21,7 @@ const AttachmentPreviewModal = ({ file, palette, sending, onCancel, onSend }) =>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.backdrop}>
         <View style={[styles.card, { backgroundColor: palette.surface }]}>
           <View style={styles.head}>
-            <Text style={[styles.title, { color: palette.text }]}>Aperçu avant envoi</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: palette.text }]}>Aperçu avant envoi</Text>
             <TouchableOpacity onPress={onCancel} accessibilityLabel="Annuler"><Ionicons name="close" size={24} color={palette.text} /></TouchableOpacity>
           </View>
 
@@ -29,23 +30,23 @@ const AttachmentPreviewModal = ({ file, palette, sending, onCancel, onSend }) =>
           ) : (
             <View style={[styles.doc, { backgroundColor: palette.primarySoft }]}>
               <Ionicons name="document-text" size={48} color={palette.primary} />
-              <Text style={{ color: palette.text, fontWeight: '600', marginTop: 8 }} numberOfLines={2}>{file.name}</Text>
-              <Text style={{ color: palette.textSecondary, fontSize: 12 }}>{formatSize(file.size)}</Text>
+              <Text style={{ fontFamily: typography.fontFamily.semiBold, color: palette.text, fontWeight: '600', marginTop: 8 }} numberOfLines={2}>{file.name}</Text>
+              <Text style={{ fontFamily: typography.fontFamily.regular, color: palette.textSecondary, fontSize: 12 }}>{formatSize(file.size)}</Text>
             </View>
           )}
 
           <TextInput
             value={caption} onChangeText={setCaption} placeholder="Ajouter une légende…" maxLength={1000}
             placeholderTextColor={palette.placeholder}
-            style={[styles.input, { backgroundColor: palette.inputBg, borderColor: palette.inputBorder, color: palette.inputText }]}
+            style={[{ fontFamily: typography.fontFamily.regular }, styles.input, { backgroundColor: palette.inputBg, borderColor: palette.inputBorder, color: palette.inputText }]}
           />
 
           <View style={styles.actions}>
             <TouchableOpacity onPress={onCancel} style={[styles.btn, { borderColor: palette.border, borderWidth: 1 }]}>
-              <Text style={{ color: palette.text }}>Annuler</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.text }]}>Annuler</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => onSend(caption.trim())} disabled={sending} style={[styles.btn, { backgroundColor: palette.primary }]}>
-              {sending ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Envoyer</Text>}
+              {sending ? <ActivityIndicator color="#fff" /> : <Text style={{ fontFamily: typography.fontFamily.bold, color: '#fff', fontWeight: '700' }}>Envoyer</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -58,7 +59,7 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', padding: 16 },
   card: { borderRadius: 16, padding: 16, maxWidth: 520, width: '100%', alignSelf: 'center' },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  title: { fontSize: 16, fontWeight: '700' },
+  title: { fontFamily: typography.fontFamily.bold, fontSize: 16, fontWeight: '700' },
   image: { width: '100%', height: 300, borderRadius: 10, backgroundColor: '#000' },
   doc: { alignItems: 'center', padding: 24, borderRadius: 12 },
   input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, height: 44, marginTop: 12 },

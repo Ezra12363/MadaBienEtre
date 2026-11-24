@@ -302,7 +302,7 @@ const Header = ({
           <View style={styles.brandText}>
             <Text
               numberOfLines={1}
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.title,
                 {
                   color: HEADER_COLORS.titleColor,
@@ -315,7 +315,7 @@ const Header = ({
             {subtitle ? (
               <Text
                 numberOfLines={1}
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.subtitle,
                   {
                     color: HEADER_COLORS.subtitleColor,

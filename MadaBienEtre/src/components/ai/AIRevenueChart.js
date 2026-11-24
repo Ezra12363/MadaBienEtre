@@ -50,7 +50,7 @@ const AIRevenueChart = ({ data }) => {
           <View style={styles.chart}>
             {bars.map((b, i) => (
               <View key={`${b.label}-${i}`} style={styles.barCol}>
-                <Text style={[styles.barValue, { color: tc.textSecondary }]}>{compact(b.value)}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.barValue, { color: tc.textSecondary }]}>{compact(b.value)}</Text>
                 <View style={styles.barArea}>
                   <View
                     style={[
@@ -63,7 +63,7 @@ const AIRevenueChart = ({ data }) => {
                     ]}
                   />
                 </View>
-                <Text style={[styles.barLabel, { color: tc.textSecondary }]} numberOfLines={1}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.barLabel, { color: tc.textSecondary }]} numberOfLines={1}>
                   {b.label}
                 </Text>
               </View>
@@ -72,9 +72,9 @@ const AIRevenueChart = ({ data }) => {
 
           <View style={styles.legend}>
             <View style={[styles.dot, { backgroundColor: colors.primary }]} />
-            <Text style={[styles.legendText, { color: tc.textSecondary }]}>Réel</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.legendText, { color: tc.textSecondary }]}>Réel</Text>
             <View style={[styles.dot, { backgroundColor: colors.accent, marginLeft: spacing.md }]} />
-            <Text style={[styles.legendText, { color: tc.textSecondary }]}>Prévision</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.legendText, { color: tc.textSecondary }]}>Prévision</Text>
           </View>
 
           <AIStatRow label="Prévision mois prochain" value={formatAr(data?.predicted_next_month)} bold color={colors.primary} />
@@ -91,11 +91,11 @@ const styles = StyleSheet.create({
   barCol: { flex: 1, alignItems: 'center' },
   barArea: { height: CHART_HEIGHT, justifyContent: 'flex-end', width: '100%', alignItems: 'center' },
   bar: { width: '70%', maxWidth: 38, borderTopLeftRadius: 6, borderTopRightRadius: 6 },
-  barValue: { fontSize: 10, marginBottom: 3 },
-  barLabel: { fontSize: 10, marginTop: 4 },
+  barValue: { fontFamily: typography.fontFamily.regular, fontSize: 10, marginBottom: 3 },
+  barLabel: { fontFamily: typography.fontFamily.regular, fontSize: 10, marginTop: 4 },
   legend: { flexDirection: 'row', alignItems: 'center', marginVertical: spacing.sm },
   dot: { width: 10, height: 10, borderRadius: 5, marginRight: 4 },
-  legendText: { fontSize: typography.fontSize.xs },
+  legendText: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs },
 });
 
 export default AIRevenueChart;

@@ -38,6 +38,7 @@ import { useHideAmounts } from '../../hooks/useHideAmounts';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import { colors } from '../../theme';
+import { typography } from '../../theme';
 
 const PRIMARY = colors.primary || '#2E8B57';
 
@@ -343,7 +344,7 @@ const EarningsScreen = ({ navigation, route }) => {
       style={[styles.tabItem, tab === id && { backgroundColor: PRIMARY }]}
       activeOpacity={0.8}
     >
-      <Text style={[styles.tabItemText, { color: tab === id ? '#fff' : theme.textSecondary, fontWeight: tab === id ? '700' : '500' }]} numberOfLines={1}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tabItemText, { fontFamily: typography.fontFamily.regular, color: tab === id ? '#fff' : theme.textSecondary, fontWeight: tab === id ? '700' : '500' }]} numberOfLines={1}>
         {label}
       </Text>
     </TouchableOpacity>
@@ -379,18 +380,18 @@ const EarningsScreen = ({ navigation, route }) => {
   const balanceNode = (
     <View style={styles.balanceCard}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={styles.balanceLabel}>Solde disponible</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.balanceLabel]}>Solde disponible</Text>
         <HideAmountsToggle color="#FFFFFF" />
       </View>
-      <Text style={styles.balanceValue}>{show(formatAr(w.available))}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.balanceValue]}>{show(formatAr(w.available))}</Text>
       <View style={styles.balRow}>
         <View>
-          <Text style={styles.balSmallLabel}>En attente</Text>
-          <Text style={styles.balSmallValue}>{show(formatAr(w.withdrawals_pending))}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.balSmallLabel]}>En attente</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.balSmallValue]}>{show(formatAr(w.withdrawals_pending))}</Text>
         </View>
         <View>
-          <Text style={styles.balSmallLabel}>Déjà retiré</Text>
-          <Text style={styles.balSmallValue}>{show(formatAr(w.withdrawals_paid))}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.balSmallLabel]}>Déjà retiré</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.balSmallValue]}>{show(formatAr(w.withdrawals_paid))}</Text>
         </View>
       </View>
       <TouchableOpacity
@@ -399,9 +400,9 @@ const EarningsScreen = ({ navigation, route }) => {
         style={[styles.withdrawBtn, !canWithdraw && { opacity: 0.5 }]}
       >
         <Ionicons name="swap-vertical-outline" size={18} color={PRIMARY} />
-        <Text style={styles.withdrawText}>Demander un retrait</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.withdrawText]}>Demander un retrait</Text>
       </TouchableOpacity>
-      {!canWithdraw ? <Text style={styles.balanceHint}>Retrait minimum : {formatAr(w.min_withdrawal)}</Text> : null}
+      {!canWithdraw ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.balanceHint]}>Retrait minimum : {formatAr(w.min_withdrawal)}</Text> : null}
     </View>
   );
 
@@ -409,7 +410,7 @@ const EarningsScreen = ({ navigation, route }) => {
     isOverview && cashPendingCount > 0 ? (
       <TouchableOpacity style={styles.pendingBox} onPress={() => changeTab('gains')} activeOpacity={0.85}>
         <Ionicons name="time-outline" size={20} color="#9A6A12" />
-        <Text style={styles.pendingText}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.pendingText]}>
           {cashPendingCount} paiement{cashPendingCount > 1 ? 's' : ''} en attente{wide ? ' de confirmation' : ''}
         </Text>
         {!wide ? <Ionicons name="chevron-forward" size={18} color="#9A6A12" /> : null}
@@ -420,7 +421,7 @@ const EarningsScreen = ({ navigation, route }) => {
     due > 0 ? (
       <TouchableOpacity style={styles.dueBox} onPress={() => changeTab('commission')} activeOpacity={0.85}>
         <Ionicons name="alert-circle-outline" size={20} color="#9A6A12" />
-        <Text style={styles.dueText}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dueText]}>
           Commission à payer à l’administrateur : {formatAr(due)} (paiements reçus en espèces)
         </Text>
         <Ionicons name="chevron-forward" size={18} color="#9A6A12" />
@@ -431,14 +432,14 @@ const EarningsScreen = ({ navigation, route }) => {
     <View style={[styles.statCard, card]}>
       <View style={styles.statHead}>
         {wide ? <Ionicons name={icon} size={14} color={theme.textSecondary} /> : null}
-        <Text style={[styles.statLabel, { color: theme.textSecondary }]} numberOfLines={1}>{label}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statLabel, { color: theme.textSecondary }]} numberOfLines={1}>{label}</Text>
       </View>
-      <Text style={[styles.statValue, { color: color || theme.text }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statValue, { color: color || theme.text }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
       {wide && sub ? (
         onPressSub ? (
-          <TouchableOpacity onPress={onPressSub}><Text style={[styles.statSub, { color: theme.textSecondary }]}>{sub}</Text></TouchableOpacity>
+          <TouchableOpacity onPress={onPressSub}><Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statSub, { color: theme.textSecondary }]}>{sub}</Text></TouchableOpacity>
         ) : (
-          <Text style={[styles.statSub, { color: theme.textSecondary }]}>{sub}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statSub, { color: theme.textSecondary }]}>{sub}</Text>
         )
       ) : null}
     </View>
@@ -447,7 +448,7 @@ const EarningsScreen = ({ navigation, route }) => {
   const resumeNode = (
     <View style={{ gap: 10 }}>
       <View style={styles.resumeHead}>
-        <Text style={[styles.resumeTitle, txt]}>Résumé</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.resumeTitle, txt]}>Résumé</Text>
         <View style={styles.periodRow}>
           {[
             ['7d', '7 j'],
@@ -460,7 +461,7 @@ const EarningsScreen = ({ navigation, route }) => {
               activeOpacity={0.8}
               style={[styles.periodChip, { borderColor: period === id ? PRIMARY : theme.border || '#E5E7EB' }, period === id && { backgroundColor: PRIMARY + '14' }]}
             >
-              <Text style={[styles.periodText, { color: period === id ? PRIMARY : theme.text }]}>{label}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.periodText, { color: period === id ? PRIMARY : theme.text }]}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -502,13 +503,13 @@ const EarningsScreen = ({ navigation, route }) => {
         {error ? (
           <TouchableOpacity style={styles.errorBox} onPress={() => setError(null)}>
             <Ionicons name="alert-circle-outline" size={18} color="#B91C1C" />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}>{error}</Text>
           </TouchableOpacity>
         ) : null}
         {notice ? (
           <TouchableOpacity style={styles.noticeBox} onPress={() => setNotice(null)}>
             <Ionicons name="checkmark-circle-outline" size={18} color="#047857" />
-            <Text style={styles.noticeText}>{notice}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noticeText]}>{notice}</Text>
           </TouchableOpacity>
         ) : null}
 
@@ -538,14 +539,14 @@ const EarningsScreen = ({ navigation, route }) => {
           <>
             <View style={[styles.card, card]}>
               <View style={styles.cardHead}>
-                <Text style={[styles.cardTitle, txt]}>Évolution de vos gains</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, txt]}>Évolution de vos gains</Text>
                 <View style={styles.switch}>
                   {[
                     ['day', '30 j'],
                     ['month', '12 mois'],
                   ].map(([id, label]) => (
                     <TouchableOpacity key={id} onPress={() => setRange(id)} style={[styles.switchBtn, range === id && { backgroundColor: PRIMARY }]}>
-                      <Text style={[styles.switchText, { color: range === id ? '#fff' : theme.textSecondary }]}>{label}</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.switchText, { color: range === id ? '#fff' : theme.textSecondary }]}>{label}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -562,13 +563,13 @@ const EarningsScreen = ({ navigation, route }) => {
 
             <View style={wide ? styles.rowCards : { gap: 14 }}>
               <View style={[styles.card, card, wide && { flex: 1 }]}>
-                <Text style={[styles.cardTitle, txt]}>Par mode de paiement</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, txt]}>Par mode de paiement</Text>
                 <View style={{ height: 10 }} />
                 <HBars items={methodItems} textColor={theme.textSecondary} trackColor={theme.border} percent thick />
               </View>
 
               <View style={[styles.card, card, wide && { flex: 1 }]}>
-                <Text style={[styles.cardTitle, txt]}>Où va chaque paiement</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, txt]}>Où va chaque paiement</Text>
                 <View style={{ height: 10 }} />
                 <StackedShare
                   textColor={theme.textSecondary}
@@ -581,7 +582,7 @@ const EarningsScreen = ({ navigation, route }) => {
             </View>
 
             {(Number(w.available) || 0) > (Number(s.net_total) || 0) ? (
-              <Text style={[styles.footNote, sub]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.footNote, sub]}>
                 Le solde ({formatAr(w.available)}) inclut aussi les bonus et dépôts, donc il peut dépasser les gains nets.
               </Text>
             ) : null}
@@ -593,22 +594,22 @@ const EarningsScreen = ({ navigation, route }) => {
           <>
             {(w.cash_pending || []).length > 0 ? (
               <View style={[styles.card, card]}>
-                <Text style={[styles.cardTitle, txt]}>Espèces à confirmer</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, txt]}>Espèces à confirmer</Text>
                 {(w.cash_pending || []).map((p) => (
                   <View key={p.payment_id} style={styles.listRow}>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.rowTitle, txt]}>Réservation #{p.booking_id}</Text>
-                      <Text style={[styles.rowSub, sub]}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowTitle, txt]}>Réservation #{p.booking_id}</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>
                         {formatAr(p.amount)} · {formatShort(p.created_at)}
                       </Text>
                       {p.client_sent_at ? (
-                        <Text style={[styles.rowSub, { color: '#B45309' }]}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, { color: '#B45309' }]}>
                           Le client dit avoir payé le {formatDateTime(p.client_sent_at)}
                         </Text>
                       ) : null}
                     </View>
                     <TouchableOpacity style={styles.smallBtn} disabled={busyId === p.payment_id} onPress={() => confirmCash(p.payment_id)}>
-                      {busyId === p.payment_id ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.smallBtnText}>Reçu</Text>}
+                      {busyId === p.payment_id ? <ActivityIndicator color="#fff" size="small" /> : <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.smallBtnText]}>Reçu</Text>}
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -624,18 +625,18 @@ const EarningsScreen = ({ navigation, route }) => {
               theme={theme}
             />
             <View style={[styles.card, card]}>
-              <Text style={[styles.cardTitle, txt]}>Historique</Text>
-              {txs.length === 0 ? <Text style={[styles.empty, sub]}>Aucune opération pour ces critères.</Text> : null}
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, txt]}>Historique</Text>
+              {txs.length === 0 ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.empty, sub]}>Aucune opération pour ces critères.</Text> : null}
               {txs.map((t) => {
                 const m = TX_META[t.type] || TX_META.payment;
                 return (
                   <View key={t.id} style={styles.listRow}>
                     <Ionicons name={m.icon} size={22} color={m.color} />
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.rowTitle, txt]} numberOfLines={2}>{t.description || t.type}</Text>
-                      <Text style={[styles.rowSub, sub]}>{formatDateTime(t.created_at)}</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowTitle, txt]} numberOfLines={2}>{t.description || t.type}</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>{formatDateTime(t.created_at)}</Text>
                     </View>
-                    <Text style={[styles.rowAmount, { color: m.color }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowAmount, { color: m.color }]}>
                       {m.sign}
                       {formatAr(t.amount)}
                     </Text>
@@ -660,44 +661,44 @@ const EarningsScreen = ({ navigation, route }) => {
             theme={theme}
           />
           <View style={[styles.card, card]}>
-            <Text style={[styles.cardTitle, txt]}>Mes demandes de retrait</Text>
-            {wds.length === 0 ? <Text style={[styles.empty, sub]}>Aucune demande de retrait pour ces critères.</Text> : null}
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, txt]}>Mes demandes de retrait</Text>
+            {wds.length === 0 ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.empty, sub]}>Aucune demande de retrait pour ces critères.</Text> : null}
             <View style={styles.grid}>
             {wds.map((r) => {
               const st = WITHDRAWAL_STATUS[r.status] || WITHDRAWAL_STATUS.pending;
               return (
                 <View key={r.id} style={[styles.wRow, { width: cellW }]}>
                   <View style={styles.wTop}>
-                    <Text style={[styles.rowTitle, txt]}>{formatAr(r.amount)}</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowTitle, txt]}>{formatAr(r.amount)}</Text>
                     <View style={[styles.pill, { backgroundColor: st.bg }]}>
-                      <Text style={[styles.pillText, { color: st.color }]}>{st.label}</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.pillText, { color: st.color }]}>{st.label}</Text>
                     </View>
                   </View>
-                  <Text style={[styles.rowSub, sub]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>
                     {r.method === 'mobile_money' ? `Mobile Money ${r.phone_number || ''}` : r.method === 'bank_transfer' ? `Banque ${r.bank_name || ''}` : 'Espèces'}
                   </Text>
-                  <Text style={[styles.rowSub, sub]}>Demandé le {formatDateTime(r.created_at)}</Text>
-                  {r.processed_at ? <Text style={[styles.rowSub, sub]}>Accepté le {formatDateTime(r.processed_at)}</Text> : null}
-                  {r.completed_at && r.status === 'completed' ? <Text style={[styles.rowSub, sub]}>Payé le {formatDateTime(r.completed_at)}</Text> : null}
-                  {r.fee > 0 ? <Text style={[styles.rowSub, sub]}>Frais : {formatAr(r.fee)} · Net versé : {formatAr(r.net_amount)}</Text> : null}
-                  {r.reference ? <Text style={[styles.rowSub, sub]}>Réf. {r.reference}</Text> : null}
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>Demandé le {formatDateTime(r.created_at)}</Text>
+                  {r.processed_at ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>Accepté le {formatDateTime(r.processed_at)}</Text> : null}
+                  {r.completed_at && r.status === 'completed' ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>Payé le {formatDateTime(r.completed_at)}</Text> : null}
+                  {r.fee > 0 ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>Frais : {formatAr(r.fee)} · Net versé : {formatAr(r.net_amount)}</Text> : null}
+                  {r.reference ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>Réf. {r.reference}</Text> : null}
                   <View style={styles.actions}>
                     {r.status === 'pending' ? (
                       <TouchableOpacity style={styles.outlineBtn} disabled={busyId === `w${r.id}`} onPress={() => cancelWithdrawal(r.id)}>
-                        <Text style={styles.outlineText}>Annuler la demande</Text>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.outlineText]}>Annuler la demande</Text>
                       </TouchableOpacity>
                     ) : null}
                     {r.receipt_available ? (
                       <>
                         <TouchableOpacity style={styles.smallBtn} onPress={() => navigation.navigate('Receipt', { kind: 'withdrawal', id: r.id })}>
                           <Ionicons name="receipt-outline" size={15} color="#fff" />
-                          <Text style={styles.smallBtnText}>Voir le reçu</Text>
+                          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.smallBtnText]}>Voir le reçu</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.outlineBtnGreen} disabled={busyId === `rwd${r.id}`} onPress={() => downloadReceipt('wd', r.id)}>
                           {busyId === `rwd${r.id}` ? <ActivityIndicator color={PRIMARY} size="small" /> : (
                             <>
                               <Ionicons name="download-outline" size={15} color={PRIMARY} />
-                              <Text style={styles.outlineGreenText}>PDF</Text>
+                              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.outlineGreenText]}>PDF</Text>
                             </>
                           )}
                         </TouchableOpacity>
@@ -716,8 +717,8 @@ const EarningsScreen = ({ navigation, route }) => {
         {tab === 'commission' ? (
           <>
             <View style={[styles.card, card]}>
-              <Text style={[styles.cardTitle, txt]}>Frais de commission</Text>
-              <Text style={[styles.rowSub, sub, { marginTop: 6 }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, txt]}>Frais de commission</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub, { marginTop: 6 }]}>
                 Quand un client vous paie en espèces, vous gardez l’argent mais la commission de la plateforme reste due.
               </Text>
               <View style={styles.tiles}>
@@ -735,7 +736,7 @@ const EarningsScreen = ({ navigation, route }) => {
                 }}
               >
                 <Ionicons name="card-outline" size={18} color="#fff" />
-                <Text style={styles.primaryBtnText}>Payer ma commission</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryBtnText]}>Payer ma commission</Text>
               </TouchableOpacity>
             </View>
             <FilterBar
@@ -749,36 +750,36 @@ const EarningsScreen = ({ navigation, route }) => {
               theme={theme}
             />
             <View style={[styles.card, card]}>
-              <Text style={[styles.cardTitle, txt]}>Mes paiements de commission</Text>
-              {cms.length === 0 ? <Text style={[styles.empty, sub]}>Aucun paiement de commission pour ces critères.</Text> : null}
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, txt]}>Mes paiements de commission</Text>
+              {cms.length === 0 ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.empty, sub]}>Aucun paiement de commission pour ces critères.</Text> : null}
               <View style={styles.grid}>
               {cms.map((c) => {
                 const st = COMMISSION_STATUS[c.status] || COMMISSION_STATUS.pending;
                 return (
                   <View key={c.id} style={[styles.wRow, { width: cellW }]}>
                     <View style={styles.wTop}>
-                      <Text style={[styles.rowTitle, txt]}>{formatAr(c.amount)}</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowTitle, txt]}>{formatAr(c.amount)}</Text>
                       <View style={[styles.pill, { backgroundColor: st.bg }]}>
-                        <Text style={[styles.pillText, { color: st.color }]}>{st.label}</Text>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.pillText, { color: st.color }]}>{st.label}</Text>
                       </View>
                     </View>
-                    <Text style={[styles.rowSub, sub]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>
                       {c.method === 'wallet' ? 'Depuis le wallet' : c.method === 'mobile_money' ? 'Mobile Money' : c.method === 'bank_transfer' ? 'Virement' : 'Espèces'}
                     </Text>
-                    <Text style={[styles.rowSub, sub]}>Soumis le {formatDateTime(c.created_at)}</Text>
-                    {c.completed_at && c.status === 'completed' ? <Text style={[styles.rowSub, sub]}>Validé le {formatDateTime(c.completed_at)}</Text> : null}
-                    {c.notes ? <Text style={[styles.rowSub, sub]}>{c.notes}</Text> : null}
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>Soumis le {formatDateTime(c.created_at)}</Text>
+                    {c.completed_at && c.status === 'completed' ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>Validé le {formatDateTime(c.completed_at)}</Text> : null}
+                    {c.notes ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>{c.notes}</Text> : null}
                     {c.receipt_available ? (
                       <View style={styles.actions}>
                         <TouchableOpacity style={styles.smallBtn} onPress={() => navigation.navigate('Receipt', { kind: 'commission', id: c.id })}>
                           <Ionicons name="receipt-outline" size={15} color="#fff" />
-                          <Text style={styles.smallBtnText}>Voir le reçu</Text>
+                          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.smallBtnText]}>Voir le reçu</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.outlineBtnGreen} disabled={busyId === `rcm${c.id}`} onPress={() => downloadReceipt('cm', c.id)}>
                           {busyId === `rcm${c.id}` ? <ActivityIndicator color={PRIMARY} size="small" /> : (
                             <>
                               <Ionicons name="download-outline" size={15} color={PRIMARY} />
-                              <Text style={styles.outlineGreenText}>PDF</Text>
+                              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.outlineGreenText]}>PDF</Text>
                             </>
                           )}
                         </TouchableOpacity>
@@ -798,8 +799,8 @@ const EarningsScreen = ({ navigation, route }) => {
         <Pressable style={styles.backdrop} onPress={() => setCmOpen(false)}>
           <Pressable style={[styles.sheet, { backgroundColor: theme.surface }]} onPress={() => {}}>
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={[styles.cardTitle, txt]}>Payer ma commission</Text>
-              <Text style={[styles.rowSub, sub, { marginTop: 4 }]}>Reste à payer : {formatAr(due)}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, txt]}>Payer ma commission</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub, { marginTop: 4 }]}>Reste à payer : {formatAr(due)}</Text>
 
               <MaskedField
                 label="Montant"
@@ -817,7 +818,7 @@ const EarningsScreen = ({ navigation, route }) => {
                 style={{ marginTop: 10 }}
               />
 
-              <Text style={[styles.label, sub]}>Comment payez-vous ?</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, sub]}>Comment payez-vous ?</Text>
               {COMMISSION_MODES.map((m) => (
                 <TouchableOpacity
                   key={m.id}
@@ -825,7 +826,7 @@ const EarningsScreen = ({ navigation, route }) => {
                   onPress={() => setCm({ ...cm, method: m.id })}
                 >
                   <Ionicons name={m.icon} size={20} color={cm.method === m.id ? PRIMARY : theme.textSecondary} />
-                  <Text style={[styles.modeText, { color: cm.method === m.id ? PRIMARY : theme.text }]}>{m.label}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modeText, { color: cm.method === m.id ? PRIMARY : theme.text }]}>{m.label}</Text>
                   {cm.method === m.id ? <Ionicons name="checkmark-circle" size={18} color={PRIMARY} /> : null}
                 </TouchableOpacity>
               ))}
@@ -839,7 +840,7 @@ const EarningsScreen = ({ navigation, route }) => {
                       ['airtel_money', 'Airtel'],
                     ].map(([id, label]) => (
                       <TouchableOpacity key={id} style={[styles.prov, cm.provider === id && { backgroundColor: PRIMARY }]} onPress={() => setCm({ ...cm, provider: id })}>
-                        <Text style={{ color: cm.provider === id ? '#fff' : theme.text, fontSize: 13 }}>{label}</Text>
+                        <Text style={{ fontFamily: typography.fontFamily.regular, color: cm.provider === id ? '#fff' : theme.text, fontSize: 13 }}>{label}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -874,34 +875,34 @@ const EarningsScreen = ({ navigation, route }) => {
                     textColor={theme.text}
                     surfaceColor={theme.surface}
                   />
-                  <Text style={[styles.rowSub, sub]}>Effectuez d’abord le transfert à l’administrateur, puis saisissez la référence reçue. L’admin validera ensuite.</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>Effectuez d’abord le transfert à l’administrateur, puis saisissez la référence reçue. L’admin validera ensuite.</Text>
                 </>
               ) : null}
               {cm.method === 'wallet' ? (
                 <View style={styles.afterBox}>
-                  <Text style={[styles.rowSub, sub]}>Solde disponible : {formatAr(w.available)}</Text>
-                  <Text style={[styles.afterText, { color: parseAmount(cm.amount) > (w.available || 0) ? '#B91C1C' : PRIMARY }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>Solde disponible : {formatAr(w.available)}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.afterText, { color: parseAmount(cm.amount) > (w.available || 0) ? '#B91C1C' : PRIMARY }]}>
                     Solde après paiement : {formatAr((w.available || 0) - parseAmount(cm.amount))}
                   </Text>
-                  <Text style={[styles.rowSub, sub]}>Le montant est prélevé tout de suite sur votre solde et validé immédiatement.</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>Le montant est prélevé tout de suite sur votre solde et validé immédiatement.</Text>
                 </View>
               ) : null}
               {cm.method === 'card' ? (
                 <View style={{ marginTop: 10 }}>
                   <SavedCardsManager mode="select" hideTitle selectedId={cmCardId} onSelect={setCmCardId} />
-                  <Text style={[styles.rowSub, sub]}>La carte est débitée tout de suite par Stripe et la commission est validée immédiatement.</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub]}>La carte est débitée tout de suite par Stripe et la commission est validée immédiatement.</Text>
                 </View>
               ) : null}
-              {cm.method === 'cash' ? <Text style={[styles.rowSub, sub, { marginTop: 8 }]}>Remettez les espèces à l’administrateur : il validera le paiement dans l’application.</Text> : null}
+              {cm.method === 'cash' ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowSub, sub, { marginTop: 8 }]}>Remettez les espèces à l’administrateur : il validera le paiement dans l’application.</Text> : null}
 
               <FormSummary errors={cmErrors} show={cmSubmitted} successText="Formulaire valide : vous pouvez confirmer." />
-              {cmError ? <Text style={styles.cmError}>{cmError}</Text> : null}
+              {cmError ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cmError]}>{cmError}</Text> : null}
 
               <TouchableOpacity style={[styles.primaryBtn, { marginTop: 14 }]} onPress={submitCommission} disabled={cmBusy}>
-                {cmBusy ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Confirmer</Text>}
+                {cmBusy ? <ActivityIndicator color="#fff" /> : <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryBtnText]}>Confirmer</Text>}
               </TouchableOpacity>
               <TouchableOpacity style={{ alignItems: 'center', padding: 12 }} onPress={() => setCmOpen(false)}>
-                <Text style={sub}>Annuler</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, sub]}>Annuler</Text>
               </TouchableOpacity>
             </ScrollView>
           </Pressable>
@@ -917,80 +918,80 @@ const styles = StyleSheet.create({
   scroll: { padding: 16, paddingBottom: 40, gap: 14, width: '100%', alignSelf: 'stretch' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 12 },
   afterBox: { marginTop: 10, gap: 4, backgroundColor: '#F3F8F5', borderRadius: 10, padding: 10 },
-  afterText: { fontSize: 15, fontWeight: '400' },
+  afterText: { fontFamily: typography.fontFamily.regular, fontSize: 15, fontWeight: '400' },
   errorBox: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#FEE2E2', borderRadius: 12, padding: 12 },
-  errorText: { color: '#B91C1C', flex: 1, fontSize: 13, fontWeight: '400' },
+  errorText: { fontFamily: typography.fontFamily.regular, color: '#B91C1C', flex: 1, fontSize: 13, fontWeight: '400' },
   noticeBox: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#D1FAE5', borderRadius: 12, padding: 12 },
-  noticeText: { color: '#047857', flex: 1, fontSize: 13, fontWeight: '400' },
+  noticeText: { fontFamily: typography.fontFamily.regular, color: '#047857', flex: 1, fontSize: 13, fontWeight: '400' },
   balanceCard: { backgroundColor: '#2E8B57', borderRadius: 18, padding: 18, gap: 6 },
   balRow: { flexDirection: 'row', gap: 28, marginTop: 4, marginBottom: 2 },
-  balSmallLabel: { color: '#CFE5D8', fontSize: 12, fontWeight: '600' },
-  balSmallValue: { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 1 },
+  balSmallLabel: { fontFamily: typography.fontFamily.semiBold, color: '#CFE5D8', fontSize: 12, fontWeight: '600' },
+  balSmallValue: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 1 },
   pendingBox: { flexDirection: 'row', gap: 10, alignItems: 'center', backgroundColor: '#FBEFD5', borderRadius: 14, padding: 12 },
-  pendingText: { color: '#7A540C', flex: 1, fontSize: 13, fontWeight: '500' },
+  pendingText: { fontFamily: typography.fontFamily.medium, color: '#7A540C', flex: 1, fontSize: 13, fontWeight: '500' },
   tabsBar: { flexDirection: 'row', borderWidth: 1, borderRadius: 14, padding: 4, gap: 4 },
   tabItem: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  tabItemText: { fontSize: 13 },
+  tabItemText: { fontFamily: typography.fontFamily.regular, fontSize: 13 },
   twoCol: { flexDirection: 'row', gap: 16, alignItems: 'flex-start' },
   colLeft: { width: '36%', minWidth: 280, gap: 12 },
   colRight: { flex: 1, minWidth: 0 },
   rowCards: { flexDirection: 'row', gap: 14, alignItems: 'stretch' },
   resumeHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  resumeTitle: { fontSize: 15, fontWeight: '700' },
+  resumeTitle: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '700' },
   periodRow: { flexDirection: 'row', gap: 6 },
   periodChip: { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 11, paddingVertical: 5 },
-  periodText: { fontSize: 12, fontWeight: '600' },
+  periodText: { fontFamily: typography.fontFamily.semiBold, fontSize: 12, fontWeight: '600' },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statCard: { flexGrow: 1, flexBasis: '46%', borderWidth: 1, borderRadius: 14, padding: 12, gap: 4 },
   statHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  statLabel: { fontSize: 12, fontWeight: '500' },
-  statValue: { fontSize: 20, fontWeight: '700' },
-  statSub: { fontSize: 11.5, fontWeight: '400' },
-  footNote: { fontSize: 12, fontWeight: '400', marginTop: -2 },
-  balanceLabel: { color: '#CFE5D8', fontSize: 13, fontWeight: '400' },
-  balanceValue: { color: '#fff', fontSize: 32, fontWeight: '400' },
-  balanceHint: { color: '#CFE5D8', fontSize: 12, fontWeight: '400' },
+  statLabel: { fontFamily: typography.fontFamily.medium, fontSize: 12, fontWeight: '500' },
+  statValue: { fontFamily: typography.fontFamily.bold, fontSize: 20, fontWeight: '700' },
+  statSub: { fontFamily: typography.fontFamily.regular, fontSize: 11.5, fontWeight: '400' },
+  footNote: { fontFamily: typography.fontFamily.regular, fontSize: 12, fontWeight: '400', marginTop: -2 },
+  balanceLabel: { fontFamily: typography.fontFamily.regular, color: '#CFE5D8', fontSize: 13, fontWeight: '400' },
+  balanceValue: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 32, fontWeight: '400' },
+  balanceHint: { fontFamily: typography.fontFamily.regular, color: '#CFE5D8', fontSize: 12, fontWeight: '400' },
   withdrawBtn: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderRadius: 12, paddingVertical: 11, marginTop: 8 },
-  withdrawText: { color: PRIMARY, fontSize: 15, fontWeight: '400' },
+  withdrawText: { fontFamily: typography.fontFamily.regular, color: PRIMARY, fontSize: 15, fontWeight: '400' },
   dueBox: { flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#FBEFD5', borderRadius: 12, padding: 12 },
-  dueText: { color: '#7A540C', flex: 1, fontSize: 13, fontWeight: '400' },
+  dueText: { fontFamily: typography.fontFamily.regular, color: '#7A540C', flex: 1, fontSize: 13, fontWeight: '400' },
   tabs: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
   tab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
-  tabText: { fontSize: 13, fontWeight: '400' },
+  tabText: { fontFamily: typography.fontFamily.regular, fontSize: 13, fontWeight: '400' },
   tiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   card: { borderWidth: 1, borderRadius: 16, padding: 14 },
   cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, gap: 8, flexWrap: 'wrap' },
-  cardTitle: { fontSize: 15, fontWeight: '400' },
+  cardTitle: { fontFamily: typography.fontFamily.regular, fontSize: 15, fontWeight: '400' },
   switch: { flexDirection: 'row', gap: 4 },
   switchBtn: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
-  switchText: { fontSize: 12, fontWeight: '400' },
+  switchText: { fontFamily: typography.fontFamily.regular, fontSize: 12, fontWeight: '400' },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DDD' },
-  rowTitle: { fontSize: 14, fontWeight: '400' },
-  rowSub: { fontSize: 12, marginTop: 2, fontWeight: '400' },
-  rowAmount: { fontSize: 14, fontWeight: '400' },
-  empty: { fontSize: 13, marginTop: 10, fontWeight: '400' },
+  rowTitle: { fontFamily: typography.fontFamily.regular, fontSize: 14, fontWeight: '400' },
+  rowSub: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginTop: 2, fontWeight: '400' },
+  rowAmount: { fontFamily: typography.fontFamily.regular, fontSize: 14, fontWeight: '400' },
+  empty: { fontFamily: typography.fontFamily.regular, fontSize: 13, marginTop: 10, fontWeight: '400' },
   wRow: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DDD', gap: 3 },
   wTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   pill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
-  pillText: { fontSize: 11, fontWeight: '400' },
+  pillText: { fontFamily: typography.fontFamily.regular, fontSize: 11, fontWeight: '400' },
   actions: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
   smallBtn: { flexDirection: 'row', gap: 6, alignItems: 'center', backgroundColor: PRIMARY, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
-  smallBtnText: { color: '#fff', fontSize: 13, fontWeight: '400' },
+  smallBtnText: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 13, fontWeight: '400' },
   outlineBtn: { borderWidth: 1, borderColor: '#B91C1C', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
-  outlineText: { color: '#B91C1C', fontSize: 13, fontWeight: '400' },
+  outlineText: { fontFamily: typography.fontFamily.regular, color: '#B91C1C', fontSize: 13, fontWeight: '400' },
   outlineBtnGreen: { flexDirection: 'row', gap: 6, alignItems: 'center', borderWidth: 1, borderColor: PRIMARY, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
-  outlineGreenText: { color: PRIMARY, fontSize: 13, fontWeight: '400' },
+  outlineGreenText: { fontFamily: typography.fontFamily.regular, color: PRIMARY, fontSize: 13, fontWeight: '400' },
   primaryBtn: { flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: PRIMARY, borderRadius: 12, paddingVertical: 13, marginTop: 12 },
-  primaryBtnText: { color: '#fff', fontSize: 15, fontWeight: '400' },
+  primaryBtnText: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 15, fontWeight: '400' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end', alignItems: 'center' },
   sheet: { width: '100%', maxWidth: 520, maxHeight: '90%', borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 18 },
-  label: { fontSize: 12, marginTop: 14, marginBottom: 6, fontWeight: '400' },
-  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, fontWeight: '400' },
+  label: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginTop: 14, marginBottom: 6, fontWeight: '400' },
+  input: { fontFamily: typography.fontFamily.regular, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, fontWeight: '400' },
   mode: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 8 },
-  modeText: { flex: 1, fontSize: 14, fontWeight: '400' },
+  modeText: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 14, fontWeight: '400' },
   provRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   prov: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: '#CCC' },
-  cmError: { color: '#B91C1C', fontSize: 13, marginTop: 10, fontWeight: '400' },
+  cmError: { fontFamily: typography.fontFamily.regular, color: '#B91C1C', fontSize: 13, marginTop: 10, fontWeight: '400' },
 });
 
 export default EarningsScreen;

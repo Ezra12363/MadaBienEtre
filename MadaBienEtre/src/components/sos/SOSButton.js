@@ -226,7 +226,7 @@ const SOSButton = ({
         end={{ x: 1, y: 1 }}
       >
         <Ionicons name="alert-circle" size={sizeStyle.icon} color="#fff" />
-        {showText && <Text style={[styles.sosText, { fontSize: sizeStyle.textSize }]}>SOS</Text>}
+        {showText && <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sosText, { fontFamily: typography.fontFamily.regular, fontSize: sizeStyle.textSize }]}>SOS</Text>}
       </LinearGradient>
     </TouchableOpacity>
   );
@@ -238,7 +238,7 @@ const SOSButton = ({
       activeOpacity={0.7}
     >
       <Ionicons name="alert-circle" size={20} color="#fff" />
-      {showText && <Text style={styles.compactText}>SOS</Text>}
+      {showText && <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.compactText]}>SOS</Text>}
     </TouchableOpacity>
   );
 
@@ -270,12 +270,12 @@ const SOSButton = ({
         {sent ? (
           <View style={styles.heroContent}>
             <Ionicons name="checkmark-circle" size={48} color="#fff" />
-            <Text style={styles.heroText}>ALERTE ENVOYÉE</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroText]}>ALERTE ENVOYÉE</Text>
           </View>
         ) : (
           <View style={styles.heroContent}>
             <Ionicons name="alert-circle" size={48} color="#fff" />
-            <Text style={styles.heroText}>APPUYEZ EN URGENCE</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroText]}>APPUYEZ EN URGENCE</Text>
           </View>
         )}
       </LinearGradient>
@@ -297,7 +297,7 @@ const SOSButton = ({
 
   const renderConfirm = () => (
     <>
-      <Text style={[styles.modalDescription, { color: themeColors.textSecondary }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalDescription, { color: themeColors.textSecondary }]}>
         Que se passe-t-il ? Choisissez la situation : notre équipe sera notifiée avec votre position GPS.
       </Text>
 
@@ -313,11 +313,11 @@ const SOSButton = ({
             >
               <Ionicons name={r.icon} size={20} color={active ? colors.error : themeColors.textSecondary} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.reasonText, { color: active ? colors.error : themeColors.text }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.reasonText, { color: active ? colors.error : themeColors.text }]}>
                   {r.label}
                 </Text>
                 {!!r.hint && (
-                  <Text style={[styles.reasonHint, { color: themeColors.textSecondary }]}>{r.hint}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.reasonHint, { color: themeColors.textSecondary }]}>{r.hint}</Text>
                 )}
               </View>
             </TouchableOpacity>
@@ -326,7 +326,7 @@ const SOSButton = ({
       </ScrollView>
 
       <TextInput
-        style={[styles.extraInput, { color: themeColors.text }]}
+        style={[{ fontFamily: typography.fontFamily.regular }, styles.extraInput, { color: themeColors.text }]}
         value={extra}
         onChangeText={setExtra}
         placeholder="Précisez en quelques mots (facultatif)"
@@ -338,19 +338,19 @@ const SOSButton = ({
       <View style={styles.modalInfo}>
         <View style={styles.infoRow}>
           <Ionicons name="location-outline" size={16} color={colors.primary} />
-          <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.infoText, { color: themeColors.textSecondary }]}>
             Position GPS et adresse envoyées
           </Text>
         </View>
         <View style={styles.infoRow}>
           <Ionicons name="people-outline" size={16} color={colors.primary} />
-          <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.infoText, { color: themeColors.textSecondary }]}>
             Admin, contacts d'urgence{bookingId ? ' et votre réservation' : ''} prévenus
           </Text>
         </View>
         <View style={styles.infoRow}>
           <Ionicons name="shield-outline" size={16} color={colors.primary} />
-          <Text style={[styles.infoText, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.infoText, { color: themeColors.textSecondary }]}>
             Vous pourrez annuler en cas de fausse alerte
           </Text>
         </View>
@@ -362,7 +362,7 @@ const SOSButton = ({
           onPress={closeModal}
           disabled={isLoading}
         >
-          <Text style={styles.cancelButtonText}>Annuler</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cancelButtonText]}>Annuler</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -373,7 +373,7 @@ const SOSButton = ({
           {isLoading ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <Text style={styles.confirmButtonText}>Confirmer SOS</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmButtonText]}>Confirmer SOS</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -385,7 +385,7 @@ const SOSButton = ({
       <View style={styles.sentBox}>
         <View style={styles.sentLine}>
           <Ionicons name="checkmark-circle" size={18} color="#27AE60" />
-          <Text style={[styles.sentText, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sentText, { color: themeColors.text }]}>
             {sent.duplicate
               ? 'Une alerte est déjà active : elle a été renvoyée à notre équipe.'
               : 'Alerte enregistrée et transmise à notre équipe.'}
@@ -394,7 +394,7 @@ const SOSButton = ({
         {sent.notified_admins > 0 && (
           <View style={styles.sentLine}>
             <Ionicons name="people" size={18} color={colors.primary} />
-            <Text style={[styles.sentText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sentText, { color: themeColors.textSecondary }]}>
               {sent.notified_admins} administrateur(s) notifié(s)
             </Text>
           </View>
@@ -402,7 +402,7 @@ const SOSButton = ({
         {sent.notified_contacts > 0 && (
           <View style={styles.sentLine}>
             <Ionicons name="call" size={18} color={colors.primary} />
-            <Text style={[styles.sentText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sentText, { color: themeColors.textSecondary }]}>
               {sent.notified_contacts} contact(s) d'urgence prévenu(s)
             </Text>
           </View>
@@ -410,21 +410,21 @@ const SOSButton = ({
         {sent.notified_counterpart && (
           <View style={styles.sentLine}>
             <Ionicons name="person" size={18} color={colors.primary} />
-            <Text style={[styles.sentText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sentText, { color: themeColors.textSecondary }]}>
               L'autre personne de la réservation a été prévenue
             </Text>
           </View>
         )}
         <View style={styles.sentLine}>
           <Ionicons name="navigate" size={18} color={colors.primary} />
-          <Text style={[styles.sentText, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sentText, { color: themeColors.textSecondary }]}>
             Votre position est partagée tant que l'alerte est active
           </Text>
         </View>
       </View>
 
       <View style={styles.warnBox}>
-        <Text style={styles.warnText}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.warnText]}>
           ⚠️ La police et les secours ne sont PAS prévenus automatiquement. En danger
           immédiat, appelez le 117 vous-même.
         </Text>
@@ -439,19 +439,19 @@ const SOSButton = ({
           {isLoading ? (
             <ActivityIndicator color={colors.error} size="small" />
           ) : (
-            <Text style={styles.cancelButtonText}>Fausse alerte</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cancelButtonText]}>Fausse alerte</Text>
           )}
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.modalButton, styles.confirmButton]}
           onPress={() => Linking.openURL('tel:117')}
         >
-          <Text style={styles.confirmButtonText}>📞 Appeler le 117</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmButtonText]}>📞 Appeler le 117</Text>
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.emergencyCall} onPress={finishSent}>
-        <Text style={styles.emergencyCallText}>Fermer</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emergencyCallText]}>Fermer</Text>
       </TouchableOpacity>
     </>
   );
@@ -477,7 +477,7 @@ const SOSButton = ({
                   color={sent ? '#27AE60' : colors.error}
                 />
               </View>
-              <Text style={[styles.modalTitle, { color: themeColors.text }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalTitle, { color: themeColors.text }]}>
                 {sent ? 'Alerte SOS envoyée' : '🚨 Alerte SOS'}
               </Text>
             </View>
@@ -486,7 +486,7 @@ const SOSButton = ({
 
             {!sent && (
               <TouchableOpacity style={styles.emergencyCall} onPress={() => Linking.openURL('tel:117')}>
-                <Text style={styles.emergencyCallText}>📞 Appeler les secours (117)</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emergencyCallText]}>📞 Appeler les secours (117)</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
   },
   sosText: {
     color: '#fff',
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     marginTop: 2,
   },
   compactButton: {
@@ -536,7 +536,7 @@ const styles = StyleSheet.create({
   compactText: {
     color: '#fff',
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
   iconButton: {
     width: 44,
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: typography.fontSize.xl,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
   modalDescription: {
     fontSize: typography.fontSize.md,
@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: colors.textSecondary,
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
   confirmButton: {
     backgroundColor: colors.error,
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     color: '#fff',
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
   emergencyCall: {
     marginTop: spacing.md,
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
   emergencyCallText: {
     color: colors.primary,
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   heroContainer: {
@@ -682,13 +682,13 @@ const styles = StyleSheet.create({
   heroText: {
     color: '#fff',
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     letterSpacing: 2,
     textAlign: 'center',
   },
   reasonsScroll: { maxHeight: 260, marginBottom: spacing.sm },
   reasonHint: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular, marginTop: 1 },
-  extraInput: {
+  extraInput: { fontFamily: typography.fontFamily.regular,
     borderWidth: 1, borderColor: '#E0E0E0', borderRadius: 12, padding: spacing.sm,
     minHeight: 48, textAlignVertical: 'top', marginBottom: spacing.md, fontSize: typography.fontSize.sm,
   },
@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
   },
   reasonText: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
   sentBox: {
     gap: spacing.xs,

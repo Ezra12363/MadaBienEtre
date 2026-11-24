@@ -165,7 +165,7 @@ const CertificateCard = () => {
           color={colors.primary}
         />
 
-        <Text style={styles.loadingText}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText]}>
           Vérification du certificat...
         </Text>
       </View>
@@ -204,13 +204,13 @@ const CertificateCard = () => {
         </View>
 
         <Text
-          style={styles.pendingTitle}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.pendingTitle]}
         >
           Vérification en cours
         </Text>
 
         <Text
-          style={styles.pendingText}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.pendingText]}
         >
           Votre dossier est actuellement
           examiné par notre équipe
@@ -248,14 +248,14 @@ const CertificateCard = () => {
         </View>
 
         <Text
-          style={styles.rejectedTitle}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.rejectedTitle]}
         >
           Profil non validé
         </Text>
 
         {verification.rejection_reason && (
           <Text
-            style={styles.rejectedText}
+            style={[{ fontFamily: typography.fontFamily.regular }, styles.rejectedText]}
           >
             Motif :{' '}
             {verification.rejection_reason}
@@ -299,13 +299,13 @@ const CertificateCard = () => {
         <View style={styles.approvedHeaderText}>
 
           <Text
-            style={styles.approvedTitle}
+            style={[{ fontFamily: typography.fontFamily.regular }, styles.approvedTitle]}
           >
             Profil vérifié
           </Text>
 
           <Text
-            style={styles.approvedSubtitle}
+            style={[{ fontFamily: typography.fontFamily.regular }, styles.approvedSubtitle]}
           >
             Votre compte professionnel
             a été validé.
@@ -333,13 +333,13 @@ const CertificateCard = () => {
           <View style={styles.certificateInfo}>
 
             <Text
-              style={styles.certificateLabel}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.certificateLabel]}
             >
               Certificat professionnel
             </Text>
 
             <Text
-              style={styles.certificateNumber}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.certificateNumber]}
             >
               {
                 verification
@@ -349,7 +349,7 @@ const CertificateCard = () => {
             </Text>
 
             <Text
-              style={styles.certificateDate}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.certificateDate]}
             >
               Délivré le{' '}
               {new Date(
@@ -390,7 +390,7 @@ const CertificateCard = () => {
           )}
 
           <Text
-            style={styles.downloadText}
+            style={[{ fontFamily: typography.fontFamily.regular }, styles.downloadText]}
           >
             {downloading
               ? 'Téléchargement...'
@@ -423,7 +423,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
 
-  loadingText: {
+  loadingText: { fontFamily: typography.fontFamily.regular,
     marginTop: 8,
     fontSize: 12,
     color: '#666666',
@@ -463,11 +463,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     color: '#F5A623',
   },
 
-  pendingText: {
+  pendingText: { fontFamily: typography.fontFamily.regular,
     marginTop: 6,
     textAlign: 'center',
     fontSize: 12,
@@ -479,11 +479,11 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 16,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     color: '#E53935',
   },
 
-  rejectedText: {
+  rejectedText: { fontFamily: typography.fontFamily.regular,
     marginTop: 6,
     textAlign: 'center',
     fontSize: 12,
@@ -504,11 +504,11 @@ const styles = StyleSheet.create({
   approvedTitle: {
     fontSize: 17,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     color: '#087F23',
   },
 
-  approvedSubtitle: {
+  approvedSubtitle: { fontFamily: typography.fontFamily.regular,
     marginTop: 3,
     fontSize: 12,
     lineHeight: 18,
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
 
-  certificateLabel: {
+  certificateLabel: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     color: '#777777',
   },
@@ -550,11 +550,11 @@ const styles = StyleSheet.create({
     marginTop: 3,
     fontSize: 15,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     color: colors.primary,
   },
 
-  certificateDate: {
+  certificateDate: { fontFamily: typography.fontFamily.regular,
     marginTop: 3,
     fontSize: 10,
     color: '#888888',
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
 });

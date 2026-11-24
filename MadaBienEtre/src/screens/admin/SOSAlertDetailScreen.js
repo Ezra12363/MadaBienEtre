@@ -45,9 +45,9 @@ const Row = ({ label, value, onPress, valueColor }) => {
   const { colors: themeColors } = useTheme();
   return (
     <View style={[styles.row, { borderBottomColor: themeColors.border || '#E8E8E8' }]}>
-      <Text style={[styles.rowLabel, { color: themeColors.textSecondary }]}>{label}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowLabel, { color: themeColors.textSecondary }]}>{label}</Text>
       <Text
-        style={[styles.rowValue, { color: valueColor || (onPress ? colors.primary : themeColors.text) }, onPress && styles.link]}
+        style={[{ fontFamily: typography.fontFamily.regular }, styles.rowValue, { color: valueColor || (onPress ? colors.primary : themeColors.text) }, onPress && styles.link]}
         onPress={onPress}
       >
         {value}
@@ -63,7 +63,7 @@ const Card = ({ title, icon, children }) => {
       {title ? (
         <View style={styles.cardTitleRow}>
           {icon ? <Ionicons name={icon} size={18} color={colors.primary} /> : null}
-          <Text style={[styles.cardTitle, { color: themeColors.text }]}>{title}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, { color: themeColors.text }]}>{title}</Text>
         </View>
       ) : null}
       {children}
@@ -175,32 +175,32 @@ const SOSAlertDetailScreen = ({ route, navigation }) => {
         <View style={styles.personRow}>
           <Avatar uri={d.user_photo} name={d.user} size={64} />
           <View style={{ marginLeft: spacing.md, flexShrink: 1 }}>
-            <Text style={[styles.personName, { color: themeColors.text }]}>{d.user || '—'}</Text>
-            <Text style={[styles.meta, { color: themeColors.textSecondary }]}>{roleLabel(d)}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.personName, { color: themeColors.text }]}>{d.user || '—'}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.meta, { color: themeColors.textSecondary }]}>{roleLabel(d)}</Text>
             <TypeBadge type={d.alert_type} />
           </View>
         </View>
         <View style={[styles.sevBanner, { backgroundColor: sev + '20' }]}>
           <Ionicons name="alert-circle" size={22} color={sev} />
-          <Text style={[styles.sevText, { color: sev }]}>Gravité : {SEVERITY_LABELS[d.severity] || d.severity}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sevText, { color: sev }]}>Gravité : {SEVERITY_LABELS[d.severity] || d.severity}</Text>
         </View>
         {d.details ? (
           <View style={[styles.messageBox, { backgroundColor: sev + '12' }]}>
-            <Text style={[styles.messageLabel, { color: themeColors.textSecondary }]}>Message de {d.user} :</Text>
-            <Text style={[styles.messageText, { color: themeColors.text }]}>{d.details}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.messageLabel, { color: themeColors.textSecondary }]}>Message de {d.user} :</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.messageText, { color: themeColors.text }]}>{d.details}</Text>
           </View>
         ) : null}
         <View style={styles.actionsRow}>
           {d.user_phone ? (
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={() => call(d.user_phone)}>
               <Ionicons name="call" size={18} color="#fff" />
-              <Text style={styles.actionText}>Appeler</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionText]}>Appeler</Text>
             </TouchableOpacity>
           ) : null}
           {satelliteUrl ? (
             <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#2D7FF9' }]} onPress={() => openUrl(satelliteUrl)}>
               <Ionicons name="map" size={18} color="#fff" />
-              <Text style={styles.actionText}>Google Maps (satellite)</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionText]}>Google Maps (satellite)</Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -248,15 +248,15 @@ const SOSAlertDetailScreen = ({ route, navigation }) => {
             <View style={styles.mapCaption}>
               <Avatar uri={d.user_photo} name={d.user} size={34} />
               <View style={{ marginLeft: spacing.sm, flexShrink: 1 }}>
-                <Text style={styles.mapCaptionName} numberOfLines={1}>{d.user} · {fmtDate(d.created_at)}</Text>
-                <Text style={styles.mapCaptionAddr} numberOfLines={2}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mapCaptionName]} numberOfLines={1}>{d.user} · {fmtDate(d.created_at)}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mapCaptionAddr]} numberOfLines={2}>
                   {address || sosService.formatCoordinates(d.latitude, d.longitude)}
                 </Text>
               </View>
             </View>
           </View>
         ) : (
-          <Text style={[styles.meta, { color: themeColors.textSecondary }]}>Position GPS non disponible pour cette alerte.</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.meta, { color: themeColors.textSecondary }]}>Position GPS non disponible pour cette alerte.</Text>
         )}
       </Card>
     </View>
@@ -267,7 +267,7 @@ const SOSAlertDetailScreen = ({ route, navigation }) => {
       {isActive ? (
         <Card title={`Message à ${d.user || 'la personne'}`} icon="chatbubble-ellipses-outline">
           <TextInput
-            style={[styles.input, { color: themeColors.text, borderColor: themeColors.border || '#E0E0E0' }]}
+            style={[{ fontFamily: typography.fontFamily.regular }, styles.input, { color: themeColors.text, borderColor: themeColors.border || '#E0E0E0' }]}
             value={message}
             onChangeText={setMessage}
             placeholder="Ex : Nous avons bien reçu votre alerte, un agent vous appelle..."
@@ -281,9 +281,9 @@ const SOSAlertDetailScreen = ({ route, navigation }) => {
             disabled={!message.trim() || busy}
           >
             <Ionicons name="send" size={16} color="#fff" />
-            <Text style={styles.btnText}>Envoyer le message (sans résoudre)</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.btnText]}>Envoyer le message (sans résoudre)</Text>
           </TouchableOpacity>
-          <Text style={[styles.hint, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, { color: themeColors.textSecondary }]}>
             Si vous cliquez sur « Résoudre », ce texte est aussi envoyé comme message final.
           </Text>
         </Card>
@@ -294,7 +294,7 @@ const SOSAlertDetailScreen = ({ route, navigation }) => {
           {d.emergency_contacts.map((c) => (
             <TouchableOpacity key={c.id} style={styles.contactRow} onPress={() => call(c.phone)}>
               <Ionicons name="call-outline" size={16} color={colors.primary} />
-              <Text style={[styles.contactText, { color: themeColors.text }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.contactText, { color: themeColors.text }]}>
                 {c.name}{c.relationship ? ` (${c.relationship})` : ''}{c.is_primary ? ' ★' : ''} — {c.phone}
               </Text>
             </TouchableOpacity>
@@ -305,7 +305,7 @@ const SOSAlertDetailScreen = ({ route, navigation }) => {
       {d.safety_checks?.length > 0 && (
         <Card title="Safety checks" icon="shield-checkmark-outline">
           {d.safety_checks.map((c) => (
-            <Text key={c.id} style={[styles.contactText, { color: themeColors.textSecondary, marginBottom: 4 }]}>
+            <Text key={c.id} style={[{ fontFamily: typography.fontFamily.regular }, styles.contactText, { color: themeColors.textSecondary, marginBottom: 4 }]}>
               {c.check_type} — {c.status}{c.checked_at ? ` (${fmtDate(c.checked_at)})` : ''}
             </Text>
           ))}
@@ -313,13 +313,13 @@ const SOSAlertDetailScreen = ({ route, navigation }) => {
       )}
 
       <Card title="Suivi / actions menées" icon="clipboard-outline">
-        <Text style={[styles.notes, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.notes, { color: themeColors.textSecondary }]}>
           {d.response_notes || 'Aucune action enregistrée.'}
         </Text>
         {isActive ? (
           <>
             <TextInput
-              style={[styles.input, { color: themeColors.text, borderColor: themeColors.border || '#E0E0E0' }]}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.input, { color: themeColors.text, borderColor: themeColors.border || '#E0E0E0' }]}
               value={note}
               onChangeText={setNote}
               placeholder="Ex : personne jointe par téléphone, intervention en cours..."
@@ -332,7 +332,7 @@ const SOSAlertDetailScreen = ({ route, navigation }) => {
               onPress={addNote}
               disabled={!note.trim() || busy}
             >
-              <Text style={styles.btnText}>Enregistrer la note</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.btnText]}>Enregistrer la note</Text>
             </TouchableOpacity>
           </>
         ) : null}
@@ -345,12 +345,12 @@ const SOSAlertDetailScreen = ({ route, navigation }) => {
           disabled={busy}
         >
           <Ionicons name="checkmark-circle" size={22} color="#fff" />
-          <Text style={styles.resolveText}>Résoudre l'alerte</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.resolveText]}>Résoudre l'alerte</Text>
         </TouchableOpacity>
       ) : (
         <View style={[styles.doneBox, { backgroundColor: (STATUS_COLORS[d.status] || '#999') + '18' }]}>
           <Ionicons name={d.status === 'resolved' ? 'checkmark-circle' : 'close-circle'} size={22} color={STATUS_COLORS[d.status] || '#999'} />
-          <Text style={[styles.doneText, { color: STATUS_COLORS[d.status] || '#999' }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.doneText, { color: STATUS_COLORS[d.status] || '#999' }]}>
             {d.status === 'resolved' ? 'Alerte résolue' : 'Alerte annulée par la personne'}
           </Text>
         </View>
@@ -371,9 +371,9 @@ const SOSAlertDetailScreen = ({ route, navigation }) => {
         ) : !d ? (
           <View style={styles.center}>
             <Ionicons name="alert-circle-outline" size={48} color={colors.error} />
-            <Text style={[styles.meta, { color: themeColors.text, marginTop: spacing.sm }]}>{error || 'Alerte introuvable'}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.meta, { color: themeColors.text, marginTop: spacing.sm }]}>{error || 'Alerte introuvable'}</Text>
             <TouchableOpacity style={[styles.btn, { backgroundColor: colors.primary, marginTop: spacing.md, paddingHorizontal: spacing.lg }]} onPress={goBack}>
-              <Text style={styles.btnText}>Retour</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.btnText]}>Retour</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -403,10 +403,10 @@ const SOSAlertDetailScreen = ({ route, navigation }) => {
           onCancel={() => setConfirmVisible(false)}
         >
           <View style={[styles.preview, { backgroundColor: themeColors.background }]}>
-            <Text style={[styles.previewLabel, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.previewLabel, { color: themeColors.textSecondary }]}>
               Message envoyé à {d?.user || 'la personne'} :
             </Text>
-            <Text style={[styles.previewText, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.previewText, { color: themeColors.text }]}>
               {message.trim() || "Votre alerte SOS a été traitée par l'équipe Mada Bien-être. (message par défaut)"}
             </Text>
           </View>
@@ -430,40 +430,40 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6,
   },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
-  cardTitle: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold },
+  cardTitle: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   personRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md },
-  personName: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold },
+  personName: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   meta: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular },
   sevBanner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: 10 },
-  sevText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold },
+  sevText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   messageBox: { borderRadius: 10, padding: spacing.sm, marginTop: spacing.sm },
-  messageLabel: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, marginBottom: 2 },
+  messageLabel: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, fontWeight: '500', marginBottom: 2 },
   messageText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.regular, lineHeight: 22 },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md },
   actionBtn: { flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: 12 },
-  actionText: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
+  actionText: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9, borderBottomWidth: 1, gap: spacing.md },
   rowLabel: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular },
-  rowValue: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, flexShrink: 1, textAlign: 'right' },
+  rowValue: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500', flexShrink: 1, textAlign: 'right' },
   link: { textDecorationLine: 'underline' },
   mapBox: { borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#E0E0E0' },
   map: { height: 320, width: '100%' },
   mapCaption: { flexDirection: 'row', alignItems: 'center', padding: spacing.sm, backgroundColor: '#000000AA' },
-  mapCaptionName: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold },
-  mapCaptionAddr: { color: '#eee', fontSize: typography.fontSize.xs },
-  input: { borderWidth: 1, borderRadius: 12, padding: spacing.sm, minHeight: 70, textAlignVertical: 'top', fontSize: typography.fontSize.sm },
+  mapCaptionName: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
+  mapCaptionAddr: { fontFamily: typography.fontFamily.regular, color: '#eee', fontSize: typography.fontSize.xs },
+  input: { fontFamily: typography.fontFamily.regular, borderWidth: 1, borderRadius: 12, padding: spacing.sm, minHeight: 70, textAlignVertical: 'top', fontSize: typography.fontSize.sm },
   btn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 12, paddingVertical: spacing.sm, marginTop: spacing.sm },
-  btnText: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
-  hint: { fontSize: typography.fontSize.xs, marginTop: 6 },
+  btnText: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
+  hint: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, marginTop: 6 },
   contactRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5 },
   contactText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, flexShrink: 1 },
   notes: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, lineHeight: 20, marginBottom: spacing.sm },
   resolveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: spacing.md, borderRadius: 14 },
-  resolveText: { color: '#fff', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold },
+  resolveText: { color: '#fff', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   doneBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: spacing.md, borderRadius: 14 },
-  doneText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold },
+  doneText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   preview: { width: '100%', borderRadius: 12, padding: spacing.sm, marginTop: spacing.md },
-  previewLabel: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, marginBottom: 2 },
+  previewLabel: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, fontWeight: '500', marginBottom: 2 },
   previewText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, lineHeight: 20 },
 });
 

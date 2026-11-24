@@ -1103,7 +1103,7 @@ const MassageTypesScreen = () => {
           ]}
         >
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.paginationInfo,
               {
                 color:
@@ -1177,7 +1177,7 @@ const MassageTypesScreen = () => {
                       }
                     >
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.ellipsisText,
                           {
                             color:
@@ -1219,7 +1219,7 @@ const MassageTypesScreen = () => {
                     }
                   >
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.pageButtonText,
                         {
                           color:
@@ -1307,7 +1307,7 @@ const MassageTypesScreen = () => {
           {Platform.OS ===
             'web' && (
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.actionButtonText,
                 {
                   color:
@@ -1341,7 +1341,7 @@ const MassageTypesScreen = () => {
           {Platform.OS ===
             'web' && (
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.actionButtonText,
                 {
                   color:
@@ -1415,7 +1415,7 @@ const MassageTypesScreen = () => {
               }
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.cardName,
                   {
                     color:
@@ -1428,7 +1428,7 @@ const MassageTypesScreen = () => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.cardPrice,
                   {
                     color:
@@ -1471,7 +1471,7 @@ const MassageTypesScreen = () => {
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.statusText,
                     {
                       color:
@@ -1491,7 +1491,7 @@ const MassageTypesScreen = () => {
 
           {item.description ? (
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.cardDescription,
                 {
                   color:
@@ -1530,7 +1530,7 @@ const MassageTypesScreen = () => {
 
               <View>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoLabel,
                     {
                       color:
@@ -1542,7 +1542,7 @@ const MassageTypesScreen = () => {
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoValue,
                     {
                       color:
@@ -1581,7 +1581,7 @@ const MassageTypesScreen = () => {
 
               <View>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoLabel,
                     {
                       color:
@@ -1593,7 +1593,7 @@ const MassageTypesScreen = () => {
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoValue,
                     {
                       color:
@@ -1628,7 +1628,7 @@ const MassageTypesScreen = () => {
 
               <View>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoLabel,
                     {
                       color:
@@ -1640,7 +1640,7 @@ const MassageTypesScreen = () => {
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoValue,
                     {
                       color:
@@ -1690,7 +1690,7 @@ const MassageTypesScreen = () => {
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.mobileActionText,
                   {
                     color:
@@ -1721,7 +1721,7 @@ const MassageTypesScreen = () => {
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.mobileActionText,
                   {
                     color:
@@ -1765,7 +1765,7 @@ const MassageTypesScreen = () => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.tableHeaderText,
                 {
                   color:
@@ -1784,7 +1784,7 @@ const MassageTypesScreen = () => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.tableHeaderText,
                 {
                   color:
@@ -1803,7 +1803,7 @@ const MassageTypesScreen = () => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.tableHeaderText,
                 {
                   color:
@@ -1822,7 +1822,7 @@ const MassageTypesScreen = () => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.tableHeaderText,
                 {
                   color:
@@ -1841,7 +1841,7 @@ const MassageTypesScreen = () => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.tableHeaderText,
                 {
                   color:
@@ -1860,7 +1860,7 @@ const MassageTypesScreen = () => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.tableHeaderText,
                 {
                   color:
@@ -1879,7 +1879,7 @@ const MassageTypesScreen = () => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.tableHeaderText,
                 {
                   color:
@@ -1967,7 +1967,7 @@ const MassageTypesScreen = () => {
                 }
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.webName,
                     {
                       color:
@@ -1981,7 +1981,7 @@ const MassageTypesScreen = () => {
 
                 {item.description ? (
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.webDescription,
                       {
                         color:
@@ -1996,7 +1996,7 @@ const MassageTypesScreen = () => {
                   </Text>
                 ) : (
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.webDescription,
                       {
                         color:
@@ -2019,7 +2019,7 @@ const MassageTypesScreen = () => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.webPrice,
                 {
                   color:
@@ -2037,7 +2037,7 @@ const MassageTypesScreen = () => {
               item.recommended_price !==
                 undefined && (
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.webRecommended,
                     {
                       color:
@@ -2074,7 +2074,7 @@ const MassageTypesScreen = () => {
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.tableValue,
                   {
                     color:
@@ -2111,7 +2111,7 @@ const MassageTypesScreen = () => {
               ]}
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.categoryBadgeText,
                   {
                     color:
@@ -2135,7 +2135,7 @@ const MassageTypesScreen = () => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.tableValue,
                 {
                   color:
@@ -2181,7 +2181,7 @@ const MassageTypesScreen = () => {
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.statusText,
                   {
                     color:
@@ -2271,7 +2271,7 @@ const MassageTypesScreen = () => {
                 }
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.modalTitle,
                     {
                       color:
@@ -2286,7 +2286,7 @@ const MassageTypesScreen = () => {
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.modalSubtitle,
                     {
                       color:
@@ -2339,7 +2339,7 @@ const MassageTypesScreen = () => {
                 style={styles.field}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.label,
                     {
                       color:
@@ -2351,7 +2351,7 @@ const MassageTypesScreen = () => {
                 </Text>
 
                 <TextInput
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.input,
                     inputStyle,
                   ]}
@@ -2385,7 +2385,7 @@ const MassageTypesScreen = () => {
                 style={styles.field}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.label,
                     {
                       color:
@@ -2397,7 +2397,7 @@ const MassageTypesScreen = () => {
                 </Text>
 
                 <TextInput
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.input,
                     styles.textarea,
                     inputStyle,
@@ -2439,7 +2439,7 @@ const MassageTypesScreen = () => {
                   ]}
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.label,
                       {
                         color:
@@ -2451,7 +2451,7 @@ const MassageTypesScreen = () => {
                   </Text>
 
                   <TextInput
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.input,
                       inputStyle,
                     ]}
@@ -2483,7 +2483,7 @@ const MassageTypesScreen = () => {
                   ]}
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.label,
                       {
                         color:
@@ -2495,7 +2495,7 @@ const MassageTypesScreen = () => {
                   </Text>
 
                   <TextInput
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.input,
                       inputStyle,
                     ]}
@@ -2534,7 +2534,7 @@ const MassageTypesScreen = () => {
                   ]}
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.label,
                       {
                         color:
@@ -2546,7 +2546,7 @@ const MassageTypesScreen = () => {
                   </Text>
 
                   <TextInput
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.input,
                       inputStyle,
                     ]}
@@ -2578,7 +2578,7 @@ const MassageTypesScreen = () => {
                   ]}
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.label,
                       {
                         color:
@@ -2590,7 +2590,7 @@ const MassageTypesScreen = () => {
                   </Text>
 
                   <TextInput
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.input,
                       inputStyle,
                     ]}
@@ -2625,7 +2625,7 @@ const MassageTypesScreen = () => {
                 style={styles.field}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.label,
                     {
                       color:
@@ -2684,7 +2684,7 @@ const MassageTypesScreen = () => {
                           ]}
                         >
                           <Text
-                            style={[
+                            style={[{ fontFamily: typography.fontFamily.regular }, 
                               styles.categoryText,
                               {
                                 color:
@@ -2710,7 +2710,7 @@ const MassageTypesScreen = () => {
                 style={styles.field}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.label,
                     {
                       color:
@@ -2722,7 +2722,7 @@ const MassageTypesScreen = () => {
                 </Text>
 
                 <TextInput
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.input,
                     inputStyle,
                   ]}
@@ -2752,7 +2752,7 @@ const MassageTypesScreen = () => {
                 style={styles.field}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.label,
                     { color: themeColors.text },
                   ]}
@@ -2800,7 +2800,7 @@ const MassageTypesScreen = () => {
                       color={themeColors.text}
                     />
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.imagePickerButtonText,
                         { color: themeColors.text },
                       ]}
@@ -2832,7 +2832,7 @@ const MassageTypesScreen = () => {
                 style={styles.field}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.label,
                     { color: themeColors.text },
                   ]}
@@ -2880,7 +2880,7 @@ const MassageTypesScreen = () => {
                       color={themeColors.text}
                     />
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.imagePickerButtonText,
                         { color: themeColors.text },
                       ]}
@@ -2924,7 +2924,7 @@ const MassageTypesScreen = () => {
                   }
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.activeTitle,
                       {
                         color:
@@ -2936,7 +2936,7 @@ const MassageTypesScreen = () => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.activeSubtitle,
                       {
                         color:
@@ -3000,7 +3000,7 @@ const MassageTypesScreen = () => {
 
                     <Text
                       style={
-                        styles.saveButtonText
+                        [{ fontFamily: typography.fontFamily.regular }, styles.saveButtonText]
                       }
                     >
                       Enregistrement...
@@ -3021,7 +3021,7 @@ const MassageTypesScreen = () => {
 
                     <Text
                       style={
-                        styles.saveButtonText
+                        [{ fontFamily: typography.fontFamily.regular }, styles.saveButtonText]
                       }
                     >
                       {editingId !==
@@ -3051,7 +3051,7 @@ const MassageTypesScreen = () => {
                 }
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.cancelButtonText,
                     {
                       color:
@@ -3120,7 +3120,7 @@ const MassageTypesScreen = () => {
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.confirmTitle,
                   {
                     color:
@@ -3132,7 +3132,7 @@ const MassageTypesScreen = () => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.confirmMessage,
                   {
                     color:
@@ -3142,7 +3142,7 @@ const MassageTypesScreen = () => {
               >
                 Que souhaitez-vous faire avec{' '}
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.confirmName,
                     {
                       color:
@@ -3198,7 +3198,7 @@ const MassageTypesScreen = () => {
                   }
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.confirmActionTitle,
                       {
                         color:
@@ -3210,7 +3210,7 @@ const MassageTypesScreen = () => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.confirmActionSubtitle,
                       {
                         color:
@@ -3274,7 +3274,7 @@ const MassageTypesScreen = () => {
                   }
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.confirmActionTitle,
                       {
                         color:
@@ -3286,7 +3286,7 @@ const MassageTypesScreen = () => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.confirmActionSubtitle,
                       {
                         color:
@@ -3321,7 +3321,7 @@ const MassageTypesScreen = () => {
                   />
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.deleteLoadingText,
                       {
                         color:
@@ -3351,7 +3351,7 @@ const MassageTypesScreen = () => {
                 }
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.confirmCancelText,
                     {
                       color:
@@ -3398,7 +3398,7 @@ const MassageTypesScreen = () => {
         </View>
 
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.emptyText,
             {
               color:
@@ -3412,7 +3412,7 @@ const MassageTypesScreen = () => {
         </Text>
 
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.emptySubText,
             {
               color:
@@ -3449,7 +3449,7 @@ const MassageTypesScreen = () => {
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.clearSearchEmptyText,
                 {
                   color:
@@ -3528,7 +3528,7 @@ const MassageTypesScreen = () => {
               />
 
               <TextInput
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.searchInput,
                   {
                     color:
@@ -3594,7 +3594,7 @@ const MassageTypesScreen = () => {
 
               <Text
                 style={
-                  styles.addButtonText
+                  [{ fontFamily: typography.fontFamily.regular }, styles.addButtonText]
                 }
               >
                 Nouveau type
@@ -3620,7 +3620,7 @@ const MassageTypesScreen = () => {
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.searchResultText,
                 {
                   color:
@@ -3664,7 +3664,7 @@ const MassageTypesScreen = () => {
 
             <Text
               style={
-                styles.errorText
+                [{ fontFamily: typography.fontFamily.regular }, styles.errorText]
               }
             >
               {error}
@@ -3677,7 +3677,7 @@ const MassageTypesScreen = () => {
               }}
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.retryText,
                   {
                     color:
@@ -3707,7 +3707,7 @@ const MassageTypesScreen = () => {
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.loadingText,
                 {
                   color:
@@ -4140,7 +4140,7 @@ const styles = StyleSheet.create({
         .semiBold,
   },
 
-  webDescription: {
+  webDescription: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
 
     marginTop: 3,
@@ -4156,7 +4156,7 @@ const styles = StyleSheet.create({
         .bold,
   },
 
-  webRecommended: {
+  webRecommended: { fontFamily: typography.fontFamily.regular,
     fontSize: 10,
     marginTop: 3,
   },
@@ -4310,7 +4310,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
 
-  cardDescription: {
+  cardDescription: { fontFamily: typography.fontFamily.regular,
     fontSize: 12,
     lineHeight: 18,
 
@@ -4342,7 +4342,7 @@ const styles = StyleSheet.create({
     gap: 7,
   },
 
-  infoLabel: {
+  infoLabel: { fontFamily: typography.fontFamily.regular,
     fontSize: 9,
     marginBottom: 2,
   },
@@ -4500,7 +4500,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  ellipsisText: {
+  ellipsisText: { fontFamily: typography.fontFamily.regular,
     fontSize: 18,
   },
 
@@ -4544,7 +4544,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
 
-  emptySubText: {
+  emptySubText: { fontFamily: typography.fontFamily.regular,
     fontSize: 13,
 
     marginTop: 6,
@@ -4602,7 +4602,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  errorText: {
+  errorText: { fontFamily: typography.fontFamily.regular,
     flex: 1,
 
     color: '#E74C3C',
@@ -4629,7 +4629,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  loadingText: {
+  loadingText: { fontFamily: typography.fontFamily.regular,
     marginTop: spacing.sm,
 
     fontSize:
@@ -4714,7 +4714,7 @@ const styles = StyleSheet.create({
         .bold,
   },
 
-  modalSubtitle: {
+  modalSubtitle: { fontFamily: typography.fontFamily.regular,
     marginTop: 4,
 
     fontSize: 12,
@@ -4786,7 +4786,7 @@ const styles = StyleSheet.create({
 
   imagePickerButtonText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily?.medium,
+    fontFamily: typography.fontFamily?.medium, fontWeight: '500',
   },
 
   imageRemoveButton: {
@@ -4902,7 +4902,7 @@ const styles = StyleSheet.create({
         .semiBold,
   },
 
-  activeSubtitle: {
+  activeSubtitle: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     marginTop: 2,
   },
@@ -5022,7 +5022,7 @@ const styles = StyleSheet.create({
         .bold,
   },
 
-  confirmMessage: {
+  confirmMessage: { fontFamily: typography.fontFamily.regular,
     textAlign: 'center',
 
     fontSize: 13,
@@ -5076,7 +5076,7 @@ const styles = StyleSheet.create({
         .semiBold,
   },
 
-  confirmActionSubtitle: {
+  confirmActionSubtitle: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
 
     marginTop: 3,
@@ -5093,7 +5093,7 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
 
-  deleteLoadingText: {
+  deleteLoadingText: { fontFamily: typography.fontFamily.regular,
     fontSize: 12,
   },
 

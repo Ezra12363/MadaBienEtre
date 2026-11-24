@@ -357,7 +357,7 @@ const OffersScreen = ({ navigation, route }) => {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: themeColors.background }]}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText, { color: themeColors.textSecondary }]}>
           Chargement des offres...
         </Text>
       </View>
@@ -389,7 +389,7 @@ const OffersScreen = ({ navigation, route }) => {
         {error && (
           <View style={styles.errorBanner}>
             <Ionicons name="alert-circle-outline" size={18} color={colors.error} />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}>{error}</Text>
           </View>
         )}
 
@@ -397,20 +397,20 @@ const OffersScreen = ({ navigation, route }) => {
           <Animatable.View animation="fadeInDown" duration={500}>
             <View style={[styles.bookingSummary, { backgroundColor: themeColors.surface }]}>
               <View style={styles.bookingSummaryHeader}>
-                <Text style={[styles.bookingSummaryTitle, { color: themeColors.text }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bookingSummaryTitle, { color: themeColors.text }]}>
                   Votre demande
                 </Text>
                 <View style={styles.bookingSummaryPrice}>
-                  <Text style={styles.bookingSummaryPriceLabel}>Votre prix proposé</Text>
-                  <Text style={styles.bookingSummaryPriceValue}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bookingSummaryPriceLabel]}>Votre prix proposé</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bookingSummaryPriceValue]}>
                     {money(booking.client_price_proposed)}
                   </Text>
                 </View>
               </View>
-              <Text style={[styles.bookingSummaryText, { color: themeColors.text }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bookingSummaryText, { color: themeColors.text }]}>
                 {booking.massage_type_name} • {booking.duration_minutes} min
               </Text>
-              <Text style={[styles.bookingSummaryText, { color: themeColors.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bookingSummaryText, { color: themeColors.textSecondary }]}>
                 📍 {booking.address}
               </Text>
             </View>
@@ -421,7 +421,7 @@ const OffersScreen = ({ navigation, route }) => {
         {/* OFFRES ACTIVES — à traiter maintenant               */}
         {/* -------------------------------------------------- */}
         <View style={styles.offersList}>
-          <Text style={[styles.offersTitle, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offersTitle, { color: themeColors.text }]}>
             {activeOffers.length > 0
               ? `${activeOffers.length} offre${activeOffers.length > 1 ? 's' : ''} en cours`
               : 'Aucune offre en cours'}
@@ -451,20 +451,20 @@ const OffersScreen = ({ navigation, route }) => {
                             resizeMode="cover"
                           />
                         ) : (
-                          <Text style={styles.therapistAvatarText}>
+                          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.therapistAvatarText]}>
                             {getDisplayName(offer).charAt(0).toUpperCase()}
                           </Text>
                         )}
                       </View>
                       <View>
-                        <Text style={[styles.therapistName, { color: themeColors.text }]}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.therapistName, { color: themeColors.text }]}>
                           {mine ? 'Votre contre-offre' : getDisplayName(offer)}
                         </Text>
 
                         {!mine && !!getTherapistPhone(offer) && (
                           <View style={styles.therapistPhoneRow}>
                             <Ionicons name="call-outline" size={11} color={themeColors.textSecondary} />
-                            <Text style={[styles.therapistPhoneText, { color: themeColors.textSecondary }]}>
+                            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.therapistPhoneText, { color: themeColors.textSecondary }]}>
                               {getTherapistPhone(offer)}
                             </Text>
                           </View>
@@ -476,7 +476,7 @@ const OffersScreen = ({ navigation, route }) => {
                             { backgroundColor: statusColor(offer.status) + '20' },
                           ]}
                         >
-                          <Text style={[styles.statusBadgeText, { color: statusColor(offer.status) }]}>
+                          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statusBadgeText, { color: statusColor(offer.status) }]}>
                             {statusLabel(offer.status)}
                           </Text>
                         </View>
@@ -496,7 +496,7 @@ const OffersScreen = ({ navigation, route }) => {
                           color={isExpiringSoon ? colors.error : colors.textSecondary}
                         />
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.timerBadgeText,
                             isExpiringSoon && { color: colors.error },
                           ]}
@@ -508,18 +508,18 @@ const OffersScreen = ({ navigation, route }) => {
                   </View>
 
                   <View style={styles.offerPriceContainer}>
-                    <Text style={[styles.offerPrice, { color: colors.primary }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offerPrice, { color: colors.primary }]}>
                       {money(offer.price_offered)}
                     </Text>
                     {booking && (
-                      <Text style={[styles.offerPriceComparison, { color: themeColors.textSecondary }]}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offerPriceComparison, { color: themeColors.textSecondary }]}>
                         (votre prix initial : {money(booking.client_price_proposed)})
                       </Text>
                     )}
                   </View>
 
                   {offer.message ? (
-                    <Text style={[styles.offerMessage, { color: themeColors.textSecondary }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offerMessage, { color: themeColors.textSecondary }]}>
                       "{offer.message}"
                     </Text>
                   ) : null}
@@ -528,20 +528,20 @@ const OffersScreen = ({ navigation, route }) => {
                   {!mine ? (
                     <View style={styles.turnBanner}>
                       <Ionicons name="hand-left-outline" size={16} color={colors.primary} />
-                      <Text style={styles.turnBannerText}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.turnBannerText]}>
                         C'est à vous de répondre à cette offre
                       </Text>
                     </View>
                   ) : (
                     <View style={[styles.turnBanner, { backgroundColor: '#FFF7E6' }]}>
                       <Ionicons name="time-outline" size={16} color={ORANGE} />
-                      <Text style={[styles.turnBannerText, { color: ORANGE }]}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.turnBannerText, { color: ORANGE }]}>
                         En attente de la réponse du thérapeute
                       </Text>
                     </View>
                   )}
 
-                  <Text style={[styles.offerDate, { color: themeColors.textSecondary }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.offerDate, { color: themeColors.textSecondary }]}>
                     {formatDate(offer.created_at)}
                   </Text>
 
@@ -562,7 +562,7 @@ const OffersScreen = ({ navigation, route }) => {
                               start={{ x: 0, y: 0 }}
                               end={{ x: 1, y: 0 }}
                             >
-                              <Text style={styles.acceptButtonText}>Accepter</Text>
+                              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.acceptButtonText]}>Accepter</Text>
                             </LinearGradient>
                           </TouchableOpacity>
 
@@ -570,7 +570,7 @@ const OffersScreen = ({ navigation, route }) => {
                             style={styles.counterButton}
                             onPress={() => handleCounter(offer)}
                           >
-                            <Text style={styles.counterButtonText}>Contre-proposer</Text>
+                            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.counterButtonText]}>Contre-proposer</Text>
                           </TouchableOpacity>
 
                           <TouchableOpacity
@@ -591,10 +591,10 @@ const OffersScreen = ({ navigation, route }) => {
           {activeOffers.length === 0 && !error && (
             <View style={styles.emptyState}>
               <Ionicons name="pricetag-outline" size={64} color={themeColors.textSecondary} />
-              <Text style={[styles.emptyStateTitle, { color: themeColors.text }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyStateTitle, { color: themeColors.text }]}>
                 Aucune offre pour le moment
               </Text>
-              <Text style={[styles.emptyStateText, { color: themeColors.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyStateText, { color: themeColors.textSecondary }]}>
                 Les thérapeutes à proximité vont bientôt vous répondre
               </Text>
             </View>
@@ -606,7 +606,7 @@ const OffersScreen = ({ navigation, route }) => {
         {/* -------------------------------------------------- */}
         {historyOffers.length > 0 && (
           <View style={styles.historySection}>
-            <Text style={[styles.historyTitle, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.historyTitle, { color: themeColors.text }]}>
               Historique des échanges
             </Text>
             {historyOffers.map((h) => (
@@ -621,10 +621,10 @@ const OffersScreen = ({ navigation, route }) => {
                   ]}
                 />
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.historyRowText, { color: themeColors.text }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.historyRowText, { color: themeColors.text }]}>
                     {isMine(h) ? 'Vous' : getDisplayName(h)} — {money(h.price_offered)}
                   </Text>
-                  <Text style={[styles.historyRowDate, { color: themeColors.textSecondary }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.historyRowDate, { color: themeColors.textSecondary }]}>
                     {formatDate(h.created_at)} · {statusLabel(h.status)}
                   </Text>
                 </View>
@@ -652,7 +652,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     marginBottom: spacing.sm,
   },
-  errorText: { color: colors.error, fontSize: typography.fontSize.sm, flex: 1 },
+  errorText: { fontFamily: typography.fontFamily.regular, color: colors.error, fontSize: typography.fontSize.sm, flex: 1 },
   bookingSummary: {
     borderRadius: 16,
     padding: spacing.md,
@@ -670,13 +670,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.xs,
   },
-  bookingSummaryTitle: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
+  bookingSummaryTitle: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   bookingSummaryPrice: { alignItems: 'flex-end' },
-  bookingSummaryPriceLabel: { fontSize: typography.fontSize.xs, color: colors.textSecondary },
-  bookingSummaryPriceValue: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, color: colors.primary },
+  bookingSummaryPriceLabel: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, color: colors.textSecondary },
+  bookingSummaryPriceValue: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, fontWeight: '700', color: colors.primary },
   bookingSummaryText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, marginTop: 2 },
   offersList: { paddingBottom: spacing.md },
-  offersTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, marginBottom: spacing.md },
+  offersTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, fontWeight: '700', marginBottom: spacing.md },
   offerCard: {
     borderRadius: 16,
     padding: spacing.md,
@@ -699,8 +699,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   therapistAvatarImage: { width: '100%', height: '100%' },
-  therapistAvatarText: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, color: colors.primary },
-  therapistName: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
+  therapistAvatarText: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, fontWeight: '700', color: colors.primary },
+  therapistName: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   therapistPhoneRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   therapistPhoneText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular },
   statusBadge: {
@@ -710,7 +710,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 2,
   },
-  statusBadgeText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium },
+  statusBadgeText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   timerBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -721,9 +721,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   timerBadgeUrgent: { backgroundColor: colors.error + '15' },
-  timerBadgeText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, color: colors.textSecondary },
+  timerBadgeText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, fontWeight: '500', color: colors.textSecondary },
   offerPriceContainer: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, marginTop: spacing.sm, flexWrap: 'wrap' },
-  offerPrice: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold },
+  offerPrice: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   offerPriceComparison: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular },
   offerMessage: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, fontStyle: 'italic', marginTop: spacing.xs },
   turnBanner: {
@@ -735,23 +735,23 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     marginTop: spacing.sm,
   },
-  turnBannerText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, color: colors.primary },
-  offerDate: { fontSize: typography.fontSize.xs, marginTop: spacing.xs },
+  turnBannerText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, fontWeight: '500', color: colors.primary },
+  offerDate: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, marginTop: spacing.xs },
   offerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
   acceptButton: { flex: 1, borderRadius: 8, overflow: 'hidden' },
   acceptGradient: { paddingVertical: spacing.sm, alignItems: 'center' },
-  acceptButtonText: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold },
+  acceptButtonText: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   counterButton: {
     flex: 1, paddingVertical: spacing.sm, borderRadius: 8,
     borderWidth: 1, borderColor: colors.primary, alignItems: 'center',
   },
-  counterButtonText: { color: colors.primary, fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
+  counterButtonText: { color: colors.primary, fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   rejectButton: {
     padding: spacing.sm, borderRadius: 8, borderWidth: 1,
     borderColor: colors.error + '30', alignItems: 'center', justifyContent: 'center',
   },
   historySection: { marginTop: spacing.sm, paddingBottom: spacing.xl },
-  historyTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, marginBottom: spacing.sm },
+  historyTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, fontWeight: '700', marginBottom: spacing.sm },
   historyRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -761,10 +761,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   historyDot: { width: 8, height: 8, borderRadius: 4 },
-  historyRowText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
+  historyRowText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   historyRowDate: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular, marginTop: 2 },
   emptyState: { alignItems: 'center', padding: spacing.xl, paddingTop: spacing.xxl },
-  emptyStateTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, marginTop: spacing.md },
+  emptyStateTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, fontWeight: '700', marginTop: spacing.md },
   emptyStateText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.regular, textAlign: 'center', marginTop: spacing.xs },
 });
 

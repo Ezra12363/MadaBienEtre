@@ -40,6 +40,7 @@ import {
   parseStoredPhone,
   stripTrunkZero,
 } from '../../utils/phone';
+import { typography } from '../../theme';
 
 const GREEN = '#2E8B57';
 const IS_WEB = Platform.OS === 'web';
@@ -54,7 +55,7 @@ const Flag = ({ iso, size = 22 }) => {
   if (failed || !code || code === 'xk') {
     return (
       <View style={[styles.flagFallback, { width: size, height: size * 0.72 }]}>
-        <Text style={styles.flagFallbackText}>{String(iso || '').toUpperCase()}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.flagFallbackText]}>{String(iso || '').toUpperCase()}</Text>
       </View>
     );
   }
@@ -197,7 +198,7 @@ const PhoneInput = ({
           accessibilityLabel={`Pays : ${country.name}, indicatif +${country.dial}`}
         >
           <Flag iso={country.iso} />
-          <Text style={[styles.dial, { color: textColor }]}>+{country.dial}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dial, { color: textColor }]}>+{country.dial}</Text>
           <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={14} color={mutedColor} />
         </TouchableOpacity>
 
@@ -205,7 +206,7 @@ const PhoneInput = ({
 
         <TextInput
           ref={inputRef}
-          style={[styles.input, { color: textColor }, IS_WEB && styles.inputWeb]}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.input, { color: textColor }, IS_WEB && styles.inputWeb]}
           value={display}
           onChangeText={handleChangeText}
           onFocus={onFocus}
@@ -231,7 +232,7 @@ const PhoneInput = ({
           <View style={[styles.searchRow, { borderColor: isDark ? '#3A3A4B' : '#E1E9E2' }]}>
             <Ionicons name="search-outline" size={16} color={mutedColor} />
             <TextInput
-              style={[styles.searchInput, { color: textColor }, IS_WEB && styles.inputWeb]}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.searchInput, { color: textColor }, IS_WEB && styles.inputWeb]}
               value={query}
               onChangeText={setQuery}
               placeholder="Rechercher un pays ou un indicatif"
@@ -247,7 +248,7 @@ const PhoneInput = ({
             keyboardShouldPersistTaps="handled"
           >
             {filtered.length === 0 ? (
-              <Text style={[styles.empty, { color: mutedColor }]}>Aucun pays trouvé</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.empty, { color: mutedColor }]}>Aucun pays trouvé</Text>
             ) : (
               filtered.map((c) => {
                 const active = c.iso === country.iso;
@@ -259,10 +260,10 @@ const PhoneInput = ({
                     activeOpacity={0.7}
                   >
                     <Flag iso={c.iso} size={22} />
-                    <Text style={[styles.itemName, { color: textColor }]} numberOfLines={1}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.itemName, { color: textColor }]} numberOfLines={1}>
                       {c.name}
                     </Text>
-                    <Text style={[styles.itemDial, { color: mutedColor }]}>+{c.dial}</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.itemDial, { color: mutedColor }]}>+{c.dial}</Text>
                     {active ? <Ionicons name="checkmark" size={16} color={GREEN} /> : null}
                   </TouchableOpacity>
                 );
@@ -292,9 +293,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 8,
   },
-  dial: { fontSize: 14, fontWeight: '600' },
+  dial: { fontFamily: typography.fontFamily.semiBold, fontSize: 14, fontWeight: '600' },
   divider: { width: 1, height: 22, marginHorizontal: 6 },
-  input: {
+  input: { fontFamily: typography.fontFamily.regular,
     flex: 1,
     minWidth: 0,
     fontSize: 14,
@@ -317,7 +318,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderBottomWidth: 1,
   },
-  searchInput: { flex: 1, minHeight: 42, fontSize: 14 },
+  searchInput: { fontFamily: typography.fontFamily.regular, flex: 1, minHeight: 42, fontSize: 14 },
   list: { maxHeight: 240 },
   item: {
     flexDirection: 'row',
@@ -326,16 +327,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  itemName: { flex: 1, fontSize: 14 },
-  itemDial: { fontSize: 13 },
-  empty: { padding: 16, textAlign: 'center', fontSize: 13 },
+  itemName: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 14 },
+  itemDial: { fontFamily: typography.fontFamily.regular, fontSize: 13 },
+  empty: { fontFamily: typography.fontFamily.regular, padding: 16, textAlign: 'center', fontSize: 13 },
   flagFallback: {
     borderRadius: 3,
     backgroundColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  flagFallbackText: { fontSize: 8, fontWeight: '700', color: '#374151' },
+  flagFallbackText: { fontFamily: typography.fontFamily.bold, fontSize: 8, fontWeight: '700', color: '#374151' },
 });
 
 export default PhoneInput;

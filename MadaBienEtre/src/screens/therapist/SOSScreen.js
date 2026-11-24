@@ -166,19 +166,19 @@ const SOSScreen = ({ navigation: _navigation }) => {
               ) : sosSent ? (
                 <View style={styles.sosContent}>
                   <Ionicons name="checkmark-circle" size={48} color="#fff" />
-                  <Text style={styles.sosText}>ALERTE ENVOYÉE</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sosText]}>ALERTE ENVOYÉE</Text>
                 </View>
               ) : (
                 <View style={styles.sosContent}>
                   <Ionicons name="alert-circle" size={48} color="#fff" />
-                  <Text style={styles.sosText}>APPUYEZ EN URGENCE</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sosText]}>APPUYEZ EN URGENCE</Text>
                 </View>
               )}
             </LinearGradient>
           </TouchableOpacity>
         </Animatable.View>
 
-        <Text style={[styles.sosDescription, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sosDescription, { color: themeColors.textSecondary }]}>
           En appuyant sur le bouton, vous envoyez votre position GPS à notre équipe d'urgence
         </Text>
 
@@ -187,10 +187,10 @@ const SOSScreen = ({ navigation: _navigation }) => {
           <View style={[styles.locationCard, { backgroundColor: themeColors.surface }]}>
             <Ionicons name="location" size={24} color={colors.primary} />
             <View style={styles.locationInfo}>
-              <Text style={[styles.locationLabel, { color: themeColors.text }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.locationLabel, { color: themeColors.text }]}>
                 Votre position
               </Text>
-              <Text style={[styles.locationCoords, { color: themeColors.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.locationCoords, { color: themeColors.textSecondary }]}>
                 Lat: {location.latitude.toFixed(6)}, Lng: {location.longitude.toFixed(6)}
               </Text>
             </View>
@@ -199,7 +199,7 @@ const SOSScreen = ({ navigation: _navigation }) => {
 
         {/* Contacts d'urgence */}
         <View style={styles.emergencyContacts}>
-          <Text style={[styles.contactsTitle, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.contactsTitle, { color: themeColors.text }]}>
             Contacts d'urgence
           </Text>
           <View style={styles.contactsGrid}>
@@ -213,10 +213,10 @@ const SOSScreen = ({ navigation: _navigation }) => {
                 <View style={styles.contactIcon}>
                   <Ionicons name={contact.icon} size={28} color={colors.error} />
                 </View>
-                <Text style={[styles.contactName, { color: themeColors.text }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.contactName, { color: themeColors.text }]}>
                   {contact.name}
                 </Text>
-                <Text style={styles.contactNumber}>{contact.number}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.contactNumber]}>{contact.number}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -226,16 +226,16 @@ const SOSScreen = ({ navigation: _navigation }) => {
         <View style={[styles.tipsCard, { backgroundColor: colors.error + '10' }]}>
           <Ionicons name="bulb-outline" size={24} color={colors.error} />
           <View style={styles.tipsContent}>
-            <Text style={[styles.tipsTitle, { color: colors.error }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tipsTitle, { color: colors.error }]}>
               Conseils de sécurité
             </Text>
-            <Text style={[styles.tipsText, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tipsText, { color: themeColors.text }]}>
               • Restez calme et en sécurité
             </Text>
-            <Text style={[styles.tipsText, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tipsText, { color: themeColors.text }]}>
               • Envoyez votre position à un proche
             </Text>
-            <Text style={[styles.tipsText, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tipsText, { color: themeColors.text }]}>
               • Appelez les secours si nécessaire
             </Text>
           </View>
@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
   sosText: {
     color: '#fff',
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     letterSpacing: 2,
   },
   sosDescription: {
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
   },
   locationLabel: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
   locationCoords: {
     fontSize: typography.fontSize.xs,
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   },
   contactsTitle: {
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     marginBottom: spacing.md,
   },
   contactsGrid: {
@@ -355,11 +355,11 @@ const styles = StyleSheet.create({
   },
   contactName: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
   contactNumber: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     color: colors.error,
   },
   tipsCard: {
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   },
   tipsTitle: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     marginBottom: 4,
   },
   tipsText: {

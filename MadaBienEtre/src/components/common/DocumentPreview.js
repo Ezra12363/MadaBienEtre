@@ -7,6 +7,7 @@ import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../theme';
 import { isPdfUrl } from '../../utils/documentUtils';
+import { typography } from '../../theme';
 
 const DocumentPreview = ({
   url,
@@ -42,10 +43,10 @@ const DocumentPreview = ({
             size={38}
             color={colors.primary}
           />
-          <Text style={[styles.name, { color: themeColors.text || '#222' }]} numberOfLines={1}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.name, { color: themeColors.text || '#222' }]} numberOfLines={1}>
             {fileName || decodeURIComponent((url.split('?')[0].split('/').pop()) || 'Document')}
           </Text>
-          <Text style={[styles.sub, { color: text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sub, { color: text }]}>
             {pdf ? 'Document PDF — appuyer pour ouvrir' : 'Aperçu indisponible — appuyer pour ouvrir'}
           </Text>
         </View>
@@ -74,8 +75,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
   },
-  name: { fontSize: 13, fontWeight: '500', maxWidth: '90%' },
-  sub: { fontSize: 11 },
+  name: { fontFamily: typography.fontFamily.medium, fontSize: 13, fontWeight: '500', maxWidth: '90%' },
+  sub: { fontFamily: typography.fontFamily.regular, fontSize: 11 },
 });
 
 export default DocumentPreview;

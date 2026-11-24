@@ -78,14 +78,14 @@ const AIAcceptanceCard = ({ defaultBookingId = '', defaultPrice = '' }) => {
 
       {level && (
         <View style={[styles.result, { borderColor: level.color + '55', backgroundColor: level.color + '10' }]}>
-          <Text style={[styles.percent, { color: level.color }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.percent, { color: level.color }]}>
             {level.icon} {Math.round(probability)} %
           </Text>
           <View style={[styles.track, { backgroundColor: tc.border }]}>
             <View style={[styles.fill, { width: `${probability}%`, backgroundColor: level.color }]} />
           </View>
-          <Text style={[styles.levelText, { color: tc.text }]}>{level.label}</Text>
-          <Text style={[styles.hint, { color: tc.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.levelText, { color: tc.text }]}>{level.label}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, { color: tc.textSecondary }]}>
             Estimation indicative fournie par l'IA, à utiliser comme aide à la négociation.
           </Text>
         </View>
@@ -98,11 +98,11 @@ const styles = StyleSheet.create({
   twoCols: { flexDirection: 'row', gap: spacing.sm },
   col: { flex: 1 },
   result: { borderWidth: 1, borderRadius: 14, padding: spacing.md, marginTop: spacing.md },
-  percent: { fontSize: typography.fontSize.xxl, fontFamily: typography.fontFamily.bold },
+  percent: { fontSize: typography.fontSize.xxl, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   track: { height: 8, borderRadius: 4, marginVertical: spacing.sm, overflow: 'hidden' },
   fill: { height: 8, borderRadius: 4 },
-  levelText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
-  hint: { fontSize: typography.fontSize.xs, marginTop: 4 },
+  levelText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
+  hint: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, marginTop: 4 },
 });
 
 export default AIAcceptanceCard;

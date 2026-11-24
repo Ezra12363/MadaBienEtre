@@ -745,7 +745,7 @@ const CreateBookingScreen = ({ navigation }) => {
         >
           {/* TYPE DE MASSAGE */}
 
-          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionTitle, { color: themeColors.text }]}>
             Type de massage
           </Text>
 
@@ -791,7 +791,7 @@ const CreateBookingScreen = ({ navigation }) => {
                   </View>
 
                   <Text
-                    style={[styles.typeName, { color: themeColors.text }]}
+                    style={[{ fontFamily: typography.fontFamily.regular }, styles.typeName, { color: themeColors.text }]}
                     numberOfLines={2}
                   >
                     {type.name}
@@ -809,7 +809,7 @@ const CreateBookingScreen = ({ navigation }) => {
 
           {/* ADRESSE */}
 
-          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionTitle, { color: themeColors.text }]}>
             Adresse
           </Text>
 
@@ -827,7 +827,7 @@ const CreateBookingScreen = ({ navigation }) => {
               />
 
               <TextInput
-                style={[styles.addressInput, { color: themeColors.text }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.addressInput, { color: themeColors.text }]}
                 placeholder="Entrez votre adresse"
                 placeholderTextColor={themeColors.textSecondary}
                 value={address}
@@ -880,7 +880,7 @@ const CreateBookingScreen = ({ navigation }) => {
                       <View style={styles.suggestionTextWrapper}>
                         <Text
                           numberOfLines={1}
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.suggestionMainText,
                             { color: themeColors.text },
                           ]}
@@ -891,7 +891,7 @@ const CreateBookingScreen = ({ navigation }) => {
                         {!!item.secondary_text && (
                           <Text
                             numberOfLines={1}
-                            style={styles.suggestionSecondaryText}
+                            style={[{ fontFamily: typography.fontFamily.regular }, styles.suggestionSecondaryText]}
                           >
                             {item.secondary_text}
                           </Text>
@@ -924,7 +924,7 @@ const CreateBookingScreen = ({ navigation }) => {
               )}
 
               <Text
-                style={[styles.addressActionText, { color: colors.primary }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.addressActionText, { color: colors.primary }]}
               >
                 Utiliser ma position actuelle
               </Text>
@@ -947,7 +947,7 @@ const CreateBookingScreen = ({ navigation }) => {
               <Ionicons name="map-outline" size={18} color={themeColors.text} />
 
               <Text
-                style={[styles.addressActionText, { color: themeColors.text }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.addressActionText, { color: themeColors.text }]}
               >
                 Choisir sur la carte
               </Text>
@@ -960,7 +960,7 @@ const CreateBookingScreen = ({ navigation }) => {
             <View style={styles.errorInfo}>
               <Ionicons name="warning-outline" size={15} color="#EF4444" />
 
-              <Text style={styles.trackingErrorText}>{trackingError}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.trackingErrorText]}>{trackingError}</Text>
             </View>
           )}
 
@@ -981,12 +981,12 @@ const CreateBookingScreen = ({ navigation }) => {
 
               <View style={styles.coordsTextWrapper}>
                 <Text
-                  style={[styles.coordsConfirmTitle, { color: themeColors.text }]}
+                  style={[{ fontFamily: typography.fontFamily.regular }, styles.coordsConfirmTitle, { color: themeColors.text }]}
                 >
                   Position confirmée
                 </Text>
 
-                <Text style={styles.coordsConfirmText}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.coordsConfirmText]}>
                   {selectedCoords.latitude.toFixed(5)}
                   {'  •  '}
                   {selectedCoords.longitude.toFixed(5)}
@@ -1030,7 +1030,7 @@ const CreateBookingScreen = ({ navigation }) => {
                     color={themeColors.textSecondary}
                   />
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.mapPreviewPlaceholderText,
                       { color: themeColors.textSecondary },
                     ]}
@@ -1042,7 +1042,7 @@ const CreateBookingScreen = ({ navigation }) => {
 
               <View style={styles.mapPreviewOverlay}>
                 <Ionicons name="expand-outline" size={13} color="#fff" />
-                <Text style={styles.mapPreviewOverlayText}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mapPreviewOverlayText]}>
                   Modifier sur la carte
                 </Text>
               </View>
@@ -1053,7 +1053,7 @@ const CreateBookingScreen = ({ navigation }) => {
               ✅ DATE & HEURE DU RENDEZ-VOUS
           ==================================================== */}
 
-          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionTitle, { color: themeColors.text }]}>
             Date et heure du massage
           </Text>
 
@@ -1074,7 +1074,7 @@ const CreateBookingScreen = ({ navigation }) => {
               />
 
               <TextInput
-                style={[styles.dateTimeInput, { color: themeColors.text }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.dateTimeInput, { color: themeColors.text }]}
                 placeholder="JJ/MM/AAAA"
                 placeholderTextColor={themeColors.textSecondary}
                 value={dateText}
@@ -1101,7 +1101,7 @@ const CreateBookingScreen = ({ navigation }) => {
               />
 
               <TextInput
-                style={[styles.dateTimeInput, { color: themeColors.text }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.dateTimeInput, { color: themeColors.text }]}
                 placeholder="HH:MM:SS"
                 placeholderTextColor={themeColors.textSecondary}
                 value={timeText}
@@ -1133,7 +1133,7 @@ const CreateBookingScreen = ({ navigation }) => {
                 onPress={() => handleQuickDate(item.days)}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.quickDateText, { color: colors.primary }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.quickDateText, { color: colors.primary }]}>
                   {item.label}
                 </Text>
               </TouchableOpacity>
@@ -1154,7 +1154,7 @@ const CreateBookingScreen = ({ navigation }) => {
                 size={16}
                 color={colors.primary}
               />
-              <Text style={[styles.expiryInfoText, { color: themeColors.text }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.expiryInfoText, { color: themeColors.text }]}>
                 Votre demande reste ouverte aux thérapeutes jusqu'au{' '}
                 {dateText} à{' '}
                 {normalizeTimeInput(timeText)}, puis elle expire automatiquement.
@@ -1163,7 +1163,7 @@ const CreateBookingScreen = ({ navigation }) => {
           ) : scheduledPreview ? (
             <View style={styles.errorInfo}>
               <Ionicons name="warning-outline" size={15} color="#EF4444" />
-              <Text style={styles.trackingErrorText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.trackingErrorText]}>
                 Choisissez une date et une heure au moins {MIN_LEAD_MINUTES}{' '}
                 minutes dans le futur.
               </Text>
@@ -1172,7 +1172,7 @@ const CreateBookingScreen = ({ navigation }) => {
 
           {/* PRIX */}
 
-          <Text style={[styles.sectionTitle, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionTitle, { color: themeColors.text }]}>
             Prix proposé
           </Text>
 
@@ -1182,10 +1182,10 @@ const CreateBookingScreen = ({ navigation }) => {
               { backgroundColor: themeColors.surface },
             ]}
           >
-            <Text style={styles.currency}>Ar</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.currency]}>Ar</Text>
 
             <TextInput
-              style={[styles.priceInput, { color: themeColors.text }]}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.priceInput, { color: themeColors.text }]}
               placeholder="Prix proposé"
               placeholderTextColor={themeColors.textSecondary}
               value={price}
@@ -1209,7 +1209,7 @@ const CreateBookingScreen = ({ navigation }) => {
               <Ionicons name="paper-plane-outline" size={19} color="#fff" />
             )}
 
-            <Text style={styles.submitButtonText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.submitButtonText]}>
               {submitting ? 'Envoi en cours...' : 'Soumettre ma demande'}
             </Text>
           </TouchableOpacity>
@@ -1254,7 +1254,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     marginTop: spacing.md,
     marginBottom: spacing.sm,
   },
@@ -1293,7 +1293,7 @@ const styles = StyleSheet.create({
 
   typeName: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginTop: spacing.xs,
     textAlign: 'center',
   },
@@ -1373,7 +1373,7 @@ const styles = StyleSheet.create({
 
   suggestionMainText: {
     fontSize: 12.5,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   suggestionSecondaryText: {
@@ -1429,7 +1429,7 @@ const styles = StyleSheet.create({
   mapPreviewOverlayText: {
     color: '#fff',
     fontSize: 10.5,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ADDRESS ACTIONS */
@@ -1454,7 +1454,7 @@ const styles = StyleSheet.create({
 
   addressActionText: {
     fontSize: 12,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     textAlign: 'center',
   },
 
@@ -1492,7 +1492,7 @@ const styles = StyleSheet.create({
 
   coordsConfirmTitle: {
     fontSize: 12,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     marginBottom: 2,
   },
 
@@ -1529,7 +1529,7 @@ const styles = StyleSheet.create({
   dateTimeInput: {
     flex: 1,
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     padding: 0,
     // Chiffres de même largeur : le masque ne "saute" pas pendant la saisie
     fontVariant: ['tabular-nums'],
@@ -1550,7 +1550,7 @@ const styles = StyleSheet.create({
 
   quickDateText: {
     fontSize: 12,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   expiryInfo: {
@@ -1580,7 +1580,7 @@ const styles = StyleSheet.create({
 
   currency: {
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     color: colors.primary,
     marginRight: spacing.sm,
   },
@@ -1588,7 +1588,7 @@ const styles = StyleSheet.create({
   priceInput: {
     flex: 1,
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     padding: 0,
   },
 
@@ -1623,7 +1623,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: '#fff',
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   }
 });
 

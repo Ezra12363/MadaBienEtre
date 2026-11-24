@@ -7,6 +7,7 @@ import reviewService from '../../services/reviewService';
 import RatingSummary from './RatingSummary';
 import TherapistReviewHeader from './TherapistReviewHeader';
 import ReviewCard from './ReviewCard';
+import { typography } from '../../theme';
 
 export default function AdminTherapistReviewsCard({ therapistId, navigation }) {
   const { colors: c } = useTheme();
@@ -38,7 +39,7 @@ export default function AdminTherapistReviewsCard({ therapistId, navigation }) {
   if (error) {
     return (
       <TouchableOpacity onPress={load}>
-        <Text style={{ color: '#B91C1C' }}>{error} — réessayer</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: '#B91C1C' }]}>{error} — réessayer</Text>
       </TouchableOpacity>
     );
   }
@@ -54,7 +55,7 @@ export default function AdminTherapistReviewsCard({ therapistId, navigation }) {
       <RatingSummary stats={stats} compact />
       <View style={{ height: 12 }} />
       {reviews.length === 0 ? (
-        <Text style={{ color: c.textSecondary }}>Aucun avis pour ce thérapeute.</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: c.textSecondary }]}>Aucun avis pour ce thérapeute.</Text>
       ) : (
         reviews.map((r) => <ReviewCard key={r.id} review={r} role="admin" />)
       )}
@@ -62,7 +63,7 @@ export default function AdminTherapistReviewsCard({ therapistId, navigation }) {
         onPress={() => navigation?.navigate?.('Reviews')}
         style={{ alignSelf: 'flex-start', paddingVertical: 8 }}
       >
-        <Text style={{ color: c.primary, fontWeight: '800' }}>Gérer tous les avis ›</Text>
+        <Text style={{ fontFamily: typography.fontFamily.bold, color: c.primary, fontWeight: '800' }}>Gérer tous les avis ›</Text>
       </TouchableOpacity>
     </View>
   );

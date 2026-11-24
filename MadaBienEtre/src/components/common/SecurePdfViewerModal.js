@@ -28,6 +28,7 @@ import { WebView } from 'react-native-webview';
 
 import { fetchPdfAsBase64 } from '../../utils/secureDocument';
 import { ImageViewerModal } from './ImageViewerModal';
+import { typography } from '../../theme';
 
 const IS_WEB = Platform.OS === 'web';
 const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174';
@@ -41,7 +42,7 @@ const buildHtml = (base64) => `<!doctype html>
   html,body{margin:0;padding:0;background:#1d2420;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
   #pages{display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 0}
   canvas{width:96vw;max-width:1100px;height:auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.4)}
-  #msg{color:#fff;font:14px sans-serif;text-align:center;padding:40px 20px}
+  #msg{color:#fff;font:14px 'Times New Roman',Times,Tinos,serif;text-align:center;padding:40px 20px}
   @media print{body{display:none}}
 </style></head>
 <body oncontextmenu="return false" ondragstart="return false">
@@ -132,7 +133,7 @@ export const SecurePdfViewerModal = ({ visible, title = 'Certificat', sources = 
     <Modal visible transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <View style={styles.root} onStartShouldSetResponder={() => true}>
         <View style={styles.topBar}>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title]} numberOfLines={1}>
             {title}
           </Text>
           <Pressable
@@ -186,16 +187,16 @@ export const SecurePdfViewerModal = ({ visible, title = 'Certificat', sources = 
           {state.status === 'loading' ? (
             <View style={styles.center}>
               <ActivityIndicator size="large" color="#FFFFFF" />
-              <Text style={styles.info}>Chargement du certificat…</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.info]}>Chargement du certificat…</Text>
             </View>
           ) : null}
 
           {state.status === 'error' ? (
             <View style={styles.center}>
               <Ionicons name="document-outline" size={46} color="rgba(255,255,255,0.7)" />
-              <Text style={styles.info}>{state.message}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.info]}>{state.message}</Text>
               <Pressable onPress={retry} style={styles.retry}>
-                <Text style={styles.retryText}>Réessayer</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.retryText]}>Réessayer</Text>
               </Pressable>
             </View>
           ) : null}
@@ -215,7 +216,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? 38 : 16,
     paddingBottom: 10,
   },
-  title: { flex: 1, color: '#FFFFFF', fontSize: 15, fontWeight: '700', paddingRight: 12 },
+  title: { fontFamily: typography.fontFamily.bold, flex: 1, color: '#FFFFFF', fontSize: 15, fontWeight: '700', paddingRight: 12 },
   closeButton: {
     width: 42,
     height: 42,
@@ -233,7 +234,7 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 24,
   },
-  info: { color: 'rgba(255,255,255,0.85)', fontSize: 13.5, textAlign: 'center' },
+  info: { fontFamily: typography.fontFamily.regular, color: 'rgba(255,255,255,0.85)', fontSize: 13.5, textAlign: 'center' },
   retry: {
     marginTop: 4,
     paddingHorizontal: 20,
@@ -241,7 +242,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.16)',
   },
-  retryText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+  retryText: { fontFamily: typography.fontFamily.bold, color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
 });
 
 export default SecurePdfViewerModal;

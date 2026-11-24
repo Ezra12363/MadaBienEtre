@@ -24,6 +24,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { API_URL } from '../../config/env';
 import certificateSettingsService from '../../services/certificateSettingsService';
 import { downloadAuthenticatedPdf } from '../../utils/downloadFile';
+import { typography } from '../../theme';
 
 const GREEN = '#2E8B57';
 const IS_WEB = Platform.OS === 'web';
@@ -205,8 +206,8 @@ export default function CertificateSettingsPanel() {
   // ------------------------------------------------------------------ UI
   const ImageCard = ({ kind, title, help, url, custom, wide }) => (
     <View style={[styles.imageCard, { borderColor: theme.border || '#E5E7EB' }]}>
-      <Text style={[styles.label, txt]}>{title}</Text>
-      <Text style={[styles.hint, sub]}>{help}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, txt]}>{title}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, sub]}>{help}</Text>
 
       <View style={[styles.imageBox, kind === 'logo' ? styles.imageBoxLogo : styles.imageBoxSignature]}>
         {url ? (
@@ -216,7 +217,7 @@ export default function CertificateSettingsPanel() {
         )}
       </View>
 
-      <Text style={[styles.hint, sub, { textAlign: 'center' }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, sub, { textAlign: 'center' }]}>
         {custom ? 'Image personnalisée' : 'Image du modèle officiel'}
       </Text>
 
@@ -231,7 +232,7 @@ export default function CertificateSettingsPanel() {
           ) : (
             <>
               <Ionicons name="cloud-upload-outline" size={16} color="#fff" />
-              <Text style={styles.smallBtnText}>Choisir une image</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.smallBtnText]}>Choisir une image</Text>
             </>
           )}
         </TouchableOpacity>
@@ -243,7 +244,7 @@ export default function CertificateSettingsPanel() {
             disabled={busy !== null}
           >
             <Ionicons name="refresh-outline" size={16} color={GREEN} />
-            <Text style={[styles.smallBtnText, { color: GREEN }]}>Image d’origine</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.smallBtnText, { color: GREEN }]}>Image d’origine</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -255,8 +256,8 @@ export default function CertificateSettingsPanel() {
       <TouchableOpacity style={styles.head} onPress={() => setOpen((o) => !o)} activeOpacity={0.8}>
         <Ionicons name="ribbon-outline" size={22} color={GREEN} />
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, txt]}>Certificat thérapeute</Text>
-          <Text style={[styles.desc, sub]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, txt]}>Certificat thérapeute</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.desc, sub]}>
             Logo, signature, textes et couleurs du certificat délivré après validation.
           </Text>
         </View>
@@ -268,9 +269,9 @@ export default function CertificateSettingsPanel() {
           <View style={{ alignItems: 'center', paddingVertical: 24 }}>
             {msg && !msg.ok ? (
               <>
-                <Text style={[styles.msg, { color: '#B91C1C' }]}>{msg.text}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.msg, { color: '#B91C1C' }]}>{msg.text}</Text>
                 <TouchableOpacity onPress={load} style={{ marginTop: 10 }}>
-                  <Text style={{ color: GREEN }}>Réessayer</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: GREEN }]}>Réessayer</Text>
                 </TouchableOpacity>
               </>
             ) : (
@@ -279,7 +280,7 @@ export default function CertificateSettingsPanel() {
           </View>
         ) : (
           <View>
-            <Text style={[styles.group, { color: GREEN }]}>IMAGES</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.group, { color: GREEN }]}>IMAGES</Text>
             <View style={styles.imagesRow}>
               <ImageCard
                 kind="logo"
@@ -298,13 +299,13 @@ export default function CertificateSettingsPanel() {
               />
             </View>
 
-            <Text style={[styles.group, { color: GREEN }]}>COULEURS</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.group, { color: GREEN }]}>COULEURS</Text>
             {COLOR_FIELDS.map(({ key, label }) => {
               const v = String(form[key] || '');
               const valid = HEX.test(v.startsWith('#') ? v : `#${v}`);
               return (
                 <View key={key} style={{ marginTop: 10 }}>
-                  <Text style={[styles.label, sub]}>{label}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, sub]}>{label}</Text>
                   <View style={[styles.inputWrap, { borderColor: theme.border }]}>
                     <View
                       style={[
@@ -313,7 +314,7 @@ export default function CertificateSettingsPanel() {
                       ]}
                     />
                     <TextInput
-                      style={[styles.input, txt]}
+                      style={[{ fontFamily: typography.fontFamily.regular }, styles.input, txt]}
                       value={v}
                       onChangeText={(t) => setField(key, t.trim())}
                       autoCapitalize="characters"
@@ -327,13 +328,13 @@ export default function CertificateSettingsPanel() {
               );
             })}
 
-            <Text style={[styles.group, { color: GREEN }]}>TEXTES</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.group, { color: GREEN }]}>TEXTES</Text>
             {TEXT_FIELDS.map(({ key, label, hint, multiline }) => (
               <View key={key} style={{ marginTop: 10 }}>
-                <Text style={[styles.label, sub]}>{label}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, sub]}>{label}</Text>
                 <View style={[styles.inputWrap, { borderColor: theme.border }]}>
                   <TextInput
-                    style={[styles.input, txt, multiline && styles.inputMulti]}
+                    style={[{ fontFamily: typography.fontFamily.regular }, styles.input, txt, multiline && styles.inputMulti]}
                     value={String(form[key] ?? '')}
                     onChangeText={(t) => setField(key, t)}
                     multiline={!!multiline}
@@ -342,22 +343,22 @@ export default function CertificateSettingsPanel() {
                     placeholderTextColor={theme.placeholder}
                   />
                 </View>
-                {hint ? <Text style={[styles.hint, sub]}>{hint}</Text> : null}
+                {hint ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hint, sub]}>{hint}</Text> : null}
               </View>
             ))}
 
-            <Text style={[styles.help, sub]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.help, sub]}>
               Un champ laissé vide reprend le texte du modèle. Les changements s’appliquent aux
               nouveaux certificats ; un certificat déjà délivré est régénéré avec ces réglages quand
               ses spécialités sont modifiées.
             </Text>
 
             {msg ? (
-              <Text style={[styles.msg, { color: msg.ok ? '#047857' : '#B91C1C' }]}>{msg.text}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.msg, { color: msg.ok ? '#047857' : '#B91C1C' }]}>{msg.text}</Text>
             ) : null}
 
             <TouchableOpacity style={styles.save} onPress={save} disabled={saving || busy !== null}>
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Enregistrer</Text>}
+              {saving ? <ActivityIndicator color="#fff" /> : <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.saveText]}>Enregistrer</Text>}
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.outline} onPress={preview} disabled={busy !== null || saving}>
@@ -366,7 +367,7 @@ export default function CertificateSettingsPanel() {
               ) : (
                 <>
                   <Ionicons name="document-text-outline" size={18} color={GREEN} />
-                  <Text style={[styles.outlineText, { color: GREEN }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.outlineText, { color: GREEN }]}>
                     Aperçu du certificat (PDF enregistré)
                   </Text>
                 </>
@@ -374,7 +375,7 @@ export default function CertificateSettingsPanel() {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.reset} onPress={reset} disabled={busy !== null || saving}>
-              <Text style={[styles.resetText, { color: confirmReset ? '#B91C1C' : theme.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.resetText, { color: confirmReset ? '#B91C1C' : theme.textSecondary }]}>
                 {busy === 'reset'
                   ? 'Réinitialisation...'
                   : confirmReset
@@ -392,13 +393,13 @@ export default function CertificateSettingsPanel() {
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 16, padding: 16, marginBottom: 16 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title: { fontSize: 16, fontWeight: '400' },
-  desc: { fontSize: 12, marginTop: 2, fontWeight: '400' },
-  group: { fontSize: 11, letterSpacing: 1, marginTop: 20, fontWeight: '400' },
-  label: { fontSize: 12, marginBottom: 6, fontWeight: '400' },
-  hint: { fontSize: 11, marginTop: 4, fontWeight: '400', lineHeight: 15 },
+  title: { fontFamily: typography.fontFamily.regular, fontSize: 16, fontWeight: '400' },
+  desc: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginTop: 2, fontWeight: '400' },
+  group: { fontFamily: typography.fontFamily.regular, fontSize: 11, letterSpacing: 1, marginTop: 20, fontWeight: '400' },
+  label: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginBottom: 6, fontWeight: '400' },
+  hint: { fontFamily: typography.fontFamily.regular, fontSize: 11, marginTop: 4, fontWeight: '400', lineHeight: 15 },
   inputWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, paddingHorizontal: 12 },
-  input: { flex: 1, paddingVertical: 10, fontSize: 15, fontWeight: '400' },
+  input: { fontFamily: typography.fontFamily.regular, flex: 1, paddingVertical: 10, fontSize: 15, fontWeight: '400' },
   inputMulti: { minHeight: 84, paddingTop: 10 },
   swatch: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: '#D1D5DB', marginRight: 10 },
   imagesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 10 },
@@ -425,11 +426,11 @@ const styles = StyleSheet.create({
     minHeight: 38,
   },
   smallBtnOutline: { borderWidth: 1, borderColor: GREEN },
-  smallBtnText: { color: '#fff', fontSize: 13, fontWeight: '400' },
-  help: { fontSize: 11, marginTop: 16, lineHeight: 16, fontWeight: '400' },
-  msg: { fontSize: 13, marginTop: 14, fontWeight: '400' },
+  smallBtnText: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 13, fontWeight: '400' },
+  help: { fontFamily: typography.fontFamily.regular, fontSize: 11, marginTop: 16, lineHeight: 16, fontWeight: '400' },
+  msg: { fontFamily: typography.fontFamily.regular, fontSize: 13, marginTop: 14, fontWeight: '400' },
   save: { backgroundColor: GREEN, borderRadius: 12, paddingVertical: 13, alignItems: 'center', marginTop: 16 },
-  saveText: { color: '#fff', fontSize: 14, fontWeight: '400' },
+  saveText: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 14, fontWeight: '400' },
   outline: {
     flexDirection: 'row',
     gap: 8,
@@ -441,7 +442,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginTop: 10,
   },
-  outlineText: { fontSize: 14, fontWeight: '400' },
+  outlineText: { fontFamily: typography.fontFamily.regular, fontSize: 14, fontWeight: '400' },
   reset: { alignItems: 'center', paddingVertical: 14 },
-  resetText: { fontSize: 13, fontWeight: '400', textAlign: 'center' },
+  resetText: { fontFamily: typography.fontFamily.regular, fontSize: 13, fontWeight: '400', textAlign: 'center' },
 });

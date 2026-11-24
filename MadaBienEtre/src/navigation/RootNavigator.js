@@ -32,7 +32,7 @@ const Stack = createNativeStackNavigator();
 const LoadingScreen = () => (
   <View style={styles.loadingContainer}>
     <ActivityIndicator size="large" color={colors.primary} />
-    <Text style={styles.loadingText}>Mada Bien-être</Text>
+    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText]}>Mada Bien-être</Text>
   </View>
 );
 
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 20,
     fontSize: typography.fontSize.xl,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     color: colors.primary,
   },
 });

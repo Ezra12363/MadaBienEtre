@@ -39,6 +39,7 @@ import {
   buildRows, canEditMsg, canReplyTo, computeStatus, isAdminUser, newClientId, presenceLabel,
 } from '../../utils/messengerUtils';
 import { useWindowDimensions } from 'react-native';
+import { typography } from '../../theme';
 
 let Clipboard = null;
 try {
@@ -530,7 +531,7 @@ const MessengerChatScreen = ({ navigation, route }) => {
 
   const renderItem = ({ item }) => {
     if (item.rowType === 'day') {
-      return <View style={styles.dayWrap}><Text style={[styles.day, { backgroundColor: palette.pillBg, color: palette.pillText }]}>{formatDayLabel(item.date)}</Text></View>;
+      return <View style={styles.dayWrap}><Text style={[{ fontFamily: typography.fontFamily.regular }, styles.day, { backgroundColor: palette.pillBg, color: palette.pillText }]}>{formatDayLabel(item.date)}</Text></View>;
     }
     const m = item.message;
     const mine = m.sender?.id === me;
@@ -584,7 +585,7 @@ const MessengerChatScreen = ({ navigation, route }) => {
         {!!error && (
           <View style={[styles.banner, { backgroundColor: palette.dangerSoft }]}>
             <Ionicons name="alert-circle" size={16} color={palette.danger} />
-            <Text style={{ flex: 1, color: palette.danger, fontSize: 12 }} numberOfLines={3}>Conversation indisponible ({error}).</Text>
+            <Text style={{ fontFamily: typography.fontFamily.regular, flex: 1, color: palette.danger, fontSize: 12 }} numberOfLines={3}>Conversation indisponible ({error}).</Text>
           </View>
         )}
 
@@ -594,10 +595,10 @@ const MessengerChatScreen = ({ navigation, route }) => {
             onPress={() => { jumpTo(pin.id); setPinIndex((i) => i + 1); }}
           >
             <Ionicons name="pin" size={16} color={palette.primary} />
-            <Text style={{ flex: 1, color: palette.text, fontSize: 13 }} numberOfLines={1}>
+            <Text style={{ fontFamily: typography.fontFamily.regular, flex: 1, color: palette.text, fontSize: 13 }} numberOfLines={1}>
               {pin.content || (pin.attachment ? `📎 ${pin.attachment.name || 'Pièce jointe'}` : 'Message épinglé')}
             </Text>
-            {pinned.length > 1 && <Text style={{ color: palette.textSecondary, fontSize: 12 }}>{(pinIndex % pinned.length) + 1}/{pinned.length}</Text>}
+            {pinned.length > 1 && <Text style={{ fontFamily: typography.fontFamily.regular, color: palette.textSecondary, fontSize: 12 }}>{(pinIndex % pinned.length) + 1}/{pinned.length}</Text>}
           </TouchableOpacity>
         )}
 
@@ -611,7 +612,7 @@ const MessengerChatScreen = ({ navigation, route }) => {
             {loading && !error ? (
               <View style={styles.centerAll}>
                 <ActivityIndicator color={palette.primary} size="large" />
-                <Text style={{ color: palette.textSecondary, marginTop: 10 }}>Chargement de la conversation…</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.textSecondary, marginTop: 10 }]}>Chargement de la conversation…</Text>
               </View>
             ) : (
               <FlatList
@@ -632,8 +633,8 @@ const MessengerChatScreen = ({ navigation, route }) => {
                   <View style={[styles.emptyIcon, { backgroundColor: palette.primarySoft }]}>
                     <Ionicons name="chatbubble-ellipses-outline" size={34} color={palette.primary} />
                   </View>
-                  <Text style={{ color: palette.text, fontWeight: '700', fontSize: 17 }}>Aucun message</Text>
-                  <Text style={{ color: palette.textSecondary, textAlign: 'center' }}>
+                  <Text style={{ fontFamily: typography.fontFamily.bold, color: palette.text, fontWeight: '700', fontSize: 17 }}>Aucun message</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.textSecondary, textAlign: 'center' }]}>
                     Commencez la conversation{detail?.title && !isGroup ? ` avec ${detail.title}` : ''}.
                   </Text>
                 </View>
@@ -660,14 +661,14 @@ const MessengerChatScreen = ({ navigation, route }) => {
               {!!selected && !selected.deleted && selected.message_type !== 'system' && (
                 <View style={styles.reactRow}>
                   {QUICK_REACTIONS.map((e) => (
-                    <TouchableOpacity key={e} onPress={() => react(selected, e)} style={styles.reactBtn}><Text style={{ fontSize: 26 }}>{e}</Text></TouchableOpacity>
+                    <TouchableOpacity key={e} onPress={() => react(selected, e)} style={styles.reactBtn}><Text style={{ fontFamily: typography.fontFamily.regular, fontSize: 26 }}>{e}</Text></TouchableOpacity>
                   ))}
                 </View>
               )}
               {!!selected && messageActions(selected).map((a) => (
                 <TouchableOpacity key={a.key} style={styles.menuRow} onPress={() => { setSelected(null); a.onPress(); }}>
                   <Ionicons name={a.icon} size={20} color={a.destructive ? palette.danger : palette.primary} />
-                  <Text style={{ color: a.destructive ? palette.danger : palette.text, fontSize: 15 }}>{a.label}</Text>
+                  <Text style={{ fontFamily: typography.fontFamily.regular, color: a.destructive ? palette.danger : palette.text, fontSize: 15 }}>{a.label}</Text>
                 </TouchableOpacity>
               ))}
             </Pressable>
@@ -714,7 +715,7 @@ const styles = StyleSheet.create({
   banner: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 8 },
   pinBar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   dayWrap: { alignItems: 'center', marginVertical: 10 },
-  day: { fontSize: 12, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
+  day: { fontFamily: typography.fontFamily.regular, fontSize: 12, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, overflow: 'hidden' },
   emptyWrap: { alignItems: 'center', paddingHorizontal: 24, gap: 8, paddingVertical: 40 },
   emptyOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   emptyIcon: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },

@@ -1113,9 +1113,9 @@ const TherapistsScreen = () => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.avatarText,
-                {
+                { fontFamily: typography.fontFamily.regular,
                   color:
                     colors.primary,
                   fontSize:
@@ -1184,7 +1184,7 @@ const TherapistsScreen = () => {
       )}
 
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.statusBadgeText,
           WEB_WRAP,
           {
@@ -1252,7 +1252,7 @@ const TherapistsScreen = () => {
             }
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.webName,
                 WEB_WRAP,
                 {
@@ -1266,7 +1266,7 @@ const TherapistsScreen = () => {
             </Text>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.webEmail,
                 WEB_WRAP,
                 {
@@ -1287,7 +1287,7 @@ const TherapistsScreen = () => {
           style={[styles.webCell, styles.webCellPhone]}
         >
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.webCellText,
               WEB_WRAP,
               {
@@ -1306,7 +1306,7 @@ const TherapistsScreen = () => {
           style={[styles.webCell, styles.webCellCin]}
         >
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.webCellText,
               WEB_WRAP,
               {
@@ -1336,7 +1336,7 @@ const TherapistsScreen = () => {
           />
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.webCellText,
               WEB_WRAP,
               {
@@ -1403,7 +1403,7 @@ const TherapistsScreen = () => {
           style={[styles.webCell, styles.webCellPrice]}
         >
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.webPrice,
               {
                 color:
@@ -1529,7 +1529,7 @@ const TherapistsScreen = () => {
             <View style={styles.mobileTopRow}>
               <Text
                 numberOfLines={1}
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.mobileName,
                   {
                     color: themeColors.text,
@@ -1547,7 +1547,7 @@ const TherapistsScreen = () => {
 
             <Text
               numberOfLines={1}
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.mobileEmail,
                 {
                   color: themeColors.textSecondary,
@@ -1590,7 +1590,7 @@ const TherapistsScreen = () => {
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.mobilePrice,
                   {
                     color: colors.primary,
@@ -1621,7 +1621,7 @@ const TherapistsScreen = () => {
             <Ionicons name="map-outline" size={16} color={colors.primary} />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.mobileFooterButtonText,
                 {
                   color: colors.primary,
@@ -1643,7 +1643,7 @@ const TherapistsScreen = () => {
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.mobileFooterButtonText,
                 {
                   color: getActiveStatusColor(item.is_active),
@@ -1667,7 +1667,7 @@ const TherapistsScreen = () => {
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.mobileFooterButtonText,
                 {
                   color: themeColors.textSecondary,
@@ -1719,7 +1719,7 @@ const TherapistsScreen = () => {
           >
             <View style={[styles.webHeaderCell, styles.webCellTherapist]}>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.webHeaderText,
                   { color: themeColors.textSecondary },
                 ]}
@@ -1738,7 +1738,7 @@ const TherapistsScreen = () => {
 
             <View style={[styles.webHeaderCell, styles.webActionCell]}>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.webHeaderText,
                   { color: themeColors.textSecondary },
                 ]}
@@ -1828,7 +1828,7 @@ const TherapistsScreen = () => {
 
       <Text
         numberOfLines={lines || (full ? 2 : 1)}
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.mobileValueText,
           {
             color: valueColor || themeColors.text,
@@ -1854,7 +1854,7 @@ const TherapistsScreen = () => {
       style={[styles.webHeaderCell, style]}
     >
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.webHeaderText,
           {
             color:
@@ -1892,7 +1892,7 @@ const TherapistsScreen = () => {
         >
           <View style={styles.viewerHeader}>
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.viewerTitle,
                 { color: themeColors.text },
               ]}
@@ -1926,7 +1926,7 @@ const TherapistsScreen = () => {
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.viewerPdfText,
                     { color: themeColors.textSecondary },
                   ]}
@@ -1957,7 +1957,7 @@ const TherapistsScreen = () => {
               color="#fff"
             />
 
-            <Text style={styles.viewerDownloadButtonText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.viewerDownloadButtonText]}>
               Télécharger
             </Text>
           </TouchableOpacity>
@@ -2023,7 +2023,7 @@ const TherapistsScreen = () => {
           </View>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.confirmTitle,
               {
                 color: themeColors.text,
@@ -2034,7 +2034,7 @@ const TherapistsScreen = () => {
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.confirmMessage,
               {
                 color:
@@ -2057,7 +2057,7 @@ const TherapistsScreen = () => {
               ]}
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.confirmButtonText,
                   {
                     color: themeColors.text,
@@ -2080,7 +2080,7 @@ const TherapistsScreen = () => {
                 },
               ]}
             >
-              <Text style={styles.confirmButtonTextWhite}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmButtonTextWhite]}>
                 Confirmer
               </Text>
             </TouchableOpacity>
@@ -2158,7 +2158,7 @@ const TherapistsScreen = () => {
               }
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.pageTitle,
                   {
                     color:
@@ -2170,7 +2170,7 @@ const TherapistsScreen = () => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.pageSubtitle,
                   {
                     color:
@@ -2226,7 +2226,7 @@ const TherapistsScreen = () => {
 
                 {IS_WEB && (
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.refreshText,
                       { color: '#fff' },
                     ]}
@@ -2256,7 +2256,7 @@ const TherapistsScreen = () => {
 
                 {IS_WEB && (
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.refreshText,
                       {
                         color:
@@ -2302,7 +2302,7 @@ const TherapistsScreen = () => {
               />
 
               <TextInput
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.searchInput,
                   {
                     color:
@@ -2404,7 +2404,7 @@ const TherapistsScreen = () => {
                       />
 
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.filterText,
                           {
                             color:
@@ -2450,7 +2450,7 @@ const TherapistsScreen = () => {
 
               <Text
                 style={
-                  styles.errorText
+                  [{ fontFamily: typography.fontFamily.regular }, styles.errorText]
                 }
               >
                 {error}
@@ -2486,7 +2486,7 @@ const TherapistsScreen = () => {
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.loadingText,
                   {
                     color:
@@ -2525,7 +2525,7 @@ const TherapistsScreen = () => {
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.emptyStateTitle,
                   {
                     color:
@@ -2537,7 +2537,7 @@ const TherapistsScreen = () => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.emptyStateText,
                   {
                     color:
@@ -2641,7 +2641,7 @@ const SectionTitle = ({
   themeColors,
 }) => (
   <Text
-    style={[
+    style={[{ fontFamily: typography.fontFamily.regular }, 
       styles.sectionTitle,
       {
         color:
@@ -2674,7 +2674,7 @@ const InfoRow = ({
     ]}
   >
     <Text
-      style={[
+      style={[{ fontFamily: typography.fontFamily.regular }, 
         styles.modalInfoLabel,
         {
           color:
@@ -2687,7 +2687,7 @@ const InfoRow = ({
     </Text>
 
     <Text
-      style={[
+      style={[{ fontFamily: typography.fontFamily.regular }, 
         styles.modalInfoValue,
         {
           color:
@@ -2741,7 +2741,7 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 20,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   pageSubtitle: {
@@ -2764,7 +2764,7 @@ const styles = StyleSheet.create({
   refreshText: {
     fontSize: 12,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ============================================================
@@ -2827,7 +2827,7 @@ const styles = StyleSheet.create({
   filterText: {
     fontSize: 12,
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   /* ============================================================
@@ -2850,7 +2850,7 @@ const styles = StyleSheet.create({
     color: '#E74C3C',
     fontSize: 12,
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   /* ============================================================
@@ -2895,10 +2895,10 @@ const styles = StyleSheet.create({
     marginTop: 14,
     fontSize: 17,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
-  emptyStateText: {
+  emptyStateText: { fontFamily: typography.fontFamily.regular,
     marginTop: 5,
     fontSize: 13,
     textAlign: 'center',
@@ -2948,7 +2948,7 @@ const styles = StyleSheet.create({
   webHeaderText: {
     fontSize: 10,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     letterSpacing: 0.5,
   },
 
@@ -3005,15 +3005,15 @@ const styles = StyleSheet.create({
   webName: {
     fontSize: 13,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
-  webEmail: {
+  webEmail: { fontFamily: typography.fontFamily.regular,
     marginTop: 3,
     fontSize: 10,
   },
 
-  webCellText: {
+  webCellText: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     lineHeight: 16,
   },
@@ -3029,7 +3029,7 @@ const styles = StyleSheet.create({
   webPrice: {
     fontSize: 12,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   webActionCell: {
@@ -3075,7 +3075,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 10,
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   statusBadgeDot: {
@@ -3132,10 +3132,10 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
-  mobileEmail: {
+  mobileEmail: { fontFamily: typography.fontFamily.regular,
     fontSize: 12,
     marginTop: 2,
   },
@@ -3163,7 +3163,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12.5,
     lineHeight: 17,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   mobileCardFooter: {
@@ -3184,7 +3184,7 @@ const styles = StyleSheet.create({
 
   mobileFooterButtonText: {
     fontSize: 12.5,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   mobileFooterSpacer: {
@@ -3201,7 +3201,7 @@ const styles = StyleSheet.create({
 
   mobilePrice: {
     fontSize: 16,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   /* ============================================================
@@ -3219,7 +3219,7 @@ const styles = StyleSheet.create({
 
   avatarText: {
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   avatarOnline: {
@@ -3286,10 +3286,10 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
-  modalSubtitle: {
+  modalSubtitle: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     marginTop: 3,
   },
@@ -3326,10 +3326,10 @@ const styles = StyleSheet.create({
   modalName: {
     fontSize: 18,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
-  modalEmail: {
+  modalEmail: { fontFamily: typography.fontFamily.regular,
     fontSize: 12,
     marginTop: 3,
   },
@@ -3348,7 +3348,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     marginTop: 13,
     marginBottom: 8,
   },
@@ -3371,7 +3371,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   modalInfoValue: {
@@ -3379,7 +3379,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontSize: 12,
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   /* ============================================================
@@ -3399,10 +3399,10 @@ const styles = StyleSheet.create({
   switchTitle: {
     fontSize: 12,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
-  switchSubtitle: {
+  switchSubtitle: { fontFamily: typography.fontFamily.regular,
     fontSize: 10,
     marginTop: 2,
   },
@@ -3416,7 +3416,7 @@ const styles = StyleSheet.create({
   switchStatus: {
     fontSize: 10,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ============================================================
@@ -3450,10 +3450,10 @@ const styles = StyleSheet.create({
   addressBoxTitle: {
     fontSize: 13,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
-  addressBoxSubtitle: {
+  addressBoxSubtitle: { fontFamily: typography.fontFamily.regular,
     fontSize: 10,
     marginTop: 2,
   },
@@ -3463,7 +3463,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginTop: 13,
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   coordinatesContainer: {
@@ -3475,7 +3475,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
 
-  coordinateText: {
+  coordinateText: { fontFamily: typography.fontFamily.regular,
     fontSize: 10,
   },
 
@@ -3493,7 +3493,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 11,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ============================================================
@@ -3517,7 +3517,7 @@ const styles = StyleSheet.create({
   documentNumber: {
     fontSize: 13,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   cinImageWrapper: {
@@ -3575,7 +3575,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     letterSpacing: 0.2,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   noDocumentBox: {
@@ -3589,13 +3589,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  noDocumentText: {
+  noDocumentText: { fontFamily: typography.fontFamily.regular,
     flex: 1,
     color: '#E74C3C',
     fontSize: 11,
   },
 
-  noCertificateText: {
+  noCertificateText: { fontFamily: typography.fontFamily.regular,
     flex: 1,
     fontSize: 11,
   },
@@ -3608,7 +3608,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
 
-  certificateLoadingText: {
+  certificateLoadingText: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
   },
 
@@ -3623,7 +3623,7 @@ const styles = StyleSheet.create({
       '#00000005',
   },
 
-  bioText: {
+  bioText: { fontFamily: typography.fontFamily.regular,
     fontSize: 12,
     lineHeight: 19,
   },
@@ -3653,7 +3653,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ============================================================
@@ -3697,11 +3697,11 @@ const styles = StyleSheet.create({
   confirmTitle: {
     fontSize: 16,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     textAlign: 'center',
   },
 
-  confirmMessage: {
+  confirmMessage: { fontFamily: typography.fontFamily.regular,
     fontSize: 13,
     lineHeight: 19,
     textAlign: 'center',
@@ -3726,13 +3726,13 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     fontSize: 13,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   confirmButtonTextWhite: {
     fontSize: 13,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
     color: '#fff',
   },
 
@@ -3768,7 +3768,7 @@ const styles = StyleSheet.create({
   certProPdfText: {
     fontSize: 11,
     textAlign: 'center',
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   certProZoomBadge: {
@@ -3813,7 +3813,7 @@ const styles = StyleSheet.create({
   viewerTitle: {
     flex: 1,
     fontSize: 14,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     marginRight: 8,
   },
 
@@ -3852,7 +3852,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 19,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   viewerDownloadButton: {
@@ -3868,7 +3868,7 @@ const styles = StyleSheet.create({
   viewerDownloadButtonText: {
     color: '#fff',
     fontSize: 14,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   }
 });
 

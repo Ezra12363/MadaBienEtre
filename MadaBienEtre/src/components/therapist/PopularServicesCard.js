@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import statsService from '../../services/statsService';
 import { getMassageTypeIconIonicons } from '../../constants/massageTypeIcons';
+import { typography } from '../../theme';
 
 const GREEN = '#2E8B57';
 
@@ -80,8 +81,8 @@ const PopularServicesCard = ({
     <View style={[styles.card, { backgroundColor: surface, borderColor: border }, style]}>
       <View style={styles.header}>
         <View style={{ flex: 1, minWidth: 170 }}>
-          <Text style={[styles.title, { color: text }]}>{title}</Text>
-          <Text style={[styles.subtitle, { color: muted }]}>{subtitle}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: text }]}>{title}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.subtitle, { color: muted }]}>{subtitle}</Text>
         </View>
 
         <View style={styles.periods}>
@@ -99,7 +100,7 @@ const PopularServicesCard = ({
                     : { backgroundColor: surface, borderColor: border },
                 ]}
               >
-                <Text style={[styles.chipText, { color: active ? '#FFFFFF' : muted }]}>{p.label}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.chipText, { color: active ? '#FFFFFF' : muted }]}>{p.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -112,15 +113,15 @@ const PopularServicesCard = ({
         </View>
       ) : error ? (
         <View style={styles.center}>
-          <Text style={[styles.empty, { color: muted }]}>{error}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.empty, { color: muted }]}>{error}</Text>
           <TouchableOpacity onPress={() => load(false)} style={{ marginTop: 6 }}>
-            <Text style={{ color: GREEN, fontSize: 12 }}>Réessayer</Text>
+            <Text style={{ fontFamily: typography.fontFamily.regular, color: GREEN, fontSize: 12 }}>Réessayer</Text>
           </TouchableOpacity>
         </View>
       ) : items.length === 0 ? (
         <View style={styles.center}>
           <Ionicons name="leaf-outline" size={26} color={muted} />
-          <Text style={[styles.empty, { color: muted }]}>{emptyText}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.empty, { color: muted }]}>{emptyText}</Text>
         </View>
       ) : (
         items.map((item) => {
@@ -132,13 +133,13 @@ const PopularServicesCard = ({
               </View>
               <View style={{ flex: 1 }}>
                 <View style={styles.rowTop}>
-                  <Text style={[styles.name, { color: text }]} numberOfLines={1}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.name, { color: text }]} numberOfLines={1}>
                     {item.name}
                   </Text>
-                  <Text style={styles.count}>{count} {countLabel}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.count]}>{count} {countLabel}</Text>
                 </View>
                 {item.min_price ? (
-                  <Text style={[styles.price, { color: muted }]}>à partir de {fmtAr(item.min_price)}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.price, { color: muted }]}>à partir de {fmtAr(item.min_price)}</Text>
                 ) : null}
                 <View style={[styles.track, { backgroundColor: border }]}>
                   <View style={[styles.fill, { width: `${Math.max(3, (count / max) * 100)}%` }]} />
@@ -155,13 +156,13 @@ const PopularServicesCard = ({
 const styles = StyleSheet.create({
   card: { borderWidth: 1, borderRadius: 14, padding: 16 },
   header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 12 },
-  title: { fontSize: 15, fontWeight: '800' },
-  subtitle: { fontSize: 11, marginTop: 3 },
+  title: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '800' },
+  subtitle: { fontFamily: typography.fontFamily.regular, fontSize: 11, marginTop: 3 },
   periods: { flexDirection: 'row', gap: 6 },
   chip: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
-  chipText: { fontSize: 11, fontWeight: '600' },
+  chipText: { fontFamily: typography.fontFamily.semiBold, fontSize: 11, fontWeight: '600' },
   center: { minHeight: 90, alignItems: 'center', justifyContent: 'center', gap: 6 },
-  empty: { fontSize: 12, textAlign: 'center' },
+  empty: { fontFamily: typography.fontFamily.regular, fontSize: 12, textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 },
   iconWrap: {
     width: 26,
@@ -172,9 +173,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  name: { flex: 1, fontSize: 13, fontWeight: '700' },
-  count: { fontSize: 12, fontWeight: '700', color: GREEN },
-  price: { fontSize: 10, marginTop: 2 },
+  name: { fontFamily: typography.fontFamily.bold, flex: 1, fontSize: 13, fontWeight: '700' },
+  count: { fontFamily: typography.fontFamily.bold, fontSize: 12, fontWeight: '700', color: GREEN },
+  price: { fontFamily: typography.fontFamily.regular, fontSize: 10, marginTop: 2 },
   track: { height: 6, borderRadius: 3, marginTop: 6, overflow: 'hidden' },
   fill: { height: 6, borderRadius: 3, backgroundColor: GREEN },
 });

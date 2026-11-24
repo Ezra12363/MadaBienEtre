@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { PAY_STATE } from './paymentUtils';
 import { useTheme } from '../../context/ThemeContext';
+import { typography } from '../../theme';
 
 // Mode sombre : texte éclairci (le fond devient une teinte translucide)
 const DARK_TEXT = {
@@ -20,7 +21,7 @@ export default function PaymentStatusBadge({ state = 'pending', small = false, s
   return (
     <View style={[styles.badge, { backgroundColor: bg }, small && styles.small, style]}>
       <Ionicons name={meta.icon} size={small ? 11 : 13} color={color} />
-      <Text style={[styles.text, { color }, small && styles.textSmall]}>{meta.label}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.text, { color }, small && styles.textSmall]}>{meta.label}</Text>
     </View>
   );
 }
@@ -36,6 +37,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   small: { paddingHorizontal: 8, paddingVertical: 2 },
-  text: { fontSize: 12, fontWeight: '400', letterSpacing: 0.2 },
-  textSmall: { fontSize: 11 },
+  text: { fontFamily: typography.fontFamily.regular, fontSize: 12, fontWeight: '400', letterSpacing: 0.2 },
+  textSmall: { fontFamily: typography.fontFamily.regular, fontSize: 11 },
 });

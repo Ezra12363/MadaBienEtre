@@ -50,18 +50,18 @@ const AIPopularServices = ({ title = 'Services populaires', onSelect, defaultPer
           return (
             <View key={`${item.massage_type_id}-${index}`} style={styles.row}>
               <View style={styles.rank}>
-                <Text style={styles.rankText}>{index + 1}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rankText]}>{index + 1}</Text>
               </View>
               <View style={styles.rowBody}>
                 <View style={styles.rowTop}>
                   <Text
-                    style={[styles.name, { color: tc.text }]}
+                    style={[{ fontFamily: typography.fontFamily.regular }, styles.name, { color: tc.text }]}
                     numberOfLines={1}
                     onPress={onSelect ? () => onSelect(item) : undefined}
                   >
                     {item.name}
                   </Text>
-                  <Text style={[styles.count, { color: colors.primary }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.count, { color: colors.primary }]}>
                     {count} réserv.
                   </Text>
                 </View>
@@ -69,7 +69,7 @@ const AIPopularServices = ({ title = 'Services populaires', onSelect, defaultPer
                   <View style={[styles.barFill, { width: `${(count / max) * 100}%` }]} />
                 </View>
                 {item.min_price ? (
-                  <Text style={[styles.price, { color: tc.textSecondary }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.price, { color: tc.textSecondary }]}>
                     à partir de {formatAr(item.min_price)}
                   </Text>
                 ) : null}
@@ -93,14 +93,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rankText: { color: colors.primary, fontSize: 12, fontFamily: typography.fontFamily.bold },
+  rankText: { color: colors.primary, fontSize: 12, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   rowBody: { flex: 1 },
   rowTop: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm },
-  name: { flex: 1, fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
-  count: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold },
+  name: { flex: 1, fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
+  count: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   barTrack: { height: 6, borderRadius: 3, marginTop: 5, overflow: 'hidden' },
   barFill: { height: 6, borderRadius: 3, backgroundColor: colors.primary },
-  price: { fontSize: typography.fontSize.xs, marginTop: 3 },
+  price: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, marginTop: 3 },
 });
 
 export default AIPopularServices;

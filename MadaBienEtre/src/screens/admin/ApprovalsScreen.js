@@ -164,7 +164,7 @@ const ConfirmationModal = ({
             ================================================== */}
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.confirmTitle,
                 {
                   color:
@@ -182,7 +182,7 @@ const ConfirmationModal = ({
             ================================================== */}
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.confirmUser,
                 {
                   color:
@@ -201,7 +201,7 @@ const ConfirmationModal = ({
             ================================================== */}
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.confirmMessage,
                 {
                   color:
@@ -231,7 +231,7 @@ const ConfirmationModal = ({
                 >
                   <Text
                     style={
-                      styles.rejectInputLabel
+                      [{ fontFamily: typography.fontFamily.regular }, styles.rejectInputLabel]
                     }
                   >
                     Description du rejet *
@@ -239,7 +239,7 @@ const ConfirmationModal = ({
 
                   <Text
                     style={
-                      styles.rejectInputCounter
+                      [{ fontFamily: typography.fontFamily.regular }, styles.rejectInputCounter]
                     }
                   >
                     {rejectReason.length}/500
@@ -276,7 +276,7 @@ const ConfirmationModal = ({
                         underlineColorAndroid:
                           'transparent',
                       })}
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.rejectInput,
                     {
                       color:
@@ -297,7 +297,7 @@ const ConfirmationModal = ({
                 {!rejectReason.trim() && (
                   <Text
                     style={
-                      styles.requiredText
+                      [{ fontFamily: typography.fontFamily.regular }, styles.requiredText]
                     }
                   >
                     Le motif est obligatoire.
@@ -332,7 +332,7 @@ const ConfirmationModal = ({
                 ]}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.confirmCancelText,
                     {
                       color:
@@ -389,7 +389,7 @@ const ConfirmationModal = ({
 
                     <Text
                       style={
-                        styles.confirmSubmitText
+                        [{ fontFamily: typography.fontFamily.regular }, styles.confirmSubmitText]
                       }
                     >
                       Confirmer
@@ -984,9 +984,9 @@ const ApprovalsScreen = () => {
         ]}
       >
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.avatarText,
-            {
+            { fontFamily: typography.fontFamily.regular,
               color:
                 colors.primary,
               fontSize:
@@ -1044,7 +1044,7 @@ const ApprovalsScreen = () => {
         />
 
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.filterButtonText,
             {
               color:
@@ -1110,7 +1110,7 @@ const ApprovalsScreen = () => {
             placeholderTextColor={
               themeColors.textSecondary
             }
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.searchInput,
               {
                 color:
@@ -1213,7 +1213,7 @@ const ApprovalsScreen = () => {
               }
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.mobileName,
                   {
                     color:
@@ -1246,7 +1246,7 @@ const ApprovalsScreen = () => {
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.documentBadgeText,
                     {
                       color:
@@ -1260,7 +1260,7 @@ const ApprovalsScreen = () => {
             </View>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.mobileEmail,
                 {
                   color:
@@ -1287,7 +1287,7 @@ const ApprovalsScreen = () => {
               />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.mobileMeta,
                   {
                     color:
@@ -1318,7 +1318,7 @@ const ApprovalsScreen = () => {
                 ]}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.idBadgeText,
                     {
                       color:
@@ -1356,7 +1356,7 @@ const ApprovalsScreen = () => {
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.documentBadgeText,
                     {
                       color:
@@ -1422,7 +1422,7 @@ const ApprovalsScreen = () => {
           ]}
         >
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.tableText,
               {
                 color:
@@ -1452,7 +1452,7 @@ const ApprovalsScreen = () => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.idBadgeText,
                 WEB_WRAP,
                 {
@@ -1486,7 +1486,7 @@ const ApprovalsScreen = () => {
             }
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.tableName,
                 WEB_WRAP,
                 {
@@ -1500,7 +1500,7 @@ const ApprovalsScreen = () => {
             </Text>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.tableEmail,
                 WEB_WRAP,
                 {
@@ -1522,7 +1522,7 @@ const ApprovalsScreen = () => {
           ]}
         >
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.tableText,
               WEB_WRAP,
               {
@@ -1543,7 +1543,7 @@ const ApprovalsScreen = () => {
           ]}
         >
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.tableText,
               WEB_WRAP,
               {
@@ -1564,7 +1564,7 @@ const ApprovalsScreen = () => {
           ]}
         >
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.tableText,
               {
                 color:
@@ -1608,7 +1608,7 @@ const ApprovalsScreen = () => {
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.statusText,
                 WEB_WRAP,
                 {
@@ -1657,7 +1657,7 @@ const ApprovalsScreen = () => {
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.statusText,
                     WEB_WRAP,
                     {
@@ -1769,7 +1769,7 @@ const ApprovalsScreen = () => {
       ]}
     >
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.tableHeaderText,
           {
             color:
@@ -1864,7 +1864,7 @@ const ApprovalsScreen = () => {
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.emptyText,
                 {
                   color:
@@ -1948,7 +1948,7 @@ const ApprovalsScreen = () => {
           </View>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.loadingTitle,
               {
                 color:
@@ -1960,7 +1960,7 @@ const ApprovalsScreen = () => {
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.loadingSubtitle,
               {
                 color:
@@ -2014,7 +2014,7 @@ const ApprovalsScreen = () => {
             }
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.pageTitle,
                 {
                   color:
@@ -2026,7 +2026,7 @@ const ApprovalsScreen = () => {
             </Text>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.pageSubtitle,
                 {
                   color:
@@ -2062,7 +2062,7 @@ const ApprovalsScreen = () => {
 
             {!isMobile && (
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.refreshText,
                   {
                     color:
@@ -2113,7 +2113,7 @@ const ApprovalsScreen = () => {
             </View>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.counterText,
                 {
                   color:
@@ -2132,7 +2132,7 @@ const ApprovalsScreen = () => {
 
           {IS_WEB && (
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.counterHint,
                 {
                   color:
@@ -2214,7 +2214,7 @@ const ApprovalsScreen = () => {
                   </View>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.emptyText,
                       {
                         color:
@@ -2226,7 +2226,7 @@ const ApprovalsScreen = () => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.emptySubtext,
                       {
                         color:
@@ -2291,7 +2291,7 @@ const CompactInfo = ({
       }
     >
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.compactInfoLabel,
           {
             color:
@@ -2304,7 +2304,7 @@ const CompactInfo = ({
       </Text>
 
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.compactInfoValue,
           {
             color:
@@ -2370,7 +2370,7 @@ const styles = StyleSheet.create({
     fontSize:
       IS_WEB ? 25 : 21,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     letterSpacing: -0.35,
   },
 
@@ -2397,7 +2397,7 @@ const styles = StyleSheet.create({
   refreshText: {
     fontSize: 12,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ==========================================================
@@ -2472,7 +2472,7 @@ const styles = StyleSheet.create({
   filterButtonText: {
     fontSize: 11,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ==========================================================
@@ -2506,7 +2506,7 @@ const styles = StyleSheet.create({
   counterText: {
     fontSize: 12,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   counterHint: {
@@ -2572,7 +2572,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   mobileEmail: {
@@ -2615,7 +2615,7 @@ const styles = StyleSheet.create({
   documentBadgeText: {
     fontSize: 9,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   idBadge: {
@@ -2629,7 +2629,7 @@ const styles = StyleSheet.create({
   idBadgeText: {
     fontSize: 10,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   avatarPlaceholder: {
@@ -2641,7 +2641,7 @@ const styles = StyleSheet.create({
 
   avatarText: {
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   /* ==========================================================
@@ -2678,7 +2678,7 @@ const styles = StyleSheet.create({
   tableHeaderText: {
     fontSize: 10,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     letterSpacing: 0.35,
   },
 
@@ -2773,7 +2773,7 @@ const styles = StyleSheet.create({
   tableName: {
     fontSize: 12,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   tableEmail: {
@@ -2809,7 +2809,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 9,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ==========================================================
@@ -2905,7 +2905,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 14,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   modalSubtitle: {
@@ -2946,7 +2946,7 @@ const styles = StyleSheet.create({
 
   modalName: {
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   modalEmail: {
@@ -2978,7 +2978,7 @@ const styles = StyleSheet.create({
     color: '#D97706',
     fontSize: 8,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ==========================================================
@@ -3025,7 +3025,7 @@ const styles = StyleSheet.create({
   compactInfoLabel: {
     fontSize: 8,
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   compactInfoValue: {
@@ -3033,7 +3033,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: 12,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ==========================================================
@@ -3047,7 +3047,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 11,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     marginBottom: 6,
   },
 
@@ -3092,7 +3092,7 @@ const styles = StyleSheet.create({
   documentStatusText: {
     fontSize: 8,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   cinPreview: {
@@ -3128,7 +3128,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     lineHeight: 13,
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   /* ==========================================================
@@ -3166,7 +3166,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 11,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   /* ==========================================================
@@ -3219,7 +3219,7 @@ const styles = StyleSheet.create({
     marginTop: 13,
     fontSize: 17,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     textAlign: 'center',
   },
 
@@ -3227,7 +3227,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 12,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     textAlign: 'center',
   },
 
@@ -3262,7 +3262,7 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontSize: 10,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   rejectInputCounter: {
@@ -3304,7 +3304,7 @@ const styles = StyleSheet.create({
     color: '#DC2626',
     fontSize: 8,
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   /* ==========================================================
@@ -3330,7 +3330,7 @@ const styles = StyleSheet.create({
   confirmCancelText: {
     fontSize: 10,
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   confirmSubmit: {
@@ -3348,7 +3348,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 10,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   /* ==========================================================
@@ -3377,7 +3377,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 15,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     textAlign: 'center',
   },
 
@@ -3415,7 +3415,7 @@ const styles = StyleSheet.create({
     marginTop: 17,
     fontSize: 16,
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
     textAlign: 'center',
   },
 
@@ -3458,7 +3458,7 @@ const styles = StyleSheet.create({
   certPdfText: {
     fontSize: 11,
     textAlign: 'center',
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   certZoomBadge: {
@@ -3499,7 +3499,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     letterSpacing: 0.2,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   /* ==========================================================
@@ -3532,7 +3532,7 @@ const styles = StyleSheet.create({
   viewerTitle: {
     flex: 1,
     fontSize: 14,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     marginRight: 8,
   },
 
@@ -3571,7 +3571,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 19,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   viewerDownloadButton: {
@@ -3597,7 +3597,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     letterSpacing: 0.2,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   }
 });
 

@@ -41,6 +41,7 @@ import useSocialAuth from '../../hooks/useSocialAuth';
 import AppHeader from '../../components/common/AppHeader';
 
 import { toastAdapters } from "../../utils/toast";
+import { typography } from '../../theme';
 
 /* ============================================================
    COLORS
@@ -597,7 +598,7 @@ export default function LoginScreen({
         style={styles.inputGroup}
       >
         <Text
-          style={styles.inputLabel}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.inputLabel]}
         >
           {label}
         </Text>
@@ -629,7 +630,7 @@ export default function LoginScreen({
 
           <TextInput
             ref={inputRef}
-            style={styles.input}
+            style={[{ fontFamily: typography.fontFamily.regular }, styles.input]}
             value={value}
             onChangeText={
               onChangeText
@@ -695,7 +696,7 @@ export default function LoginScreen({
             />
 
             <Text
-              style={styles.errorText}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}
             >
               {error}
             </Text>
@@ -744,13 +745,13 @@ export default function LoginScreen({
         </View>
 
         <Text
-          style={styles.formTitle}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.formTitle]}
         >
           Bon retour parmi nous
         </Text>
 
         <Text
-          style={styles.formSubtitle}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.formSubtitle]}
         >
           Connectez-vous pour accéder
           à votre espace bien-être.
@@ -842,7 +843,7 @@ export default function LoginScreen({
       >
         <Text
           style={
-            styles.forgotText
+            [{ fontFamily: typography.fontFamily.regular }, styles.forgotText]
           }
         >
           Mot de passe oublié ?
@@ -873,7 +874,7 @@ export default function LoginScreen({
 
             <Text
               style={
-                styles.loginButtonText
+                [{ fontFamily: typography.fontFamily.regular }, styles.loginButtonText]
               }
             >
               Connexion...
@@ -883,7 +884,7 @@ export default function LoginScreen({
           <>
             <Text
               style={
-                styles.loginButtonText
+                [{ fontFamily: typography.fontFamily.regular }, styles.loginButtonText]
               }
             >
               Se connecter
@@ -919,7 +920,7 @@ export default function LoginScreen({
 
         <Text
           style={
-            styles.dividerText
+            [{ fontFamily: typography.fontFamily.regular }, styles.dividerText]
           }
         >
           ou continuer avec
@@ -949,7 +950,7 @@ export default function LoginScreen({
           >
             <Text
               style={
-                styles.googleG
+                [{ fontFamily: typography.fontFamily.regular }, styles.googleG]
               }
             >
               G
@@ -961,7 +962,7 @@ export default function LoginScreen({
           ) : (
             <Text
               style={
-                styles.socialText
+                [{ fontFamily: typography.fontFamily.regular }, styles.socialText]
               }
             >
               Google
@@ -985,7 +986,7 @@ export default function LoginScreen({
 
           <Text
             style={
-              styles.appleText
+              [{ fontFamily: typography.fontFamily.regular }, styles.appleText]
             }
           >
             Apple
@@ -1002,7 +1003,7 @@ export default function LoginScreen({
       >
         <Text
           style={
-            styles.registerText
+            [{ fontFamily: typography.fontFamily.regular }, styles.registerText]
           }
         >
           Pas encore de compte ?
@@ -1016,7 +1017,7 @@ export default function LoginScreen({
         >
           <Text
             style={
-              styles.registerLink
+              [{ fontFamily: typography.fontFamily.regular }, styles.registerLink]
             }
           >
             Créer un compte
@@ -1047,7 +1048,7 @@ export default function LoginScreen({
 
         <Text
           style={
-            styles.securityText
+            [{ fontFamily: typography.fontFamily.regular }, styles.securityText]
           }
         >
           Vos informations sont
@@ -1136,7 +1137,7 @@ export default function LoginScreen({
 
                 <Text
                   style={
-                    styles.mobileHeroBadgeText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.mobileHeroBadgeText]
                   }
                 >
                   BIEN-ÊTRE • SANTÉ • SÉRÉNITÉ
@@ -1145,14 +1146,14 @@ export default function LoginScreen({
 
               <Text
                 style={
-                  styles.mobileHeroTitle
+                  [{ fontFamily: typography.fontFamily.regular }, styles.mobileHeroTitle]
                 }
               >
                 Votre bien-être,
                 {'\n'}
                 <Text
                   style={
-                    styles.mobileHeroGreen
+                    [{ fontFamily: typography.fontFamily.regular }, styles.mobileHeroGreen]
                   }
                 >
                   commence ici.
@@ -1161,7 +1162,7 @@ export default function LoginScreen({
 
               <Text
                 style={
-                  styles.mobileHeroDescription
+                  [{ fontFamily: typography.fontFamily.regular }, styles.mobileHeroDescription]
                 }
               >
                 Retrouvez votre espace personnel
@@ -1205,7 +1206,7 @@ export default function LoginScreen({
 
                   <Text
                     style={
-                      styles.footerFeatureText
+                      [{ fontFamily: typography.fontFamily.regular }, styles.footerFeatureText]
                     }
                   >
                     Sécurisé
@@ -1227,7 +1228,7 @@ export default function LoginScreen({
 
                   <Text
                     style={
-                      styles.footerFeatureText
+                      [{ fontFamily: typography.fontFamily.regular }, styles.footerFeatureText]
                     }
                   >
                     À domicile
@@ -1249,7 +1250,7 @@ export default function LoginScreen({
 
                   <Text
                     style={
-                      styles.footerFeatureText
+                      [{ fontFamily: typography.fontFamily.regular }, styles.footerFeatureText]
                     }
                   >
                     Bien-être
@@ -1259,7 +1260,7 @@ export default function LoginScreen({
 
               <Text
                 style={
-                  styles.footerCopyright
+                  [{ fontFamily: typography.fontFamily.regular }, styles.footerCopyright]
                 }
               >
                 © 2026 Mada Bien-être
@@ -1331,7 +1332,7 @@ export default function LoginScreen({
               <View>
                 <Text
                   style={
-                    styles.webBrandName
+                    [{ fontFamily: typography.fontFamily.regular }, styles.webBrandName]
                   }
                 >
                   Mada Bien-être
@@ -1339,7 +1340,7 @@ export default function LoginScreen({
 
                 <Text
                   style={
-                    styles.webBrandSubtitle
+                    [{ fontFamily: typography.fontFamily.regular }, styles.webBrandSubtitle]
                   }
                 >
                   Votre bien-être, notre priorité
@@ -1367,7 +1368,7 @@ export default function LoginScreen({
 
                 <Text
                   style={
-                    styles.webBadgeText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.webBadgeText]
                   }
                 >
                   BIEN-ÊTRE • SANTÉ • SÉRÉNITÉ
@@ -1376,7 +1377,7 @@ export default function LoginScreen({
 
               <Text
                 style={
-                  styles.webHeroTitle
+                  [{ fontFamily: typography.fontFamily.regular }, styles.webHeroTitle]
                 }
               >
                 Votre bien-être,
@@ -1386,7 +1387,7 @@ export default function LoginScreen({
 
               <Text
                 style={
-                  styles.webHeroDescription
+                  [{ fontFamily: typography.fontFamily.regular }, styles.webHeroDescription]
                 }
               >
                 Retrouvez votre espace personnel
@@ -1427,7 +1428,7 @@ export default function LoginScreen({
                 >
                   <Text
                     style={
-                      styles.webFeatureTitle
+                      [{ fontFamily: typography.fontFamily.regular }, styles.webFeatureTitle]
                     }
                   >
                     Proche de vous
@@ -1435,7 +1436,7 @@ export default function LoginScreen({
 
                   <Text
                     style={
-                      styles.webFeatureText
+                      [{ fontFamily: typography.fontFamily.regular }, styles.webFeatureText]
                     }
                   >
                     Trouvez facilement les
@@ -1469,7 +1470,7 @@ export default function LoginScreen({
                 >
                   <Text
                     style={
-                      styles.webFeatureTitle
+                      [{ fontFamily: typography.fontFamily.regular }, styles.webFeatureTitle]
                     }
                   >
                     Réservation simple
@@ -1477,7 +1478,7 @@ export default function LoginScreen({
 
                   <Text
                     style={
-                      styles.webFeatureText
+                      [{ fontFamily: typography.fontFamily.regular }, styles.webFeatureText]
                     }
                   >
                     Organisez facilement votre
@@ -1510,7 +1511,7 @@ export default function LoginScreen({
                 >
                   <Text
                     style={
-                      styles.webFeatureTitle
+                      [{ fontFamily: typography.fontFamily.regular }, styles.webFeatureTitle]
                     }
                   >
                     Expérience sécurisée
@@ -1518,7 +1519,7 @@ export default function LoginScreen({
 
                   <Text
                     style={
-                      styles.webFeatureText
+                      [{ fontFamily: typography.fontFamily.regular }, styles.webFeatureText]
                     }
                   >
                     Vos informations personnelles
@@ -1537,7 +1538,7 @@ export default function LoginScreen({
             >
               <Text
                 style={
-                  styles.webFooterText
+                  [{ fontFamily: typography.fontFamily.regular }, styles.webFooterText]
                 }
               >
                 © 2026 Mada Bien-être
@@ -1545,7 +1546,7 @@ export default function LoginScreen({
 
               <Text
                 style={
-                  styles.webFooterText
+                  [{ fontFamily: typography.fontFamily.regular }, styles.webFooterText]
                 }
               >
                 Bien-être • Confiance • Proximité
@@ -1705,7 +1706,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginRight: 7,
   },
 
-  mobileHeroBadgeText: {
+  mobileHeroBadgeText: { fontFamily: typography.fontFamily.bold,
     color:
       COLORS.primaryDark,
 
@@ -1715,7 +1716,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  mobileHeroTitle: {
+  mobileHeroTitle: { fontFamily: typography.fontFamily.bold,
     color:
       COLORS.text,
 
@@ -1732,7 +1733,7 @@ const createStyles = (COLORS) => StyleSheet.create({
       COLORS.primary,
   },
 
-  mobileHeroDescription: {
+  mobileHeroDescription: { fontFamily: typography.fontFamily.regular,
     color:
       COLORS.textSoft,
 
@@ -1788,7 +1789,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 13,
   },
 
-  formTitle: {
+  formTitle: { fontFamily: typography.fontFamily.bold,
     color:
       COLORS.text,
 
@@ -1800,7 +1801,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     letterSpacing: -0.4,
   },
 
-  formSubtitle: {
+  formSubtitle: { fontFamily: typography.fontFamily.regular,
     color:
       COLORS.textSoft,
 
@@ -1820,7 +1821,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 15,
   },
 
-  inputLabel: {
+  inputLabel: { fontFamily: typography.fontFamily.bold,
     color:
       COLORS.text,
 
@@ -1886,7 +1887,7 @@ const createStyles = (COLORS) => StyleSheet.create({
       COLORS.redLight,
   },
 
-  input: {
+  input: { fontFamily: typography.fontFamily.regular,
     flex: 1,
 
     minHeight: 52,
@@ -1919,7 +1920,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     gap: 5,
   },
 
-  errorText: {
+  errorText: { fontFamily: typography.fontFamily.regular,
     flex: 1,
 
     color:
@@ -1942,7 +1943,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 15,
   },
 
-  forgotText: {
+  forgotText: { fontFamily: typography.fontFamily.bold,
     color:
       COLORS.primary,
 
@@ -1998,7 +1999,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     opacity: 0.65,
   },
 
-  loginButtonText: {
+  loginButtonText: { fontFamily: typography.fontFamily.bold,
     color:
       COLORS.white,
 
@@ -2039,7 +2040,7 @@ const createStyles = (COLORS) => StyleSheet.create({
       COLORS.border,
   },
 
-  dividerText: {
+  dividerText: { fontFamily: typography.fontFamily.regular,
     color:
       COLORS.muted,
 
@@ -2095,14 +2096,14 @@ const createStyles = (COLORS) => StyleSheet.create({
     justifyContent: 'center',
   },
 
-  googleG: {
+  googleG: { fontFamily: typography.fontFamily.bold,
     color: '#4285F4',
 
     fontSize: 15,
     fontWeight: '900',
   },
 
-  socialText: {
+  socialText: { fontFamily: typography.fontFamily.bold,
     color:
       COLORS.text,
 
@@ -2118,7 +2119,7 @@ const createStyles = (COLORS) => StyleSheet.create({
       '#111111',
   },
 
-  appleText: {
+  appleText: { fontFamily: typography.fontFamily.bold,
     color:
       COLORS.white,
 
@@ -2140,7 +2141,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 18,
   },
 
-  registerText: {
+  registerText: { fontFamily: typography.fontFamily.regular,
     color:
       COLORS.textSoft,
 
@@ -2149,7 +2150,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginRight: 4,
   },
 
-  registerLink: {
+  registerLink: { fontFamily: typography.fontFamily.bold,
     color:
       COLORS.primary,
 
@@ -2195,7 +2196,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     justifyContent: 'center',
   },
 
-  securityText: {
+  securityText: { fontFamily: typography.fontFamily.regular,
     flex: 1,
 
     color:
@@ -2239,7 +2240,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     gap: 5,
   },
 
-  footerFeatureText: {
+  footerFeatureText: { fontFamily: typography.fontFamily.bold,
     color:
       COLORS.textSoft,
 
@@ -2247,7 +2248,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     fontWeight: '700',
   },
 
-  footerCopyright: {
+  footerCopyright: { fontFamily: typography.fontFamily.regular,
     color:
       COLORS.muted,
 
@@ -2373,7 +2374,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     height: 44,
   },
 
-  webBrandName: {
+  webBrandName: { fontFamily: typography.fontFamily.bold,
     color:
       COLORS.white,
 
@@ -2381,7 +2382,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     fontWeight: '900',
   },
 
-  webBrandSubtitle: {
+  webBrandSubtitle: { fontFamily: typography.fontFamily.regular,
     color:
       'rgba(255,255,255,0.72)',
 
@@ -2432,7 +2433,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginRight: 8,
   },
 
-  webBadgeText: {
+  webBadgeText: { fontFamily: typography.fontFamily.bold,
     color:
       '#D9F0DD',
 
@@ -2442,7 +2443,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     letterSpacing: 0.7,
   },
 
-  webHeroTitle: {
+  webHeroTitle: { fontFamily: typography.fontFamily.bold,
     color:
       COLORS.white,
 
@@ -2454,7 +2455,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     letterSpacing: -1,
   },
 
-  webHeroDescription: {
+  webHeroDescription: { fontFamily: typography.fontFamily.regular,
     color:
       'rgba(255,255,255,0.82)',
 
@@ -2498,7 +2499,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     flex: 1,
   },
 
-  webFeatureTitle: {
+  webFeatureTitle: { fontFamily: typography.fontFamily.bold,
     color:
       COLORS.white,
 
@@ -2508,7 +2509,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginBottom: 3,
   },
 
-  webFeatureText: {
+  webFeatureText: { fontFamily: typography.fontFamily.regular,
     color:
       'rgba(255,255,255,0.68)',
 
@@ -2537,7 +2538,7 @@ const createStyles = (COLORS) => StyleSheet.create({
     marginTop: 30,
   },
 
-  webFooterText: {
+  webFooterText: { fontFamily: typography.fontFamily.regular,
     color:
       'rgba(255,255,255,0.55)',
 

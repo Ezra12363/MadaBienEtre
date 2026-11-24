@@ -62,6 +62,7 @@ import {
   colors,
 } from '../../theme';
 import CountBadge from '../../components/common/CountBadge';
+import { typography } from '../../theme';
 
 
 // ============================================================
@@ -558,7 +559,7 @@ const DashboardScreen = ({ navigation }) => {
           <View style={styles.quickActionWideText}>
             <Text
               numberOfLines={1}
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.quickActionLabel,
                 { color: textColor },
               ]}
@@ -568,7 +569,7 @@ const DashboardScreen = ({ navigation }) => {
 
             <Text
               numberOfLines={1}
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.quickActionDescription,
                 { color: secondaryTextColor },
               ]}
@@ -616,7 +617,7 @@ const DashboardScreen = ({ navigation }) => {
 
         <Text
           numberOfLines={1}
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.quickActionLabel,
             {
               color: textColor,
@@ -628,7 +629,7 @@ const DashboardScreen = ({ navigation }) => {
 
         <Text
           numberOfLines={1}
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.quickActionDescription,
             {
               color: secondaryTextColor,
@@ -730,7 +731,7 @@ const DashboardScreen = ({ navigation }) => {
         <View style={styles.activityContent}>
           <Text
             numberOfLines={2}
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.activityText,
               {
                 color: textColor,
@@ -748,7 +749,7 @@ const DashboardScreen = ({ navigation }) => {
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.activityTime,
                 {
                   color: secondaryTextColor,
@@ -773,7 +774,7 @@ const DashboardScreen = ({ navigation }) => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.newActivityText,
                 {
                   color: primaryColor,
@@ -855,7 +856,7 @@ const DashboardScreen = ({ navigation }) => {
           color={LOADING_GREEN}
         />
 
-        <Text style={styles.loadingText}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText]}>
           Mada Bien-être
         </Text>
       </View>
@@ -1026,14 +1027,14 @@ const DashboardScreen = ({ navigation }) => {
                 ]}
               >
                 <View style={styles.welcomeIdentity}>
-                  <Text style={styles.welcomeSmallText}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.welcomeSmallText]}>
                     Bonjour,
                   </Text>
 
                   <View style={styles.welcomeNameRow}>
                     <Text
                       numberOfLines={1}
-                      style={styles.welcomeName}
+                      style={[{ fontFamily: typography.fontFamily.regular }, styles.welcomeName]}
                     >
                       {user?.fullname ||
                         user?.full_name ||
@@ -1070,7 +1071,7 @@ const DashboardScreen = ({ navigation }) => {
                         />
 
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.onlineToggleText,
                             {
                               color: isOnline
@@ -1087,7 +1088,7 @@ const DashboardScreen = ({ navigation }) => {
                     )}
                   </View>
 
-                  <Text style={styles.welcomeDescription}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.welcomeDescription]}>
                     Voici le résumé de votre activité
                   </Text>
                 </View>
@@ -1119,7 +1120,7 @@ const DashboardScreen = ({ navigation }) => {
                       ]}
                     />
 
-                    <Text style={styles.onlineToggleText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.onlineToggleText]}>
                       {isOnline
                         ? 'En ligne'
                         : 'Hors ligne'}
@@ -1135,11 +1136,11 @@ const DashboardScreen = ({ navigation }) => {
                 ]}
               >
                 <View style={styles.welcomeStat}>
-                  <Text style={styles.welcomeStatValue}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.welcomeStatValue]}>
                     {stats.todayBookings}
                   </Text>
 
-                  <Text style={styles.welcomeStatLabel}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.welcomeStatLabel]}>
                     Aujourd’hui
                   </Text>
                 </View>
@@ -1147,11 +1148,11 @@ const DashboardScreen = ({ navigation }) => {
                 <View style={styles.welcomeStatDivider} />
 
                 <View style={styles.welcomeStat}>
-                  <Text style={styles.welcomeStatValue}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.welcomeStatValue]}>
                     {stats.totalBookings}
                   </Text>
 
-                  <Text style={styles.welcomeStatLabel}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.welcomeStatLabel]}>
                     Réservations
                   </Text>
                 </View>
@@ -1164,7 +1165,7 @@ const DashboardScreen = ({ navigation }) => {
                   onPress={() => navigation.navigate('Reviews')}
                 >
                   <View style={styles.ratingValueRow}>
-                    <Text style={styles.welcomeStatValue}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.welcomeStatValue]}>
                       {stats.rating}
                     </Text>
 
@@ -1175,7 +1176,7 @@ const DashboardScreen = ({ navigation }) => {
                     />
                   </View>
 
-                  <Text style={styles.welcomeStatLabel}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.welcomeStatLabel]}>
                     Note · {stats.reviews} avis
                   </Text>
                 </TouchableOpacity>
@@ -1198,9 +1199,9 @@ const DashboardScreen = ({ navigation }) => {
               ]}
             >
               <Text
-                style={{
+                style={[{ fontFamily: typography.fontFamily.regular }, {
                   color: secondaryTextColor,
-                }}
+                }]}
               >
                 {loadError}
               </Text>
@@ -1210,9 +1211,9 @@ const DashboardScreen = ({ navigation }) => {
                 style={{ marginTop: 8 }}
               >
                 <Text
-                  style={{
+                  style={[{ fontFamily: typography.fontFamily.regular }, {
                     color: primaryColor,
-                  }}
+                  }]}
                 >
                   Réessayer
                 </Text>
@@ -1266,7 +1267,7 @@ const DashboardScreen = ({ navigation }) => {
 
                 <View style={styles.notificationCardContent}>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.notificationCardTitle,
                       {
                         color: textColor,
@@ -1279,7 +1280,7 @@ const DashboardScreen = ({ navigation }) => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.notificationCardSubtitle,
                       {
                         color: secondaryTextColor,
@@ -1322,7 +1323,7 @@ const DashboardScreen = ({ navigation }) => {
                 }
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.sectionTitle,
                     isWide && styles.sectionTitleWide,
                     {
@@ -1334,7 +1335,7 @@ const DashboardScreen = ({ navigation }) => {
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.sectionSubtitle,
                     isWide && { marginTop: 0, marginLeft: 14 },
                     {
@@ -1455,7 +1456,7 @@ const DashboardScreen = ({ navigation }) => {
               <View style={styles.cardHeader}>
                 <View>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.cardTitle,
                       {
                         color: textColor,
@@ -1466,7 +1467,7 @@ const DashboardScreen = ({ navigation }) => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.cardSubtitle,
                       {
                         color: secondaryTextColor,
@@ -1485,7 +1486,7 @@ const DashboardScreen = ({ navigation }) => {
                   style={styles.seeAllButton}
                 >
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.seeAllText,
                       {
                         color: primaryColor,
@@ -1529,7 +1530,7 @@ const DashboardScreen = ({ navigation }) => {
                   </View>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.earningLabel,
                       {
                         color: secondaryTextColor,
@@ -1542,7 +1543,7 @@ const DashboardScreen = ({ navigation }) => {
                   <Text
                     numberOfLines={1}
                     adjustsFontSizeToFit
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.earningValue,
                       {
                         color: primaryColor,
@@ -1577,7 +1578,7 @@ const DashboardScreen = ({ navigation }) => {
                   </View>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.earningLabel,
                       {
                         color: secondaryTextColor,
@@ -1590,7 +1591,7 @@ const DashboardScreen = ({ navigation }) => {
                   <Text
                     numberOfLines={1}
                     adjustsFontSizeToFit
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.earningValue,
                       {
                         color: '#B45309',
@@ -1614,7 +1615,7 @@ const DashboardScreen = ({ navigation }) => {
                 accessibilityRole="button"
                 accessibilityLabel="Retirer mes gains"
               >
-                <Text style={styles.withdrawText}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.withdrawText]}>
                   Retirer mes gains
                 </Text>
 
@@ -1639,7 +1640,7 @@ const DashboardScreen = ({ navigation }) => {
               <View style={styles.cardHeader}>
                 <View>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.cardTitle,
                       {
                         color: textColor,
@@ -1650,7 +1651,7 @@ const DashboardScreen = ({ navigation }) => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.cardSubtitle,
                       {
                         color: secondaryTextColor,
@@ -1697,7 +1698,7 @@ const DashboardScreen = ({ navigation }) => {
               ]}
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.cardTitle,
                   {
                     color: textColor,
@@ -1730,7 +1731,7 @@ const DashboardScreen = ({ navigation }) => {
               ]}
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.cardTitle,
                   {
                     color: textColor,
@@ -1764,7 +1765,7 @@ const DashboardScreen = ({ navigation }) => {
               ]}
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.cardTitle,
                   {
                     color: textColor,
@@ -1809,7 +1810,7 @@ const DashboardScreen = ({ navigation }) => {
               <View style={styles.cardHeader}>
                 <View>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.cardTitle,
                       {
                         color: textColor,
@@ -1820,7 +1821,7 @@ const DashboardScreen = ({ navigation }) => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.cardSubtitle,
                       {
                         color: secondaryTextColor,
@@ -1885,7 +1886,7 @@ const DashboardScreen = ({ navigation }) => {
                   />
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.emptyActivitiesText,
                       {
                         color: secondaryTextColor,
@@ -1923,7 +1924,7 @@ const DashboardScreen = ({ navigation }) => {
             </View>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.footerText,
                 {
                   color: secondaryTextColor,
@@ -2024,7 +2025,7 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
 
-  sectionTitleWide: {
+  sectionTitleWide: { fontFamily: typography.fontFamily.regular,
     fontSize: 14,
   },
 
@@ -2147,7 +2148,7 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
   },
 
-  headerNotificationText: {
+  headerNotificationText: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontSize: 10,
     lineHeight: 15,
@@ -2213,20 +2214,20 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
 
-  welcomeSmallText: {
+  welcomeSmallText: { fontFamily: typography.fontFamily.semiBold,
     color: 'rgba(255,255,255,0.78)',
     fontSize: 13,
     fontWeight: '600',
   },
 
-  welcomeName: {
+  welcomeName: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontSize: 24,
     fontWeight: '800',
     marginTop: 4,
   },
 
-  welcomeDescription: {
+  welcomeDescription: { fontFamily: typography.fontFamily.regular,
     color: 'rgba(255,255,255,0.72)',
     fontSize: 12,
     marginTop: 5,
@@ -2247,7 +2248,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
 
-  onlineToggleText: {
+  onlineToggleText: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '800',
@@ -2268,7 +2269,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  welcomeStatValue: {
+  welcomeStatValue: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '800',
@@ -2280,7 +2281,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
 
-  welcomeStatLabel: {
+  welcomeStatLabel: { fontFamily: typography.fontFamily.regular,
     color: 'rgba(255,255,255,0.72)',
     fontSize: 11,
     marginTop: 4,
@@ -2330,12 +2331,12 @@ const styles = StyleSheet.create({
     marginHorizontal: 11,
   },
 
-  notificationCardTitle: {
+  notificationCardTitle: { fontFamily: typography.fontFamily.bold,
     fontSize: 14,
     fontWeight: '800',
   },
 
-  notificationCardSubtitle: {
+  notificationCardSubtitle: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     marginTop: 4,
   },
@@ -2354,12 +2355,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
-  sectionTitle: {
+  sectionTitle: { fontFamily: typography.fontFamily.bold,
     fontSize: 19,
     fontWeight: '800',
   },
 
-  sectionSubtitle: {
+  sectionSubtitle: { fontFamily: typography.fontFamily.regular,
     fontSize: 12,
     marginTop: 4,
   },
@@ -2435,12 +2436,12 @@ const styles = StyleSheet.create({
     marginBottom: 13,
   },
 
-  quickActionLabel: {
+  quickActionLabel: { fontFamily: typography.fontFamily.bold,
     fontSize: 14,
     fontWeight: '800',
   },
 
-  quickActionDescription: {
+  quickActionDescription: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     marginTop: 4,
   },
@@ -2483,12 +2484,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  cardTitle: {
+  cardTitle: { fontFamily: typography.fontFamily.bold,
     fontSize: 17,
     fontWeight: '800',
   },
 
-  cardSubtitle: {
+  cardSubtitle: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     marginTop: 4,
   },
@@ -2501,7 +2502,7 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
   },
 
-  seeAllText: {
+  seeAllText: { fontFamily: typography.fontFamily.bold,
     fontSize: 12,
     fontWeight: '800',
   },
@@ -2534,12 +2535,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
-  earningLabel: {
+  earningLabel: { fontFamily: typography.fontFamily.semiBold,
     fontSize: 11,
     fontWeight: '600',
   },
 
-  earningValue: {
+  earningValue: { fontFamily: typography.fontFamily.bold,
     fontSize: 16,
     fontWeight: '800',
     marginTop: 3,
@@ -2556,7 +2557,7 @@ const styles = StyleSheet.create({
   },
 
 
-  withdrawText: {
+  withdrawText: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     textAlign: 'center',
     fontSize: 13,
@@ -2610,7 +2611,7 @@ const styles = StyleSheet.create({
     paddingRight: 5,
   },
 
-  activityText: {
+  activityText: { fontFamily: typography.fontFamily.semiBold,
     fontSize: 13,
     fontWeight: '600',
     lineHeight: 19,
@@ -2623,7 +2624,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
 
-  activityTime: {
+  activityTime: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
   },
 
@@ -2633,7 +2634,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
 
-  newActivityText: {
+  newActivityText: { fontFamily: typography.fontFamily.bold,
     fontSize: 9,
     fontWeight: '800',
   },
@@ -2645,7 +2646,7 @@ const styles = StyleSheet.create({
     gap: 9,
   },
 
-  emptyActivitiesText: {
+  emptyActivitiesText: { fontFamily: typography.fontFamily.regular,
     fontSize: 13,
   },
 
@@ -2671,7 +2672,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  footerText: {
+  footerText: { fontFamily: typography.fontFamily.semiBold,
     fontSize: 10,
     textAlign: 'center',
     fontWeight: '600',

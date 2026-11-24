@@ -6,11 +6,12 @@ import { useTheme } from '../../context/ThemeContext';
 import RatingStars from './RatingStars';
 import ReviewAvatar from './ReviewAvatar';
 import { CATEGORY_LABELS, formatReviewDate } from './reviewUtils';
+import { typography } from '../../theme';
 
 const Action = ({ icon, label, onPress, color }) => (
   <TouchableOpacity onPress={onPress} style={s.action} activeOpacity={0.7} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
     <Ionicons name={icon} size={15} color={color} />
-    <Text style={[s.actionText, { color }]}>{label}</Text>
+    <Text style={[{ fontFamily: typography.fontFamily.regular }, s.actionText, { color }]}>{label}</Text>
   </TouchableOpacity>
 );
 
@@ -57,10 +58,10 @@ export default function ReviewCard({
           <ReviewAvatar photo={review.reviewer_photo} name={review.reviewer_name} size={44} />
         )}
         <View style={{ flex: 1 }}>
-          <Text style={[s.name, { color: c.text }]} numberOfLines={1}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, s.name, { color: c.text }]} numberOfLines={1}>
             {showTherapist && !showReviewer ? review.therapist_name || 'Thérapeute' : review.reviewer_name || 'Client'}
           </Text>
-          <Text style={[s.meta, { color: c.textSecondary }]} numberOfLines={1}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, s.meta, { color: c.textSecondary }]} numberOfLines={1}>
             {formatReviewDate(review.created_at)}
             {review.edited_at ? ' · modifié' : ''}
             {review.massage_type_name ? ` · ${review.massage_type_name}` : ''}
@@ -68,7 +69,7 @@ export default function ReviewCard({
         </View>
         <View style={{ alignItems: 'flex-end', gap: 3 }}>
           <RatingStars value={review.rating} size={15} />
-          <Text style={{ color: c.textSecondary, fontSize: 11, fontWeight: '700' }}>{review.rating}/5</Text>
+          <Text style={{ fontFamily: typography.fontFamily.bold, color: c.textSecondary, fontSize: 11, fontWeight: '700' }}>{review.rating}/5</Text>
         </View>
       </View>
 
@@ -76,7 +77,7 @@ export default function ReviewCard({
       {showTherapist && showReviewer && !!review.therapist_name && (
         <View style={s.line}>
           <ReviewAvatar photo={review.therapist_photo} name={review.therapist_name} size={22} />
-          <Text style={[s.lineText, { color: c.textSecondary }]}>Thérapeute : {review.therapist_name}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, s.lineText, { color: c.textSecondary }]}>Thérapeute : {review.therapist_name}</Text>
         </View>
       )}
 
@@ -85,25 +86,25 @@ export default function ReviewCard({
         {review.is_verified && (
           <View style={[s.badge, { backgroundColor: '#E8F5E9' }]}>
             <Ionicons name="checkmark-circle" size={12} color="#2E8B57" />
-            <Text style={[s.badgeText, { color: '#2E8B57' }]}>Séance terminée</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, s.badgeText, { color: '#2E8B57' }]}>Séance terminée</Text>
           </View>
         )}
         {review.is_anonymous && role !== 'public' && (
           <View style={[s.badge, { backgroundColor: isDark ? '#333' : '#EEE' }]}>
             <Ionicons name="eye-off-outline" size={12} color="#666" />
-            <Text style={[s.badgeText, { color: '#666' }]}>Anonyme</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, s.badgeText, { color: '#666' }]}>Anonyme</Text>
           </View>
         )}
         {hidden && (
           <View style={[s.badge, { backgroundColor: '#FFF3E0' }]}>
             <Ionicons name="eye-off" size={12} color="#E65100" />
-            <Text style={[s.badgeText, { color: '#E65100' }]}>Masqué</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, s.badgeText, { color: '#E65100' }]}>Masqué</Text>
           </View>
         )}
         {role === 'admin' && review.pending_reports > 0 && (
           <View style={[s.badge, { backgroundColor: '#FEE2E2' }]}>
             <Ionicons name="flag" size={12} color="#DC2626" />
-            <Text style={[s.badgeText, { color: '#DC2626' }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, s.badgeText, { color: '#DC2626' }]}>
               {review.pending_reports} signalement{review.pending_reports > 1 ? 's' : ''}
             </Text>
           </View>
@@ -111,14 +112,14 @@ export default function ReviewCard({
       </View>
 
       {/* Commentaire */}
-      {!!review.comment && <Text style={[s.comment, { color: c.text }]}>{review.comment}</Text>}
+      {!!review.comment && <Text style={[{ fontFamily: typography.fontFamily.regular }, s.comment, { color: c.text }]}>{review.comment}</Text>}
 
       {/* Critères */}
       {cats.length > 0 && (
         <View style={s.cats}>
           {cats.map((k) => (
             <View key={k} style={[s.catPill, { backgroundColor: isDark ? '#2A2A2A' : '#F3F4F6' }]}>
-              <Text style={{ color: c.textSecondary, fontSize: 11 }}>
+              <Text style={{ fontFamily: typography.fontFamily.regular, color: c.textSecondary, fontSize: 11 }}>
                 {CATEGORY_LABELS[k]} · {review[k]}/5
               </Text>
             </View>
@@ -129,8 +130,8 @@ export default function ReviewCard({
       {/* Motif de masquage (admin / auteur) */}
       {hidden && !!review.hidden_reason && (
         <View style={[s.reasonBox, { backgroundColor: '#FFF8E1' }]}>
-          <Text style={{ color: '#8D6E00', fontSize: 12 }}>
-            <Text style={{ fontWeight: '700' }}>Motif de modération : </Text>
+          <Text style={{ fontFamily: typography.fontFamily.regular, color: '#8D6E00', fontSize: 12 }}>
+            <Text style={{ fontFamily: typography.fontFamily.bold, fontWeight: '700' }}>Motif de modération : </Text>
             {review.hidden_reason}
           </Text>
         </View>
@@ -139,11 +140,11 @@ export default function ReviewCard({
       {/* Réponse du thérapeute */}
       {!!review.response_from_therapist && (
         <View style={[s.response, { backgroundColor: isDark ? '#1F2A22' : '#F1F8F2', borderLeftColor: c.primary }]}>
-          <Text style={{ color: c.primary, fontSize: 12, fontWeight: '800', marginBottom: 2 }}>
+          <Text style={{ fontFamily: typography.fontFamily.bold, color: c.primary, fontSize: 12, fontWeight: '800', marginBottom: 2 }}>
             Réponse du thérapeute
             {review.therapist_responded_at ? ` · ${formatReviewDate(review.therapist_responded_at)}` : ''}
           </Text>
-          <Text style={{ color: c.text, fontSize: 13, lineHeight: 19 }}>{review.response_from_therapist}</Text>
+          <Text style={{ fontFamily: typography.fontFamily.regular, color: c.text, fontSize: 13, lineHeight: 19 }}>{review.response_from_therapist}</Text>
         </View>
       )}
 
@@ -175,19 +176,19 @@ export default function ReviewCard({
 const s = StyleSheet.create({
   card: { borderRadius: 16, borderWidth: 1, padding: 14, marginBottom: 12 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  name: { fontSize: 15, fontWeight: '700' },
-  meta: { fontSize: 12, marginTop: 1 },
+  name: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '700' },
+  meta: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginTop: 1 },
   line: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  lineText: { fontSize: 12 },
+  lineText: { fontFamily: typography.fontFamily.regular, fontSize: 12 },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  badgeText: { fontSize: 11, fontWeight: '700' },
-  comment: { fontSize: 14, lineHeight: 21, marginTop: 10 },
+  badgeText: { fontFamily: typography.fontFamily.bold, fontSize: 11, fontWeight: '700' },
+  comment: { fontFamily: typography.fontFamily.regular, fontSize: 14, lineHeight: 21, marginTop: 10 },
   cats: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 10 },
   catPill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   reasonBox: { marginTop: 10, padding: 8, borderRadius: 8 },
   response: { marginTop: 10, padding: 10, borderRadius: 10, borderLeftWidth: 3 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 12, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
   action: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  actionText: { fontSize: 12, fontWeight: '700' },
+  actionText: { fontFamily: typography.fontFamily.bold, fontSize: 12, fontWeight: '700' },
 });

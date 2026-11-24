@@ -242,7 +242,7 @@ const UsersScreen = () => {
 
           {/* Title */}
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.confirmTitle,
               {
                 color: themeColors.text,
@@ -254,7 +254,7 @@ const UsersScreen = () => {
 
           {/* Message */}
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.confirmMessage,
               {
                 color: themeColors.textSecondary,
@@ -280,7 +280,7 @@ const UsersScreen = () => {
               activeOpacity={0.8}
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.confirmButtonText,
                   {
                     color: themeColors.text,
@@ -305,7 +305,7 @@ const UsersScreen = () => {
               activeOpacity={0.8}
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.confirmButtonText,
                   styles.confirmActionText,
                 ]}
@@ -1094,7 +1094,7 @@ const UsersScreen = () => {
       )}
 
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.statusBadgeText,
           WEB_WRAP,
           {
@@ -1148,9 +1148,9 @@ const UsersScreen = () => {
             ]}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.avatarText,
-                {
+                { fontFamily: typography.fontFamily.regular,
                   color: roleColor,
                   fontSize: size * 0.4,
                 },
@@ -1232,7 +1232,7 @@ const UsersScreen = () => {
           <Avatar user={item} size={42} />
           <View style={styles.webUserInfo}>
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.webName,
                 WEB_WRAP,
                 {
@@ -1243,7 +1243,7 @@ const UsersScreen = () => {
               {item.fullname || 'Utilisateur'}
             </Text>
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.webEmail,
                 WEB_WRAP,
                 {
@@ -1259,7 +1259,7 @@ const UsersScreen = () => {
         {/* TELEPHONE */}
         <View style={[styles.webCell, styles.webCellPhone]}>
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.webCellText,
               WEB_WRAP,
               {
@@ -1275,7 +1275,7 @@ const UsersScreen = () => {
         <View style={[styles.webCell, styles.webAddressCell]}>
           <Ionicons name="location-outline" size={14} color={colors.primary} />
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.webCellText,
               WEB_WRAP,
               {
@@ -1441,7 +1441,7 @@ const UsersScreen = () => {
             <View style={styles.mobileTopRow}>
               <Text
                 numberOfLines={1}
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.mobileName,
                   {
                     color: themeColors.text,
@@ -1449,7 +1449,7 @@ const UsersScreen = () => {
                 ]}
               >
                 {item.fullname || 'Utilisateur'}
-                {isDeleted && <Text style={styles.deletedTag}> (Supprimé)</Text>}
+                {isDeleted && <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.deletedTag]}> (Supprimé)</Text>}
               </Text>
 
               <StatusBadge
@@ -1460,7 +1460,7 @@ const UsersScreen = () => {
 
             <Text
               numberOfLines={1}
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.mobileEmail,
                 {
                   color: themeColors.textSecondary,
@@ -1528,7 +1528,7 @@ const UsersScreen = () => {
                 style={styles.mobileRoleButton}
               >
                 <Ionicons name="shield-checkmark-outline" size={15} color="#009688" />
-                <Text style={styles.mobileRoleButtonText}>Modifier le rôle</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mobileRoleButtonText]}>Modifier le rôle</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1560,7 +1560,7 @@ const UsersScreen = () => {
 
       <Text
         numberOfLines={lines || (full ? 2 : 1)}
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.mobileValueText,
           {
             color: valueColor || themeColors.text,
@@ -1612,7 +1612,7 @@ const UsersScreen = () => {
           >
             <View style={[styles.webHeaderCell, styles.webCellUser]}>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.webHeaderText,
                   { color: themeColors.textSecondary },
                 ]}
@@ -1630,7 +1630,7 @@ const UsersScreen = () => {
 
             <View style={[styles.webHeaderCell, styles.webActionCell]}>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.webHeaderText,
                   { color: themeColors.textSecondary },
                 ]}
@@ -1690,7 +1690,7 @@ const UsersScreen = () => {
   const HeaderCell = ({ label, themeColors, style }) => (
     <View style={[styles.webHeaderCell, style]}>
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.webHeaderText,
           {
             color: themeColors.textSecondary,
@@ -1754,7 +1754,7 @@ const UsersScreen = () => {
           >
             <View style={styles.titleBlock}>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.pageTitle,
                   {
                     color: themeColors.text,
@@ -1765,7 +1765,7 @@ const UsersScreen = () => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.pageSubtitle,
                   {
                     color: themeColors.textSecondary,
@@ -1794,7 +1794,7 @@ const UsersScreen = () => {
                 }}
               >
                 <Ionicons name="add" size={18} color="#fff" />
-                {IS_WEB && <Text style={[styles.actionButtonText, { color: '#fff' }]}>Ajouter</Text>}
+                {IS_WEB && <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionButtonText, { color: '#fff' }]}>Ajouter</Text>}
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -1815,7 +1815,7 @@ const UsersScreen = () => {
                   <Ionicons name="download-outline" size={18} color="#fff" />
                 )}
                 {IS_WEB && (
-                  <Text style={[styles.actionButtonText, { color: '#fff' }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionButtonText, { color: '#fff' }]}>
                     {exportingExcel ? 'Export...' : 'Excel'}
                   </Text>
                 )}
@@ -1833,7 +1833,7 @@ const UsersScreen = () => {
               >
                 <Ionicons name={showDeleted ? 'trash' : 'trash-outline'} size={18} color="#fff" />
                 {IS_WEB && (
-                  <Text style={[styles.actionButtonText, { color: '#fff' }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionButtonText, { color: '#fff' }]}>
                     {showDeleted ? 'Actifs' : 'Corbeille'}
                   </Text>
                 )}
@@ -1851,7 +1851,7 @@ const UsersScreen = () => {
                 <Ionicons name="refresh-outline" size={19} color={colors.primary} />
                 {IS_WEB && (
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.refreshText,
                       {
                         color: colors.primary,
@@ -1877,7 +1877,7 @@ const UsersScreen = () => {
               ]}
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.bulkSelectedText,
                   {
                     color: themeColors.text,
@@ -1893,7 +1893,7 @@ const UsersScreen = () => {
                   onPress={() => handleBulkAction('activate')}
                 >
                   <Ionicons name="checkmark-circle" size={16} color="#fff" />
-                  <Text style={styles.bulkButtonText}>Activer</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bulkButtonText]}>Activer</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1901,7 +1901,7 @@ const UsersScreen = () => {
                   onPress={() => handleBulkAction('deactivate')}
                 >
                   <Ionicons name="close-circle" size={16} color="#fff" />
-                  <Text style={styles.bulkButtonText}>Désactiver</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bulkButtonText]}>Désactiver</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1909,7 +1909,7 @@ const UsersScreen = () => {
                   onPress={() => handleBulkAction('delete')}
                 >
                   <Ionicons name="trash" size={16} color="#fff" />
-                  <Text style={styles.bulkButtonText}>Supprimer</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bulkButtonText]}>Supprimer</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -1917,7 +1917,7 @@ const UsersScreen = () => {
                   onPress={() => setSelectedIds([])}
                 >
                   <Ionicons name="close" size={16} color="#fff" />
-                  <Text style={styles.bulkButtonText}>Annuler</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bulkButtonText]}>Annuler</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1943,7 +1943,7 @@ const UsersScreen = () => {
               <Ionicons name="search-outline" size={20} color={themeColors.textSecondary} />
 
               <TextInput
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.searchInput,
                   {
                     color: themeColors.text,
@@ -1998,7 +1998,7 @@ const UsersScreen = () => {
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.filterText,
                         {
                           color: active ? '#fff' : themeColors.text,
@@ -2027,7 +2027,7 @@ const UsersScreen = () => {
             >
               <Ionicons name="alert-circle-outline" size={19} color="#E74C3C" />
 
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}>{error}</Text>
 
               <TouchableOpacity
                 onPress={() => {
@@ -2046,7 +2046,7 @@ const UsersScreen = () => {
               <ActivityIndicator size="large" color={colors.primary} />
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.loadingText,
                   {
                     color: themeColors.textSecondary,
@@ -2070,7 +2070,7 @@ const UsersScreen = () => {
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.emptyStateTitle,
                   {
                     color: themeColors.text,
@@ -2081,7 +2081,7 @@ const UsersScreen = () => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.emptyStateText,
                   {
                     color: themeColors.textSecondary,
@@ -2137,7 +2137,7 @@ const UsersScreen = () => {
               <View style={styles.modalHeader}>
                 <View>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.modalTitle,
                       {
                         color: themeColors.text,
@@ -2148,7 +2148,7 @@ const UsersScreen = () => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.modalSubtitle,
                       {
                         color: themeColors.textSecondary,
@@ -2185,13 +2185,13 @@ const UsersScreen = () => {
                   {createError ? (
                     <View style={styles.createErrorBox}>
                       <Ionicons name="alert-circle" size={18} color="#C62828" />
-                      <Text style={styles.createErrorText}>{createError}</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.createErrorText]}>{createError}</Text>
                     </View>
                   ) : null}
 
                   <View style={styles.editField}>
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.editLabel,
                         {
                           color: themeColors.textSecondary,
@@ -2201,7 +2201,7 @@ const UsersScreen = () => {
                       Nom complet *
                     </Text>
                     <TextInput
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.editInput,
                         {
                           color: themeColors.text,
@@ -2221,7 +2221,7 @@ const UsersScreen = () => {
 
                   <View style={styles.editField}>
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.editLabel,
                         {
                           color: themeColors.textSecondary,
@@ -2231,7 +2231,7 @@ const UsersScreen = () => {
                       Email *
                     </Text>
                     <TextInput
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.editInput,
                         {
                           color: themeColors.text,
@@ -2253,7 +2253,7 @@ const UsersScreen = () => {
 
                   <View style={styles.editField}>
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.editLabel,
                         {
                           color: themeColors.textSecondary,
@@ -2273,7 +2273,7 @@ const UsersScreen = () => {
 
                   <View style={styles.editField}>
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.editLabel,
                         {
                           color: themeColors.textSecondary,
@@ -2293,7 +2293,7 @@ const UsersScreen = () => {
 
                   <View style={styles.editField}>
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.editLabel,
                         {
                           color: themeColors.textSecondary,
@@ -2326,7 +2326,7 @@ const UsersScreen = () => {
                             }
                           />
                           <Text
-                            style={[
+                            style={[{ fontFamily: typography.fontFamily.regular }, 
                               styles.roleOptionText,
                               {
                                 color:
@@ -2345,7 +2345,7 @@ const UsersScreen = () => {
                     {createData.role === 'ADMIN' ? (
                       <View style={styles.createAdminNotice}>
                         <Ionicons name="shield-checkmark-outline" size={16} color="#D32F2F" />
-                        <Text style={styles.createAdminNoticeText}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.createAdminNoticeText]}>
                           Ce compte aura un accès administrateur complet. Il sera actif
                           immédiatement et l'email de connexion lui sera envoyé.
                         </Text>
@@ -2359,7 +2359,7 @@ const UsersScreen = () => {
                       onPress={closeCreateModal}
                       disabled={creating}
                     >
-                      <Text style={[styles.editButtonText, { color: '#333' }]}>Annuler</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.editButtonText, { color: '#333' }]}>Annuler</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -2376,7 +2376,7 @@ const UsersScreen = () => {
                       ) : (
                         <>
                           <Ionicons name="person-add-outline" size={18} color="#fff" />
-                          <Text style={[styles.editButtonText, { color: '#fff' }]}>Créer</Text>
+                          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.editButtonText, { color: '#fff' }]}>Créer</Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -2425,10 +2425,10 @@ const UsersScreen = () => {
         >
           <View style={styles.confirmOverlay}>
             <View style={[styles.confirmModalContainer, { backgroundColor: themeColors.surface }]}>
-              <Text style={[styles.confirmTitle, { color: themeColors.text }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmTitle, { color: themeColors.text }]}>
                 Modifier le rôle
               </Text>
-              <Text style={[styles.confirmMessage, { color: themeColors.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmMessage, { color: themeColors.textSecondary }]}>
                 {roleTarget?.fullname || 'Utilisateur'} — rôle actuel : {getRoleLabel(roleTarget?.role)}
               </Text>
 
@@ -2451,7 +2451,7 @@ const UsersScreen = () => {
                     >
                       <Ionicons name={r.icon} size={20} color={active ? r.color : themeColors.textSecondary} />
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.rolePickerText,
                           { color: active ? r.color : themeColors.text },
                         ]}
@@ -2474,7 +2474,7 @@ const UsersScreen = () => {
                   onPress={() => setRoleTarget(null)}
                   activeOpacity={0.8}
                 >
-                  <Text style={[styles.confirmButtonText, { color: themeColors.text }]}>Fermer</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmButtonText, { color: themeColors.text }]}>Fermer</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -2529,7 +2529,7 @@ const styles = StyleSheet.create({
 
   pageTitle: {
     fontSize: 20,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   pageSubtitle: {
@@ -2555,7 +2555,7 @@ const styles = StyleSheet.create({
 
   actionButtonText: {
     fontSize: 12,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   refreshButton: {
@@ -2570,7 +2570,7 @@ const styles = StyleSheet.create({
 
   refreshText: {
     fontSize: 12,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ============================================================
@@ -2591,7 +2591,7 @@ const styles = StyleSheet.create({
 
   bulkSelectedText: {
     fontSize: 12,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   bulkActions: {
@@ -2613,7 +2613,7 @@ const styles = StyleSheet.create({
   bulkButtonText: {
     color: '#fff',
     fontSize: 11,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   /* ============================================================
@@ -2674,7 +2674,7 @@ const styles = StyleSheet.create({
 
   filterText: {
     fontSize: 12,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   /* ============================================================
@@ -2696,7 +2696,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#E74C3C',
     fontSize: 12,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   /* ============================================================
@@ -2739,10 +2739,10 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     marginTop: 14,
     fontSize: 17,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
-  emptyStateText: {
+  emptyStateText: { fontFamily: typography.fontFamily.regular,
     marginTop: 5,
     fontSize: 13,
     textAlign: 'center',
@@ -2768,7 +2768,7 @@ const styles = StyleSheet.create({
   statusBadgeText: {
     flexShrink: 1,
     fontSize: 10,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   statusBadgeDot: {
@@ -2791,7 +2791,7 @@ const styles = StyleSheet.create({
   },
 
   avatarText: {
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   avatarOnline: {
@@ -2845,7 +2845,7 @@ const styles = StyleSheet.create({
 
   webHeaderText: {
     fontSize: 10,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     letterSpacing: 0.5,
   },
 
@@ -2900,15 +2900,15 @@ const styles = StyleSheet.create({
 
   webName: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
-  webEmail: {
+  webEmail: { fontFamily: typography.fontFamily.regular,
     marginTop: 3,
     fontSize: 10,
   },
 
-  webCellText: {
+  webCellText: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     lineHeight: 16,
   },
@@ -2961,7 +2961,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
   },
 
-  rolePickerText: { flex: 1, fontSize: 14, fontWeight: '700' },
+  rolePickerText: { fontFamily: typography.fontFamily.bold, flex: 1, fontSize: 14, fontWeight: '700' },
 
   mobileRoleButton: {
     flexDirection: 'row',
@@ -2975,7 +2975,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#00968818',
   },
 
-  mobileRoleButtonText: { color: '#009688', fontSize: 12, fontWeight: '700' },
+  mobileRoleButtonText: { fontFamily: typography.fontFamily.bold, color: '#009688', fontSize: 12, fontWeight: '700' },
 
   webBottomSpace: {
     height: 24,
@@ -3028,16 +3028,16 @@ const styles = StyleSheet.create({
   mobileName: {
     flex: 1,
     fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   deletedTag: {
     fontSize: 12,
     color: '#E74C3C',
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
-  mobileEmail: {
+  mobileEmail: { fontFamily: typography.fontFamily.regular,
     fontSize: 12,
     marginTop: 2,
   },
@@ -3065,7 +3065,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12.5,
     lineHeight: 17,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   mobileCardFooter: {
@@ -3086,7 +3086,7 @@ const styles = StyleSheet.create({
 
   mobileFooterButtonText: {
     fontSize: 12.5,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ============================================================
@@ -3142,10 +3142,10 @@ const styles = StyleSheet.create({
 
   modalTitle: {
     fontSize: 18,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
-  modalSubtitle: {
+  modalSubtitle: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     marginTop: 3,
   },
@@ -3181,10 +3181,10 @@ const styles = StyleSheet.create({
 
   modalName: {
     fontSize: 18,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
-  modalEmail: {
+  modalEmail: { fontFamily: typography.fontFamily.regular,
     fontSize: 12,
     marginTop: 3,
   },
@@ -3202,7 +3202,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontSize: 14,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     marginTop: 13,
     marginBottom: 8,
   },
@@ -3223,14 +3223,14 @@ const styles = StyleSheet.create({
   modalInfoLabel: {
     flex: 1,
     fontSize: 12,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   modalInfoValue: {
     flex: 1.4,
     textAlign: 'right',
     fontSize: 12,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   /* ============================================================
@@ -3248,10 +3248,10 @@ const styles = StyleSheet.create({
 
   switchTitle: {
     fontSize: 12,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
-  switchSubtitle: {
+  switchSubtitle: { fontFamily: typography.fontFamily.regular,
     fontSize: 10,
     marginTop: 2,
   },
@@ -3264,7 +3264,7 @@ const styles = StyleSheet.create({
 
   switchStatus: {
     fontSize: 10,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ============================================================
@@ -3297,10 +3297,10 @@ const styles = StyleSheet.create({
 
   addressBoxTitle: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
-  addressBoxSubtitle: {
+  addressBoxSubtitle: { fontFamily: typography.fontFamily.regular,
     fontSize: 10,
     marginTop: 2,
   },
@@ -3318,7 +3318,7 @@ const styles = StyleSheet.create({
   modalAddressButtonText: {
     color: '#fff',
     fontSize: 11,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ============================================================
@@ -3332,7 +3332,7 @@ const styles = StyleSheet.create({
 
   cinLabel: {
     fontSize: 12,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginBottom: 4,
   },
 
@@ -3516,7 +3516,7 @@ const styles = StyleSheet.create({
   modalActionText: {
     color: '#fff',
     fontSize: 12,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ============================================================
@@ -3543,7 +3543,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FDECEC',
   },
 
-  createErrorText: {
+  createErrorText: { fontFamily: typography.fontFamily.regular,
     flex: 1,
     fontSize: 13,
     lineHeight: 18,
@@ -3560,7 +3560,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FDECEC',
   },
 
-  createAdminNoticeText: {
+  createAdminNoticeText: { fontFamily: typography.fontFamily.regular,
     flex: 1,
     fontSize: 12,
     lineHeight: 17,
@@ -3573,7 +3573,7 @@ const styles = StyleSheet.create({
 
   editLabel: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginBottom: 6,
   },
 
@@ -3627,7 +3627,7 @@ const styles = StyleSheet.create({
 
   editButtonText: {
     fontSize: 14,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ============================================================
@@ -3657,7 +3657,7 @@ const styles = StyleSheet.create({
 
   roleOptionText: {
     fontSize: 12,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   /* ============================================================
@@ -3700,7 +3700,7 @@ const styles = StyleSheet.create({
 
   confirmTitle: {
     fontSize: 18,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -3738,7 +3738,7 @@ const styles = StyleSheet.create({
 
   confirmButtonText: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   confirmActionText: {

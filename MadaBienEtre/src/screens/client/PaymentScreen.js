@@ -37,6 +37,7 @@ import PaymentLogo from '../../components/payment/PaymentLogo';
 import { useTheme } from '../../context/ThemeContext';
 import paymentService from '../../services/paymentService';
 import { colors } from '../../theme';
+import { typography } from '../../theme';
 
 const PRIMARY = colors.primary || '#0B7A2A';
 const POLL_MS = 4000;
@@ -272,17 +273,17 @@ const PaymentScreen = ({ navigation, route }) => {
         <View style={[styles.bigIcon, { backgroundColor: `${PRIMARY}1A` }]}>
           <Ionicons name="card-outline" size={44} color={PRIMARY} />
         </View>
-        <Text style={[styles.title, { color: theme.text }]}>Moyens de paiement</Text>
-        <Text style={[styles.muted, { color: theme.textSecondary, textAlign: 'center' }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: theme.text }]}>Moyens de paiement</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary, textAlign: 'center' }]}>
           Voici les moyens de paiement acceptés. Vous choisirez le vôtre au moment de payer une
           réservation confirmée.
         </Text>
       </View>
 
-      <Text style={[styles.section, { color: theme.text }]}>Carte bancaire</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.section, { color: theme.text }]}>Carte bancaire</Text>
       <SavedCardsManager mode="manage" hideTitle />
 
-      <Text style={[styles.section, { color: theme.text }]}>Modes acceptés</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.section, { color: theme.text }]}>Modes acceptés</Text>
 
       {OPTIONS.map((opt) => {
         const enabled = isEnabled(opt);
@@ -290,8 +291,8 @@ const PaymentScreen = ({ navigation, route }) => {
           <View key={opt.id} style={[styles.option, card, !enabled && { opacity: 0.55 }]}>
             <PaymentLogo id={opt.id} size={48} />
             <View style={{ flex: 1 }}>
-              <Text style={[styles.optionLabel, { color: theme.text }]}>{opt.label}</Text>
-              <Text style={[styles.muted, { color: theme.textSecondary }]}>{opt.hint}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.optionLabel, { color: theme.text }]}>{opt.label}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary }]}>{opt.hint}</Text>
             </View>
             <View
               style={[
@@ -300,7 +301,7 @@ const PaymentScreen = ({ navigation, route }) => {
               ]}
             >
               <Text
-                style={[styles.statusPillText, { color: enabled ? PRIMARY : '#6B7280' }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.statusPillText, { color: enabled ? PRIMARY : '#6B7280' }]}
               >
                 {enabled ? 'Disponible' : 'Bientôt'}
               </Text>
@@ -310,14 +311,14 @@ const PaymentScreen = ({ navigation, route }) => {
       })}
 
       {methods?.sandbox ? (
-        <Text style={[styles.muted, { color: '#B45309', marginTop: 10 }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: '#B45309', marginTop: 10 }]}>
           ⚠️ Mode TEST actif : aucun vrai argent n'est débité.
         </Text>
       ) : null}
 
       <View style={[styles.notice, { backgroundColor: `${PRIMARY}14`, marginTop: 14 }]}>
         <Ionicons name="shield-checkmark" size={18} color={PRIMARY} />
-        <Text style={[styles.noticeText, { color: theme.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noticeText, { color: theme.textSecondary }]}>
           Votre numéro de carte n'est jamais saisi dans l'application : il est enregistré par Stripe sur sa
           page sécurisée. Au moment de payer, il suffit de choisir « Carte bancaire ».
         </Text>
@@ -330,7 +331,7 @@ const PaymentScreen = ({ navigation, route }) => {
       return (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={PRIMARY} />
-          <Text style={[styles.muted, { color: theme.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary }]}>
             {methodsMode ? 'Chargement des moyens de paiement…' : 'Chargement du paiement…'}
           </Text>
         </View>
@@ -342,14 +343,14 @@ const PaymentScreen = ({ navigation, route }) => {
         return (
           <View style={styles.center}>
             <Ionicons name="alert-circle-outline" size={42} color="#D93636" />
-            <Text style={[styles.title, { color: theme.text }]}>Moyens de paiement indisponibles</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: theme.text }]}>Moyens de paiement indisponibles</Text>
             {error ? (
-              <Text style={[styles.muted, { color: theme.textSecondary, textAlign: 'center' }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary, textAlign: 'center' }]}>
                 {error}
               </Text>
             ) : null}
             <TouchableOpacity style={styles.primaryBtn} onPress={load}>
-              <Text style={styles.primaryBtnText}>Réessayer</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryBtnText]}>Réessayer</Text>
             </TouchableOpacity>
           </View>
         );
@@ -361,10 +362,10 @@ const PaymentScreen = ({ navigation, route }) => {
       return (
         <View style={styles.center}>
           <Ionicons name="alert-circle-outline" size={42} color="#D93636" />
-          <Text style={[styles.title, { color: theme.text }]}>Paiement indisponible</Text>
-          <Text style={[styles.muted, { color: theme.textSecondary }]}>{error}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: theme.text }]}>Paiement indisponible</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary }]}>{error}</Text>
           <TouchableOpacity style={styles.primaryBtn} onPress={load}>
-            <Text style={styles.primaryBtnText}>Réessayer</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryBtnText]}>Réessayer</Text>
           </TouchableOpacity>
         </View>
       );
@@ -377,20 +378,20 @@ const PaymentScreen = ({ navigation, route }) => {
           <View style={[styles.bigIcon, { backgroundColor: `${PRIMARY}1A` }]}>
             <Ionicons name="checkmark-circle" size={56} color={PRIMARY} />
           </View>
-          <Text style={[styles.title, { color: theme.text }]}>Paiement confirmé</Text>
-          <Text style={styles.bigAmount}>{formatAr(payment.amount)}</Text>
-          <Text style={[styles.muted, { color: theme.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: theme.text }]}>Paiement confirmé</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bigAmount]}>{formatAr(payment.amount)}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary }]}>
             Transaction {payment.transaction_ref || payment.transaction_id}
           </Text>
 
           <TouchableOpacity style={styles.primaryBtn} onPress={handleReceipt} activeOpacity={0.85}>
             <Ionicons name="document-text-outline" size={18} color="#fff" />
-            <Text style={styles.primaryBtnText}>Voir mon reçu</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryBtnText]}>Voir mon reçu</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.linkBtn} onPress={goBooking}>
-            <Text style={[styles.linkText, { color: PRIMARY }]}>Retour à la réservation</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.linkText, { color: PRIMARY }]}>Retour à la réservation</Text>
           </TouchableOpacity>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          {error ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}>{error}</Text> : null}
         </View>
       );
     }
@@ -407,18 +408,18 @@ const PaymentScreen = ({ navigation, route }) => {
               <ActivityIndicator size="large" color="#F5B642" />
             )}
           </View>
-          <Text style={[styles.title, { color: theme.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: theme.text }]}>
             {isCash ? 'Paiement en espèces' : 'En attente de confirmation'}
           </Text>
-          <Text style={styles.bigAmount}>{formatAr(payment.amount)}</Text>
-          <Text style={[styles.muted, { color: theme.textSecondary, textAlign: 'center' }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bigAmount]}>{formatAr(payment.amount)}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary, textAlign: 'center' }]}>
             {instructions ||
               (isCash
                 ? 'Payez le thérapeute à la fin du massage. Il confirmera la réception.'
                 : 'Validez le paiement sur votre téléphone.')}
           </Text>
           {payment.payment_method && !isCash ? (
-            <Text style={[styles.muted, { color: theme.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary }]}>
               {String(payment.payment_method).replace('_', ' ')}
             </Text>
           ) : null}
@@ -429,7 +430,7 @@ const PaymentScreen = ({ navigation, route }) => {
               onPress={() => paymentService.openPaymentUrl(paymentUrl)}
             >
               <Ionicons name="open-outline" size={18} color="#fff" />
-              <Text style={styles.primaryBtnText}>Ouvrir la page de paiement</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryBtnText]}>Ouvrir la page de paiement</Text>
             </TouchableOpacity>
           ) : null}
 
@@ -443,7 +444,7 @@ const PaymentScreen = ({ navigation, route }) => {
               }}
             >
               <Ionicons name="refresh" size={18} color="#fff" />
-              <Text style={styles.primaryBtnText}>Vérifier maintenant</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryBtnText]}>Vérifier maintenant</Text>
             </TouchableOpacity>
           )}
 
@@ -460,23 +461,23 @@ const PaymentScreen = ({ navigation, route }) => {
               }}
             >
               {notifying ? <ActivityIndicator color="#fff" /> : <Ionicons name="paper-plane-outline" size={18} color="#fff" />}
-              <Text style={styles.primaryBtnText}>J’ai remis les espèces — prévenir le thérapeute</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryBtnText]}>J’ai remis les espèces — prévenir le thérapeute</Text>
             </TouchableOpacity>
           ) : null}
           {isCash && payment.client_sent_at ? (
-            <Text style={[styles.muted, { color: '#2E8B57', textAlign: 'center' }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: '#2E8B57', textAlign: 'center' }]}>
               ✓ Votre thérapeute a été prévenu. Le paiement sera validé dès qu’il confirmera la réception.
             </Text>
           ) : null}
 
           {isCash ? (
             <TouchableOpacity style={styles.primaryBtn} onPress={goBooking}>
-              <Text style={styles.primaryBtnText}>Retour à la réservation</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryBtnText]}>Retour à la réservation</Text>
             </TouchableOpacity>
           ) : null}
 
           <TouchableOpacity style={styles.linkBtn} onPress={handleCancel}>
-            <Text style={[styles.linkText, { color: '#D93636' }]}>Annuler ce paiement</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.linkText, { color: '#D93636' }]}>Annuler ce paiement</Text>
           </TouchableOpacity>
         </View>
       );
@@ -486,9 +487,9 @@ const PaymentScreen = ({ navigation, route }) => {
     return (
       <>
         <View style={[styles.amountCard, card]}>
-          <Text style={[styles.muted, { color: theme.textSecondary }]}>Prix à payer</Text>
-          <Text style={styles.bigAmount}>{formatAr(amount)}</Text>
-          <Text style={[styles.muted, { color: theme.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary }]}>Prix à payer</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bigAmount]}>{formatAr(amount)}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary }]}>
             Réservation #{bookingId}
           </Text>
         </View>
@@ -496,13 +497,13 @@ const PaymentScreen = ({ navigation, route }) => {
         {!quote.can_pay ? (
           <View style={[styles.notice, { backgroundColor: '#FEF3C7' }]}>
             <Ionicons name="information-circle" size={18} color="#B45309" />
-            <Text style={styles.noticeText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noticeText]}>
               {quote.reason || "Le paiement n'est pas encore disponible."}
             </Text>
           </View>
         ) : null}
 
-        <Text style={[styles.section, { color: theme.text }]}>Mode de paiement</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.section, { color: theme.text }]}>Mode de paiement</Text>
 
         {OPTIONS.map((opt) => {
           const enabled = isEnabled(opt);
@@ -525,8 +526,8 @@ const PaymentScreen = ({ navigation, route }) => {
             >
               <PaymentLogo id={opt.id} size={48} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.optionLabel, { color: theme.text }]}>{opt.label}</Text>
-                <Text style={[styles.muted, { color: theme.textSecondary }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.optionLabel, { color: theme.text }]}>{opt.label}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary }]}>
                   {enabled ? opt.hint : 'Bientôt disponible'}
                 </Text>
               </View>
@@ -541,7 +542,7 @@ const PaymentScreen = ({ navigation, route }) => {
 
         {isStripeCard ? (
           <View style={{ marginTop: 6 }}>
-            <Text style={[styles.section, { color: theme.text }]}>Carte à débiter</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.section, { color: theme.text }]}>Carte à débiter</Text>
             <SavedCardsManager
               mode="select"
               hideTitle
@@ -555,7 +556,7 @@ const PaymentScreen = ({ navigation, route }) => {
 
         {isMobile ? (
           <View style={{ marginTop: 6 }}>
-            <Text style={[styles.section, { color: theme.text }]}>Numéro {option.label}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.section, { color: theme.text }]}>Numéro {option.label}</Text>
             <TextInput
               value={phone}
               onChangeText={(t) => setPhone(onlyDigits(t).slice(0, 10))}
@@ -563,21 +564,21 @@ const PaymentScreen = ({ navigation, route }) => {
               placeholderTextColor="#9CA3AF"
               keyboardType="phone-pad"
               maxLength={10}
-              style={[styles.input, card, { color: theme.text }]}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.input, card, { color: theme.text }]}
             />
-            <Text style={[styles.muted, { color: theme.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary }]}>
               Vous recevrez une demande de confirmation sur ce numéro.
             </Text>
           </View>
         ) : null}
 
         {methods?.sandbox ? (
-          <Text style={[styles.muted, { color: '#B45309', marginTop: 10 }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: '#B45309', marginTop: 10 }]}>
             ⚠️ Mode TEST actif : aucun vrai argent n'est débité.
           </Text>
         ) : null}
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {error ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}>{error}</Text> : null}
 
         <TouchableOpacity
           activeOpacity={0.85}
@@ -590,7 +591,7 @@ const PaymentScreen = ({ navigation, route }) => {
           ) : (
             <>
               <Ionicons name="lock-closed" size={17} color="#fff" />
-              <Text style={styles.primaryBtnText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryBtnText]}>
                 {option?.method === 'cash' ? 'Confirmer — payer en espèces' : `Payer ${formatAr(amount)}`}
               </Text>
             </>
@@ -629,10 +630,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 6,
   },
-  title: { fontSize: 18, fontWeight: '800', textAlign: 'center' },
-  bigAmount: { fontSize: 30, fontWeight: '900', color: PRIMARY, marginVertical: 2 },
-  muted: { fontSize: 12.5 },
-  section: { fontSize: 15, fontWeight: '800', marginTop: 18, marginBottom: 10 },
+  title: { fontFamily: typography.fontFamily.bold, fontSize: 18, fontWeight: '800', textAlign: 'center' },
+  bigAmount: { fontFamily: typography.fontFamily.bold, fontSize: 30, fontWeight: '900', color: PRIMARY, marginVertical: 2 },
+  muted: { fontFamily: typography.fontFamily.regular, fontSize: 12.5 },
+  section: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '800', marginTop: 18, marginBottom: 10 },
   amountCard: {
     alignItems: 'center',
     padding: 20,
@@ -649,9 +650,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     marginBottom: 10,
   },
-  optionIcon: { fontSize: 24 },
-  optionLabel: { fontSize: 15, fontWeight: '700' },
-  input: {
+  optionIcon: { fontFamily: typography.fontFamily.regular, fontSize: 24 },
+  optionLabel: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '700' },
+  input: { fontFamily: typography.fontFamily.regular,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 14,
@@ -667,7 +668,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     alignItems: 'center',
   },
-  noticeText: { flex: 1, fontSize: 12.5, color: '#92400E' },
+  noticeText: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 12.5, color: '#92400E' },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -680,12 +681,12 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     marginTop: 8,
   },
-  primaryBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  primaryBtnText: { fontFamily: typography.fontFamily.bold, color: '#fff', fontWeight: '800', fontSize: 15 },
   linkBtn: { paddingVertical: 12 },
-  linkText: { fontWeight: '700', fontSize: 14 },
-  errorText: { color: '#D93636', fontSize: 13, marginTop: 12, textAlign: 'center' },
+  linkText: { fontFamily: typography.fontFamily.bold, fontWeight: '700', fontSize: 14 },
+  errorText: { fontFamily: typography.fontFamily.regular, color: '#D93636', fontSize: 13, marginTop: 12, textAlign: 'center' },
   statusPill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  statusPillText: { fontSize: 11.5, fontWeight: '800' },
+  statusPillText: { fontFamily: typography.fontFamily.bold, fontSize: 11.5, fontWeight: '800' },
 });
 
 export default PaymentScreen;

@@ -24,6 +24,7 @@ import { confirmAsync } from '../../utils/chatImage';
 import { notifyInfo, resolvePhotoUrl } from '../../utils/chatUi';
 import { pickPhoto } from '../../utils/messengerPicker';
 import { presenceLabel, roleLabel } from '../../utils/messengerUtils';
+import { typography } from '../../theme';
 
 const GroupInfoScreen = ({ navigation, route }) => {
   const conversationId = route.params?.conversationId;
@@ -94,31 +95,31 @@ const GroupInfoScreen = ({ navigation, route }) => {
           </TouchableOpacity>
           {manage ? (
             <>
-              <TextInput value={title} onChangeText={setTitle} maxLength={150} style={[styles.input, { color: palette.inputText, backgroundColor: palette.inputBg, borderColor: palette.inputBorder }]} />
+              <TextInput value={title} onChangeText={setTitle} maxLength={150} style={[{ fontFamily: typography.fontFamily.regular }, styles.input, { color: palette.inputText, backgroundColor: palette.inputBg, borderColor: palette.inputBorder }]} />
               <TextInput
                 value={description} onChangeText={setDescription} maxLength={500} placeholder="Description" placeholderTextColor={palette.placeholder} multiline
-                style={[styles.input, { color: palette.inputText, backgroundColor: palette.inputBg, borderColor: palette.inputBorder, height: 70 }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.input, { color: palette.inputText, backgroundColor: palette.inputBg, borderColor: palette.inputBorder, height: 70 }]}
               />
               <TouchableOpacity
                 style={[styles.btn, { backgroundColor: palette.primary }]}
                 onPress={() => run(messengerService.updateGroup(conversationId, { title, description }), 'Enregistré.')}
-              ><Text style={{ color: '#fff', fontWeight: '700' }}>Enregistrer</Text></TouchableOpacity>
+              ><Text style={{ fontFamily: typography.fontFamily.bold, color: '#fff', fontWeight: '700' }}>Enregistrer</Text></TouchableOpacity>
             </>
           ) : (
             <>
-              <Text style={[styles.name, { color: palette.text }]}>{detail.title}</Text>
-              {!!detail.description && <Text style={{ color: palette.textSecondary, textAlign: 'center' }}>{detail.description}</Text>}
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.name, { color: palette.text }]}>{detail.title}</Text>
+              {!!detail.description && <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.textSecondary, textAlign: 'center' }]}>{detail.description}</Text>}
             </>
           )}
-          <Text style={{ color: palette.textSecondary }}>{detail.member_count} membres</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.textSecondary }]}>{detail.member_count} membres</Text>
         </View>
 
         {configure && ( // ✏️ MODIFIÉ : était {manage &&}
           <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
             <View style={styles.switchRow}>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: palette.text, fontWeight: '600' }}>Annonces uniquement</Text>
-                <Text style={{ color: palette.textSecondary, fontSize: 12 }}>Seuls les administrateurs peuvent écrire.</Text>
+                <Text style={{ fontFamily: typography.fontFamily.semiBold, color: palette.text, fontWeight: '600' }}>Annonces uniquement</Text>
+                <Text style={{ fontFamily: typography.fontFamily.regular, color: palette.textSecondary, fontSize: 12 }}>Seuls les administrateurs peuvent écrire.</Text>
               </View>
               <Switch value={detail.type === 'announcement'} trackColor={{ true: palette.primary }}
                 onValueChange={(v) => run(messengerService.updateGroup(conversationId, { type: v ? 'announcement' : 'group' }))} />
@@ -126,8 +127,8 @@ const GroupInfoScreen = ({ navigation, route }) => {
             {detail.type === 'group' && (
               <View style={styles.switchRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: palette.text, fontWeight: '600' }}>Les membres peuvent s'écrire</Text>
-                  <Text style={{ color: palette.textSecondary, fontSize: 12 }}>Désactivé : ils lisent sans pouvoir écrire.</Text>
+                  <Text style={{ fontFamily: typography.fontFamily.semiBold, color: palette.text, fontWeight: '600' }}>Les membres peuvent s'écrire</Text>
+                  <Text style={{ fontFamily: typography.fontFamily.regular, color: palette.textSecondary, fontSize: 12 }}>Désactivé : ils lisent sans pouvoir écrire.</Text>
                 </View>
                 <Switch value={detail.members_can_chat} trackColor={{ true: palette.primary }}
                   onValueChange={(v) => run(messengerService.updateGroup(conversationId, { members_can_chat: v }))} />
@@ -137,10 +138,10 @@ const GroupInfoScreen = ({ navigation, route }) => {
         )}
 
         <View style={styles.sectionHead}>
-          <Text style={[styles.section, { color: palette.text }]}>Membres</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.section, { color: palette.text }]}>Membres</Text>
           {manage && (
             <TouchableOpacity onPress={() => setAdding((a) => !a)}>
-              <Text style={{ color: palette.primary, fontWeight: '700' }}>{adding ? 'Fermer' : '+ Ajouter'}</Text>
+              <Text style={{ fontFamily: typography.fontFamily.bold, color: palette.primary, fontWeight: '700' }}>{adding ? 'Fermer' : '+ Ajouter'}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -149,12 +150,12 @@ const GroupInfoScreen = ({ navigation, route }) => {
           <View style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.border }]}>
             <TextInput
               value={q} onChangeText={setQ} placeholder="Rechercher un utilisateur" placeholderTextColor={palette.placeholder}
-              style={[styles.input, { color: palette.inputText, backgroundColor: palette.inputBg, borderColor: palette.inputBorder, width: '100%' }]}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.input, { color: palette.inputText, backgroundColor: palette.inputBg, borderColor: palette.inputBorder, width: '100%' }]}
             />
             {found.slice(0, 15).map((c) => (
               <TouchableOpacity key={c.id} style={styles.member} onPress={() => run(messengerService.addMembers(conversationId, [c.id]))}>
                 <ChatAvatar uri={resolvePhotoUrl(c.profile_image)} name={c.fullname} size={36} palette={palette} />
-                <Text style={{ flex: 1, color: palette.text }}>{c.fullname} · {roleLabel(c.role)}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, { flex: 1, color: palette.text }]}>{c.fullname} · {roleLabel(c.role)}</Text>
                 <Ionicons name="add-circle" size={24} color={palette.primary} />
               </TouchableOpacity>
             ))}
@@ -167,8 +168,8 @@ const GroupInfoScreen = ({ navigation, route }) => {
             <View key={m.id} style={[styles.member, { borderBottomColor: palette.border }]}>
               <ChatAvatar uri={resolvePhotoUrl(m.profile_image)} name={m.fullname} size={42} palette={palette} />
               <View style={{ flex: 1 }}>
-                <Text style={{ color: palette.text, fontWeight: '600' }}>{m.fullname}{m.id === user?.id ? ' (vous)' : ''}</Text>
-                <Text style={{ color: p.is_online ? palette.primary : palette.textSecondary, fontSize: 12 }}>
+                <Text style={{ fontFamily: typography.fontFamily.semiBold, color: palette.text, fontWeight: '600' }}>{m.fullname}{m.id === user?.id ? ' (vous)' : ''}</Text>
+                <Text style={{ fontFamily: typography.fontFamily.regular, color: p.is_online ? palette.primary : palette.textSecondary, fontSize: 12 }}>
                   {roleLabel(m.role)}{m.member_role === 'owner' ? ' · Propriétaire' : m.member_role === 'admin' ? ' · Admin du groupe' : ''} · {presenceLabel(p)}
                 </Text>
               </View>
@@ -188,7 +189,7 @@ const GroupInfoScreen = ({ navigation, route }) => {
             const res = await messengerService.leaveGroup(conversationId);
             if (res.success) navigation.popToTop(); else notifyInfo('Groupe', res.error);
           }}
-        ><Text style={{ color: palette.danger, fontWeight: '700' }}>Quitter le groupe</Text></TouchableOpacity>
+        ><Text style={{ fontFamily: typography.fontFamily.bold, color: palette.danger, fontWeight: '700' }}>Quitter le groupe</Text></TouchableOpacity>
 
         {manage && (
           <TouchableOpacity
@@ -198,7 +199,7 @@ const GroupInfoScreen = ({ navigation, route }) => {
               const res = await messengerService.deleteGroup(conversationId);
               if (res.success) navigation.popToTop(); else notifyInfo('Groupe', res.error);
             }}
-          ><Text style={{ color: palette.danger, fontWeight: '700' }}>Supprimer le groupe</Text></TouchableOpacity>
+          ><Text style={{ fontFamily: typography.fontFamily.bold, color: palette.danger, fontWeight: '700' }}>Supprimer le groupe</Text></TouchableOpacity>
         )}
       </ScrollView>
       <ChatConfirmHost />
@@ -210,15 +211,15 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   head: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 8 },
   back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  h1: { fontSize: 20, fontWeight: '800' },
-  name: { fontSize: 22, fontWeight: '800' },
+  h1: { fontFamily: typography.fontFamily.bold, fontSize: 20, fontWeight: '800' },
+  name: { fontFamily: typography.fontFamily.bold, fontSize: 22, fontWeight: '800' },
   cam: { position: 'absolute', right: 0, bottom: 0, width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, height: 46, fontSize: 15, width: '100%', maxWidth: 460, textAlign: 'left' },
+  input: { fontFamily: typography.fontFamily.regular, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, height: 46, fontSize: 15, width: '100%', maxWidth: 460, textAlign: 'left' },
   btn: { height: 42, paddingHorizontal: 22, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   card: { borderWidth: 1, borderRadius: 14, padding: 12, marginTop: 16 },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 22, marginBottom: 6 },
-  section: { fontSize: 16, fontWeight: '800' },
+  section: { fontFamily: typography.fontFamily.bold, fontSize: 16, fontWeight: '800' },
   member: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
   leave: { borderWidth: 1, borderRadius: 12, height: 46, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
 });

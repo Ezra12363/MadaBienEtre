@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import paymentService from '../../services/paymentService';
 import { formatAr, formatDateTime } from './paymentUtils';
+import { typography } from '../../theme';
 
 const GREEN = '#2E8B57';
 const GREEN_DARK = '#1B5C36';
@@ -33,8 +34,8 @@ function Row({ label, value }) {
   if (value === null || value === undefined || value === '') return null;
   return (
     <View style={styles.row}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue} numberOfLines={2}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowLabel]}>{label}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rowValue]} numberOfLines={2}>
         {value}
       </Text>
     </View>
@@ -44,7 +45,7 @@ function Row({ label, value }) {
 function Section({ title, children }) {
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title.toUpperCase()}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionTitle]}>{title.toUpperCase()}</Text>
       <View style={styles.sectionLine} />
       {children}
     </View>
@@ -99,25 +100,25 @@ export default function ReceiptModal({ visible, paymentId, view, onClose }) {
           ) : error ? (
             <View style={styles.center}>
               <Ionicons name="alert-circle-outline" size={36} color="#B45309" />
-              <Text style={styles.errorText}>{error}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}>{error}</Text>
               <TouchableOpacity style={styles.ghostBtn} onPress={load}>
-                <Text style={styles.ghostText}>Réessayer</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.ghostText]}>Réessayer</Text>
               </TouchableOpacity>
             </View>
           ) : data ? (
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
               <View style={styles.header}>
-                <Text style={styles.company}>Mada Bien-Être</Text>
-                <Text style={styles.docTitle}>REÇU DE PAIEMENT</Text>
-                <Text style={styles.docNo}>N° {data.receipt_no}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.company]}>Mada Bien-Être</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.docTitle]}>REÇU DE PAIEMENT</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.docNo]}>N° {data.receipt_no}</Text>
               </View>
 
               <View style={styles.amountCard}>
-                <Text style={styles.amountCaption}>MONTANT PAYÉ</Text>
-                <Text style={styles.amount}>{formatAr(data.amount)}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.amountCaption]}>MONTANT PAYÉ</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.amount]}>{formatAr(data.amount)}</Text>
                 <View style={styles.pill}>
                   <Ionicons name="checkmark-circle" size={13} color={GREEN} />
-                  <Text style={styles.pillText}>{String(data.status_label || 'Payé').toUpperCase()}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.pillText]}>{String(data.status_label || 'Payé').toUpperCase()}</Text>
                 </View>
               </View>
 
@@ -158,18 +159,18 @@ export default function ReceiptModal({ visible, paymentId, view, onClose }) {
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.qrTitle}>Vérifiez ce reçu</Text>
-                  <Text style={styles.qrText}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.qrTitle]}>Vérifiez ce reçu</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.qrText]}>
                     Scannez le QR code pour contrôler son authenticité. Le PDF contient aussi le
                     code-barres de la transaction.
                   </Text>
-                  <Text style={styles.qrRef} numberOfLines={1}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.qrRef]} numberOfLines={1}>
                     Réf. {data.transaction_ref || data.transaction_id}
                   </Text>
                 </View>
               </View>
 
-              {notice ? <Text style={styles.notice}>{notice}</Text> : null}
+              {notice ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.notice]}>{notice}</Text> : null}
 
               <TouchableOpacity style={styles.primaryBtn} onPress={download} disabled={downloading} activeOpacity={0.85}>
                 {downloading ? (
@@ -177,12 +178,12 @@ export default function ReceiptModal({ visible, paymentId, view, onClose }) {
                 ) : (
                   <>
                     <Ionicons name="download-outline" size={18} color="#fff" />
-                    <Text style={styles.primaryText}>Télécharger le reçu (PDF)</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryText]}>Télécharger le reçu (PDF)</Text>
                   </>
                 )}
               </TouchableOpacity>
               <TouchableOpacity style={styles.ghostBtn} onPress={onClose}>
-                <Text style={styles.ghostText}>Fermer</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.ghostText]}>Fermer</Text>
               </TouchableOpacity>
             </ScrollView>
           ) : null}
@@ -208,11 +209,11 @@ const styles = StyleSheet.create({
   },
   handle: { alignSelf: 'center', width: 44, height: 4, borderRadius: 2, backgroundColor: LINE, marginBottom: 10 },
   center: { alignItems: 'center', justifyContent: 'center', paddingVertical: 48, gap: 10 },
-  errorText: { color: INK, fontSize: 14, textAlign: 'center', fontWeight: '400' },
+  errorText: { fontFamily: typography.fontFamily.regular, color: INK, fontSize: 14, textAlign: 'center', fontWeight: '400' },
   header: { backgroundColor: GREEN, borderRadius: 16, padding: 16, marginBottom: 12 },
-  company: { color: '#fff', fontSize: 18, fontWeight: '400' },
-  docTitle: { color: '#CFE5D8', fontSize: 11, marginTop: 6, letterSpacing: 1.2, fontWeight: '400' },
-  docNo: { color: '#CFE5D8', fontSize: 12, marginTop: 2, fontWeight: '400' },
+  company: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 18, fontWeight: '400' },
+  docTitle: { fontFamily: typography.fontFamily.regular, color: '#CFE5D8', fontSize: 11, marginTop: 6, letterSpacing: 1.2, fontWeight: '400' },
+  docNo: { fontFamily: typography.fontFamily.regular, color: '#CFE5D8', fontSize: 12, marginTop: 2, fontWeight: '400' },
   amountCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -222,8 +223,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     marginBottom: 6,
   },
-  amountCaption: { color: MUTED, fontSize: 11, letterSpacing: 1, fontWeight: '400' },
-  amount: { color: GREEN_DARK, fontSize: 30, marginTop: 4, fontWeight: '400' },
+  amountCaption: { fontFamily: typography.fontFamily.regular, color: MUTED, fontSize: 11, letterSpacing: 1, fontWeight: '400' },
+  amount: { fontFamily: typography.fontFamily.regular, color: GREEN_DARK, fontSize: 30, marginTop: 4, fontWeight: '400' },
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -234,9 +235,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     marginTop: 8,
   },
-  pillText: { color: GREEN, fontSize: 11, letterSpacing: 0.8, fontWeight: '400' },
+  pillText: { fontFamily: typography.fontFamily.regular, color: GREEN, fontSize: 11, letterSpacing: 0.8, fontWeight: '400' },
   section: { marginTop: 14 },
-  sectionTitle: { color: GOLD, fontSize: 11, letterSpacing: 1, fontWeight: '400' },
+  sectionTitle: { fontFamily: typography.fontFamily.regular, color: GOLD, fontSize: 11, letterSpacing: 1, fontWeight: '400' },
   sectionLine: { height: 1, backgroundColor: GOLD, opacity: 0.6, marginTop: 5, marginBottom: 2 },
   row: {
     flexDirection: 'row',
@@ -247,8 +248,8 @@ const styles = StyleSheet.create({
     borderBottomColor: LINE,
     gap: 14,
   },
-  rowLabel: { color: MUTED, fontSize: 13, flexShrink: 0, fontWeight: '400' },
-  rowValue: { color: INK, fontSize: 14, flex: 1, textAlign: 'right', fontWeight: '400' },
+  rowLabel: { fontFamily: typography.fontFamily.regular, color: MUTED, fontSize: 13, flexShrink: 0, fontWeight: '400' },
+  rowValue: { fontFamily: typography.fontFamily.regular, color: INK, fontSize: 14, flex: 1, textAlign: 'right', fontWeight: '400' },
   qrBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -262,10 +263,10 @@ const styles = StyleSheet.create({
   },
   qr: { width: 104, height: 104 },
   qrFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: '#F3F0E7', borderRadius: 8 },
-  qrTitle: { color: INK, fontSize: 14, fontWeight: '400' },
-  qrText: { color: MUTED, fontSize: 12, marginTop: 4, lineHeight: 17, fontWeight: '400' },
-  qrRef: { color: MUTED, fontSize: 11, marginTop: 6, fontWeight: '400' },
-  notice: { color: GREEN, fontSize: 13, textAlign: 'center', marginTop: 12, fontWeight: '400' },
+  qrTitle: { fontFamily: typography.fontFamily.regular, color: INK, fontSize: 14, fontWeight: '400' },
+  qrText: { fontFamily: typography.fontFamily.regular, color: MUTED, fontSize: 12, marginTop: 4, lineHeight: 17, fontWeight: '400' },
+  qrRef: { fontFamily: typography.fontFamily.regular, color: MUTED, fontSize: 11, marginTop: 6, fontWeight: '400' },
+  notice: { fontFamily: typography.fontFamily.regular, color: GREEN, fontSize: 13, textAlign: 'center', marginTop: 12, fontWeight: '400' },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -276,7 +277,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     marginTop: 16,
   },
-  primaryText: { color: '#fff', fontSize: 15, fontWeight: '400' },
+  primaryText: { fontFamily: typography.fontFamily.regular, color: '#fff', fontSize: 15, fontWeight: '400' },
   ghostBtn: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
-  ghostText: { color: MUTED, fontSize: 14, fontWeight: '400' },
+  ghostText: { fontFamily: typography.fontFamily.regular, color: MUTED, fontSize: 14, fontWeight: '400' },
 });

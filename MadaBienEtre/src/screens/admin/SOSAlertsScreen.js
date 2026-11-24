@@ -120,13 +120,13 @@ const SOSAlertsScreen = () => {
         {item.user_phone ? (
           <TouchableOpacity style={[styles.quickBtn, compact && styles.quickBtnCompact, { backgroundColor: colors.primary }]} onPress={() => call(item.user_phone)}>
             <Ionicons name="call" size={btnIcon} color="#fff" />
-            <Text style={styles.quickText}>Appeler</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.quickText]}>Appeler</Text>
           </TouchableOpacity>
         ) : null}
         {satellite ? (
           <TouchableOpacity style={[styles.quickBtn, compact && styles.quickBtnCompact, { backgroundColor: '#2D7FF9' }]} onPress={() => Linking.openURL(satellite)}>
             <Ionicons name="map" size={btnIcon} color="#fff" />
-            <Text style={styles.quickText}>{compact ? 'Carte' : 'Voir sur la carte'}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.quickText]}>{compact ? 'Carte' : 'Voir sur la carte'}</Text>
           </TouchableOpacity>
         ) : null}
         <TouchableOpacity
@@ -134,10 +134,10 @@ const SOSAlertsScreen = () => {
           onPress={() => openDetail(item)}
         >
           <Ionicons name={isActive ? 'checkmark-circle' : 'eye'} size={btnIcon} color="#fff" />
-          <Text style={styles.quickText}>{isActive ? 'Traiter' : 'Détails'}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.quickText]}>{isActive ? 'Traiter' : 'Détails'}</Text>
         </TouchableOpacity>
         {compact && item.booking_id ? (
-          <Text style={[styles.meta, { color: themeColors.textSecondary, marginLeft: 'auto' }]}>Résa #{item.booking_id}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.meta, { color: themeColors.textSecondary, marginLeft: 'auto' }]}>Résa #{item.booking_id}</Text>
         ) : null}
       </View>
     );
@@ -158,45 +158,45 @@ const SOSAlertsScreen = () => {
             <View style={styles.cardLeft}>
               <Avatar uri={photo} name={item.user} size={compact ? 38 : 46} />
               <View style={{ flexShrink: 1, marginLeft: spacing.sm }}>
-                <Text style={[styles.name, { color: themeColors.text }]} numberOfLines={1}>{item.user}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.name, { color: themeColors.text }]} numberOfLines={1}>{item.user}</Text>
                 {compact ? (
                   <View style={styles.roleRow}>
-                    <Text style={[styles.meta, { color: themeColors.textSecondary }]}>{roleLabel(item)}</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.meta, { color: themeColors.textSecondary }]}>{roleLabel(item)}</Text>
                     <TypeBadge type={item.alert_type} compact />
                   </View>
                 ) : (
                   <>
-                    <Text style={[styles.meta, { color: themeColors.textSecondary }]}>{roleLabel(item)}</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.meta, { color: themeColors.textSecondary }]}>{roleLabel(item)}</Text>
                     <TypeBadge type={item.alert_type} />
                   </>
                 )}
               </View>
             </View>
             <View style={[styles.severityBadge, { backgroundColor: sev + '20' }]}>
-              <Text style={[styles.severityText, { color: sev }]}>{SEVERITY_LABELS[item.severity] || item.severity}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.severityText, { color: sev }]}>{SEVERITY_LABELS[item.severity] || item.severity}</Text>
             </View>
           </View>
 
           {compact ? (
-            <Text style={[styles.infoLineCompact, { color: themeColors.text }]} numberOfLines={1}>
-              <Text style={{ color: STATUS_COLORS[item.status], fontFamily: typography.fontFamily.medium }}>{statusText}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.infoLineCompact, { color: themeColors.text }]} numberOfLines={1}>
+              <Text style={{ color: STATUS_COLORS[item.status], fontFamily: typography.fontFamily.medium, fontWeight: '500' }}>{statusText}</Text>
               {item.user_phone ? `   📞 ${item.user_phone}` : ''}
               {`   🕒 ${fmtDate(item.created_at)}`}
             </Text>
           ) : (
             <>
-              <Text style={[styles.status, { color: STATUS_COLORS[item.status], marginTop: 6 }]}>{statusText}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.status, { color: STATUS_COLORS[item.status], marginTop: 6 }]}>{statusText}</Text>
               <View style={numColumns === 1 && width >= 800 ? styles.infoRowWide : null}>
                 {item.user_phone ? (
-                  <Text style={[styles.infoLine, { color: themeColors.text }]} onPress={() => call(item.user_phone)}>📞 {item.user_phone}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.infoLine, { color: themeColors.text }]} onPress={() => call(item.user_phone)}>📞 {item.user_phone}</Text>
                 ) : null}
-                <Text style={[styles.infoLine, { color: themeColors.text }]}>🕒 {fmtDate(item.created_at)}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.infoLine, { color: themeColors.text }]}>🕒 {fmtDate(item.created_at)}</Text>
               </View>
             </>
           )}
 
           <Text
-            style={[compact ? styles.infoLineCompact : styles.infoLine, { color: themeColors.text }]}
+            style={[{ fontFamily: typography.fontFamily.regular }, compact ? styles.infoLineCompact : styles.infoLine, { color: themeColors.text }]}
             numberOfLines={compact ? 1 : 2}
           >
             📍 {address}
@@ -205,21 +205,21 @@ const SOSAlertsScreen = () => {
           {item.details ? (
             <View style={[styles.messageBox, compact && styles.messageBoxCompact, { backgroundColor: sev + '12' }]}>
               {compact ? (
-                <Text style={[styles.messageText, { color: themeColors.text }]} numberOfLines={1}>
-                  <Text style={{ color: themeColors.textSecondary, fontFamily: typography.fontFamily.medium }}>Message : </Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.messageText, { color: themeColors.text }]} numberOfLines={1}>
+                  <Text style={{ color: themeColors.textSecondary, fontFamily: typography.fontFamily.medium, fontWeight: '500' }}>Message : </Text>
                   {item.details}
                 </Text>
               ) : (
                 <>
-                  <Text style={[styles.messageLabel, { color: themeColors.textSecondary }]}>Message de {item.user} :</Text>
-                  <Text style={[styles.messageText, { color: themeColors.text }]} numberOfLines={3}>{item.details}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.messageLabel, { color: themeColors.textSecondary }]}>Message de {item.user} :</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.messageText, { color: themeColors.text }]} numberOfLines={3}>{item.details}</Text>
                 </>
               )}
             </View>
           ) : null}
 
           {!compact && item.booking_id ? (
-            <Text style={[styles.meta, { color: themeColors.textSecondary, marginTop: 4 }]}>Réservation #{item.booking_id}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.meta, { color: themeColors.textSecondary, marginTop: 4 }]}>Réservation #{item.booking_id}</Text>
           ) : null}
 
           {/* Pousse les boutons en bas : toutes les cartes d'une ligne ont la même hauteur. */}
@@ -234,23 +234,23 @@ const SOSAlertsScreen = () => {
     <View>
       <View style={styles.statsRow}>
         <View style={[styles.statBox, { backgroundColor: '#E74C3C15' }]}>
-          <Text style={[styles.statNumber, { color: '#E74C3C' }]}>{String(activeCount).padStart(2, '0')}</Text>
-          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Alertes actives</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statNumber, { color: '#E74C3C' }]}>{String(activeCount).padStart(2, '0')}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statLabel, { color: themeColors.textSecondary }]}>Alertes actives</Text>
         </View>
         <View style={[styles.statBox, { backgroundColor: '#F5A62315' }]}>
-          <Text style={[styles.statNumber, { color: '#F5A623' }]}>{String(toHandle).padStart(2, '0')}</Text>
-          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>À traiter</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statNumber, { color: '#F5A623' }]}>{String(toHandle).padStart(2, '0')}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statLabel, { color: themeColors.textSecondary }]}>À traiter</Text>
         </View>
         <View style={[styles.statBox, { backgroundColor: '#27AE6015' }]}>
-          <Text style={[styles.statNumber, { color: '#27AE60' }]}>{stats?.resolved_alerts ?? '–'}</Text>
-          <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>Résolues</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statNumber, { color: '#27AE60' }]}>{stats?.resolved_alerts ?? '–'}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statLabel, { color: themeColors.textSecondary }]}>Résolues</Text>
         </View>
       </View>
 
       <View style={styles.tabs}>
         {[['active', 'Actives'], ['history', 'Historique']].map(([key, label]) => (
           <TouchableOpacity key={key} style={[styles.tab, tab === key && styles.tabActive]} onPress={() => setTab(key)}>
-            <Text style={[styles.tabText, { color: tab === key ? '#fff' : themeColors.text }]}>{label}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tabText, { color: tab === key ? '#fff' : themeColors.text }]}>{label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -264,14 +264,14 @@ const SOSAlertsScreen = () => {
               onPress={() => setTypeFilter(key)}
               style={[styles.filterChip, typeFilter === key && styles.filterChipActive]}
             >
-              <Text style={[styles.filterText, { color: typeFilter === key ? '#fff' : themeColors.text }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.filterText, { color: typeFilter === key ? '#fff' : themeColors.text }]}>
                 {label} ({count})
               </Text>
             </TouchableOpacity>
           );
         })}
       </ScrollView>
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
+      {!!error && <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}>{error}</Text>}
     </View>
   );
 
@@ -282,7 +282,7 @@ const SOSAlertsScreen = () => {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>Chargement...</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText, { color: themeColors.textSecondary }]}>Chargement...</Text>
           </View>
         ) : (
           <FlatList
@@ -295,10 +295,10 @@ const SOSAlertsScreen = () => {
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Ionicons name="checkmark-circle" size={64} color={colors.success || '#27AE60'} />
-                <Text style={[styles.emptyTitle, { color: themeColors.text }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyTitle, { color: themeColors.text }]}>
                   {tab === 'active' ? 'Aucune alerte active' : 'Aucun historique'}
                 </Text>
-                <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyText, { color: themeColors.textSecondary }]}>
                   {tab === 'active' ? 'Toutes les alertes ont été traitées' : 'Les alertes traitées apparaîtront ici'}
                 </Text>
               </View>
@@ -317,9 +317,9 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: spacing.md, fontSize: typography.fontSize.md },
+  loadingText: { fontFamily: typography.fontFamily.regular, marginTop: spacing.md, fontSize: typography.fontSize.md },
   emptyContainer: { alignItems: 'center', paddingTop: spacing.xl },
-  emptyTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, marginTop: spacing.md },
+  emptyTitle: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, fontWeight: '700', marginTop: spacing.md },
   emptyText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.regular, textAlign: 'center', marginTop: spacing.xs },
   listContent: { padding: spacing.md, flexGrow: 1 },
   infoRowWide: { flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.lg },
@@ -333,34 +333,34 @@ const styles = StyleSheet.create({
   quickBtnCompact: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 7 },
   statsRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   statBox: { flex: 1, borderRadius: 14, paddingVertical: spacing.md, alignItems: 'center' },
-  statNumber: { fontSize: 26, fontFamily: typography.fontFamily.bold },
+  statNumber: { fontSize: 26, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   statLabel: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular, marginTop: 2 },
   tabs: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
   tab: { flex: 1, paddingVertical: spacing.sm, borderRadius: 12, alignItems: 'center', backgroundColor: '#8881' },
   tabActive: { backgroundColor: colors.primary },
-  tabText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.medium },
+  tabText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   filterChip: { paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: 16, backgroundColor: '#8881', marginRight: spacing.xs },
   filterChipActive: { backgroundColor: colors.primary },
-  filterText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
-  errorText: { color: colors.error, marginBottom: spacing.sm, fontSize: typography.fontSize.sm },
+  filterText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
+  errorText: { fontFamily: typography.fontFamily.regular, color: colors.error, marginBottom: spacing.sm, fontSize: typography.fontSize.sm },
   card: {
     padding: spacing.md, borderRadius: 16, marginBottom: spacing.sm, borderLeftWidth: 4, elevation: 2,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   cardLeft: { flexDirection: 'row', alignItems: 'center', flexShrink: 1 },
-  name: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
-  status: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
+  name: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
+  status: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   severityBadge: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: 8 },
-  severityText: { fontSize: 10, fontFamily: typography.fontFamily.medium },
+  severityText: { fontSize: 10, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   meta: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular },
   infoLine: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, marginTop: 4 },
   messageBox: { borderRadius: 10, padding: spacing.sm, marginTop: spacing.sm, marginBottom: spacing.xs },
-  messageLabel: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, marginBottom: 2 },
+  messageLabel: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, fontWeight: '500', marginBottom: 2 },
   messageText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, lineHeight: 20 },
   quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm },
   quickBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: spacing.md, borderRadius: 8 },
-  quickText: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
+  quickText: { color: '#fff', fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
 });
 
 export default SOSAlertsScreen;

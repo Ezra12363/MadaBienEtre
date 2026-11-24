@@ -83,7 +83,7 @@ const RangeBar = ({ min, max, fair, current, mine, tc }) => {
 const LegendItem = ({ color, label, tc }) => (
   <View style={styles.legendItem}>
     <View style={[styles.legendDot, { backgroundColor: color }]} />
-    <Text style={[styles.legendText, { color: tc.textSecondary }]}>{label}</Text>
+    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.legendText, { color: tc.textSecondary }]}>{label}</Text>
   </View>
 );
 
@@ -149,25 +149,25 @@ const AINegotiationAdvisor = ({ ai, currentPrice, inputPrice, onUsePrice, style 
       {/* Verdict */}
       <View style={[styles.verdict, { backgroundColor: verdict.color + '14', borderColor: verdict.color + '40' }]}>
         <Ionicons name={verdict.icon} size={18} color={verdict.color} />
-        <Text style={[styles.verdictText, { color: tc.text }]}>{verdict.text}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.verdictText, { color: tc.text }]}>{verdict.text}</Text>
       </View>
 
       {/* Prix juste + fourchette */}
       <View style={styles.row}>
         <View style={styles.flex}>
-          <Text style={[styles.label, { color: tc.textSecondary }]}>Prix juste estimé</Text>
-          <Text style={styles.fair}>{formatAr(pricing.fair)}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: tc.textSecondary }]}>Prix juste estimé</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.fair]}>{formatAr(pricing.fair)}</Text>
         </View>
         {pricing.confidence !== null && (
           <View style={styles.right}>
-            <Text style={[styles.label, { color: tc.textSecondary }]}>Fiabilité</Text>
-            <Text style={[styles.value, { color: tc.text }]}>{formatPercent(pricing.confidence)}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: tc.textSecondary }]}>Fiabilité</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.value, { color: tc.text }]}>{formatPercent(pricing.confidence)}</Text>
           </View>
         )}
       </View>
 
       {pricing.min && pricing.max ? (
-        <Text style={[styles.range, { color: tc.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.range, { color: tc.textSecondary }]}>
           Fourchette : {formatAr(pricing.min)} – {formatAr(pricing.max)}
         </Text>
       ) : null}
@@ -185,7 +185,7 @@ const AINegotiationAdvisor = ({ ai, currentPrice, inputPrice, onUsePrice, style 
       {role === 'therapist' && market && market.total_bookings > 0 ? (
         <View style={[styles.market, { borderColor: tc.border }]}>
           <Ionicons name="stats-chart-outline" size={15} color={colors.primary} />
-          <Text style={[styles.marketText, { color: tc.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.marketText, { color: tc.textSecondary }]}>
             Marché : moyenne {formatAr(market.average_price)} sur {market.total_bookings} massage
             {market.total_bookings > 1 ? 's' : ''} terminé{market.total_bookings > 1 ? 's' : ''}
           </Text>
@@ -196,10 +196,10 @@ const AINegotiationAdvisor = ({ ai, currentPrice, inputPrice, onUsePrice, style 
       {recommendedPrice > 0 && (
         <View style={styles.recoRow}>
           <View style={styles.flex}>
-            <Text style={[styles.label, { color: tc.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: tc.textSecondary }]}>
               {action === 'accept' ? 'Offre acceptable' : 'Contre-offre conseillée'}
             </Text>
-            <Text style={[styles.value, { color: colors.primary }]}>{formatAr(recommendedPrice)}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.value, { color: colors.primary }]}>{formatAr(recommendedPrice)}</Text>
           </View>
           {canUseRecommended && onUsePrice ? (
             <AIButton
@@ -215,7 +215,7 @@ const AINegotiationAdvisor = ({ ai, currentPrice, inputPrice, onUsePrice, style 
       {/* Probabilité d'acceptation */}
       {target > 0 && (
         <View style={[styles.proba, { borderColor: tc.border }]}>
-          <Text style={[styles.label, { color: tc.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: tc.textSecondary }]}>
             Probabilité d'acceptation à {formatAr(target)}
           </Text>
 
@@ -223,7 +223,7 @@ const AINegotiationAdvisor = ({ ai, currentPrice, inputPrice, onUsePrice, style 
             <ActivityIndicator size="small" color={colors.primary} style={styles.alignStart} />
           ) : level ? (
             <>
-              <Text style={[styles.probaValue, { color: level.color }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.probaValue, { color: level.color }]}>
                 {Math.round(acceptance.probability)} %
               </Text>
               <View style={[styles.probaTrack, { backgroundColor: tc.border }]}>
@@ -234,11 +234,11 @@ const AINegotiationAdvisor = ({ ai, currentPrice, inputPrice, onUsePrice, style 
                   ]}
                 />
               </View>
-              <Text style={[styles.probaLabel, { color: tc.text }]}>{level.label}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.probaLabel, { color: tc.text }]}>{level.label}</Text>
             </>
           ) : acceptance.error ? (
             <TouchableOpacity onPress={() => ai.checkAcceptance(target)}>
-              <Text style={[styles.errorText, { color: colors.error }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText, { color: colors.error }]}>
                 {acceptance.error} · Réessayer
               </Text>
             </TouchableOpacity>
@@ -246,7 +246,7 @@ const AINegotiationAdvisor = ({ ai, currentPrice, inputPrice, onUsePrice, style 
         </View>
       )}
 
-      <Text style={[styles.disclaimer, { color: tc.textSecondary }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.disclaimer, { color: tc.textSecondary }]}>
         Estimation indicative fournie par l'IA, à utiliser comme aide à la décision.
       </Text>
     </AICard>
@@ -258,9 +258,9 @@ const styles = StyleSheet.create({
   right: { alignItems: 'flex-end' },
   alignStart: { alignSelf: 'flex-start', marginTop: 4 },
   row: { flexDirection: 'row', alignItems: 'flex-end', marginTop: spacing.sm },
-  label: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
-  value: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold },
-  fair: { fontSize: typography.fontSize.xxl, fontFamily: typography.fontFamily.bold, color: colors.primary },
+  label: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
+  value: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
+  fair: { fontSize: typography.fontSize.xxl, fontFamily: typography.fontFamily.bold, fontWeight: '700', color: colors.primary },
   range: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.regular, marginTop: 2 },
   verdict: {
     flexDirection: 'row',
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: spacing.sm,
   },
-  verdictText: { flex: 1, fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, lineHeight: 18 },
+  verdictText: { flex: 1, fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500', lineHeight: 18 },
   rangeWrap: { marginTop: spacing.md, marginBottom: spacing.xs },
   track: { height: 8, borderRadius: 4, position: 'relative' },
   band: { position: 'absolute', top: 0, bottom: 0, borderRadius: 4, backgroundColor: colors.primary + '55' },
@@ -301,12 +301,12 @@ const styles = StyleSheet.create({
   recoRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, gap: spacing.sm },
   useBtn: { paddingHorizontal: spacing.md },
   proba: { borderTopWidth: 1, marginTop: spacing.md, paddingTop: spacing.sm },
-  probaValue: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold, marginTop: 2 },
+  probaValue: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold, fontWeight: '700', marginTop: 2 },
   probaTrack: { height: 8, borderRadius: 4, marginVertical: 6, overflow: 'hidden' },
   probaFill: { height: 8, borderRadius: 4 },
-  probaLabel: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold },
-  errorText: { fontSize: typography.fontSize.sm, marginTop: 4 },
-  disclaimer: { fontSize: 11, marginTop: spacing.sm },
+  probaLabel: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
+  errorText: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, marginTop: 4 },
+  disclaimer: { fontFamily: typography.fontFamily.regular, fontSize: 11, marginTop: spacing.sm },
 });
 
 export default AINegotiationAdvisor;

@@ -40,6 +40,7 @@ import { colors } from '../../theme';
 import useChatUnread from '../../hooks/useChatUnread';
 import { useMessenger } from '../../context/MessengerContext';
 import CountBadge from './CountBadge';
+import { typography } from '../../theme';
 
 const ANIMATION_DURATION = 220;
 const HIDE_TRANSLATE_Y = 100;
@@ -204,9 +205,9 @@ const BottomTabBar = ({
 
                 <Text
                   numberOfLines={1}
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.label,
-                    {
+                    { fontFamily: typography.fontFamily.regular,
                       color,
                       fontWeight: focused ? '700' : '500',
                     },
@@ -279,7 +280,7 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
 
-  label: {
+  label: { fontFamily: typography.fontFamily.regular,
     fontSize: Platform.OS === 'web' ? 11 : 10,
     lineHeight: 14,
     textAlign: 'center',
@@ -303,7 +304,7 @@ const styles = StyleSheet.create({
   },
 
   // Chiffre centré dans le cercle (hauteur 20 - bordures 2×1.5 = 17)
-  badgeText: {
+  badgeText: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontSize: 11,
     lineHeight: 14,

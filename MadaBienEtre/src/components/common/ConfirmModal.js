@@ -30,19 +30,19 @@ const ConfirmModal = ({
           <View style={[styles.iconWrap, { backgroundColor: iconColor + '20' }]}>
             <Ionicons name={icon} size={38} color={iconColor} />
           </View>
-          <Text style={[styles.title, { color: themeColors.text }]}>{title}</Text>
-          {!!message && <Text style={[styles.message, { color: themeColors.textSecondary }]}>{message}</Text>}
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: themeColors.text }]}>{title}</Text>
+          {!!message && <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.message, { color: themeColors.textSecondary }]}>{message}</Text>}
           {children}
           <View style={styles.buttons}>
             <TouchableOpacity style={[styles.btn, styles.cancel]} onPress={onCancel} disabled={loading}>
-              <Text style={styles.cancelText}>{cancelText}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cancelText]}>{cancelText}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.btn, { backgroundColor: confirmColor, opacity: loading ? 0.7 : 1 }]}
               onPress={onConfirm}
               disabled={loading}
             >
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>{confirmText}</Text>}
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmText]}>{confirmText}</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -55,13 +55,13 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center' },
   box: { borderRadius: 20, padding: spacing.lg, alignItems: 'center', elevation: 12 },
   iconWrap: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
-  title: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, textAlign: 'center' },
+  title: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, fontWeight: '700', textAlign: 'center' },
   message: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.regular, textAlign: 'center', marginTop: spacing.sm, lineHeight: 22 },
   buttons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, width: '100%' },
   btn: { flex: 1, paddingVertical: spacing.md, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   cancel: { backgroundColor: '#EEEEEE' },
-  cancelText: { color: '#444', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.medium },
-  confirmText: { color: '#fff', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold },
+  cancelText: { color: '#444', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
+  confirmText: { color: '#fff', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
 });
 
 export default ConfirmModal;

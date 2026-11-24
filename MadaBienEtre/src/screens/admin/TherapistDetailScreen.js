@@ -50,6 +50,7 @@ import {
   getLongitude,
   useAdminToast,
 } from '../../components/admin/AdminDetailKit';
+import { typography } from '../../theme';
 
 /* ============================================================
    HELPERS
@@ -336,10 +337,10 @@ const TherapistDetailScreen = ({ navigation, route }) => {
       <DetailCard title="Statut en ligne" icon="radio-button-on-outline">
         <View style={styles.switchRow}>
           <View style={styles.switchTextWrap}>
-            <Text style={[styles.switchTitle, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.switchTitle, { color: themeColors.text }]}>
               {therapist.is_online ? 'En ligne' : 'Hors ligne'}
             </Text>
-            <Text style={[styles.switchSubtitle, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.switchSubtitle, { color: themeColors.textSecondary }]}>
               Contrôler la disponibilité du thérapeute
             </Text>
           </View>
@@ -408,7 +409,7 @@ const TherapistDetailScreen = ({ navigation, route }) => {
 
       {therapist.bio ? (
         <DetailCard title="Biographie" icon="document-text-outline">
-          <Text style={[styles.bioText, { color: themeColors.text }]} selectable>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bioText, { color: themeColors.text }]} selectable>
             {therapist.bio}
           </Text>
         </DetailCard>
@@ -425,8 +426,8 @@ const TherapistDetailScreen = ({ navigation, route }) => {
             <Ionicons name="location" size={21} color={colors.primary} />
           </View>
           <View style={styles.addressTextWrap}>
-            <Text style={[styles.addressTitle, { color: themeColors.text }]}>Adresse complète</Text>
-            <Text style={[styles.addressText, { color: themeColors.textSecondary }]} selectable>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.addressTitle, { color: themeColors.text }]}>Adresse complète</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.addressText, { color: themeColors.textSecondary }]} selectable>
               {getFullAddress(therapist)}
             </Text>
           </View>
@@ -434,10 +435,10 @@ const TherapistDetailScreen = ({ navigation, route }) => {
 
         {latitude !== null || longitude !== null ? (
           <View style={styles.coordsRow}>
-            <Text style={[styles.coordsText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.coordsText, { color: themeColors.textSecondary }]}>
               Latitude : {latitude !== null ? latitude.toFixed(6) : 'N/A'}
             </Text>
-            <Text style={[styles.coordsText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.coordsText, { color: themeColors.textSecondary }]}>
               Longitude : {longitude !== null ? longitude.toFixed(6) : 'N/A'}
             </Text>
           </View>
@@ -449,14 +450,14 @@ const TherapistDetailScreen = ({ navigation, route }) => {
           style={[styles.addressButton, { backgroundColor: colors.primary }]}
         >
           <Ionicons name="map-outline" size={18} color="#fff" />
-          <Text style={styles.addressButtonText}>Modifier l'adresse sur la carte</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.addressButtonText]}>Modifier l'adresse sur la carte</Text>
         </TouchableOpacity>
       </DetailCard>
 
       <DetailCard title="Pièce d'identité — CIN" icon="card-outline">
         <View style={styles.cinNumberRow}>
           <Ionicons name="card-outline" size={20} color={colors.primary} />
-          <Text style={[styles.cinNumber, { color: themeColors.text }]} selectable>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cinNumber, { color: themeColors.text }]} selectable>
             {therapist.cin_number || 'Non renseigné'}
           </Text>
         </View>
@@ -488,7 +489,7 @@ const TherapistDetailScreen = ({ navigation, route }) => {
         {loadingCertificate ? (
           <View style={styles.certLoading}>
             <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={styles.certLoadingText}>Chargement du certificat...</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.certLoadingText]}>Chargement du certificat...</Text>
           </View>
         ) : certificate ? (
           <>
@@ -523,14 +524,14 @@ const TherapistDetailScreen = ({ navigation, route }) => {
                 style={[styles.addressButton, { backgroundColor: colors.primary }]}
               >
                 <Ionicons name="document-text-outline" size={18} color="#fff" />
-                <Text style={styles.addressButtonText}>Télécharger le certificat PDF</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.addressButtonText]}>Télécharger le certificat PDF</Text>
               </TouchableOpacity>
             ) : null}
           </>
         ) : (
           <View style={styles.certLoading}>
             <Ionicons name="information-circle-outline" size={20} color="#2E8B57" />
-            <Text style={[styles.certLoadingText, { color: '#2E8B57' }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.certLoadingText, { color: '#2E8B57' }]}>
               Aucun certificat généré pour ce thérapeute
             </Text>
           </View>
@@ -590,10 +591,10 @@ const TherapistDetailScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   switchTextWrap: { flex: 1 },
-  switchTitle: { fontSize: 14, fontWeight: '700', lineHeight: 20 },
-  switchSubtitle: { fontSize: 12, lineHeight: 17, marginTop: 2 },
+  switchTitle: { fontFamily: typography.fontFamily.bold, fontSize: 14, fontWeight: '700', lineHeight: 20 },
+  switchSubtitle: { fontFamily: typography.fontFamily.regular, fontSize: 12, lineHeight: 17, marginTop: 2 },
 
-  bioText: { fontSize: 14, lineHeight: 22 },
+  bioText: { fontFamily: typography.fontFamily.regular, fontSize: 14, lineHeight: 22 },
 
   addressBox: {
     flexDirection: 'row',
@@ -605,10 +606,10 @@ const styles = StyleSheet.create({
   },
   addressIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   addressTextWrap: { flex: 1, minWidth: 0 },
-  addressTitle: { fontSize: 14, fontWeight: '700', lineHeight: 20 },
-  addressText: { fontSize: 13, lineHeight: 19, marginTop: 2 },
+  addressTitle: { fontFamily: typography.fontFamily.bold, fontSize: 14, fontWeight: '700', lineHeight: 20 },
+  addressText: { fontFamily: typography.fontFamily.regular, fontSize: 13, lineHeight: 19, marginTop: 2 },
   coordsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 10 },
-  coordsText: { fontSize: 12, lineHeight: 17 },
+  coordsText: { fontFamily: typography.fontFamily.regular, fontSize: 12, lineHeight: 17 },
   addressButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -619,13 +620,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 16,
   },
-  addressButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  addressButtonText: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 14, fontWeight: '700' },
 
   cinNumberRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-  cinNumber: { fontSize: 15, fontWeight: '700' },
+  cinNumber: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '700' },
 
   certLoading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  certLoadingText: { flex: 1, fontSize: 13, lineHeight: 19, color: '#555' },
+  certLoadingText: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 13, lineHeight: 19, color: '#555' },
 });
 
 export default TherapistDetailScreen;

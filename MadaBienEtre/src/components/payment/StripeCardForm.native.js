@@ -10,6 +10,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../context/ThemeContext';
 import cardService from '../../services/cardService';
+import { typography } from '../../theme';
 
 const GREEN = '#2E8B57';
 
@@ -55,7 +56,7 @@ function NativeFields({ holderName, onSaved, title, buttonLabel }) {
 
   return (
     <View>
-      <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: theme.text }]}>{title}</Text>
       <CardField
         postalCodeEnabled
         placeholders={{ number: 'Numéro de carte', expiration: 'MM/AA', cvc: 'CVC', postalCode: 'Code postal' }}
@@ -63,10 +64,10 @@ function NativeFields({ holderName, onSaved, title, buttonLabel }) {
         style={{ width: '100%', height: 52, marginVertical: 6 }}
         onCardChange={(d) => setComplete(!!d?.complete)}
       />
-      <Text style={styles.note}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.note]}>
         Champ sécurisé fourni par Stripe : les données de carte ne passent jamais par votre serveur.
       </Text>
-      {error ? <Text style={styles.err}>{error}</Text> : null}
+      {error ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.err]}>{error}</Text> : null}
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={submit}
@@ -74,7 +75,7 @@ function NativeFields({ holderName, onSaved, title, buttonLabel }) {
         style={[styles.btn, (!complete || busy) && { opacity: 0.6 }]}
       >
         {busy ? <ActivityIndicator color="#fff" /> : <Ionicons name="lock-closed" size={16} color="#fff" />}
-        <Text style={styles.btnText}>{buttonLabel}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.btnText]}>{buttonLabel}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -104,9 +105,9 @@ export default function StripeCardForm({
 
 const styles = StyleSheet.create({
   box: { borderRadius: 16, borderWidth: 1, padding: 16, marginTop: 8 },
-  title: { fontSize: 15, fontWeight: '800', marginBottom: 12 },
-  note: { fontSize: 11.5, color: '#6B7280', marginTop: 10, lineHeight: 16 },
-  err: { color: '#D93636', fontSize: 12.5, marginTop: 8 },
+  title: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '800', marginBottom: 12 },
+  note: { fontFamily: typography.fontFamily.regular, fontSize: 11.5, color: '#6B7280', marginTop: 10, lineHeight: 16 },
+  err: { fontFamily: typography.fontFamily.regular, color: '#D93636', fontSize: 12.5, marginTop: 8 },
   btn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -117,5 +118,5 @@ const styles = StyleSheet.create({
     minHeight: 48,
     marginTop: 14,
   },
-  btnText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  btnText: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 15, fontWeight: '800' },
 });

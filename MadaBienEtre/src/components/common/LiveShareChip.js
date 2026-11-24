@@ -13,6 +13,7 @@ import { Animated, Easing, Platform, Pressable, StyleSheet, Text, View } from 'r
 import { useNavigation } from '@react-navigation/native';
 
 import { useLiveSharing } from '../../context/LiveSharingContext';
+import { typography } from '../../theme';
 
 const THEMES = {
   // fond vert / foncé (Android, iOS, web étroit, TopNavBar)
@@ -146,7 +147,7 @@ export default function LiveShareChip({ variant = 'onDark', compact = false, nav
       style={[styles.chip, { backgroundColor: theme.bg, borderColor: theme.border }, style]}
     >
       <PulseDot color={dotColor} />
-      <Text numberOfLines={1} ellipsizeMode="clip" style={[styles.label, { color: theme.text }]}>
+      <Text numberOfLines={1} ellipsizeMode="clip" style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: theme.text }]}>
         {label}
       </Text>
     </Pressable>
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
   },
-  label: {
+  label: { fontFamily: typography.fontFamily.bold,
     fontSize: 12,
     fontWeight: '700',
     flexShrink: 0,

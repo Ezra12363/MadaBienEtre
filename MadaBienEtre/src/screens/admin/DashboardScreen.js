@@ -314,7 +314,7 @@ const DashboardScreen = ({ navigation }) => {
     marginBottom: 14,
   };
 
-  const chartTitleStyle = {
+  const chartTitleStyle = { fontFamily: typography.fontFamily.regular,
     color: themeColors.text,
     fontSize: 14,
     marginBottom: 10,
@@ -379,21 +379,21 @@ const DashboardScreen = ({ navigation }) => {
           </View>
           <View style={styles.statCardBody}>
             <Text
-              style={[styles.statValue, { color: themeColors.text }]}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.statValue, { color: themeColors.text }]}
               numberOfLines={1}
               adjustsFontSizeToFit
             >
               {typeof value === 'number' ? formatNumber(value) : value}
             </Text>
             <Text
-              style={[styles.statLabel, { color: themeColors.text }]}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.statLabel, { color: themeColors.text }]}
               numberOfLines={1}
             >
               {label}
             </Text>
             {subtitle ? (
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.statSubtitle,
                   { color: themeColors.textSecondary },
                 ]}
@@ -479,7 +479,7 @@ const DashboardScreen = ({ navigation }) => {
 
         <View style={styles.quickContent}>
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.quickLabel,
               {
                 color: themeColors.text,
@@ -491,7 +491,7 @@ const DashboardScreen = ({ navigation }) => {
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.quickDescription,
               {
                 color:
@@ -520,13 +520,13 @@ const DashboardScreen = ({ navigation }) => {
   const SectionHeader = ({ title, subtitle }) => (
     <View style={styles.sectionHeaderInline}>
       <Text
-        style={[styles.sectionTitle, { color: themeColors.text }]}
+        style={[{ fontFamily: typography.fontFamily.regular }, styles.sectionTitle, { color: themeColors.text }]}
       >
         {title}
       </Text>
       {subtitle ? (
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.sectionSubtitle,
             { color: themeColors.textSecondary },
           ]}
@@ -708,7 +708,7 @@ const DashboardScreen = ({ navigation }) => {
         >
           <View style={styles.sectionHeaderInlineFlex}>
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.sectionTitle,
                 { color: themeColors.text },
               ]}
@@ -718,7 +718,7 @@ const DashboardScreen = ({ navigation }) => {
             </Text>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.sectionSubtitle,
                 {
                   color:
@@ -742,7 +742,7 @@ const DashboardScreen = ({ navigation }) => {
           >
             {windowWidth >= 520 ? (
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.userStatsToggleText,
                   { color: colors.primary },
                 ]}
@@ -796,7 +796,7 @@ const DashboardScreen = ({ navigation }) => {
                       }}
                     >
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.userGroupTitle,
                           {
                             color:
@@ -809,7 +809,7 @@ const DashboardScreen = ({ navigation }) => {
                       </Text>
 
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.userGroupSubtitle,
                           {
                             color:
@@ -871,7 +871,7 @@ const DashboardScreen = ({ navigation }) => {
                           </View>
 
                           <Text
-                            style={[
+                            style={[{ fontFamily: typography.fontFamily.regular }, 
                               styles.userStatValue,
                               {
                                 color:
@@ -887,7 +887,7 @@ const DashboardScreen = ({ navigation }) => {
                           </Text>
 
                           <Text
-                            style={[
+                            style={[{ fontFamily: typography.fontFamily.regular }, 
                               styles.userStatLabel,
                               {
                                 color:
@@ -917,7 +917,7 @@ const DashboardScreen = ({ navigation }) => {
                         ))}
                       </View>
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.splitLegend,
                           { color: themeColors.textSecondary },
                         ]}
@@ -945,7 +945,7 @@ const DashboardScreen = ({ navigation }) => {
                         }
                       >
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.userProgressLabel,
                             {
                               color:
@@ -957,7 +957,7 @@ const DashboardScreen = ({ navigation }) => {
                         </Text>
 
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.userProgressValue,
                             {
                               color:
@@ -1094,7 +1094,7 @@ const DashboardScreen = ({ navigation }) => {
             </View>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.loadingTitle,
                 {
                   color:
@@ -1106,7 +1106,7 @@ const DashboardScreen = ({ navigation }) => {
             </Text>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.loadingText,
                 {
                   color:
@@ -1259,7 +1259,7 @@ const DashboardScreen = ({ navigation }) => {
           <View style={styles.pageHeader}>
             <View style={styles.pageHeaderLeft}>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.pageTitle,
                   {
                     color: themeColors.text,
@@ -1270,7 +1270,7 @@ const DashboardScreen = ({ navigation }) => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.pageSubtitle,
                   {
                     color:
@@ -1307,7 +1307,7 @@ const DashboardScreen = ({ navigation }) => {
               {windowWidth >= 430 ||
               IS_WEB ? (
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.refreshText,
                     {
                       color:
@@ -1349,7 +1349,7 @@ const DashboardScreen = ({ navigation }) => {
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.errorText,
                   {
                     color: themeColors.text,
@@ -1364,7 +1364,7 @@ const DashboardScreen = ({ navigation }) => {
                 style={styles.errorRetry}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.errorRetryText,
                     {
                       color: colors.primary,
@@ -1392,8 +1392,8 @@ const DashboardScreen = ({ navigation }) => {
                   <Ionicons name="alert" size={22} color="#FFFFFF" />
                 </View>
                 <View style={styles.sosContent}>
-                  <Text style={styles.sosTitle}>Alerte SOS active</Text>
-                  <Text style={styles.sosText}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sosTitle]}>Alerte SOS active</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sosText]}>
                     {dashboardData.sos.active} alerte(s) nécessitent votre
                     attention.
                   </Text>
@@ -1405,7 +1405,7 @@ const DashboardScreen = ({ navigation }) => {
                   onPress={() => navigation.navigate('SOSAlerts')}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.sosButtonText}>Voir les alertes</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sosButtonText]}>Voir les alertes</Text>
                   <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
                 </TouchableOpacity>
               ) : null}
@@ -1584,7 +1584,7 @@ const DashboardScreen = ({ navigation }) => {
               <View style={dashRow3}>
                 {stats ? (
                   <View style={[styles.dashCard, cardBox, wideDash && styles.dashCardWide]}>
-                    <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dashCardTitle, { color: themeColors.text }]}>
                       Résumé de la période
                     </Text>
                     <View style={styles.miniGrid}>
@@ -1604,7 +1604,7 @@ const DashboardScreen = ({ navigation }) => {
                           <View style={styles.miniTop}>
                             <View style={[styles.miniDot, { backgroundColor: tile.color }]} />
                             <Text
-                              style={[styles.miniValue, { color: themeColors.text }]}
+                              style={[{ fontFamily: typography.fontFamily.regular }, styles.miniValue, { color: themeColors.text }]}
                               numberOfLines={1}
                               adjustsFontSizeToFit
                             >
@@ -1612,7 +1612,7 @@ const DashboardScreen = ({ navigation }) => {
                             </Text>
                           </View>
                           <Text
-                            style={[styles.miniLabel, { color: themeColors.textSecondary }]}
+                            style={[{ fontFamily: typography.fontFamily.regular }, styles.miniLabel, { color: themeColors.textSecondary }]}
                             numberOfLines={2}
                           >
                             {tile.label}
@@ -1621,10 +1621,10 @@ const DashboardScreen = ({ navigation }) => {
                       ))}
                     </View>
                     <View style={styles.completionRow}>
-                      <Text style={[styles.miniLabel, { color: themeColors.textSecondary }]}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.miniLabel, { color: themeColors.textSecondary }]}>
                         Taux de complétion
                       </Text>
-                      <Text style={[styles.completionPct, { color: colors.primary }]}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.completionPct, { color: colors.primary }]}>
                         {Math.round(Number(stats.completion_rate || 0))} %
                       </Text>
                     </View>
@@ -1649,7 +1649,7 @@ const DashboardScreen = ({ navigation }) => {
 
                 {overview ? (
                   <View style={[styles.dashCard, cardBox, wideDash && styles.dashCardWide]}>
-                    <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dashCardTitle, { color: themeColors.text }]}>
                       Revenus mensuels
                     </Text>
                     <BarChart
@@ -1669,7 +1669,7 @@ const DashboardScreen = ({ navigation }) => {
 
                 {overview ? (
                   <View style={[styles.dashCard, cardBox, wideDash && styles.dashCardWide]}>
-                    <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dashCardTitle, { color: themeColors.text }]}>
                       Réservations et nouveaux comptes
                     </Text>
                     <BarChart
@@ -1695,11 +1695,11 @@ const DashboardScreen = ({ navigation }) => {
               {overview ? (
                 <View style={dashRow2}>
                   <View style={[styles.dashCard, cardBox, wideDash && styles.dashCardWide]}>
-                    <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dashCardTitle, { color: themeColors.text }]}>
                       Réservations par statut
                     </Text>
                     {barStatuses.length === 0 ? (
-                      <Text style={{ color: themeColors.textSecondary, fontSize: 13 }}>
+                      <Text style={{ fontFamily: typography.fontFamily.regular, color: themeColors.textSecondary, fontSize: 13 }}>
                         Aucune réservation pour le moment.
                       </Text>
                     ) : (
@@ -1718,10 +1718,10 @@ const DashboardScreen = ({ navigation }) => {
                               {col.map((k) => (
                                 <View key={k} style={styles.legendRow}>
                                   <View style={[styles.legendDot, { backgroundColor: statusColor(k) }]} />
-                                  <Text style={[styles.legendLabel, { color: themeColors.text }]} numberOfLines={1}>
+                                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.legendLabel, { color: themeColors.text }]} numberOfLines={1}>
                                     {statusLabel(k)}
                                   </Text>
-                                  <Text style={[styles.legendPct, { color: themeColors.textSecondary }]}>
+                                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.legendPct, { color: themeColors.textSecondary }]}>
                                     {statusPct(k)} %
                                   </Text>
                                 </View>
@@ -1734,25 +1734,25 @@ const DashboardScreen = ({ navigation }) => {
                   </View>
 
                   <View style={[styles.dashCard, cardBox, wideDash && styles.dashCardWide]}>
-                    <Text style={[styles.dashCardTitle, { color: themeColors.text }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dashCardTitle, { color: themeColors.text }]}>
                       Meilleurs thérapeutes
                     </Text>
                     {topTherapists.length === 0 ? (
-                      <Text style={{ color: themeColors.textSecondary, fontSize: 13 }}>
+                      <Text style={{ fontFamily: typography.fontFamily.regular, color: themeColors.textSecondary, fontSize: 13 }}>
                         Aucune réservation terminée pour le moment.
                       </Text>
                     ) : (
                       topTherapists.map((t, i) => (
                         <View key={t.id ?? i} style={styles.topRow}>
                           <View style={styles.topLine}>
-                            <Text style={[styles.topRank, { color: themeColors.textSecondary }]}>{i + 1}</Text>
-                            <Text style={[styles.topName, { color: themeColors.text }]} numberOfLines={1}>
+                            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.topRank, { color: themeColors.textSecondary }]}>{i + 1}</Text>
+                            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.topName, { color: themeColors.text }]} numberOfLines={1}>
                               {t.name}
                             </Text>
-                            <Text style={[styles.topBookings, { color: themeColors.textSecondary }]}>
+                            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.topBookings, { color: themeColors.textSecondary }]}>
                               {t.bookings} rés.
                             </Text>
-                            <Text style={[styles.topEarn, { color: themeColors.text }]}>
+                            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.topEarn, { color: themeColors.text }]}>
                               {formatAr(t.earnings)}
                             </Text>
                           </View>
@@ -1822,7 +1822,7 @@ const DetailItem = ({
       style={styles.detailItemContent}
     >
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.detailValue,
           {
             color: themeColors.text,
@@ -1835,7 +1835,7 @@ const DetailItem = ({
       </Text>
 
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.detailLabel,
           {
             color:
@@ -1902,7 +1902,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  headerNotificationText: {
+  headerNotificationText: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontSize: 9.5,
     fontWeight: '800',
@@ -1951,7 +1951,7 @@ const styles = StyleSheet.create({
     fontSize: IS_WEB ? 28 : 22,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
 
     letterSpacing: -0.5,
   },
@@ -1986,7 +1986,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ==========================================================
@@ -2033,7 +2033,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   errorRetry: {
@@ -2045,7 +2045,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   /* ==========================================================
@@ -2085,10 +2085,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
   },
 
-  sosButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  sosButtonText: { fontFamily: typography.fontFamily.bold, color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
   sosClose: { padding: 6 },
   splitBar: { flexDirection: 'row', height: 8, borderRadius: 2, overflow: 'hidden', marginTop: 4 },
-  splitLegend: { fontSize: 11, marginTop: 6 },
+  splitLegend: { fontFamily: typography.fontFamily.regular, fontSize: 11, marginTop: 6 },
   statRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   dashRow: { flexDirection: 'row', alignItems: 'stretch', marginBottom: 14 },
   dashCol: { gap: 14, marginBottom: 14 },
@@ -2099,23 +2099,23 @@ const styles = StyleSheet.create({
   miniTile: { flexGrow: 1, flexBasis: '45%', borderRadius: 10, padding: 12, gap: 8 },
   miniTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   miniDot: { width: 8, height: 8, borderRadius: 4 },
-  miniValue: { fontSize: 15, fontWeight: '700', flexShrink: 1 },
-  miniLabel: { fontSize: 11.5 },
+  miniValue: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '700', flexShrink: 1 },
+  miniLabel: { fontFamily: typography.fontFamily.regular, fontSize: 11.5 },
   completionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  completionPct: { fontSize: 12.5, fontWeight: '700' },
+  completionPct: { fontFamily: typography.fontFamily.bold, fontSize: 12.5, fontWeight: '700' },
   statusBar: { flexDirection: 'row', height: 18, borderRadius: 3, overflow: 'hidden', marginBottom: 16 },
   legendCols: { flexDirection: 'row', gap: 24 },
   legendCol: { flex: 1, gap: 8 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendLabel: { flex: 1, fontSize: 12.5 },
-  legendPct: { fontSize: 12.5, fontWeight: '700' },
+  legendLabel: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 12.5 },
+  legendPct: { fontFamily: typography.fontFamily.bold, fontSize: 12.5, fontWeight: '700' },
   topRow: { marginBottom: 10 },
   topLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  topRank: { width: 16, fontSize: 12.5, fontWeight: '700' },
-  topName: { flexShrink: 1, fontSize: 13 },
-  topBookings: { flex: 1, fontSize: 11.5 },
-  topEarn: { fontSize: 13, fontWeight: '700' },
+  topRank: { fontFamily: typography.fontFamily.bold, width: 16, fontSize: 12.5, fontWeight: '700' },
+  topName: { fontFamily: typography.fontFamily.regular, flexShrink: 1, fontSize: 13 },
+  topBookings: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 11.5 },
+  topEarn: { fontFamily: typography.fontFamily.bold, fontSize: 13, fontWeight: '700' },
   topTrack: { height: 6, borderRadius: 3, marginTop: 4, marginLeft: 24 },
   topFill: { height: 6, borderRadius: 3 },
 
@@ -2147,7 +2147,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   sectionSubtitle: {
@@ -2251,7 +2251,7 @@ const styles = StyleSheet.create({
     fontSize: IS_WEB ? 25 : 21,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
 
     letterSpacing: -0.4,
   },
@@ -2259,7 +2259,7 @@ const styles = StyleSheet.create({
   statLabel: {
     marginTop: 2,
     fontSize: 13,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   statSubtitle: {
@@ -2268,7 +2268,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   /* ==========================================================
@@ -2336,7 +2336,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   revenueValue: {
@@ -2345,7 +2345,7 @@ const styles = StyleSheet.create({
     fontSize: 21,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   revenueBadge: {
@@ -2365,7 +2365,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   /* ==========================================================
@@ -2424,7 +2424,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   sosText: {
@@ -2530,7 +2530,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   quickDescription: {
@@ -2609,7 +2609,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   detailLabel: {
@@ -2650,7 +2650,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   completionValue: {
@@ -2659,7 +2659,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   completionIcon: {
@@ -2729,7 +2729,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   // Les 3 cartes (catégories) : séparées, chacune avec son espace.
@@ -2791,7 +2791,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   userGroupSubtitle: {
@@ -2846,7 +2846,7 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   userStatLabel: {
@@ -2859,7 +2859,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   userProgressBlock: {
@@ -2880,14 +2880,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   userProgressValue: {
     fontSize: 12,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   userProgressTrack: {
@@ -2938,7 +2938,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
 
     textAlign: 'center',
   },

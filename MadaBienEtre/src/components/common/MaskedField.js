@@ -21,6 +21,7 @@
 import { forwardRef, memo, useCallback, useMemo, useState } from 'react';
 import { Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { typography } from '../../theme';
 
 export const FIELD_COLORS = {
   error: '#D32F2F',
@@ -128,14 +129,14 @@ const MaskedField = forwardRef(function MaskedField(
     <View style={[styles.group, style]}>
       {label ? (
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.label,
             { color: hasError ? FIELD_COLORS.error : isDark ? '#E6E6E6' : '#333' },
             labelStyle,
           ]}
         >
           {label}
-          {required ? <Text style={{ color: FIELD_COLORS.error }}> *</Text> : null}
+          {required ? <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: FIELD_COLORS.error }]}> *</Text> : null}
         </Text>
       ) : null}
 
@@ -159,12 +160,12 @@ const MaskedField = forwardRef(function MaskedField(
             style={styles.icon}
           />
         ) : null}
-        {prefix ? <Text style={[styles.affix, { color: isDark ? '#BBB' : '#666' }]}>{prefix}</Text> : null}
+        {prefix ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.affix, { color: isDark ? '#BBB' : '#666' }]}>{prefix}</Text> : null}
 
         <TextInput
           ref={ref}
           testID={testID}
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.input,
             multiline && styles.inputMultiline,
             { color: text },
@@ -191,20 +192,20 @@ const MaskedField = forwardRef(function MaskedField(
           underlineColorAndroid="transparent"
         />
 
-        {suffix ? <Text style={[styles.affix, { color: isDark ? '#BBB' : '#666' }]}>{suffix}</Text> : null}
+        {suffix ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.affix, { color: isDark ? '#BBB' : '#666' }]}>{suffix}</Text> : null}
         {rightElement}
         {hasSuccess ? <Ionicons name="checkmark-circle" size={20} color={FIELD_COLORS.success} /> : null}
         {hasError ? <Ionicons name="alert-circle" size={20} color={FIELD_COLORS.error} /> : null}
       </View>
 
       {hasError ? (
-        <Text style={styles.errorText} accessibilityLiveRegion="polite">
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]} accessibilityLiveRegion="polite">
           {computedError}
         </Text>
       ) : hasSuccess ? (
-        <Text style={styles.successText}>{successText}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.successText]}>{successText}</Text>
       ) : helper ? (
-        <Text style={[styles.helper, { color: isDark ? '#AAA' : '#777' }]}>{helper}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.helper, { color: isDark ? '#AAA' : '#777' }]}>{helper}</Text>
       ) : null}
     </View>
   );
@@ -226,7 +227,7 @@ export const FormSummary = memo(function FormSummary({
     return (
       <View style={[styles.summary, { backgroundColor: FIELD_COLORS.successBg, borderColor: FIELD_COLORS.success }, style]}>
         <Ionicons name="checkmark-circle" size={18} color={FIELD_COLORS.success} />
-        <Text style={[styles.summaryText, { color: FIELD_COLORS.success }]}>{successText}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.summaryText, { color: FIELD_COLORS.success }]}>{successText}</Text>
       </View>
     );
   }
@@ -235,11 +236,11 @@ export const FormSummary = memo(function FormSummary({
     <View style={[styles.summary, { backgroundColor: FIELD_COLORS.errorBg, borderColor: FIELD_COLORS.error }, style]}>
       <Ionicons name="alert-circle" size={18} color={FIELD_COLORS.error} />
       <View style={{ flex: 1 }}>
-        <Text style={[styles.summaryText, { color: FIELD_COLORS.error, fontWeight: '700' }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.summaryText, { fontFamily: typography.fontFamily.bold, color: FIELD_COLORS.error, fontWeight: '700' }]}>
           {list.length === 1 ? 'Un champ est à corriger :' : `${list.length} champs sont à corriger :`}
         </Text>
         {list.slice(0, 5).map((msg, i) => (
-          <Text key={`${i}-${msg}`} style={[styles.summaryText, { color: FIELD_COLORS.error }]}>
+          <Text key={`${i}-${msg}`} style={[{ fontFamily: typography.fontFamily.regular }, styles.summaryText, { color: FIELD_COLORS.error }]}>
             • {msg}
           </Text>
         ))}
@@ -257,7 +258,7 @@ export const EyeToggle = ({ visible, onPress }) => (
 
 const styles = StyleSheet.create({
   group: { marginBottom: 14 },
-  label: { fontSize: 13, fontWeight: '600', marginBottom: 6 },
+  label: { fontFamily: typography.fontFamily.semiBold, fontSize: 13, fontWeight: '600', marginBottom: 6 },
   box: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -266,8 +267,8 @@ const styles = StyleSheet.create({
   },
   boxMultiline: { alignItems: 'flex-start', paddingTop: 2 },
   icon: { marginRight: 8 },
-  affix: { fontSize: 14, marginRight: 6, fontWeight: '600' },
-  input: {
+  affix: { fontFamily: typography.fontFamily.semiBold, fontSize: 14, marginRight: 6, fontWeight: '600' },
+  input: { fontFamily: typography.fontFamily.regular,
     flex: 1,
     minHeight: 46,
     paddingVertical: 10,
@@ -275,9 +276,9 @@ const styles = StyleSheet.create({
   },
   inputMultiline: { minHeight: 96, textAlignVertical: 'top' },
   inputWeb: { outlineStyle: 'none' },
-  errorText: { color: FIELD_COLORS.error, fontSize: 12, marginTop: 5, marginLeft: 4, fontWeight: '500' },
-  successText: { color: FIELD_COLORS.success, fontSize: 12, marginTop: 5, marginLeft: 4, fontWeight: '500' },
-  helper: { fontSize: 12, marginTop: 5, marginLeft: 4 },
+  errorText: { fontFamily: typography.fontFamily.medium, color: FIELD_COLORS.error, fontSize: 12, marginTop: 5, marginLeft: 4, fontWeight: '500' },
+  successText: { fontFamily: typography.fontFamily.medium, color: FIELD_COLORS.success, fontSize: 12, marginTop: 5, marginLeft: 4, fontWeight: '500' },
+  helper: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginTop: 5, marginLeft: 4 },
   summary: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -289,7 +290,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: 12,
   },
-  summaryText: { fontSize: 12.5, lineHeight: 18 },
+  summaryText: { fontFamily: typography.fontFamily.regular, fontSize: 12.5, lineHeight: 18 },
 });
 
 export default MaskedField;

@@ -193,7 +193,7 @@ const AIChatPanel = ({ role = 'CLIENT', style, initialMessage = null }) => {
               ]}
             >
               <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.typingText, { color: themeColors.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.typingText, { color: themeColors.textSecondary }]}>
                 L'IA réfléchit...
               </Text>
             </View>
@@ -208,7 +208,7 @@ const AIChatPanel = ({ role = 'CLIENT', style, initialMessage = null }) => {
         ]}
       >
         <TextInput
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.input,
             {
               color: themeColors.text,

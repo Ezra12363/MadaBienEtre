@@ -70,7 +70,7 @@ const EmergencyContactForm = ({ visible, contact, saving, error, onSave, onClose
       >
         <View style={[styles.sheet, { backgroundColor: themeColors.surface }]}>
           <View style={styles.header}>
-            <Text style={[styles.title, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: themeColors.text }]}>
               {contact ? 'Modifier le contact' : "Nouveau contact d'urgence"}
             </Text>
             <TouchableOpacity onPress={onClose}>
@@ -105,14 +105,14 @@ const EmergencyContactForm = ({ visible, contact, saving, error, onSave, onClose
 
             <TouchableOpacity style={styles.primaryRow} onPress={() => set('is_primary')(!form.is_primary)}>
               <Ionicons name={form.is_primary ? 'checkbox' : 'square-outline'} size={22} color={colors.primary} />
-              <Text style={[styles.primaryText, { color: themeColors.text }]}>Contact principal</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryText, { color: themeColors.text }]}>Contact principal</Text>
             </TouchableOpacity>
 
             <FormSummary errors={fieldErrors} show={submitted} successText="Formulaire valide." />
-            {!!shownError && <Text style={styles.error}>{shownError}</Text>}
+            {!!shownError && <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.error]}>{shownError}</Text>}
 
             <TouchableOpacity style={styles.saveButton} onPress={submit} disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Enregistrer</Text>}
+              {saving ? <ActivityIndicator color="#fff" /> : <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.saveText]}>Enregistrer</Text>}
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -125,14 +125,14 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, maxHeight: '90%' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  title: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold },
-  label: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, marginTop: spacing.sm, marginBottom: 4 },
-  input: { borderWidth: 1, borderRadius: 12, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: typography.fontSize.md },
+  title: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
+  label: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500', marginTop: spacing.sm, marginBottom: 4 },
+  input: { fontFamily: typography.fontFamily.regular, borderWidth: 1, borderRadius: 12, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: typography.fontSize.md },
   primaryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
   primaryText: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.regular },
-  error: { color: colors.error, marginTop: spacing.sm, fontSize: typography.fontSize.sm },
+  error: { fontFamily: typography.fontFamily.regular, color: colors.error, marginTop: spacing.sm, fontSize: typography.fontSize.sm },
   saveButton: { backgroundColor: colors.primary, borderRadius: 12, paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.lg, marginBottom: spacing.sm },
-  saveText: { color: '#fff', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold },
+  saveText: { color: '#fff', fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
 });
 
 export default EmergencyContactForm;

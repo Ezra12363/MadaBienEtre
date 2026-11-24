@@ -90,6 +90,7 @@ import {
 } from '../../utils/timeAgo';
 
 import { toastAdapters } from "../../utils/toast";
+import { typography } from '../../theme';
 
 // ============================================================
 // LABELS STATUT (pour les pastilles de filtre)
@@ -398,7 +399,7 @@ export default function ClientGroupScreen({
             colors.card || '#FFFFFF',
         },
 
-        webSubHeaderText: {
+        webSubHeaderText: { fontFamily: typography.fontFamily.semiBold,
           fontSize: 14,
           fontWeight: '600',
           color:
@@ -504,7 +505,7 @@ export default function ClientGroupScreen({
           borderColor: COLORS.primary,
         },
 
-        statusPillText: {
+        statusPillText: { fontFamily: typography.fontFamily.semiBold,
           fontSize: 12,
           fontWeight: '600',
           color:
@@ -529,7 +530,7 @@ export default function ClientGroupScreen({
           backgroundColor: COLORS.primary,
         },
 
-        dateButtonText: {
+        dateButtonText: { fontFamily: typography.fontFamily.semiBold,
           fontSize: 12,
           fontWeight: '600',
           color: COLORS.primary,
@@ -579,7 +580,7 @@ export default function ClientGroupScreen({
           marginBottom: 14,
         },
 
-        calendarMonthLabel: {
+        calendarMonthLabel: { fontFamily: typography.fontFamily.bold,
           fontSize: 15,
           fontWeight: '700',
           color:
@@ -606,7 +607,7 @@ export default function ClientGroupScreen({
           alignItems: 'center',
         },
 
-        calendarWeekdayText: {
+        calendarWeekdayText: { fontFamily: typography.fontFamily.bold,
           fontSize: 11,
           fontWeight: '700',
           color:
@@ -631,13 +632,13 @@ export default function ClientGroupScreen({
           backgroundColor: COLORS.primary,
         },
 
-        calendarDayText: {
+        calendarDayText: { fontFamily: typography.fontFamily.regular,
           fontSize: 13,
           color:
             colors.text || '#1F2937',
         },
 
-        calendarDayTextSelected: {
+        calendarDayTextSelected: { fontFamily: typography.fontFamily.bold,
           color: COLORS.white,
           fontWeight: '700',
         },
@@ -680,13 +681,13 @@ export default function ClientGroupScreen({
             colors.border || '#E5E7EB',
         },
 
-        calendarFooterButtonTextPrimary: {
+        calendarFooterButtonTextPrimary: { fontFamily: typography.fontFamily.bold,
           color: COLORS.white,
           fontWeight: '700',
           fontSize: 13,
         },
 
-        calendarFooterButtonTextSecondary: {
+        calendarFooterButtonTextSecondary: { fontFamily: typography.fontFamily.semiBold,
           color:
             colors.text || '#1F2937',
           fontWeight: '600',
@@ -704,7 +705,7 @@ export default function ClientGroupScreen({
           borderColor: COLORS.primary,
         },
 
-        emptyResetButtonText: {
+        emptyResetButtonText: { fontFamily: typography.fontFamily.bold,
           color: COLORS.primary,
           fontWeight: '700',
           fontSize: 13,
@@ -1603,7 +1604,7 @@ export default function ClientGroupScreen({
 
                 <View style={baseStyles.cardTopInfo}>
                   <View style={baseStyles.cardNameRow}>
-                    <Text style={baseStyles.cardName} numberOfLines={1}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, baseStyles.cardName]} numberOfLines={1}>
                       {getClientName(booking)}
                     </Text>
                     <View
@@ -1619,7 +1620,7 @@ export default function ClientGroupScreen({
                         ]}
                       />
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           baseStyles.cardStatusText,
                           { color: statusUI.color },
                         ]}
@@ -1632,14 +1633,14 @@ export default function ClientGroupScreen({
 
                   <View style={baseStyles.cLineRow}>
                     <Text
-                      style={[baseStyles.cardMetaText, baseStyles.cMetaFlex]}
+                      style={[{ fontFamily: typography.fontFamily.regular }, baseStyles.cardMetaText, baseStyles.cMetaFlex]}
                       numberOfLines={1}
                     >
                       #{booking.id} · {getMassageName(booking)} ·{' '}
                       {getDuration(booking)} min
                     </Text>
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         baseStyles.cardPrice,
                         displayPrice.kind === 'final' &&
                           baseStyles.cardPriceFinal,
@@ -1659,11 +1660,11 @@ export default function ClientGroupScreen({
                       size={11}
                       color={colors.textSecondary}
                     />
-                    <Text style={baseStyles.cardSubText} numberOfLines={1}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, baseStyles.cardSubText]} numberOfLines={1}>
                       {getAddress(booking)}
                     </Text>
                     {distanceText ? (
-                      <Text style={baseStyles.cardDistanceText} numberOfLines={1}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, baseStyles.cardDistanceText]} numberOfLines={1}>
                         ~{distanceText}
                       </Text>
                     ) : null}
@@ -1676,7 +1677,7 @@ export default function ClientGroupScreen({
                         size={11}
                         color={colors.textSecondary}
                       />
-                      <Text style={baseStyles.cardDateText} numberOfLines={1}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, baseStyles.cardDateText]} numberOfLines={1}>
                         {plannedDateLabel}
                         {plannedTimeLabel ? ` · ${plannedTimeLabel}` : ''}
                       </Text>
@@ -1693,7 +1694,7 @@ export default function ClientGroupScreen({
                         color={expired ? COLORS.red : COLORS.orange}
                       />
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           baseStyles.cardExpiryText,
                           expired && baseStyles.cardExpiryTextUrgent,
                         ]}
@@ -1779,7 +1780,7 @@ export default function ClientGroupScreen({
                               size={14}
                               color={COLORS.primary}
                             />
-                            <Text style={baseStyles.cardSmallActionText}>
+                            <Text style={[{ fontFamily: typography.fontFamily.regular }, baseStyles.cardSmallActionText]}>
                               Accepter
                             </Text>
                           </>
@@ -1799,7 +1800,7 @@ export default function ClientGroupScreen({
                       >
                         <Ionicons name="close" size={14} color={COLORS.red} />
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             baseStyles.cardSmallActionText,
                             { color: COLORS.red },
                           ]}
@@ -1822,7 +1823,7 @@ export default function ClientGroupScreen({
                         size={14}
                         color={COLORS.primary}
                       />
-                      <Text style={baseStyles.cardSmallActionText}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, baseStyles.cardSmallActionText]}>
                         Négocier
                       </Text>
                     </Pressable>
@@ -1923,7 +1924,7 @@ export default function ClientGroupScreen({
                 >
                   <Text
                     style={
-                      baseStyles.cardName
+                      [{ fontFamily: typography.fontFamily.regular }, baseStyles.cardName]
                     }
                     numberOfLines={1}
                   >
@@ -1952,7 +1953,7 @@ export default function ClientGroupScreen({
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         baseStyles.cardStatusText,
                         {
                           color:
@@ -1968,7 +1969,7 @@ export default function ClientGroupScreen({
 
                 <Text
                   style={
-                    baseStyles.cardBookingId
+                    [{ fontFamily: typography.fontFamily.regular }, baseStyles.cardBookingId]
                   }
                   numberOfLines={1}
                 >
@@ -1990,7 +1991,7 @@ export default function ClientGroupScreen({
 
                   <Text
                     style={
-                      baseStyles.cardSubText
+                      [{ fontFamily: typography.fontFamily.regular }, baseStyles.cardSubText]
                     }
                     numberOfLines={1}
                   >
@@ -2007,7 +2008,7 @@ export default function ClientGroupScreen({
                 >
                   <Text
                     style={
-                      baseStyles.cardMetaText
+                      [{ fontFamily: typography.fontFamily.regular }, baseStyles.cardMetaText]
                     }
                     numberOfLines={1}
                   >
@@ -2024,7 +2025,7 @@ export default function ClientGroupScreen({
 
                   <Text
                     style={
-                      baseStyles.cardMetaText
+                      [{ fontFamily: typography.fontFamily.regular }, baseStyles.cardMetaText]
                     }
                     numberOfLines={1}
                   >
@@ -2051,7 +2052,7 @@ export default function ClientGroupScreen({
 
                     <Text
                       style={
-                        baseStyles.cardPublishedText
+                        [{ fontFamily: typography.fontFamily.regular }, baseStyles.cardPublishedText]
                       }
                       numberOfLines={1}
                     >
@@ -2076,7 +2077,7 @@ export default function ClientGroupScreen({
 
                     <Text
                       style={
-                        baseStyles.cardDateText
+                        [{ fontFamily: typography.fontFamily.regular }, baseStyles.cardDateText]
                       }
                       numberOfLines={1}
                     >
@@ -2110,7 +2111,7 @@ export default function ClientGroupScreen({
 
                       <Text
                         style={
-                          baseStyles.cardDistanceText
+                          [{ fontFamily: typography.fontFamily.regular }, baseStyles.cardDistanceText]
                         }
                         numberOfLines={1}
                       >
@@ -2147,7 +2148,7 @@ export default function ClientGroupScreen({
                       ) : null}
 
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           baseStyles.cardPriceLabel,
                           displayPrice.kind ===
                             'final' &&
@@ -2163,7 +2164,7 @@ export default function ClientGroupScreen({
                     </View>
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         baseStyles.cardPrice,
                         displayPrice.kind ===
                           'final' &&
@@ -2207,7 +2208,7 @@ export default function ClientGroupScreen({
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         baseStyles.cardExpiryText,
                         expired &&
                           baseStyles.cardExpiryTextUrgent,
@@ -2271,7 +2272,7 @@ export default function ClientGroupScreen({
 
                     <Text
                       style={
-                        baseStyles.cardSmallActionText
+                        [{ fontFamily: typography.fontFamily.regular }, baseStyles.cardSmallActionText]
                       }
                     >
                       Appeler
@@ -2301,7 +2302,7 @@ export default function ClientGroupScreen({
 
                   <Text
                     style={
-                      baseStyles.cardSmallActionText
+                      [{ fontFamily: typography.fontFamily.regular }, baseStyles.cardSmallActionText]
                     }
                   >
                     Itinéraire
@@ -2344,7 +2345,7 @@ export default function ClientGroupScreen({
 
                           <Text
                             style={
-                              baseStyles.cardSmallActionText
+                              [{ fontFamily: typography.fontFamily.regular }, baseStyles.cardSmallActionText]
                             }
                           >
                             Accepter
@@ -2377,7 +2378,7 @@ export default function ClientGroupScreen({
                       />
 
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           baseStyles.cardSmallActionText,
                           {
                             color:
@@ -2412,7 +2413,7 @@ export default function ClientGroupScreen({
 
                     <Text
                       style={
-                        baseStyles.cardSmallActionText
+                        [{ fontFamily: typography.fontFamily.regular }, baseStyles.cardSmallActionText]
                       }
                     >
                       Négocier
@@ -2444,7 +2445,7 @@ export default function ClientGroupScreen({
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     baseStyles.cardSmallActionText,
                     {
                       color:
@@ -2557,7 +2558,7 @@ export default function ClientGroupScreen({
                 >
                   <Text
                     style={
-                      baseStyles.sheetTitle
+                      [{ fontFamily: typography.fontFamily.regular }, baseStyles.sheetTitle]
                     }
                     numberOfLines={1}
                   >
@@ -2568,7 +2569,7 @@ export default function ClientGroupScreen({
 
                   <Text
                     style={
-                      baseStyles.actionsSheetSubtitle
+                      [{ fontFamily: typography.fontFamily.regular }, baseStyles.actionsSheetSubtitle]
                     }
                   >
                     Réservation #
@@ -2636,7 +2637,7 @@ export default function ClientGroupScreen({
 
                         <Text
                           style={
-                            baseStyles.actionTextLabel
+                            [{ fontFamily: typography.fontFamily.regular }, baseStyles.actionTextLabel]
                           }
                         >
                           Accepter
@@ -2671,7 +2672,7 @@ export default function ClientGroupScreen({
 
                     <Text
                       style={
-                        baseStyles.actionTextLabel
+                        [{ fontFamily: typography.fontFamily.regular }, baseStyles.actionTextLabel]
                       }
                     >
                       Négociation
@@ -2706,7 +2707,7 @@ export default function ClientGroupScreen({
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         baseStyles.actionTextLabel,
                         {
                           color:
@@ -2742,7 +2743,7 @@ export default function ClientGroupScreen({
                   />
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       baseStyles.actionTextLabel,
                       {
                         color:
@@ -2796,7 +2797,7 @@ export default function ClientGroupScreen({
               hitSlop={4}
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   filterStyles.statusPillText,
                   active &&
                     filterStyles.statusPillTextActive,
@@ -2830,7 +2831,7 @@ export default function ClientGroupScreen({
         />
 
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             filterStyles.dateButtonText,
             selectedDate &&
               filterStyles.dateButtonTextActive,
@@ -2908,7 +2909,7 @@ export default function ClientGroupScreen({
 
               <Text
                 style={
-                  filterStyles.calendarMonthLabel
+                  [{ fontFamily: typography.fontFamily.regular }, filterStyles.calendarMonthLabel]
                 }
               >
                 {formatMonthLabel(
@@ -2941,7 +2942,7 @@ export default function ClientGroupScreen({
                 >
                   <Text
                     style={
-                      filterStyles.calendarWeekdayText
+                      [{ fontFamily: typography.fontFamily.regular }, filterStyles.calendarWeekdayText]
                     }
                   >
                     {label}
@@ -3001,7 +3002,7 @@ export default function ClientGroupScreen({
                       hitSlop={2}
                     >
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           filterStyles.calendarDayText,
                           selected &&
                             filterStyles.calendarDayTextSelected,
@@ -3035,7 +3036,7 @@ export default function ClientGroupScreen({
               >
                 <Text
                   style={
-                    filterStyles.calendarFooterButtonTextSecondary
+                    [{ fontFamily: typography.fontFamily.regular }, filterStyles.calendarFooterButtonTextSecondary]
                   }
                 >
                   Effacer
@@ -3051,7 +3052,7 @@ export default function ClientGroupScreen({
               >
                 <Text
                   style={
-                    filterStyles.calendarFooterButtonTextSecondary
+                    [{ fontFamily: typography.fontFamily.regular }, filterStyles.calendarFooterButtonTextSecondary]
                   }
                 >
                   Aujourd'hui
@@ -3069,7 +3070,7 @@ export default function ClientGroupScreen({
               >
                 <Text
                   style={
-                    filterStyles.calendarFooterButtonTextPrimary
+                    [{ fontFamily: typography.fontFamily.regular }, filterStyles.calendarFooterButtonTextPrimary]
                   }
                 >
                   OK
@@ -3115,7 +3116,7 @@ export default function ClientGroupScreen({
 
         <Text
           style={
-            baseStyles.emptyTitle
+            [{ fontFamily: typography.fontFamily.regular }, baseStyles.emptyTitle]
           }
         >
           {hasActiveFilters
@@ -3125,7 +3126,7 @@ export default function ClientGroupScreen({
 
         <Text
           style={
-            baseStyles.emptyText
+            [{ fontFamily: typography.fontFamily.regular }, baseStyles.emptyText]
           }
         >
           {hasActiveFilters
@@ -3148,7 +3149,7 @@ export default function ClientGroupScreen({
 
             <Text
               style={
-                filterStyles.emptyResetButtonText
+                [{ fontFamily: typography.fontFamily.regular }, filterStyles.emptyResetButtonText]
               }
             >
               Réinitialiser les filtres
@@ -3173,7 +3174,7 @@ export default function ClientGroupScreen({
 
             <Text
               style={
-                baseStyles.emptyRefreshText
+                [{ fontFamily: typography.fontFamily.regular }, baseStyles.emptyRefreshText]
               }
             >
               Actualiser
@@ -3277,7 +3278,7 @@ export default function ClientGroupScreen({
           />
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               baseStyles.groupPageSubHeaderText,
 
               isWeb &&

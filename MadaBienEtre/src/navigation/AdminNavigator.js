@@ -571,7 +571,7 @@ const ManagementScreen = ({
               {/* LABEL */}
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.menuLabel,
                   {
                     color:
@@ -1287,7 +1287,7 @@ const styles =
         typography.fontSize.md,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
     },
 
   });

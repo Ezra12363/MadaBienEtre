@@ -13,6 +13,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { getChatPalette } from './chatTheme';
 import LocationViewerModal, { openInMaps } from './LocationViewerModal';
 import { useChatTracking } from './ChatTrackingContext';
+import { typography } from '../../theme';
 
 const INFO_ROWS = [
   ['service', 'Service', 'leaf-outline'],
@@ -39,7 +40,7 @@ const LocationMessageCard = ({ message, isOwn, textColor, onLongPress }) => {
   const soft = isOwn ? 'rgba(255,255,255,0.16)' : palette.primarySoft;
 
   if (!hasCoords && !address) {
-    return <Text style={{ color: textColor }}>📍 Position indisponible</Text>;
+    return <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: textColor }]}>📍 Position indisponible</Text>;
   }
 
   const title = bookingInfo
@@ -67,7 +68,7 @@ const LocationMessageCard = ({ message, isOwn, textColor, onLongPress }) => {
           <View style={[styles.iconBox, { backgroundColor: soft }]}>
             <Ionicons name={icon} size={18} color={accent} />
           </View>
-          <Text style={[styles.title, { color: textColor }]} numberOfLines={1}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: textColor }]} numberOfLines={1}>
             {title}
           </Text>
         </View>
@@ -77,8 +78,8 @@ const LocationMessageCard = ({ message, isOwn, textColor, onLongPress }) => {
             {INFO_ROWS.filter(([key]) => bookingInfo[key]).map(([key, label, ic]) => (
               <View key={key} style={styles.infoRow}>
                 <Ionicons name={ic} size={14} color={muted} />
-                <Text style={[styles.infoLabel, { color: muted }]}>{label}</Text>
-                <Text style={[styles.infoValue, { color: textColor }]} numberOfLines={3}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.infoLabel, { color: muted }]}>{label}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.infoValue, { color: textColor }]} numberOfLines={3}>
                   {bookingInfo[key]}
                 </Text>
               </View>
@@ -96,7 +97,7 @@ const LocationMessageCard = ({ message, isOwn, textColor, onLongPress }) => {
         accessibilityLabel={`Ouvrir ${addressText} dans Google Maps`}
       >
         <Ionicons name="location" size={18} color={accent} />
-        <Text style={[styles.addressText, { color: textColor }]} numberOfLines={3}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.addressText, { color: textColor }]} numberOfLines={3}>
           {addressText}
         </Text>
         <Ionicons name="open-outline" size={16} color={muted} />
@@ -111,7 +112,7 @@ const LocationMessageCard = ({ message, isOwn, textColor, onLongPress }) => {
           accessibilityLabel="Suivre le thérapeute en route"
         >
           <Ionicons name="navigate" size={16} color={isOwn ? '#2E8B57' : '#FFFFFF'} />
-          <Text style={[styles.trackBtnText, { color: isOwn ? '#2E8B57' : '#FFFFFF' }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.trackBtnText, { color: isOwn ? '#2E8B57' : '#FFFFFF' }]}>
             Suivre le thérapeute en route
           </Text>
         </TouchableOpacity>
@@ -119,14 +120,14 @@ const LocationMessageCard = ({ message, isOwn, textColor, onLongPress }) => {
 
       <View style={styles.actions}>
         <TouchableOpacity onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel="Voir la carte">
-          <Text style={[styles.link, { color: textColor }]}>Voir la carte →</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.link, { color: textColor }]}>Voir la carte →</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => openInMaps(latitude, longitude, address)}
           accessibilityRole="button"
           accessibilityLabel="Ouvrir dans Google Maps"
         >
-          <Text style={[styles.link, { color: textColor }]}>Google Maps ↗</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.link, { color: textColor }]}>Google Maps ↗</Text>
         </TouchableOpacity>
       </View>
 
@@ -147,11 +148,11 @@ const styles = StyleSheet.create({
   card: { width: 250, maxWidth: '100%', gap: 8 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconBox: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  title: { flex: 1, fontSize: 14.5, fontWeight: '700' },
+  title: { fontFamily: typography.fontFamily.bold, flex: 1, fontSize: 14.5, fontWeight: '700' },
   infoBlock: { gap: 5, marginTop: 8 },
   infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  infoLabel: { width: 52, fontSize: 12 },
-  infoValue: { flex: 1, fontSize: 12.5, fontWeight: '600' },
+  infoLabel: { fontFamily: typography.fontFamily.regular, width: 52, fontSize: 12 },
+  infoValue: { fontFamily: typography.fontFamily.semiBold, flex: 1, fontSize: 12.5, fontWeight: '600' },
   addressBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -160,7 +161,7 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 12,
   },
-  addressText: { flex: 1, fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  addressText: { fontFamily: typography.fontFamily.semiBold, flex: 1, fontSize: 13, lineHeight: 18, fontWeight: '600' },
   trackBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -170,9 +171,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 12,
   },
-  trackBtnText: { fontSize: 13, fontWeight: '800' },
+  trackBtnText: { fontFamily: typography.fontFamily.bold, fontSize: 13, fontWeight: '800' },
   actions: { flexDirection: 'row', justifyContent: 'space-between' },
-  link: { fontSize: 12.5, fontWeight: '700', textDecorationLine: 'underline' },
+  link: { fontFamily: typography.fontFamily.bold, fontSize: 12.5, fontWeight: '700', textDecorationLine: 'underline' },
 });
 
 export default LocationMessageCard;

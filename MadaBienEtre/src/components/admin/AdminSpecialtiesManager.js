@@ -149,7 +149,7 @@ const AdminSpecialtiesManager = ({
       return (
         <View style={styles.loadingRow}>
           <ActivityIndicator size="small" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText, { color: themeColors.textSecondary }]}>
             Chargement des spécialités...
           </Text>
         </View>
@@ -158,7 +158,7 @@ const AdminSpecialtiesManager = ({
 
     if (specialties.length === 0) {
       return (
-        <Text style={[styles.noSpecialtyText, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noSpecialtyText, { color: themeColors.textSecondary }]}>
           Aucune spécialité déclarée par ce thérapeute.
         </Text>
       );
@@ -168,7 +168,7 @@ const AdminSpecialtiesManager = ({
       <View style={styles.tagsWrap}>
         {specialties.map((s) => (
           <View key={s.id} style={[styles.tag, { backgroundColor: `${colors.primary}12` }]}>
-            <Text style={[styles.tagText, { color: colors.primary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tagText, { color: colors.primary }]}>
               {s.massage_type_name || `Type #${s.massage_type_id}`}
             </Text>
           </View>
@@ -212,9 +212,9 @@ const AdminSpecialtiesManager = ({
           )}
 
           <View style={styles.typeInfo}>
-            <Text style={[styles.typeName, { color: themeColors.text }]}>{item.name}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.typeName, { color: themeColors.text }]}>{item.name}</Text>
             {item.category && (
-              <Text style={[styles.typeCategory, { color: themeColors.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.typeCategory, { color: themeColors.textSecondary }]}>
                 {item.category}
               </Text>
             )}
@@ -242,7 +242,7 @@ const AdminSpecialtiesManager = ({
             </View>
           )}
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               variant === 'card' ? styles.title : styles.compactTitle,
               { color: themeColors.text },
             ]}
@@ -257,7 +257,7 @@ const AdminSpecialtiesManager = ({
           disabled={loading || submitting}
         >
           <Ionicons name="create-outline" size={16} color={colors.primary} />
-          <Text style={[styles.editButtonText, { color: colors.primary }]}>Modifier</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.editButtonText, { color: colors.primary }]}>Modifier</Text>
         </TouchableOpacity>
       </View>
 
@@ -279,10 +279,10 @@ const AdminSpecialtiesManager = ({
           >
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={[styles.modalTitle, { color: themeColors.text }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalTitle, { color: themeColors.text }]}>
                   Gérer les spécialités
                 </Text>
-                <Text style={[styles.modalSubtitle, { color: themeColors.textSecondary }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalSubtitle, { color: themeColors.textSecondary }]}>
                   {therapistName || 'Thérapeute'} — modification administrateur
                 </Text>
               </View>
@@ -298,7 +298,7 @@ const AdminSpecialtiesManager = ({
             {loadingTypes ? (
               <View style={styles.loadingRow}>
                 <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText, { color: themeColors.textSecondary }]}>
                   Chargement des types de massage...
                 </Text>
               </View>
@@ -313,7 +313,7 @@ const AdminSpecialtiesManager = ({
                 ListEmptyComponent={
                   <View style={styles.emptyContainer}>
                     <Ionicons name="fitness-outline" size={36} color={themeColors.textSecondary} />
-                    <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyText, { color: themeColors.textSecondary }]}>
                       Aucun type de massage disponible
                     </Text>
                   </View>
@@ -327,7 +327,7 @@ const AdminSpecialtiesManager = ({
                 onPress={() => setShowEditModal(false)}
                 disabled={submitting}
               >
-                <Text style={[styles.modalCancelText, { color: themeColors.text }]}>Annuler</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalCancelText, { color: themeColors.text }]}>Annuler</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -340,7 +340,7 @@ const AdminSpecialtiesManager = ({
                 ) : (
                   <>
                     <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                    <Text style={styles.modalSaveText}>Enregistrer ({selectedIds.length})</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalSaveText]}>Enregistrer ({selectedIds.length})</Text>
                   </>
                 )}
               </TouchableOpacity>

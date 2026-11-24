@@ -52,14 +52,14 @@ const SafetyCheckCard = ({ bookingId, role, style }) => {
     <View style={[styles.card, { backgroundColor: themeColors.surface }, style]}>
       <View style={styles.titleRow}>
         <Ionicons name="shield-checkmark-outline" size={20} color={colors.primary} />
-        <Text style={[styles.title, { color: themeColors.text }]}>Safety check</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: themeColors.text }]}>Safety check</Text>
       </View>
 
       <View style={styles.phases}>
         {PHASES.map((p) => (
           <TouchableOpacity key={p.key} onPress={() => setPhase(p.key)}
             style={[styles.phase, phase === p.key && styles.phaseActive]}>
-            <Text style={[styles.phaseText, phase === p.key && { color: '#fff' }]}>{p.label}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.phaseText, phase === p.key && { color: '#fff' }]}>{p.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -69,14 +69,14 @@ const SafetyCheckCard = ({ bookingId, role, style }) => {
           <TouchableOpacity key={a.status} style={[styles.answer, { borderColor: a.color }]}
             onPress={() => send(a.status)} disabled={loading}>
             <Ionicons name={a.icon} size={22} color={a.color} />
-            <Text style={[styles.answerText, { color: a.color }]}>{a.label}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.answerText, { color: a.color }]}>{a.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
       {loading && <ActivityIndicator style={{ marginTop: spacing.sm }} color={colors.primary} />}
       {last && !loading && (
-        <Text style={[styles.last, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.last, { color: themeColors.textSecondary }]}>
           Dernier check : {last.phase} — {ANSWERS.find((a) => a.status === last.status)?.label}
         </Text>
       )}
@@ -88,15 +88,15 @@ const styles = StyleSheet.create({
   card: { borderRadius: 16, padding: spacing.md, marginBottom: spacing.md, elevation: 2,
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
-  title: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold },
+  title: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   phases: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm },
   phase: { flex: 1, paddingVertical: 6, borderRadius: 10, alignItems: 'center', backgroundColor: '#F0F0F0' },
   phaseActive: { backgroundColor: colors.primary },
-  phaseText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, color: '#555' },
+  phaseText: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500', color: '#555' },
   answers: { flexDirection: 'row', gap: spacing.xs },
   answer: { flex: 1, borderWidth: 1.5, borderRadius: 12, paddingVertical: spacing.sm, alignItems: 'center', gap: 2 },
-  answerText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium },
-  last: { marginTop: spacing.sm, fontSize: typography.fontSize.xs, textAlign: 'center' },
+  answerText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
+  last: { fontFamily: typography.fontFamily.regular, marginTop: spacing.sm, fontSize: typography.fontSize.xs, textAlign: 'center' },
 });
 
 export default SafetyCheckCard;

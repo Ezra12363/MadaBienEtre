@@ -43,6 +43,7 @@ import Header from '../common/Header';
 import { API_URL } from '../../config/env';
 import { downloadDocument } from '../../utils/downloadFile';
 import { toastAdapters } from '../../utils/toast';
+import { typography } from '../../theme';
 
 export const IS_WEB = Platform.OS === 'web';
 
@@ -434,7 +435,7 @@ export const DetailLoading = ({ text = 'Chargement...' }) => {
   return (
     <View style={styles.centerBox}>
       <ActivityIndicator size="large" color={colors.primary} />
-      <Text style={[styles.centerText, { color: themeColors.textSecondary }]}>{text}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.centerText, { color: themeColors.textSecondary }]}>{text}</Text>
     </View>
   );
 };
@@ -444,14 +445,14 @@ export const DetailNotFound = ({ text, onBack }) => {
   return (
     <View style={styles.centerBox}>
       <Ionicons name="alert-circle-outline" size={44} color="#E74C3C" />
-      <Text style={[styles.centerTitle, { color: themeColors.text }]}>{text}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.centerTitle, { color: themeColors.text }]}>{text}</Text>
       <TouchableOpacity
         onPress={onBack}
         activeOpacity={0.85}
         style={[styles.primaryButton, { backgroundColor: colors.primary }]}
       >
         <Ionicons name="arrow-back" size={18} color="#fff" />
-        <Text style={styles.primaryButtonText}>Retour à la liste</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryButtonText]}>Retour à la liste</Text>
       </TouchableOpacity>
     </View>
   );
@@ -511,7 +512,7 @@ export const DetailCard = ({ title, icon, right, children, style, tint }) => {
               <Ionicons name={icon} size={17} color={colors.primary} />
             </View>
           ) : null}
-          <Text style={[styles.cardTitle, { color: themeColors.text }]} numberOfLines={2}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, { color: themeColors.text }]} numberOfLines={2}>
             {title}
           </Text>
           {right}
@@ -546,11 +547,11 @@ export const InfoItem = ({ icon, label, value, valueColor, full = false }) => {
         </View>
       ) : null}
       <View style={styles.flex}>
-        <Text style={[styles.infoItemLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.infoItemLabel, { color: themeColors.textSecondary }]} numberOfLines={1}>
           {label}
         </Text>
         <Text
-          style={[styles.infoItemValue, { color: valueColor || themeColors.text }]}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.infoItemValue, { color: valueColor || themeColors.text }]}
           selectable
         >
           {value === undefined || value === null || value === '' ? '—' : String(value)}
@@ -567,7 +568,7 @@ export const InfoItem = ({ icon, label, value, valueColor, full = false }) => {
 export const Badge = ({ label, color, dot = false }) => (
   <View style={[styles.badge, { backgroundColor: color + '14' }]}>
     {dot ? <View style={[styles.badgeDot, { backgroundColor: color }]} /> : null}
-    <Text numberOfLines={1} style={[styles.badgeText, { color }]}>
+    <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.badgeText, { color }]}>
       {label}
     </Text>
   </View>
@@ -604,7 +605,7 @@ export const DetailAvatar = ({ uri, name, color = colors.primary, size = 84, onl
             justifyContent: 'center',
           }}
         >
-          <Text style={{ color, fontSize: size * 0.4, fontWeight: '800' }}>{initial}</Text>
+          <Text style={{ fontFamily: typography.fontFamily.bold, color, fontSize: size * 0.4, fontWeight: '800' }}>{initial}</Text>
         </View>
       )}
 
@@ -636,11 +637,11 @@ export const ProfileHero = ({ avatar, name, email, badges, deleted }) => {
       <View style={[styles.hero, isMobile && styles.heroMobile]}>
         {avatar}
         <View style={[styles.heroInfo, isMobile && styles.heroInfoMobile]}>
-          <Text style={[styles.heroName, { color: themeColors.text }]} selectable>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroName, { color: themeColors.text }]} selectable>
             {name}
-            {deleted ? <Text style={styles.deletedTag}> (Supprimé)</Text> : null}
+            {deleted ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.deletedTag]}> (Supprimé)</Text> : null}
           </Text>
-          <Text style={[styles.heroEmail, { color: themeColors.textSecondary }]} selectable>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroEmail, { color: themeColors.textSecondary }]} selectable>
             {email}
           </Text>
           {badges ? <View style={styles.badgeRow}>{badges}</View> : null}
@@ -661,7 +662,7 @@ const AdminDocImage = ({ uri, textColor }) => {
     return (
       <View style={styles.pdfBox}>
         <Ionicons name="image-outline" size={34} color={colors.primary} />
-        <Text style={[styles.pdfText, { color: textColor }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.pdfText, { color: textColor }]}>
           Aperçu indisponible — téléchargez le fichier
         </Text>
       </View>
@@ -692,7 +693,7 @@ export const DocumentBlock = ({
     return (
       <View style={[styles.missingBox, { backgroundColor: isDark ? 'rgba(220,38,38,0.08)' : '#FEF2F2' }]}>
         <Ionicons name="alert-circle-outline" size={20} color="#DC2626" />
-        <Text style={styles.missingText}>{missingText}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.missingText]}>{missingText}</Text>
       </View>
     );
   }
@@ -707,7 +708,7 @@ export const DocumentBlock = ({
         {isPdfUrl(url) ? (
           <View style={styles.pdfBox}>
             <Ionicons name="document-text-outline" size={34} color={colors.primary} />
-            <Text style={[styles.pdfText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.pdfText, { color: themeColors.textSecondary }]}>
               Document PDF — appuyer pour agrandir
             </Text>
           </View>
@@ -726,7 +727,7 @@ export const DocumentBlock = ({
         style={[styles.primaryButton, { backgroundColor: colors.primary, marginTop: 10 }]}
       >
         <Ionicons name="download-outline" size={18} color="#fff" />
-        <Text style={styles.primaryButtonText}>{downloadLabel}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryButtonText]}>{downloadLabel}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -748,7 +749,7 @@ export const ActionButton = ({ icon, label, color, onPress, disabled, loading })
     ) : (
       <Ionicons name={icon} size={18} color="#fff" />
     )}
-    <Text style={styles.actionButtonText}>{label}</Text>
+    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionButtonText]}>{label}</Text>
   </TouchableOpacity>
 );
 
@@ -765,7 +766,7 @@ export const AdminImageViewer = ({ viewer, onClose, onDownload }) => {
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.viewerOverlay}>
         <View style={styles.viewerHeader}>
-          <Text style={styles.viewerTitle} numberOfLines={1}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.viewerTitle]} numberOfLines={1}>
             {viewer?.title}
           </Text>
           <TouchableOpacity onPress={onClose} style={styles.viewerClose}>
@@ -782,7 +783,7 @@ export const AdminImageViewer = ({ viewer, onClose, onDownload }) => {
           {isPdfUrl(viewer?.uri) ? (
             <View style={styles.viewerPdf}>
               <Ionicons name="document-text-outline" size={64} color="#fff" />
-              <Text style={styles.viewerPdfText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.viewerPdfText]}>
                 Aperçu indisponible pour les fichiers PDF.{'\n'}Utilisez le bouton de
                 téléchargement ci-dessous.
               </Text>
@@ -798,7 +799,7 @@ export const AdminImageViewer = ({ viewer, onClose, onDownload }) => {
           activeOpacity={0.85}
         >
           <Ionicons name="download-outline" size={19} color="#fff" />
-          <Text style={styles.primaryButtonText}>Télécharger</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.primaryButtonText]}>Télécharger</Text>
         </TouchableOpacity>
       </View>
     </Modal>
@@ -848,16 +849,16 @@ export const AdminConfirmDialog = ({
             />
           </View>
 
-          <Text style={[styles.dialogTitle, { color: themeColors.text }]}>{title}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dialogTitle, { color: themeColors.text }]}>{title}</Text>
           {message ? (
-            <Text style={[styles.dialogMessage, { color: themeColors.textSecondary }]}>{message}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dialogMessage, { color: themeColors.textSecondary }]}>{message}</Text>
           ) : null}
 
           {withReason ? (
             <View style={styles.reasonBox}>
-              <Text style={[styles.reasonLabel, { color: themeColors.textSecondary }]}>{reasonLabel} *</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.reasonLabel, { color: themeColors.textSecondary }]}>{reasonLabel} *</Text>
               <TextInput
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.reasonInput,
                   { color: themeColors.text, borderColor: themeColors.border || '#E0E0E0' },
                 ]}
@@ -879,7 +880,7 @@ export const AdminConfirmDialog = ({
               disabled={loading}
               style={[styles.dialogButton, { backgroundColor: themeColors.background }]}
             >
-              <Text style={[styles.dialogButtonText, { color: themeColors.text }]}>{cancelText}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dialogButtonText, { color: themeColors.text }]}>{cancelText}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -890,7 +891,7 @@ export const AdminConfirmDialog = ({
               {loading ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Text style={[styles.dialogButtonText, { color: '#fff' }]}>{confirmText}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dialogButtonText, { color: '#fff' }]}>{confirmText}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -912,8 +913,8 @@ const styles = StyleSheet.create({
   pageInner: { width: '100%', maxWidth: 1120, alignSelf: 'center' },
 
   centerBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 80, gap: 12 },
-  centerText: { fontSize: 14 },
-  centerTitle: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  centerText: { fontFamily: typography.fontFamily.regular, fontSize: 14 },
+  centerTitle: { fontFamily: typography.fontFamily.bold, fontSize: 16, fontWeight: '700', textAlign: 'center' },
 
   columns: { flexDirection: 'row', alignItems: 'flex-start', gap: 18 },
   columnLeft: { width: 340 },
@@ -937,7 +938,7 @@ const styles = StyleSheet.create({
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
   cardIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  cardTitle: { flex: 1, fontSize: 16, fontWeight: '800', lineHeight: 22 },
+  cardTitle: { fontFamily: typography.fontFamily.bold, flex: 1, fontSize: 16, fontWeight: '800', lineHeight: 22 },
 
   infoGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 },
   infoItem: {
@@ -957,8 +958,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  infoItemLabel: { fontSize: 11, fontWeight: '600', lineHeight: 15 },
-  infoItemValue: { fontSize: 14, fontWeight: '700', lineHeight: 20, marginTop: 2 },
+  infoItemLabel: { fontFamily: typography.fontFamily.semiBold, fontSize: 11, fontWeight: '600', lineHeight: 15 },
+  infoItemValue: { fontFamily: typography.fontFamily.bold, fontSize: 14, fontWeight: '700', lineHeight: 20, marginTop: 2 },
 
   badge: {
     flexDirection: 'row',
@@ -969,21 +970,21 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   badgeDot: { width: 7, height: 7, borderRadius: 4 },
-  badgeText: { fontSize: 12, fontWeight: '700' },
+  badgeText: { fontFamily: typography.fontFamily.bold, fontSize: 12, fontWeight: '700' },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
 
   hero: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   heroMobile: { flexDirection: 'column', alignItems: 'center' },
   heroInfo: { flex: 1, minWidth: 0 },
   heroInfoMobile: { alignItems: 'center', width: '100%' },
-  heroName: { fontSize: 20, fontWeight: '800', lineHeight: 26 },
-  heroEmail: { fontSize: 13, lineHeight: 19, marginTop: 2 },
-  deletedTag: { color: '#E74C3C', fontSize: 13, fontWeight: '700' },
+  heroName: { fontFamily: typography.fontFamily.bold, fontSize: 20, fontWeight: '800', lineHeight: 26 },
+  heroEmail: { fontFamily: typography.fontFamily.regular, fontSize: 13, lineHeight: 19, marginTop: 2 },
+  deletedTag: { fontFamily: typography.fontFamily.bold, color: '#E74C3C', fontSize: 13, fontWeight: '700' },
 
   docPreview: { borderRadius: 14, overflow: 'hidden', minHeight: 150, justifyContent: 'center' },
   docImage: { width: '100%', height: 230 },
   pdfBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 38, gap: 8 },
-  pdfText: { fontSize: 13 },
+  pdfText: { fontFamily: typography.fontFamily.regular, fontSize: 13 },
   zoomBadge: {
     position: 'absolute',
     right: 10,
@@ -996,7 +997,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   missingBox: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, padding: 13 },
-  missingText: { flex: 1, color: '#DC2626', fontSize: 13, lineHeight: 19 },
+  missingText: { fontFamily: typography.fontFamily.regular, flex: 1, color: '#DC2626', fontSize: 13, lineHeight: 19 },
 
   primaryButton: {
     flexDirection: 'row',
@@ -1008,7 +1009,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     minHeight: 46,
   },
-  primaryButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  primaryButtonText: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 14, fontWeight: '700' },
 
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   actionButton: {
@@ -1022,11 +1023,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     minHeight: 46,
   },
-  actionButtonText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  actionButtonText: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 14, fontWeight: '700' },
 
   viewerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', paddingTop: Platform.OS === 'android' ? 34 : 18 },
   viewerHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 10, gap: 10 },
-  viewerTitle: { flex: 1, color: '#fff', fontSize: 15, fontWeight: '700' },
+  viewerTitle: { fontFamily: typography.fontFamily.bold, flex: 1, color: '#fff', fontSize: 15, fontWeight: '700' },
   viewerClose: {
     width: 40,
     height: 40,
@@ -1038,7 +1039,7 @@ const styles = StyleSheet.create({
   viewerBody: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 12 },
   viewerImage: { width: '100%', height: 560, maxWidth: 1000 },
   viewerPdf: { alignItems: 'center', gap: 12, padding: 24 },
-  viewerPdfText: { color: '#fff', textAlign: 'center', fontSize: 14, lineHeight: 21 },
+  viewerPdfText: { fontFamily: typography.fontFamily.regular, color: '#fff', textAlign: 'center', fontSize: 14, lineHeight: 21 },
   viewerDownload: { margin: 16, alignSelf: 'center' },
 
   dialogOverlay: {
@@ -1050,11 +1051,11 @@ const styles = StyleSheet.create({
   },
   dialog: { width: '100%', maxWidth: 440, borderRadius: 20, padding: 22, alignItems: 'center' },
   dialogIcon: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  dialogTitle: { fontSize: 18, fontWeight: '800', textAlign: 'center', lineHeight: 24 },
-  dialogMessage: { fontSize: 14, textAlign: 'center', lineHeight: 21, marginTop: 8 },
+  dialogTitle: { fontFamily: typography.fontFamily.bold, fontSize: 18, fontWeight: '800', textAlign: 'center', lineHeight: 24 },
+  dialogMessage: { fontFamily: typography.fontFamily.regular, fontSize: 14, textAlign: 'center', lineHeight: 21, marginTop: 8 },
   reasonBox: { width: '100%', marginTop: 14 },
-  reasonLabel: { fontSize: 12, fontWeight: '700', marginBottom: 6 },
-  reasonInput: {
+  reasonLabel: { fontFamily: typography.fontFamily.bold, fontSize: 12, fontWeight: '700', marginBottom: 6 },
+  reasonInput: { fontFamily: typography.fontFamily.regular,
     width: '100%',
     minHeight: 96,
     borderWidth: 1,
@@ -1072,7 +1073,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
-  dialogButtonText: { fontSize: 14, fontWeight: '700' },
+  dialogButtonText: { fontFamily: typography.fontFamily.bold, fontSize: 14, fontWeight: '700' },
 
   toastPosition: {
     position: 'absolute',
@@ -1099,5 +1100,5 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
   },
   toastIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  toastText: { flex: 1, fontSize: 13, fontWeight: '600', lineHeight: 18 },
+  toastText: { fontFamily: typography.fontFamily.semiBold, flex: 1, fontSize: 13, fontWeight: '600', lineHeight: 18 },
 });

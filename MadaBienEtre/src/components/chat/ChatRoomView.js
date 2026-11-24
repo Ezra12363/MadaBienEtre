@@ -310,7 +310,7 @@ const ChatRoomView = ({
         return (
           <View style={styles.dateWrap}>
             <View style={[styles.datePill, { backgroundColor: palette.pillBg }]}>
-              <Text style={[styles.dateText, { color: palette.pillText }]}>{item.label}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dateText, { color: palette.pillText }]}>{item.label}</Text>
             </View>
           </View>
         );
@@ -339,8 +339,8 @@ const ChatRoomView = ({
       <View style={[styles.emptyIcon, { backgroundColor: palette.primarySoft }]}>
         <Ionicons name="chatbubble-ellipses-outline" size={34} color={palette.primary} />
       </View>
-      <Text style={[styles.emptyTitle, { color: palette.text }]}>Aucun message</Text>
-      <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyTitle, { color: palette.text }]}>Aucun message</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyText, { color: palette.textSecondary }]}>
         Commencez la conversation{peer.name ? ` avec ${peer.name}` : ''}.
       </Text>
     </View>
@@ -391,7 +391,7 @@ const ChatRoomView = ({
       {!!fatalError && (
         <View style={[styles.banner, { backgroundColor: palette.dangerSoft }]}>
           <Ionicons name="alert-circle" size={16} color={palette.danger} />
-          <Text style={[styles.bannerText, { color: palette.danger }]} numberOfLines={2}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bannerText, { color: palette.danger }]} numberOfLines={2}>
             Conversation indisponible ({fatalError}).
           </Text>
         </View>
@@ -406,7 +406,7 @@ const ChatRoomView = ({
           {isLoading && messages.length === 0 ? (
             <View style={styles.loading}>
               <ActivityIndicator size="large" color={palette.primary} />
-              <Text style={[styles.loadingText, { color: palette.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText, { color: palette.textSecondary }]}>
                 Chargement de la conversation…
               </Text>
             </View>
@@ -451,7 +451,7 @@ const ChatRoomView = ({
               accessibilityLabel="Aller au dernier message"
             >
               <Ionicons name="chevron-down" size={20} color="#FFFFFF" />
-              {newCount > 0 && <Text style={styles.jumpText}>{newCount > 99 ? '99+' : newCount}</Text>}
+              {newCount > 0 && <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.jumpText]}>{newCount > 99 ? '99+' : newCount}</Text>}
             </TouchableOpacity>
           )}
         </View>
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
 
   dateWrap: { alignItems: 'center', marginTop: 6, marginBottom: 6 },
   datePill: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 14 },
-  dateText: { fontSize: 12, fontFamily: typography.fontFamily.medium },
+  dateText: { fontSize: 12, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
 
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   loadingText: { fontSize: 14, fontFamily: typography.fontFamily.regular },
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  bannerText: { flex: 1, fontSize: 12, fontFamily: typography.fontFamily.medium },
+  bannerText: { flex: 1, fontSize: 12, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
 
   jump: {
     position: 'absolute',
@@ -574,7 +574,7 @@ const styles = StyleSheet.create({
       default: {},
     }),
   },
-  jumpText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  jumpText: { fontFamily: typography.fontFamily.bold, color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
 });
 
 export default ChatRoomView;

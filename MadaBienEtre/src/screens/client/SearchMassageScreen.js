@@ -458,7 +458,7 @@ const AvailabilityCalendar = ({ item, avail, colors, isDark, onPickSlot }) => {
     <View style={[cardStyles.calBox, { backgroundColor: box, borderColor: line }]}>
       <View style={cardStyles.calHeader}>
         <Ionicons name="calendar" size={14} color={PRIMARY} />
-        <Text style={[cardStyles.calTitle, { color: colors.text }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.calTitle, { color: colors.text }]}>
           Calendrier · {AVAIL_DAYS} prochains jours
         </Text>
       </View>
@@ -466,10 +466,10 @@ const AvailabilityCalendar = ({ item, avail, colors, isDark, onPickSlot }) => {
       {!avail.loaded ? (
         <View style={cardStyles.calLoading}>
           <ActivityIndicator size="small" color={PRIMARY} />
-          <Text style={[cardStyles.calHint, { color: sub }]}>Chargement des disponibilités…</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.calHint, { color: sub }]}>Chargement des disponibilités…</Text>
         </View>
       ) : !avail.ok ? (
-        <Text style={[cardStyles.calHint, { color: CLOSED_COLOR }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.calHint, { color: CLOSED_COLOR }]}>
           Impossible de charger les disponibilités pour le moment.
         </Text>
       ) : (
@@ -498,19 +498,19 @@ const AvailabilityCalendar = ({ item, avail, colors, isDark, onPickSlot }) => {
                     },
                   ]}
                 >
-                  <Text style={[cardStyles.dayName, { color: active ? "#FFFFFF" : sub }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.dayName, { color: active ? "#FFFFFF" : sub }]}>
                     {d.isToday ? "auj." : DAYS_SHORT[d.dayIndex]}
                   </Text>
-                  <Text style={[cardStyles.dayNum, { color: active ? "#FFFFFF" : colors.text }]}>{d.dayNum}</Text>
-                  <Text style={[cardStyles.dayMonth, { color: active ? "#FFFFFF" : sub }]}>{d.month}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.dayNum, { color: active ? "#FFFFFF" : colors.text }]}>{d.dayNum}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.dayMonth, { color: active ? "#FFFFFF" : sub }]}>{d.month}</Text>
                   {bookable ? (
-                    <Text style={[cardStyles.dayHours, { color: active ? "#FFFFFF" : PRIMARY }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.dayHours, { color: active ? "#FFFFFF" : PRIMARY }]}>
                       {d.slot.start}{"\n"}{d.slot.end}
                     </Text>
                   ) : d.inProgress ? (
-                    <Text style={[cardStyles.dayHours, { color: OPEN_COLOR }]}>En cours</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.dayHours, { color: OPEN_COLOR }]}>En cours</Text>
                   ) : (
-                    <Text style={[cardStyles.dayHours, { color: sub }]}>—</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.dayHours, { color: sub }]}>—</Text>
                   )}
                 </TouchableOpacity>
               );
@@ -521,10 +521,10 @@ const AvailabilityCalendar = ({ item, avail, colors, isDark, onPickSlot }) => {
           {sel?.slot ? (
             <View style={[cardStyles.selRow, { borderTopColor: line }]}>
               <View style={{ flex: 1 }}>
-                <Text style={[cardStyles.selTitle, { color: colors.text }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.selTitle, { color: colors.text }]}>
                   {DAYS_FULL[sel.dayIndex]} {sel.dayNum} {sel.monthFull}
                 </Text>
-                <Text style={[cardStyles.selSub, { color: sub }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.selSub, { color: sub }]}>
                   Disponible de {sel.slot.start} à {sel.slot.end}
                 </Text>
               </View>
@@ -534,13 +534,13 @@ const AvailabilityCalendar = ({ item, avail, colors, isDark, onPickSlot }) => {
                 onPress={() => onPickSlot?.(sel.slot)}
                 style={[cardStyles.selBtn, { backgroundColor: item.available ? PRIMARY : isDark ? "#343943" : "#E5E7EB" }]}
               >
-                <Text style={[cardStyles.selBtnText, { color: item.available ? "#FFFFFF" : "#999999" }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.selBtnText, { color: item.available ? "#FFFFFF" : "#999999" }]}>
                   {item.available ? "Réserver" : "Hors ligne"}
                 </Text>
               </TouchableOpacity>
             </View>
           ) : avail.slots.length === 0 ? (
-            <Text style={[cardStyles.calHint, { color: sub, marginTop: 8 }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.calHint, { color: sub, marginTop: 8 }]}>
               Aucun créneau disponible sur les {AVAIL_DAYS} prochains jours
               (planning inactif, dates bloquées ou créneaux déjà réservés).
             </Text>
@@ -549,16 +549,16 @@ const AvailabilityCalendar = ({ item, avail, colors, isDark, onPickSlot }) => {
           {/* Horaires habituels (déduits du planning enregistré) */}
           {avail.weekly && (
             <View style={[cardStyles.weekBox, { borderTopColor: line }]}>
-              <Text style={[cardStyles.calTitle, { color: colors.text, marginBottom: 4 }]}>Horaires habituels</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.calTitle, { color: colors.text, marginBottom: 4 }]}>Horaires habituels</Text>
               {weekOrder.map((idx) => {
                 const w = avail.weekly.find((x) => x.day === idx) || { is_available: false };
                 const isToday = idx === today;
                 return (
                   <View key={idx} style={cardStyles.weekRow}>
-                    <Text style={[cardStyles.weekDay, { color: isToday ? colors.text : sub, fontFamily: isToday ? typography.fontFamily.bold : typography.fontFamily.regular }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.weekDay, { color: isToday ? colors.text : sub, fontFamily: isToday ? typography.fontFamily.bold : typography.fontFamily.regular, fontWeight: '700' }]}>
                       {DAYS_FULL[idx]}
                     </Text>
-                    <Text style={[cardStyles.weekHours, { color: w.is_available ? (isToday ? colors.text : sub) : CLOSED_COLOR, fontFamily: isToday ? typography.fontFamily.bold : typography.fontFamily.regular }]}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.weekHours, { color: w.is_available ? (isToday ? colors.text : sub) : CLOSED_COLOR, fontFamily: isToday ? typography.fontFamily.bold : typography.fontFamily.regular, fontWeight: '700' }]}>
                       {w.is_available ? `${w.start} – ${w.end}` : "Indisponible"}
                     </Text>
                   </View>
@@ -604,7 +604,7 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, ai
         {isRecommended && (
           <View style={styles.aiRecommendationBadge}>
             <MaterialCommunityIcons name="auto-fix" size={11} color="#FFFFFF" />
-            <Text style={styles.aiRecommendationText}>RECOMMANDÉ PAR L'IA</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.aiRecommendationText]}>RECOMMANDÉ PAR L'IA</Text>
           </View>
         )}
 
@@ -615,7 +615,7 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, ai
               <Image source={{ uri: item.image }} style={cardStyles.photo} />
             ) : (
               <View style={[cardStyles.photo, cardStyles.photoFallback]}>
-                <Text style={cardStyles.photoInitial}>{item.name?.charAt(0)?.toUpperCase()}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.photoInitial]}>{item.name?.charAt(0)?.toUpperCase()}</Text>
               </View>
             )}
             <TouchableOpacity
@@ -626,7 +626,7 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, ai
               accessibilityLabel="Voir les avis"
             >
               <Ionicons name="chatbubble-ellipses-outline" size={11} color={green} />
-              <Text style={cardStyles.countBadgeText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.countBadgeText]}>
                 {item.reviews} avis
               </Text>
             </TouchableOpacity>
@@ -635,10 +635,10 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, ai
           {/* ===== DROITE : INFORMATIONS ===== */}
           <View style={cardStyles.info}>
             <View style={cardStyles.titleRow}>
-              <Text numberOfLines={1} style={[cardStyles.name, { color: colors.text }]}>{item.name}</Text>
+              <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.name, { color: colors.text }]}>{item.name}</Text>
               <View style={[cardStyles.pill, { backgroundColor: pill.bg }]}>
                 <View style={[cardStyles.pillDot, { backgroundColor: pill.color }]} />
-                <Text style={[cardStyles.pillText, { color: pill.color }]} numberOfLines={1}>{pill.label}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.pillText, { color: pill.color }]} numberOfLines={1}>{pill.label}</Text>
               </View>
             </View>
 
@@ -654,16 +654,16 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, ai
                 {(item.specialties || []).map((sp, i) => (
                   <View key={`${item.id}-t-${i}`} style={cardStyles.typeItem}>
                     <MaterialCommunityIcons name={getMassageCategoryIcon(sp.category)} size={11} color={PRIMARY} />
-                    <Text style={cardStyles.typeText}>{sp.name}</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.typeText]}>{sp.name}</Text>
                   </View>
                 ))}
                 {item.specialties?.length > 0 && item.categories?.length > 0 && (
-                  <Text style={[cardStyles.typeSep, { color: sub }]}>·</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.typeSep, { color: sub }]}>·</Text>
                 )}
                 {(item.categories || []).map((cat) => (
                   <View key={`${item.id}-k-${cat}`} style={cardStyles.typeItem}>
                     <MaterialCommunityIcons name={getMassageCategoryIcon(cat)} size={11} color={PRIMARY} />
-                    <Text style={cardStyles.typeText}>{getMassageCategoryLabel(cat)}</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.typeText]}>{getMassageCategoryLabel(cat)}</Text>
                   </View>
                 ))}
               </ScrollView>
@@ -672,7 +672,7 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, ai
             {/* Note · métier (comme "Réservation #126") */}
             <View style={cardStyles.inline}>
               <Ionicons name="star" size={11} color={STAR} />
-              <Text style={[cardStyles.subBold, { color: sub, marginLeft: 3 }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.subBold, { color: sub, marginLeft: 3 }]}>
                 {formatRating(item.rating)} · Massothérapeute
               </Text>
             </View>
@@ -681,7 +681,7 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, ai
             {aiInfo && aiInfo.score > 0 && (
               <View style={[cardStyles.inline, { marginTop: 6 }]}>
                 <MaterialCommunityIcons name="auto-fix" size={12} color={SUCCESS} />
-                <Text numberOfLines={2} style={[cardStyles.subBold, { color: SUCCESS, marginLeft: 4, flex: 1 }]}>
+                <Text numberOfLines={2} style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.subBold, { color: SUCCESS, marginLeft: 4, flex: 1 }]}>
                   IA · {Math.round(aiInfo.score)} % compatible
                   {aiInfo.reason ? ` — ${aiInfo.reason}` : ""}
                 </Text>
@@ -691,13 +691,13 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, ai
             {/* Adresse */}
             <View style={[cardStyles.inline, { marginTop: 7 }]}>
               <Ionicons name="location-outline" size={13} color={sub} />
-              <Text numberOfLines={1} style={[cardStyles.address, { color: sub }]}>{item.address}</Text>
+              <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.address, { color: sub }]}>{item.address}</Text>
             </View>
 
             {/* Ancienneté */}
             {item.experience > 0 && (
               <View style={cardStyles.serviceRow}>
-                <Text style={[cardStyles.duration, { color: colors.text }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.duration, { color: colors.text }]}>
                   {item.experience} an{item.experience > 1 ? "s" : ""} d'expérience
                 </Text>
               </View>
@@ -710,14 +710,14 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, ai
               style={[cardStyles.inline, { marginTop: 6 }]}
             >
               <Ionicons name="time-outline" size={13} color={status.color} />
-              <Text numberOfLines={1} style={[cardStyles.greenLine, { color: status.color }]}>
+              <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.greenLine, { color: status.color }]}>
                 {status.label}{status.detail ? ` · ${status.detail}` : ""}
               </Text>
               <Ionicons name="calendar-outline" size={13} color={sub} style={{ marginLeft: 8 }} />
               {!avail.loaded ? (
                 <ActivityIndicator size="small" color={PRIMARY} style={{ marginLeft: 5, transform: [{ scale: 0.7 }] }} />
               ) : (
-                <Text numberOfLines={1} style={[cardStyles.dateLine, { color: nextSlot ? sub : CLOSED_COLOR }]}>
+                <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.dateLine, { color: nextSlot ? sub : CLOSED_COLOR }]}>
                   {nextSlot ? formatSlotDate(nextSlot) : "Aucun créneau"}
                 </Text>
               )}
@@ -728,14 +728,14 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, ai
             <View style={cardStyles.bottomRow}>
               <View style={cardStyles.distancePill}>
                 <Ionicons name="navigate" size={11} color={CLOSED_COLOR} />
-                <Text style={cardStyles.distance}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.distance]}>
                   {formatDistanceLabel(item.distance)}
                 </Text>
                 {Number(item.distance) < 999 ? (
-                  <Text style={cardStyles.distanceHint}>de vous</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.distanceHint]}>de vous</Text>
                 ) : null}
               </View>
-              <Text style={[cardStyles.price, { color: green }]}>{formatPrice(item.price || 0)}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.price, { color: green }]}>{formatPrice(item.price || 0)}</Text>
             </View>
           </View>
         </View>
@@ -757,13 +757,13 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, ai
         {!!item.phone && (
           <TouchableOpacity activeOpacity={0.7} style={cardStyles.action} onPress={() => Linking.openURL(`tel:${item.phone}`).catch(() => {})}>
             <Ionicons name="call-outline" size={16} color={green} />
-            <Text style={[cardStyles.actionText, { color: green }]}>Appeler</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.actionText, { color: green }]}>Appeler</Text>
           </TouchableOpacity>
         )}
 
         <TouchableOpacity activeOpacity={0.7} style={cardStyles.action} onPress={() => openDirections(item)}>
           <Ionicons name="navigate-outline" size={16} color={green} />
-          <Text style={[cardStyles.actionText, { color: green }]}>Itinéraire</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.actionText, { color: green }]}>Itinéraire</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -773,7 +773,7 @@ const TherapistCardView = ({ item, colors, isDark, isSelected, isRecommended, ai
           onPress={() => onBook()}
         >
           <Ionicons name="calendar-outline" size={16} color={green} />
-          <Text style={[cardStyles.actionText, { color: green }]}>Réserver</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, cardStyles.actionText, { color: green }]}>Réserver</Text>
         </TouchableOpacity>
 
       </View>
@@ -789,24 +789,24 @@ const cardStyles = StyleSheet.create({
   left: { width: 68, alignItems: "center", marginRight: 11 },
   photo: { width: 64, height: 64, borderRadius: 15 },
   photoFallback: { backgroundColor: "#E3F1E7", alignItems: "center", justifyContent: "center" },
-  photoInitial: { color: PRIMARY, fontSize: 26, fontFamily: typography.fontFamily.bold },
+  photoInitial: { color: PRIMARY, fontSize: 26, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   countBadge: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 6, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10, backgroundColor: "#E3F1E7" },
-  countBadgeText: { color: PRIMARY, fontSize: 8.5, fontFamily: typography.fontFamily.bold },
+  countBadgeText: { color: PRIMARY, fontSize: 8.5, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
 
   info: { flex: 1, minWidth: 0 },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 6 },
-  name: { flex: 1, fontSize: 13.5, fontFamily: typography.fontFamily.bold },
+  name: { flex: 1, fontSize: 13.5, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   pill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10, maxWidth: 105 },
   pillDot: { width: 5, height: 5, borderRadius: 3, marginRight: 4 },
-  pillText: { fontSize: 8.5, fontFamily: typography.fontFamily.bold },
+  pillText: { fontSize: 8.5, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
 
   inline: { flexDirection: "row", alignItems: "center" },
-  subBold: { fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+  subBold: { fontSize: 9.5, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   address: { flex: 1, fontSize: 9.5, marginLeft: 4, fontFamily: typography.fontFamily.regular },
   serviceRow: { flexDirection: "row", alignItems: "center", marginTop: 5, gap: 12 },
-  service: { flexShrink: 1, fontSize: 10, fontFamily: typography.fontFamily.bold },
-  duration: { fontSize: 10, fontFamily: typography.fontFamily.medium },
-  greenLine: { flexShrink: 1, fontSize: 9.5, marginLeft: 4, fontFamily: typography.fontFamily.bold },
+  service: { flexShrink: 1, fontSize: 10, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
+  duration: { fontSize: 10, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
+  greenLine: { flexShrink: 1, fontSize: 9.5, marginLeft: 4, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   dateLine: { flexShrink: 1, fontSize: 9.5, marginLeft: 4, fontFamily: typography.fontFamily.regular },
 
   bottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 },
@@ -818,57 +818,57 @@ const cardStyles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: `${CLOSED_COLOR}14`,
   },
-  distance: { color: CLOSED_COLOR, fontSize: 10.5, marginLeft: 4, fontFamily: typography.fontFamily.bold },
+  distance: { color: CLOSED_COLOR, fontSize: 10.5, marginLeft: 4, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   distanceHint: { color: CLOSED_COLOR, opacity: 0.75, fontSize: 9, marginLeft: 3, fontFamily: typography.fontFamily.regular },
-  price: { fontSize: 13.5, fontFamily: typography.fontFamily.bold },
+  price: { fontSize: 13.5, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
 
   typesScroll: { marginTop: 4, flexGrow: 0 },
   typesRowContent: { alignItems: "center", gap: 8, paddingRight: 8 },
   typeItem: { flexDirection: "row", alignItems: "center", gap: 3 },
-  typeText: { color: PRIMARY, fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
-  typeSep: { fontSize: 11 },
-  typesLine: { marginTop: 3, fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+  typeText: { color: PRIMARY, fontSize: 9.5, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
+  typeSep: { fontFamily: typography.fontFamily.regular, fontSize: 11 },
+  typesLine: { marginTop: 3, fontSize: 9.5, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   typesBox: { marginTop: 11, paddingTop: 9, borderTopWidth: 1 },
   catBox: { marginTop: 9 },
-  sectionLabel: { fontSize: 8.5, marginBottom: 5, letterSpacing: 0.3, textTransform: "uppercase", fontFamily: typography.fontFamily.semiBold },
+  sectionLabel: { fontSize: 8.5, marginBottom: 5, letterSpacing: 0.3, textTransform: "uppercase", fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   chip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  chipText: { fontSize: 8.5, fontFamily: typography.fontFamily.medium },
+  chipText: { fontSize: 8.5, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   catPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
-  catPillText: { color: PRIMARY, fontSize: 8.5, fontFamily: typography.fontFamily.semiBold },
+  catPillText: { color: PRIMARY, fontSize: 8.5, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
 
   calBox: { marginTop: 12, borderWidth: 1, borderRadius: 14, padding: 10 },
   calHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
-  calTitle: { fontSize: 10.5, fontFamily: typography.fontFamily.bold },
+  calTitle: { fontSize: 10.5, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   calHint: { fontSize: 9.5, lineHeight: 14, fontFamily: typography.fontFamily.regular },
   calLoading: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
   calStrip: { gap: 7, paddingRight: 6 },
   dayChip: { width: 58, alignItems: "center", paddingVertical: 8, borderRadius: 12, borderWidth: 1 },
-  dayName: { fontSize: 9, fontFamily: typography.fontFamily.semiBold },
-  dayNum: { fontSize: 16, marginTop: 1, fontFamily: typography.fontFamily.bold },
-  dayMonth: { fontSize: 8.5, fontFamily: typography.fontFamily.medium },
-  dayHours: { marginTop: 5, fontSize: 9, lineHeight: 12, textAlign: "center", fontFamily: typography.fontFamily.bold },
+  dayName: { fontSize: 9, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
+  dayNum: { fontSize: 16, marginTop: 1, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
+  dayMonth: { fontSize: 8.5, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
+  dayHours: { marginTop: 5, fontSize: 9, lineHeight: 12, textAlign: "center", fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   selRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10, paddingTop: 10, borderTopWidth: 1 },
-  selTitle: { fontSize: 11, fontFamily: typography.fontFamily.bold },
+  selTitle: { fontSize: 11, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   selSub: { fontSize: 9.5, marginTop: 2, fontFamily: typography.fontFamily.regular },
   selBtn: { paddingHorizontal: 16, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center" },
-  selBtnText: { fontSize: 10.5, fontFamily: typography.fontFamily.bold },
+  selBtnText: { fontSize: 10.5, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   weekBox: { marginTop: 10, paddingTop: 10, borderTopWidth: 1 },
   weekRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 },
-  weekDay: { fontSize: 10 },
-  weekHours: { fontSize: 10 },
+  weekDay: { fontFamily: typography.fontFamily.regular, fontSize: 10 },
+  weekHours: { fontFamily: typography.fontFamily.regular, fontSize: 10 },
 
   moreBox: { marginTop: 11, paddingTop: 10, borderTopWidth: 1 },
-  moreTitle: { fontSize: 10, marginBottom: 5, fontFamily: typography.fontFamily.bold },
+  moreTitle: { fontSize: 10, marginBottom: 5, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   hoursList: {},
   hoursRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 },
-  hoursDay: { fontSize: 9.5 },
-  hoursValue: { fontSize: 9.5 },
+  hoursDay: { fontFamily: typography.fontFamily.regular, fontSize: 9.5 },
+  hoursValue: { fontFamily: typography.fontFamily.regular, fontSize: 9.5 },
   tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 5 },
   shareRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 11 },
 
   footer: { flexDirection: "row", alignItems: "center", borderTopWidth: 1, paddingHorizontal: 13, paddingVertical: 10, gap: 14 },
   action: { flexDirection: "row", alignItems: "center", gap: 5 },
-  actionText: { fontSize: 10.5, fontFamily: typography.fontFamily.bold },
+  actionText: { fontSize: 10.5, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
 });
 
 
@@ -897,7 +897,7 @@ const MapTypeToggle = ({ mapType, onToggle, themeColors }) => {
         color={PRIMARY}
       />
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.mapTypeButtonText,
           {
             color: themeColors.text,
@@ -1804,7 +1804,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
           color={isActive ? "#FFFFFF" : PRIMARY}
         />
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.typeChipText,
             {
               color: isActive ? "#FFFFFF" : themeColors.text,
@@ -1866,7 +1866,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
           />
         </View>
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.typeCardTitle,
             {
               color: isActive ? "#FFFFFF" : themeColors.text,
@@ -1876,7 +1876,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
           {categoryGroup.categoryLabel}
         </Text>
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.typeCardSubtitle,
             {
               color: isActive ? "rgba(255,255,255,0.85)" : themeColors.textSecondary,
@@ -2002,10 +2002,10 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   <MaterialCommunityIcons name="spa" size={22} color="#FFFFFF" />
                 </View>
                 <View style={styles.heroText}>
-                  <Text style={styles.heroTitle}>
-                    Trouvez votre <Text style={styles.heroTitleAccent}>bien-être</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroTitle]}>
+                    Trouvez votre <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroTitleAccent]}>bien-être</Text>
                   </Text>
-                  <Text style={styles.heroSubtitle}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.heroSubtitle]}>
                     Des professionnels près de vous, adaptés à vos besoins.
                   </Text>
                 </View>
@@ -2024,7 +2024,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 </View>
 
                 <TextInput
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.searchInput,
                     {
                       color: themeColors.text,
@@ -2061,14 +2061,14 @@ const SearchMassageScreen = ({ navigation, route }) => {
               {searchQuery.trim().length >= 3 && (addressSuggestions.length > 0 || isLoadingSuggestions) && (
                 <View style={[styles.suggestionsBox, { backgroundColor: themeColors.surface, borderColor: themeColors.border || "#E7EBF1" }]}>
                   {isLoadingSuggestions && addressSuggestions.length === 0 ? (
-                    <View style={styles.suggestionLoading}><ActivityIndicator size="small" color={PRIMARY} /><Text style={[styles.suggestionLoadingText, { color: themeColors.textSecondary }]}>Recherche des lieux…</Text></View>
+                    <View style={styles.suggestionLoading}><ActivityIndicator size="small" color={PRIMARY} /><Text style={[{ fontFamily: typography.fontFamily.regular }, styles.suggestionLoadingText, { color: themeColors.textSecondary }]}>Recherche des lieux…</Text></View>
                   ) : (
                     addressSuggestions.map((item) => (
                       <TouchableOpacity key={`${item.source}-${item.id}`} style={styles.suggestionItem} onPress={() => handleSuggestionSelect(item)}>
                         <Ionicons name="location-outline" size={18} color={PRIMARY} />
                         <View style={styles.suggestionTextWrap}>
-                          <Text numberOfLines={1} style={[styles.suggestionMain, { color: themeColors.text }]}>{item.main_text || item.description}</Text>
-                          {!!item.secondary_text && <Text numberOfLines={2} style={[styles.suggestionSecondary, { color: themeColors.textSecondary }]}>{item.secondary_text}</Text>}
+                          <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.suggestionMain, { color: themeColors.text }]}>{item.main_text || item.description}</Text>
+                          {!!item.secondary_text && <Text numberOfLines={2} style={[{ fontFamily: typography.fontFamily.regular }, styles.suggestionSecondary, { color: themeColors.textSecondary }]}>{item.secondary_text}</Text>}
                         </View>
                       </TouchableOpacity>
                     ))
@@ -2085,7 +2085,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     },
                   ]}
                 />
-                <Text numberOfLines={1} style={styles.locationStatusText}>
+                <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.locationStatusText]}>
                   {isTracking ? "Votre position est détectée" : trackingError || "Localisation en cours..."}
                 </Text>
                 {isTracking && <Ionicons name="navigate" size={12} color="#FFFFFF" />}
@@ -2120,7 +2120,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
               </View>
               <View style={styles.addressContent}>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.addressLabel,
                     {
                       color: themeColors.text,
@@ -2131,7 +2131,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 </Text>
                 <Text
                   numberOfLines={1}
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.addressValue,
                     {
                       color: themeColors.textSecondary,
@@ -2158,7 +2158,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
             <View style={styles.sectionHeader}>
               <View>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.sectionTitle,
                     {
                       color: themeColors.text,
@@ -2168,7 +2168,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   Catégories de massage
                 </Text>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.sectionSubtitle,
                     {
                       color: themeColors.textSecondary,
@@ -2183,14 +2183,14 @@ const SearchMassageScreen = ({ navigation, route }) => {
             {massageTypesLoading ? (
               <View style={styles.typeLoadingBox}>
                 <ActivityIndicator size="small" color={PRIMARY} />
-                <Text style={[styles.typeLoadingText, { color: themeColors.textSecondary }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.typeLoadingText, { color: themeColors.textSecondary }]}>
                   Chargement des catégories…
                 </Text>
               </View>
             ) : groupedMassageTypes.length === 0 ? (
               <View style={styles.typeLoadingBox}>
                 <Ionicons name="alert-circle-outline" size={20} color={themeColors.textSecondary} />
-                <Text style={[styles.typeLoadingText, { color: themeColors.textSecondary }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.typeLoadingText, { color: themeColors.textSecondary }]}>
                   Aucune catégorie disponible
                 </Text>
               </View>
@@ -2226,7 +2226,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     <Ionicons name="apps-outline" size={18} color={!selectedCategory && !selectedType ? "#FFFFFF" : PRIMARY} />
                   </View>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.typeCardTitle,
                       { color: !selectedCategory && !selectedType ? "#FFFFFF" : themeColors.text },
                     ]}
@@ -2234,7 +2234,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     Tous
                   </Text>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.typeCardSubtitle,
                       {
                         color: !selectedCategory && !selectedType ? "rgba(255,255,255,0.85)" : themeColors.textSecondary,
@@ -2274,7 +2274,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 >
                   <Ionicons name="apps-outline" size={15} color={!selectedCategory && !selectedType ? "#FFFFFF" : PRIMARY} />
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.typeChipText,
                       {
                         color: !selectedCategory && !selectedType ? "#FFFFFF" : themeColors.text,
@@ -2304,7 +2304,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
             >
               <Ionicons name="time-outline" size={14} color={PRIMARY} />
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.quickFilterText,
                   {
                     color: themeColors.text,
@@ -2327,7 +2327,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
             >
               <Ionicons name="wallet-outline" size={14} color={SUCCESS} />
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.quickFilterText,
                   {
                     color: themeColors.text,
@@ -2350,7 +2350,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
             >
               <Ionicons name="swap-vertical-outline" size={14} color={SECONDARY} />
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.quickFilterText,
                   {
                     color: themeColors.text,
@@ -2385,7 +2385,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
           <View style={styles.resultsHeader}>
             <View style={styles.resultsInfo}>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.resultsTitle,
                   {
                     color: themeColors.text,
@@ -2396,7 +2396,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
               </Text>
               <Text
                 numberOfLines={1}
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.resultsSubtitle,
                   {
                     color: themeColors.textSecondary,
@@ -2444,10 +2444,10 @@ const SearchMassageScreen = ({ navigation, route }) => {
               <View style={[styles.loadingIcon, { backgroundColor: `${PRIMARY}12` }]}>
                 <ActivityIndicator size="large" color={PRIMARY} />
               </View>
-              <Text style={[styles.loadingTitle, { color: themeColors.text }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingTitle, { color: themeColors.text }]}>
                 Recherche en cours
               </Text>
-              <Text style={[styles.loadingSubtitle, { color: themeColors.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingSubtitle, { color: themeColors.textSecondary }]}>
                 Nous recherchons les meilleurs professionnels près de vous...
               </Text>
             </View>
@@ -2456,15 +2456,15 @@ const SearchMassageScreen = ({ navigation, route }) => {
               <View style={[styles.emptyIcon, { backgroundColor: `${PRIMARY}12` }]}>
                 <Ionicons name="search-outline" size={35} color={PRIMARY} />
               </View>
-              <Text style={[styles.emptyTitle, { color: themeColors.text }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyTitle, { color: themeColors.text }]}>
                 Aucun professionnel trouvé
               </Text>
-              <Text style={[styles.emptySubtitle, { color: themeColors.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptySubtitle, { color: themeColors.textSecondary }]}>
                 Essayez une autre catégorie, augmentez votre budget ou modifiez votre recherche.
               </Text>
               <TouchableOpacity style={styles.resetButton} onPress={resetFilters}>
                 <Ionicons name="refresh" size={15} color="#FFFFFF" />
-                <Text style={styles.resetButtonText}>Réinitialiser</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.resetButtonText]}>Réinitialiser</Text>
               </TouchableOpacity>
             </View>
           ) : showMap ? (
@@ -2514,7 +2514,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                   <Ionicons name="people" size={13} color={PRIMARY} />
                 </View>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.mapTopText,
                     {
                       color: themeColors.text,
@@ -2549,11 +2549,11 @@ const SearchMassageScreen = ({ navigation, route }) => {
               >
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: MARKER_COLORS.available }]} />
-                  <Text style={[styles.legendText, { color: themeColors.text }]}>Disponible</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.legendText, { color: themeColors.text }]}>Disponible</Text>
                 </View>
                 <View style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: MARKER_COLORS.unavailable }]} />
-                  <Text style={[styles.legendText, { color: themeColors.text }]}>Indisponible</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.legendText, { color: themeColors.text }]}>Indisponible</Text>
                 </View>
               </View>
 
@@ -2572,13 +2572,13 @@ const SearchMassageScreen = ({ navigation, route }) => {
 
                   <View style={styles.panelHeader}>
                     <View style={[styles.panelAvatar, { backgroundColor: `${PRIMARY}15` }]}>
-                      <Text style={styles.panelAvatarText}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.panelAvatarText]}>
                         {selectedMarker.name?.charAt(0)?.toUpperCase()}
                       </Text>
                     </View>
 
                     <View style={styles.panelInfo}>
-                      <Text numberOfLines={1} style={[styles.panelName, { color: themeColors.text }]}>
+                      <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.panelName, { color: themeColors.text }]}>
                         {selectedMarker.name}
                       </Text>
                       <TouchableOpacity
@@ -2592,8 +2592,8 @@ const SearchMassageScreen = ({ navigation, route }) => {
                         }
                       >
                         <Ionicons name="star" size={12} color={STAR} />
-                        <Text style={styles.panelRatingText}>{selectedMarker.rating}</Text>
-                        <Text style={[styles.panelReviews, { color: themeColors.textSecondary }]}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.panelRatingText]}>{selectedMarker.rating}</Text>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.panelReviews, { color: themeColors.textSecondary }]}>
                           ({selectedMarker.reviews} avis) ›
                         </Text>
                       </TouchableOpacity>
@@ -2609,7 +2609,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                         ]}
                       />
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.panelAvailableText,
                           {
                             color: selectedMarker.available ? SUCCESS : "#8A8F98",
@@ -2625,10 +2625,10 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     <View style={styles.panelStat}>
                       <Ionicons name="navigate-outline" size={15} color={PRIMARY} />
                       <View>
-                        <Text style={[styles.panelStatLabel, { color: themeColors.textSecondary }]}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.panelStatLabel, { color: themeColors.textSecondary }]}>
                           Distance
                         </Text>
-                        <Text style={[styles.panelStatValue, { color: themeColors.text }]}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.panelStatValue, { color: themeColors.text }]}>
                           {isRouting ? "Calcul..." : selectedRoute ? selectedRoute.distanceText : formatDistanceLabel(selectedMarker.distance)}
                         </Text>
                       </View>
@@ -2637,10 +2637,10 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     <View style={styles.panelStat}>
                       <Ionicons name="time-outline" size={15} color={PRIMARY} />
                       <View>
-                        <Text style={[styles.panelStatLabel, { color: themeColors.textSecondary }]}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.panelStatLabel, { color: themeColors.textSecondary }]}>
                           En voiture
                         </Text>
-                        <Text style={[styles.panelStatValue, { color: themeColors.text }]}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.panelStatValue, { color: themeColors.text }]}>
                           {isRouting ? "..." : selectedRoute ? selectedRoute.drivingDurationText : "—"}
                         </Text>
                       </View>
@@ -2649,23 +2649,23 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     <View style={styles.panelStat}>
                       <Ionicons name="walk-outline" size={15} color={PRIMARY} />
                       <View>
-                        <Text style={[styles.panelStatLabel, { color: themeColors.textSecondary }]}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.panelStatLabel, { color: themeColors.textSecondary }]}>
                           À pied
                         </Text>
-                        <Text style={[styles.panelStatValue, { color: themeColors.text }]}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.panelStatValue, { color: themeColors.text }]}>
                           {isRouting ? "..." : selectedRoute ? selectedRoute.walkingDurationText : "—"}
                         </Text>
                       </View>
                     </View>
 
                     <View style={styles.panelPriceContainer}>
-                      <Text style={styles.panelPrice}>{formatPrice(selectedMarker.price || 0)}</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.panelPrice]}>{formatPrice(selectedMarker.price || 0)}</Text>
                     </View>
                   </View>
 
                   {routeOptions.length > 0 && (
                     <View style={styles.routeOptionsWrap}>
-                      <Text style={[styles.routeOptionsTitle, { color: themeColors.text }]}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routeOptionsTitle, { color: themeColors.text }]}>
                         {routeOptions.length > 1
                           ? `${routeOptions.length} itinéraires possibles`
                           : "Itinéraire"}
@@ -2688,7 +2688,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                             <View style={{ flex: 1 }}>
                               <Text
                                 numberOfLines={1}
-                                style={[styles.routeOptionTitle, { color: themeColors.text }]}
+                                style={[{ fontFamily: typography.fontFamily.regular }, styles.routeOptionTitle, { color: themeColors.text }]}
                               >
                                 {`Itinéraire ${index + 1} · ${option.tag}`}
                                 {option.summary && !option.isFallback ? ` · via ${option.summary}` : ""}
@@ -2696,17 +2696,17 @@ const SearchMassageScreen = ({ navigation, route }) => {
 
                               <View style={styles.routeOptionRow}>
                                 <Ionicons name="car-outline" size={13} color={PRIMARY} />
-                                <Text style={[styles.routeOptionValue, { color: themeColors.text }]}>
+                                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routeOptionValue, { color: themeColors.text }]}>
                                   {option.drivingDurationText}
                                 </Text>
 
                                 <Ionicons name="walk-outline" size={13} color={PRIMARY} style={{ marginLeft: 10 }} />
-                                <Text style={[styles.routeOptionValue, { color: themeColors.text }]}>
+                                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routeOptionValue, { color: themeColors.text }]}>
                                   {option.walkingDurationText}
                                 </Text>
 
                                 <Ionicons name="navigate-outline" size={13} color={PRIMARY} style={{ marginLeft: 10 }} />
-                                <Text style={[styles.routeOptionValue, { color: themeColors.text }]}>
+                                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routeOptionValue, { color: themeColors.text }]}>
                                   {option.distanceText}
                                 </Text>
                               </View>
@@ -2718,7 +2718,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                       })}
 
                       {selectedRoute?.isFallback && (
-                        <Text style={[styles.routeOptionsNote, { color: themeColors.textSecondary }]}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routeOptionsNote, { color: themeColors.textSecondary }]}>
                           Aucune route trouvée : trajet estimé en ligne droite (pointillés).
                         </Text>
                       )}
@@ -2741,7 +2741,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                       },
                     ]}
                   >
-                    <Text style={styles.panelButtonText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.panelButtonText]}>
                       {selectedMarker.available ? "Voir le profil et réserver" : "Indisponible"}
                     </Text>
                     {selectedMarker.available && <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />}
@@ -2785,10 +2785,10 @@ const SearchMassageScreen = ({ navigation, route }) => {
 
               <View style={styles.modalHeader}>
                 <View>
-                  <Text style={[styles.modalTitle, { color: themeColors.text }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalTitle, { color: themeColors.text }]}>
                     Affiner votre recherche
                   </Text>
-                  <Text style={[styles.modalSubtitle, { color: themeColors.textSecondary }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalSubtitle, { color: themeColors.textSecondary }]}>
                     Trouvez le professionnel qui vous correspond
                   </Text>
                 </View>
@@ -2802,13 +2802,13 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 <View style={styles.modalGroup}>
                   <View style={styles.modalGroupHeader}>
                     <View>
-                      <Text style={[styles.modalGroupTitle, { color: themeColors.text }]}>Durée</Text>
-                      <Text style={[styles.modalGroupHint, { color: themeColors.textSecondary }]}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalGroupTitle, { color: themeColors.text }]}>Durée</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalGroupHint, { color: themeColors.textSecondary }]}>
                         Choisissez la durée de votre séance
                       </Text>
                     </View>
                     <View style={styles.selectedValueBadge}>
-                      <Text style={styles.selectedValueText}>{selectedDuration} min</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.selectedValueText]}>{selectedDuration} min</Text>
                     </View>
                   </View>
 
@@ -2832,7 +2832,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                         >
                           <Ionicons name="time-outline" size={16} color={active ? "#FFFFFF" : PRIMARY} />
                           <Text
-                            style={[
+                            style={[{ fontFamily: typography.fontFamily.regular }, 
                               styles.modalOptionText,
                               {
                                 color: active ? "#FFFFFF" : themeColors.text,
@@ -2851,12 +2851,12 @@ const SearchMassageScreen = ({ navigation, route }) => {
                 <View style={styles.modalGroup}>
                   <View style={styles.modalGroupHeader}>
                     <View>
-                      <Text style={[styles.modalGroupTitle, { color: themeColors.text }]}>Budget maximum</Text>
-                      <Text style={[styles.modalGroupHint, { color: themeColors.textSecondary }]}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalGroupTitle, { color: themeColors.text }]}>Budget maximum</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalGroupHint, { color: themeColors.textSecondary }]}>
                         Prix maximum par séance
                       </Text>
                     </View>
-                    <Text style={styles.priceModalValue}>{formatPrice(selectedPrice)}</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.priceModalValue]}>{formatPrice(selectedPrice)}</Text>
                   </View>
 
                   <View style={styles.modalOptionsRow}>
@@ -2877,7 +2877,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                           }}
                         >
                           <Text
-                            style={[
+                            style={[{ fontFamily: typography.fontFamily.regular }, 
                               styles.priceModalText,
                               {
                                 color: active ? "#FFFFFF" : themeColors.text,
@@ -2894,8 +2894,8 @@ const SearchMassageScreen = ({ navigation, route }) => {
 
                 {/* SORT */}
                 <View style={styles.modalGroup}>
-                  <Text style={[styles.modalGroupTitle, { color: themeColors.text }]}>Trier les résultats</Text>
-                  <Text style={[styles.modalGroupHint, { color: themeColors.textSecondary }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalGroupTitle, { color: themeColors.text }]}>Trier les résultats</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.modalGroupHint, { color: themeColors.textSecondary }]}>
                     Choisissez ce qui est le plus important pour vous
                   </Text>
 
@@ -2937,7 +2937,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                             />
                           </View>
                           <Text
-                            style={[
+                            style={[{ fontFamily: typography.fontFamily.regular }, 
                               styles.sortModalText,
                               {
                                 color: active ? PRIMARY : themeColors.text,
@@ -2959,8 +2959,8 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     <MaterialCommunityIcons name="robot-outline" size={22} color={SUCCESS} />
                   </View>
                   <View style={styles.aiInfoContent}>
-                    <Text style={styles.aiInfoTitle}>Recommandation intelligente</Text>
-                    <Text style={styles.aiInfoText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.aiInfoTitle]}>Recommandation intelligente</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.aiInfoText]}>
                       Les résultats pourront être classés selon la distance, le prix, la disponibilité, la note et l'expérience.
                     </Text>
                   </View>
@@ -2970,7 +2970,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
               {/* ACTIONS */}
               <View style={styles.modalActions}>
                 <TouchableOpacity style={styles.resetModalButton} onPress={resetFilters}>
-                  <Text style={[styles.resetModalText, { color: themeColors.text }]}>Réinitialiser</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.resetModalText, { color: themeColors.text }]}>Réinitialiser</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -2981,7 +2981,7 @@ const SearchMassageScreen = ({ navigation, route }) => {
                     showToast("Filtres appliqués", "success");
                   }}
                 >
-                  <Text style={styles.applyModalText}>Afficher les résultats</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.applyModalText]}>Afficher les résultats</Text>
                   <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
@@ -3008,7 +3008,7 @@ const styles = StyleSheet.create({
   heroContent: { flexDirection: "row", alignItems: "center", marginBottom: 14 },
   heroIcon: { width: 46, height: 46, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center", marginRight: 11 },
   heroText: { flex: 1 },
-  heroTitle: { color: "#FFFFFF", fontSize: 19, lineHeight: 24, fontFamily: typography.fontFamily.bold },
+  heroTitle: { color: "#FFFFFF", fontSize: 19, lineHeight: 24, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   heroTitleAccent: { color: "#DCEFE0" },
   heroSubtitle: { color: "rgba(255,255,255,0.72)", fontSize: 9.5, lineHeight: 14, marginTop: 3, fontFamily: typography.fontFamily.regular },
   searchBox: { height: 50, borderRadius: 16, flexDirection: "row", alignItems: "center", paddingHorizontal: 5 },
@@ -3019,7 +3019,7 @@ const styles = StyleSheet.create({
   suggestionsBox: { marginTop: 8, borderWidth: 1, borderRadius: 14, overflow: "hidden", maxHeight: 250 },
   suggestionItem: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "#E7EBF1" },
   suggestionTextWrap: { flex: 1, marginLeft: 9 },
-  suggestionMain: { fontSize: 12, fontFamily: typography.fontFamily.medium },
+  suggestionMain: { fontSize: 12, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   suggestionSecondary: { fontSize: 9, marginTop: 2, fontFamily: typography.fontFamily.regular },
   suggestionLoading: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   suggestionLoadingText: { fontSize: 10, fontFamily: typography.fontFamily.regular },
@@ -3029,30 +3029,30 @@ const styles = StyleSheet.create({
   addressCard: { marginHorizontal: 16, marginTop: 10, borderRadius: 15, padding: 10, flexDirection: "row", alignItems: "center" },
   addressIcon: { width: 30, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center", marginRight: 8 },
   addressContent: { flex: 1 },
-  addressLabel: { fontSize: 10, fontFamily: typography.fontFamily.semiBold },
+  addressLabel: { fontSize: 10, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   addressValue: { fontSize: 9, marginTop: 2, fontFamily: typography.fontFamily.regular },
   filterSection: { marginTop: 20 },
   sectionHeader: { paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  sectionTitle: { fontSize: 15, fontFamily: typography.fontFamily.bold },
+  sectionTitle: { fontSize: 15, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   sectionSubtitle: { fontSize: 9, marginTop: 3, fontFamily: typography.fontFamily.regular },
   typeLoadingBox: { minHeight: 70, borderRadius: 14, borderWidth: 1, borderColor: "#E7EBF1", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
   typeLoadingText: { fontSize: 11, fontFamily: typography.fontFamily.regular },
   typeList: { paddingHorizontal: 16, paddingTop: 11, paddingBottom: 3 },
   typeChip: { minHeight: 38, paddingHorizontal: 12, borderRadius: 13, borderWidth: 1, flexDirection: "row", alignItems: "center", marginRight: 7 },
-  typeChipText: { fontSize: 10, marginLeft: 5, fontFamily: typography.fontFamily.medium },
+  typeChipText: { fontSize: 10, marginLeft: 5, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   typeGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, paddingTop: 11, paddingBottom: 5, gap: 10 },
   typeGridDesktop: { paddingHorizontal: 24, gap: 14 },
   typeCard: { width: "31%", minWidth: 150, minHeight: 96, borderRadius: 16, borderWidth: 1, padding: 12, justifyContent: "center" },
   typeCardDesktop: { width: 190, minHeight: 108, padding: 16 },
   typeCardIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 8 },
-  typeCardTitle: { fontSize: 12.5, fontFamily: typography.fontFamily.bold },
+  typeCardTitle: { fontSize: 12.5, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   typeCardSubtitle: { fontSize: 9, marginTop: 2, fontFamily: typography.fontFamily.regular },
   quickFilters: { flexDirection: "row", paddingHorizontal: 16, marginTop: 10, gap: 7 },
   quickFilter: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 7 },
-  quickFilterText: { fontSize: 8.5, marginLeft: 5, fontFamily: typography.fontFamily.medium },
+  quickFilterText: { fontSize: 8.5, marginLeft: 5, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   resultsHeader: { paddingHorizontal: 16, marginTop: 20, marginBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   resultsInfo: { flex: 1, paddingRight: 10 },
-  resultsTitle: { fontSize: 15, fontFamily: typography.fontFamily.bold },
+  resultsTitle: { fontSize: 15, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   resultsSubtitle: { fontSize: 9, marginTop: 2, fontFamily: typography.fontFamily.regular },
   viewSwitcher: { height: 38, borderRadius: 12, borderWidth: 1, padding: 3, flexDirection: "row" },
   viewButton: { width: 35, height: 30, borderRadius: 9, alignItems: "center", justifyContent: "center" },
@@ -3061,27 +3061,27 @@ const styles = StyleSheet.create({
   cardWrapper: { marginBottom: 11 },
   therapistCard: { borderRadius: 21, borderWidth: 1, padding: 13, overflow: "hidden" },
   aiRecommendationBadge: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 7, backgroundColor: SUCCESS, marginBottom: 10 },
-  aiRecommendationText: { color: "#FFFFFF", fontSize: 6.5, letterSpacing: 0.4, marginLeft: 4, fontFamily: typography.fontFamily.bold },
+  aiRecommendationText: { color: "#FFFFFF", fontSize: 6.5, letterSpacing: 0.4, marginLeft: 4, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   cardTop: { flexDirection: "row", alignItems: "center" },
   avatar: { width: 57, height: 57, borderRadius: 18, alignItems: "center", justifyContent: "center", position: "relative", marginRight: 10, overflow: "visible" },
   avatarImage: { width: 57, height: 57, borderRadius: 18 },
-  avatarText: { color: PRIMARY, fontSize: 22, fontFamily: typography.fontFamily.bold },
+  avatarText: { color: PRIMARY, fontSize: 22, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   onlineDot: { position: "absolute", width: 12, height: 12, borderRadius: 6, right: -2, bottom: -1, borderWidth: 2, borderColor: "#FFFFFF" },
   cardInfo: { flex: 1, minWidth: 0 },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  therapistName: { flexShrink: 1, fontSize: 13, fontFamily: typography.fontFamily.bold },
+  therapistName: { flexShrink: 1, fontSize: 13, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   ratingRow: { flexDirection: "row", alignItems: "center", marginTop: 4 },
-  ratingText: { fontSize: 10, marginLeft: 3, fontFamily: typography.fontFamily.semiBold },
+  ratingText: { fontSize: 10, marginLeft: 3, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   reviewText: { fontSize: 8, marginLeft: 3, fontFamily: typography.fontFamily.regular },
   experienceText: { fontSize: 8, marginTop: 3, fontFamily: typography.fontFamily.regular },
   distanceContainer: { flexDirection: "row", alignItems: "center", paddingHorizontal: 7, paddingVertical: 5, borderRadius: 8, backgroundColor: `${PRIMARY}0C`, marginLeft: 6 },
-  distanceText: { fontSize: 8, marginLeft: 3, fontFamily: typography.fontFamily.semiBold },
+  distanceText: { fontSize: 8, marginLeft: 3, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   specialtiesRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 12, gap: 5 },
   specialtyChip: { maxWidth: "100%", paddingHorizontal: 7, paddingVertical: 5, borderRadius: 7, flexDirection: "row", alignItems: "center" },
-  specialtyText: { fontSize: 7.5, fontFamily: typography.fontFamily.medium },
+  specialtyText: { fontSize: 7.5, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   categoriesRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 7, gap: 5 },
   categoryPill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 7, paddingVertical: 4, borderRadius: 20, borderWidth: 1, gap: 4 },
-  categoryPillText: { fontSize: 7, fontFamily: typography.fontFamily.semiBold },
+  categoryPillText: { fontSize: 7, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   cardMeta: { flexDirection: "row", alignItems: "center", marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#EEF1F5" },
   metaItem: { flexDirection: "row", alignItems: "center" },
   metaText: { fontSize: 8, marginLeft: 4, fontFamily: typography.fontFamily.regular },
@@ -3091,96 +3091,96 @@ const styles = StyleSheet.create({
   cardFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 11 },
   statusBadge: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", paddingHorizontal: 7, paddingVertical: 5, borderRadius: 8 },
   statusDot: { width: 5, height: 5, borderRadius: 3, marginRight: 5 },
-  statusText: { fontSize: 7.5, fontFamily: typography.fontFamily.medium },
+  statusText: { fontSize: 7.5, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   bookButton: { minWidth: 116, height: 36, paddingHorizontal: 10, borderRadius: 11, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 5 },
-  bookButtonText: { fontSize: 9, fontFamily: typography.fontFamily.semiBold },
+  bookButtonText: { fontSize: 9, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   mapContainer: { marginHorizontal: 16, height: Math.min(height * 0.68, 640), minHeight: 480, borderRadius: 23, overflow: "hidden", position: "relative", backgroundColor: "#E5E7EB" },
   mapContainerTablet: { height: Math.min(height * 0.75, 720), minHeight: 540 },
   mapContainerDesktop: { height: Math.min(height * 0.82, 840), minHeight: 620, marginHorizontal: 24 },
   map: { flex: 1 },
   mapTopBadge: { position: "absolute", top: 12, left: 12, minHeight: 35, paddingHorizontal: 9, borderRadius: 11, flexDirection: "row", alignItems: "center" },
   mapTopIcon: { width: 24, height: 24, borderRadius: 8, backgroundColor: `${PRIMARY}12`, alignItems: "center", justifyContent: "center", marginRight: 5 },
-  mapTopText: { fontSize: 8.5, fontFamily: typography.fontFamily.semiBold },
+  mapTopText: { fontSize: 8.5, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   mapTypeButton: { position: "absolute", top: 12, right: 12, height: 35, paddingHorizontal: 9, borderRadius: 11, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 5 },
-  mapTypeButtonText: { fontSize: 8, fontFamily: typography.fontFamily.semiBold },
+  mapTypeButtonText: { fontSize: 8, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   myLocationButton: { position: "absolute", right: 12, bottom: 128, width: 40, height: 40, borderRadius: 13, alignItems: "center", justifyContent: "center" },
   mapLegend: { position: "absolute", left: 12, bottom: 12, paddingHorizontal: 9, paddingVertical: 7, borderRadius: 11 },
   legendItem: { flexDirection: "row", alignItems: "center", marginVertical: 2 },
   legendDot: { width: 6, height: 6, borderRadius: 3, marginRight: 5 },
-  legendText: { fontSize: 7, fontFamily: typography.fontFamily.medium },
+  legendText: { fontSize: 7, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   selectedPanel: { position: "absolute", left: 10, right: 10, bottom: 10, borderRadius: 20, padding: 13 },
   panelClose: { position: "absolute", right: 9, top: 9, width: 27, height: 27, borderRadius: 9, backgroundColor: "rgba(127,127,127,0.10)", alignItems: "center", justifyContent: "center", zIndex: 3 },
   panelHeader: { flexDirection: "row", alignItems: "center", paddingRight: 25 },
   panelAvatar: { width: 45, height: 45, borderRadius: 14, alignItems: "center", justifyContent: "center", marginRight: 9 },
-  panelAvatarText: { color: PRIMARY, fontSize: 18, fontFamily: typography.fontFamily.bold },
+  panelAvatarText: { color: PRIMARY, fontSize: 18, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   panelInfo: { flex: 1 },
-  panelName: { fontSize: 13, fontFamily: typography.fontFamily.bold },
+  panelName: { fontSize: 13, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   panelRating: { flexDirection: "row", alignItems: "center", marginTop: 3 },
-  panelRatingText: { color: "#D98B00", fontSize: 9, marginLeft: 3, fontFamily: typography.fontFamily.semiBold },
+  panelRatingText: { color: "#D98B00", fontSize: 9, marginLeft: 3, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   panelReviews: { fontSize: 8, marginLeft: 3, fontFamily: typography.fontFamily.regular },
   panelAvailable: { flexDirection: "row", alignItems: "center", marginLeft: 5 },
   panelAvailableDot: { width: 6, height: 6, borderRadius: 3, marginRight: 4 },
-  panelAvailableText: { fontSize: 7, fontFamily: typography.fontFamily.medium },
+  panelAvailableText: { fontSize: 7, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   panelStats: { flexDirection: "row", alignItems: "center", marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: "#EEF1F5" },
   panelStat: { flexDirection: "row", alignItems: "center", flex: 1 },
   panelStatLabel: { fontSize: 7, marginLeft: 5, fontFamily: typography.fontFamily.regular },
-  panelStatValue: { fontSize: 9, marginLeft: 5, marginTop: 1, fontFamily: typography.fontFamily.bold },
+  panelStatValue: { fontSize: 9, marginLeft: 5, marginTop: 1, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   routeOptionsWrap: { marginTop: 12, marginBottom: 4 },
-  routeOptionsTitle: { fontSize: 11, marginBottom: 6, fontFamily: typography.fontFamily.bold },
+  routeOptionsTitle: { fontSize: 11, marginBottom: 6, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   routeOption: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 6 },
   routeOptionActive: { backgroundColor: "#2E7D3212" },
-  routeOptionTitle: { fontSize: 10.5, fontFamily: typography.fontFamily.bold },
+  routeOptionTitle: { fontSize: 10.5, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   routeOptionRow: { flexDirection: "row", alignItems: "center", marginTop: 4 },
-  routeOptionValue: { fontSize: 10.5, marginLeft: 4, fontFamily: typography.fontFamily.medium },
+  routeOptionValue: { fontSize: 10.5, marginLeft: 4, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   routeOptionsNote: { fontSize: 9.5, marginTop: 2, fontFamily: typography.fontFamily.regular },
   panelPriceContainer: { alignItems: "flex-end" },
-  panelPrice: { color: PRIMARY, fontSize: 12, fontFamily: typography.fontFamily.bold },
+  panelPrice: { color: PRIMARY, fontSize: 12, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   panelButton: { height: 38, marginTop: 11, borderRadius: 11, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
-  panelButtonText: { color: "#FFFFFF", fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+  panelButtonText: { color: "#FFFFFF", fontSize: 9.5, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   loadingContainer: { alignItems: "center", paddingHorizontal: 30, paddingVertical: 60 },
   loadingIcon: { width: 68, height: 68, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-  loadingTitle: { fontSize: 15, marginTop: 14, fontFamily: typography.fontFamily.bold },
+  loadingTitle: { fontSize: 15, marginTop: 14, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   loadingSubtitle: { textAlign: "center", fontSize: 9.5, lineHeight: 15, marginTop: 5, fontFamily: typography.fontFamily.regular },
   emptyState: { alignItems: "center", paddingHorizontal: 30, paddingVertical: 60 },
   emptyIcon: { width: 76, height: 76, borderRadius: 25, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { fontSize: 16, marginTop: 16, textAlign: "center", fontFamily: typography.fontFamily.bold },
+  emptyTitle: { fontSize: 16, marginTop: 16, textAlign: "center", fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   emptySubtitle: { fontSize: 10, lineHeight: 16, textAlign: "center", marginTop: 6, fontFamily: typography.fontFamily.regular },
   resetButton: { marginTop: 17, minHeight: 40, paddingHorizontal: 17, borderRadius: 12, backgroundColor: PRIMARY, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5 },
-  resetButtonText: { color: "#FFFFFF", fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+  resetButtonText: { color: "#FFFFFF", fontSize: 9.5, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.48)", justifyContent: "flex-end" },
   modalKeyboard: { width: "100%", maxHeight: "90%" },
   filterModal: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 18, paddingTop: 10, paddingBottom: 15 },
   modalHandle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: "#C9CDD4", marginBottom: 15 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18 },
-  modalTitle: { fontSize: 18, fontFamily: typography.fontFamily.bold },
+  modalTitle: { fontSize: 18, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   modalSubtitle: { fontSize: 9, marginTop: 3, maxWidth: 260, fontFamily: typography.fontFamily.regular },
   modalClose: { width: 35, height: 35, borderRadius: 11, backgroundColor: "rgba(127,127,127,0.10)", alignItems: "center", justifyContent: "center" },
   modalGroup: { marginBottom: 21 },
   modalGroupHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
-  modalGroupTitle: { fontSize: 13, fontFamily: typography.fontFamily.bold },
+  modalGroupTitle: { fontSize: 13, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   modalGroupHint: { fontSize: 8.5, marginTop: 3, fontFamily: typography.fontFamily.regular },
   selectedValueBadge: { paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, backgroundColor: `${PRIMARY}10` },
-  selectedValueText: { color: PRIMARY, fontSize: 8.5, fontFamily: typography.fontFamily.bold },
+  selectedValueText: { color: PRIMARY, fontSize: 8.5, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   modalOptionsRow: { flexDirection: "row", gap: 7 },
   modalOption: { flex: 1, minHeight: 44, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 5 },
-  modalOptionText: { fontSize: 9, fontFamily: typography.fontFamily.semiBold },
-  priceModalValue: { color: PRIMARY, fontSize: 12, fontFamily: typography.fontFamily.bold },
+  modalOptionText: { fontSize: 9, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
+  priceModalValue: { color: PRIMARY, fontSize: 12, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   priceModalOption: { flex: 1, minHeight: 42, borderRadius: 11, alignItems: "center", justifyContent: "center" },
-  priceModalText: { fontSize: 10, fontFamily: typography.fontFamily.semiBold },
+  priceModalText: { fontSize: 10, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   sortOptions: { marginTop: 10, gap: 7 },
   sortModalOption: { minHeight: 50, borderWidth: 1, borderRadius: 13, paddingHorizontal: 9, flexDirection: "row", alignItems: "center" },
   sortModalIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", marginRight: 9 },
-  sortModalText: { flex: 1, fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+  sortModalText: { flex: 1, fontSize: 9.5, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   aiInfoCard: { borderRadius: 16, padding: 11, flexDirection: "row", backgroundColor: "#ECFDF3", borderWidth: 1, borderColor: "#C9F0D8", marginBottom: 10 },
   aiInfoIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: "#D9F7E5", alignItems: "center", justifyContent: "center", marginRight: 9 },
   aiInfoContent: { flex: 1 },
-  aiInfoTitle: { color: "#14532D", fontSize: 10, fontFamily: typography.fontFamily.bold },
+  aiInfoTitle: { color: "#14532D", fontSize: 10, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   aiInfoText: { color: "#52705B", fontSize: 8, lineHeight: 13, marginTop: 3, fontFamily: typography.fontFamily.regular },
   modalActions: { flexDirection: "row", alignItems: "center", marginTop: 7, gap: 8 },
   resetModalButton: { flex: 0.85, height: 47, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(127,127,127,0.08)" },
-  resetModalText: { fontSize: 9.5, fontFamily: typography.fontFamily.semiBold },
+  resetModalText: { fontSize: 9.5, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   applyModalButton: { flex: 1.6, height: 47, borderRadius: 13, backgroundColor: PRIMARY, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 7 },
-  applyModalText: { color: "#FFFFFF", fontSize: 9.5, fontFamily: typography.fontFamily.semiBold }
+  applyModalText: { color: "#FFFFFF", fontSize: 9.5, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' }
 });
 
 export default SearchMassageScreen;

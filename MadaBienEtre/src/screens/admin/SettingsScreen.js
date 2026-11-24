@@ -960,7 +960,7 @@ const SettingsScreen = ({ navigation }) => {
             }
           >
             <TextInput
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.settingInput,
 
                 {
@@ -1017,7 +1017,7 @@ const SettingsScreen = ({ navigation }) => {
 
             {!!item.suffix && (
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.inputSuffix,
                   {
                     color:
@@ -1090,7 +1090,7 @@ const SettingsScreen = ({ navigation }) => {
             }}
           >
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.sectionTitle,
                 {
                   color:
@@ -1103,7 +1103,7 @@ const SettingsScreen = ({ navigation }) => {
 
             {!!section.description && (
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionDescription,
                   {
                     color:
@@ -1137,7 +1137,7 @@ const SettingsScreen = ({ navigation }) => {
               ]}
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.settingLabel,
                   {
                     color:
@@ -1257,7 +1257,7 @@ const SettingsScreen = ({ navigation }) => {
 
                 <Text
                   style={
-                    styles.errorText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.errorText]
                   }
                 >
                   {error}
@@ -1334,7 +1334,7 @@ const SettingsScreen = ({ navigation }) => {
                     ]}
                   >
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.profileAvatarText,
                         {
                           color:
@@ -1378,7 +1378,7 @@ const SettingsScreen = ({ navigation }) => {
                 }
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.profileName,
                     {
                       color:
@@ -1392,7 +1392,7 @@ const SettingsScreen = ({ navigation }) => {
                 </Text>
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.profileEmail,
                     {
                       color:
@@ -1430,7 +1430,7 @@ const SettingsScreen = ({ navigation }) => {
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.profileBadgeText,
                         {
                           color:
@@ -1470,7 +1470,7 @@ const SettingsScreen = ({ navigation }) => {
                       />
 
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.removePhotoText,
                           {
                             color:
@@ -1572,7 +1572,7 @@ const SettingsScreen = ({ navigation }) => {
 
                       <Text
                         style={
-                          styles.saveText
+                          [{ fontFamily: typography.fontFamily.regular }, styles.saveText]
                         }
                       >
                         Enregistrer les paramètres
@@ -1617,7 +1617,7 @@ const SettingsScreen = ({ navigation }) => {
                   />
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.logoutText,
                       {
                         color:
@@ -1641,7 +1641,7 @@ const SettingsScreen = ({ navigation }) => {
               }
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.versionText,
                   {
                     color:
@@ -1654,7 +1654,7 @@ const SettingsScreen = ({ navigation }) => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.versionSubtext,
                   {
                     color:
@@ -1823,7 +1823,7 @@ const styles = StyleSheet.create({
     color: '#E74C3C',
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   // ==========================================================
@@ -1899,7 +1899,7 @@ const styles = StyleSheet.create({
       typography.fontSize.xxl,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   editBadge: {
@@ -1935,7 +1935,7 @@ const styles = StyleSheet.create({
       typography.fontSize.lg,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   profileEmail: {
@@ -1981,7 +1981,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   removePhotoBtn: {
@@ -2003,7 +2003,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   // ==========================================================
@@ -2087,7 +2087,7 @@ const styles = StyleSheet.create({
       typography.fontSize.md,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   sectionDescription: {
@@ -2168,7 +2168,7 @@ const styles = StyleSheet.create({
       typography.fontSize.xs,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
 
     width: 25,
   },
@@ -2248,7 +2248,7 @@ const styles = StyleSheet.create({
       typography.fontSize.md,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   logoutButton: {
@@ -2286,7 +2286,7 @@ const styles = StyleSheet.create({
       typography.fontSize.md,
 
     fontFamily:
-      typography.fontFamily.semiBold,
+      typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   // ==========================================================

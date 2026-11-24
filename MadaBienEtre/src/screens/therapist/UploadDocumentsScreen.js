@@ -95,7 +95,7 @@ const DocumentCard = ({
         <View style={styles.docHeaderText}>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.docTitle,
               {
                 color: themeColors.text,
@@ -106,7 +106,7 @@ const DocumentCard = ({
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.docSubtitle,
               {
                 color:
@@ -191,7 +191,7 @@ const DocumentCard = ({
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.uploadZoneText,
                 {
                   color:
@@ -216,7 +216,7 @@ const DocumentCard = ({
 
       {disabledNote ? (
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.disabledNote,
             {
               color:
@@ -815,7 +815,7 @@ const UploadDocumentsScreen = ({
             >
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.bannerTitle,
                   {
                     color:
@@ -827,7 +827,7 @@ const UploadDocumentsScreen = ({
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.bannerText,
                   {
                     color:
@@ -878,7 +878,7 @@ const UploadDocumentsScreen = ({
 
                 <Text
                   style={
-                    styles.certificateLabel
+                    [{ fontFamily: typography.fontFamily.regular }, styles.certificateLabel]
                   }
                 >
                   Certificat professionnel
@@ -886,7 +886,7 @@ const UploadDocumentsScreen = ({
 
                 <Text
                   style={
-                    styles.certificateNumber
+                    [{ fontFamily: typography.fontFamily.regular }, styles.certificateNumber]
                   }
                   numberOfLines={1}
                 >
@@ -899,7 +899,7 @@ const UploadDocumentsScreen = ({
 
                 <Text
                   style={
-                    styles.certificateDate
+                    [{ fontFamily: typography.fontFamily.regular }, styles.certificateDate]
                   }
                 >
                   Délivré le{' '}
@@ -918,7 +918,7 @@ const UploadDocumentsScreen = ({
 
                   <Text
                     style={
-                      styles.certificateVerifiedBy
+                      [{ fontFamily: typography.fontFamily.regular }, styles.certificateVerifiedBy]
                     }
                     numberOfLines={1}
                   >
@@ -979,7 +979,7 @@ const UploadDocumentsScreen = ({
 
                   <Text
                     style={
-                      styles.downloadCertButtonText
+                      [{ fontFamily: typography.fontFamily.regular }, styles.downloadCertButtonText]
                     }
                   >
                     Télécharger le certificat
@@ -1046,7 +1046,7 @@ const UploadDocumentsScreen = ({
             >
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.bannerTitle,
                   {
                     color:
@@ -1058,7 +1058,7 @@ const UploadDocumentsScreen = ({
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.bannerText,
                   {
                     color:
@@ -1125,7 +1125,7 @@ const UploadDocumentsScreen = ({
           >
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.bannerTitle,
                 {
                   color:
@@ -1137,7 +1137,7 @@ const UploadDocumentsScreen = ({
             </Text>
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.bannerText,
                 {
                   color:
@@ -1325,7 +1325,7 @@ const UploadDocumentsScreen = ({
 
             <Text
               style={
-                styles.infoFooterText
+                [{ fontFamily: typography.fontFamily.regular }, styles.infoFooterText]
               }
             >
               La pièce d’identité doit être claire et lisible. Formats acceptés : JPG, PNG, PDF.
@@ -1360,7 +1360,7 @@ const UploadDocumentsScreen = ({
 
             <Text
               style={
-                styles.infoFooterText
+                [{ fontFamily: typography.fontFamily.regular }, styles.infoFooterText]
               }
             >
               Le certificat professionnel est facultatif et modifiable à tout moment. Formats acceptés : JPG, PNG, PDF.
@@ -1446,10 +1446,10 @@ const styles =
     bannerTitle: {
       fontSize: 15,
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
     },
 
-    bannerText: {
+    bannerText: { fontFamily: typography.fontFamily.regular,
       fontSize: 12,
       lineHeight: 17,
       marginTop: 2,
@@ -1485,7 +1485,7 @@ const styles =
       marginLeft: spacing.sm,
     },
 
-    certificateLabel: {
+    certificateLabel: { fontFamily: typography.fontFamily.regular,
       fontSize: 11,
       color: '#777',
     },
@@ -1494,17 +1494,17 @@ const styles =
       marginTop: 2,
       fontSize: 14,
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
       color: colors.primary,
     },
 
-    certificateDate: {
+    certificateDate: { fontFamily: typography.fontFamily.regular,
       marginTop: 2,
       fontSize: 10,
       color: '#888',
     },
 
-    certificateVerifiedBy: {
+    certificateVerifiedBy: { fontFamily: typography.fontFamily.regular,
       marginTop: 2,
       fontSize: 10,
       color: '#4CAF50',
@@ -1527,7 +1527,7 @@ const styles =
       color: '#fff',
       fontSize: 13,
       fontFamily:
-        typography.fontFamily.semiBold,
+        typography.fontFamily.semiBold, fontWeight: '600',
     },
 
     // ========================================================
@@ -1574,10 +1574,10 @@ const styles =
     docTitle: {
       fontSize: 15,
       fontFamily:
-        typography.fontFamily.semiBold,
+        typography.fontFamily.semiBold, fontWeight: '600',
     },
 
-    docSubtitle: {
+    docSubtitle: { fontFamily: typography.fontFamily.regular,
       fontSize: 12,
       marginTop: 1,
     },
@@ -1609,7 +1609,7 @@ const styles =
       gap: 6,
     },
 
-    pdfPreviewText: {
+    pdfPreviewText: { fontFamily: typography.fontFamily.regular,
       fontSize: 11,
     },
 
@@ -1636,10 +1636,10 @@ const styles =
     uploadZoneText: {
       fontSize: 14,
       fontFamily:
-        typography.fontFamily.semiBold,
+        typography.fontFamily.semiBold, fontWeight: '600',
     },
 
-    disabledNote: {
+    disabledNote: { fontFamily: typography.fontFamily.regular,
       fontSize: 10,
       marginTop: spacing.xs,
       fontStyle: 'italic',
@@ -1668,7 +1668,7 @@ const styles =
       justifyContent: 'center',
     },
 
-    infoFooterText: {
+    infoFooterText: { fontFamily: typography.fontFamily.regular,
       flex: 1,
       fontSize: 11,
       color: '#4a4a4a',

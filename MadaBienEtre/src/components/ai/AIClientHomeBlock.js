@@ -59,11 +59,11 @@ const AIClientHomeBlock = ({
 
             {compact ? (
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[styles.label, { color: tc.text }]} numberOfLines={1}>{s.label}</Text>
-                <Text style={[styles.desc, { color: tc.textSecondary }]} numberOfLines={1}>{s.desc}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: tc.text }]} numberOfLines={1}>{s.label}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.desc, { color: tc.textSecondary }]} numberOfLines={1}>{s.desc}</Text>
               </View>
             ) : (
-              <Text style={[styles.shortcutText, { color: tc.text }]} numberOfLines={1}>{s.label}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.shortcutText, { color: tc.text }]} numberOfLines={1}>{s.label}</Text>
             )}
 
             {compact && showChevron ? (
@@ -111,9 +111,9 @@ const styles = StyleSheet.create({
   },
   icon: { alignItems: 'center', justifyContent: 'center' },
   iconCompact: { width: 34, height: 34, borderRadius: 17 },
-  label: { fontSize: typography.fontSize.md, fontWeight: '700' },
-  desc: { fontSize: typography.fontSize.xs },
-  shortcutText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.semiBold },
+  label: { fontFamily: typography.fontFamily.bold, fontSize: typography.fontSize.md, fontWeight: '700' },
+  desc: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs },
+  shortcutText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
 });
 
 export default AIClientHomeBlock;

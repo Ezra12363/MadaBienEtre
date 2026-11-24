@@ -3,6 +3,7 @@
 // Web, Android et iOS. Pas de texte en gras.
 import { useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { typography } from '../../theme';
 
 const fmtShort = (n) => {
   const v = Math.abs(Number(n) || 0);
@@ -41,7 +42,7 @@ export function BarChart({ data = [], series = [], height = 150, textColor = '#7
       {series.map((s) => (
         <View key={s.key} style={styles.legendItem}>
           <View style={[styles.dot, { backgroundColor: s.color }]} />
-          <Text style={[styles.legendText, { color: textColor }]}>{s.name}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.legendText, { color: textColor }]}>{s.name}</Text>
         </View>
       ))}
     </View>
@@ -54,23 +55,23 @@ export function BarChart({ data = [], series = [], height = 150, textColor = '#7
       {modern ? (
         selData ? (
           <View style={[styles.bubble, { alignSelf: sel > data.length / 2 ? 'flex-end' : 'flex-start' }]}>
-            <Text style={styles.bubbleTitle}>{selData.label}</Text>
-            {tipParts.length ? <Text style={styles.bubbleText}>{tipParts.join(' · ')}</Text> : null}
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bubbleTitle]}>{selData.label}</Text>
+            {tipParts.length ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bubbleText]}>{tipParts.join(' · ')}</Text> : null}
           </View>
         ) : (
-          <Text style={[styles.tip, { color: textColor }]}>{empty ? 'Aucune donnée pour le moment' : 'Touchez une barre pour le détail'}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tip, { color: textColor }]}>{empty ? 'Aucune donnée pour le moment' : 'Touchez une barre pour le détail'}</Text>
         )
       ) : sel !== null && data[sel] ? (
-        <Text style={[styles.tip, { color: textColor }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tip, { color: textColor }]}>
           {data[sel].label} · {series.map((s) => `${s.name} ${(s.format || format)(data[sel].values?.[s.key])}`).join(' · ')}
         </Text>
       ) : (
-        <Text style={[styles.tip, { color: textColor }]}>{empty ? 'Aucune donnée pour le moment' : 'Touchez une barre pour le détail'}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tip, { color: textColor }]}>{empty ? 'Aucune donnée pour le moment' : 'Touchez une barre pour le détail'}</Text>
       )}
       <View style={{ flexDirection: 'row' }}>
         <View style={{ width: 34, height, justifyContent: 'space-between' }}>
           {[1, 0.5, 0].map((r) => (
-            <Text key={r} style={[styles.axis, { color: textColor }]}>{axisFormat(max * r)}</Text>
+            <Text key={r} style={[{ fontFamily: typography.fontFamily.regular }, styles.axis, { color: textColor }]}>{axisFormat(max * r)}</Text>
           ))}
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -106,7 +107,7 @@ export function BarChart({ data = [], series = [], height = 150, textColor = '#7
             </View>
             <View style={{ flexDirection: 'row' }}>
               {data.map((d, i) => (
-                <Text key={`${d.label}-l-${i}`} style={[styles.xLabel, { width: colW, color: textColor }, modern && sel === i && { fontWeight: '700' }]} numberOfLines={1}>
+                <Text key={`${d.label}-l-${i}`} style={[{ fontFamily: typography.fontFamily.regular }, styles.xLabel, { width: colW, color: textColor }, modern && sel === i && { fontFamily: typography.fontFamily.bold, fontWeight: '700' }]} numberOfLines={1}>
                   {shortLabel(d.label)}
                 </Text>
               ))}
@@ -170,7 +171,7 @@ export function GridBarChart({
         <View style={[styles.legend, { marginBottom: 6 }]}>
           <View style={styles.legendItem}>
             <View style={[styles.dot, { backgroundColor: color }]} />
-            <Text style={[styles.legendText, { color: textColor }]}>{name}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.legendText, { color: textColor }]}>{name}</Text>
           </View>
         </View>
       ) : null}
@@ -179,7 +180,7 @@ export function GridBarChart({
         {/* Axe Y */}
         <View style={{ width: 40, height, justifyContent: 'space-between', paddingRight: 6 }}>
           {ticks.map((r) => (
-            <Text key={r} style={[styles.axis, { color: textColor, textAlign: 'right' }]}>
+            <Text key={r} style={[{ fontFamily: typography.fontFamily.regular }, styles.axis, { color: textColor, textAlign: 'right' }]}>
               {axisFormat(max * r)}
             </Text>
           ))}
@@ -218,7 +219,7 @@ export function GridBarChart({
                     onClick={() => setSel(i)}
                   >
                     {showValues && v > 0 ? (
-                      <Text style={[styles.valueLabel, { color: textColor }]} numberOfLines={1}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.valueLabel, { color: textColor }]} numberOfLines={1}>
                         {axisFormat(v)}
                       </Text>
                     ) : null}
@@ -244,7 +245,7 @@ export function GridBarChart({
             {data.map((d, i) => (
               <Text
                 key={`${d.label}-x-${i}`}
-                style={[styles.xLabel, { flex: 1, color: textColor }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.xLabel, { flex: 1, color: textColor }]}
                 numberOfLines={1}
               >
                 {d.label}
@@ -254,7 +255,7 @@ export function GridBarChart({
         </View>
       </View>
 
-      <Text style={[styles.tip, { color: textColor }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tip, { color: textColor }]}>
         {empty
           ? emptyText
           : selItem
@@ -269,14 +270,14 @@ export function GridBarChart({
 export function HBars({ items = [], textColor = '#777', trackColor = '#EFEFEF', format = formatAr, percent = false, percentOnly = false, thick = false }) {
   const max = Math.max(1, ...items.map((i) => Number(i.value) || 0));
   const total = items.reduce((a, b) => a + (Number(b.value) || 0), 0);
-  if (!items.length) return <Text style={[styles.tip, { color: textColor }]}>Aucune donnée pour le moment</Text>;
+  if (!items.length) return <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tip, { color: textColor }]}>Aucune donnée pour le moment</Text>;
   return (
     <View style={{ gap: 10 }}>
       {items.map((it) => (
         <View key={it.label}>
           <View style={styles.hRow}>
-            <Text style={[styles.hLabel, { color: textColor }]} numberOfLines={1}>{it.label}</Text>
-            <Text style={[styles.hLabel, { color: textColor }]}>{percentOnly && total ? `${Math.round(((Number(it.value) || 0) / total) * 100)} %` : `${format(it.value)}${percent && total ? ` · ${Math.round(((Number(it.value) || 0) / total) * 100)} %` : ''}`}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hLabel, { color: textColor }]} numberOfLines={1}>{it.label}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hLabel, { color: textColor }]}>{percentOnly && total ? `${Math.round(((Number(it.value) || 0) / total) * 100)} %` : `${format(it.value)}${percent && total ? ` · ${Math.round(((Number(it.value) || 0) / total) * 100)} %` : ''}`}</Text>
           </View>
           <View style={[styles.track, { backgroundColor: trackColor }, thick && { height: 12, borderRadius: 6 }]}>
             <View style={[styles.fill, thick && { height: 12, borderRadius: 6 }, { width: `${Math.max(2, ((Number(it.value) || 0) / max) * 100)}%`, backgroundColor: it.color || '#2E8B57' }]} />
@@ -285,8 +286,8 @@ export function HBars({ items = [], textColor = '#777', trackColor = '#EFEFEF', 
             <View style={{ marginTop: 6, paddingLeft: 10, gap: 2 }}>
               {it.children.map((ch) => (
                 <View key={ch.label} style={styles.hRow}>
-                  <Text style={[styles.hSub, { color: textColor }]} numberOfLines={1}>{ch.label}</Text>
-                  <Text style={[styles.hSub, { color: textColor }]}>{Number(ch.value || 0).toLocaleString('fr-FR')}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hSub, { color: textColor }]} numberOfLines={1}>{ch.label}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.hSub, { color: textColor }]}>{Number(ch.value || 0).toLocaleString('fr-FR')}</Text>
                 </View>
               ))}
             </View>
@@ -300,7 +301,7 @@ export function HBars({ items = [], textColor = '#777', trackColor = '#EFEFEF', 
 /** Répartition en une barre segmentée : items = [{label, value, color}] */
 export function StackedShare({ items = [], textColor = '#777' }) {
   const total = items.reduce((a, b) => a + (Number(b.value) || 0), 0);
-  if (!total) return <Text style={[styles.tip, { color: textColor }]}>Aucune donnée pour le moment</Text>;
+  if (!total) return <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tip, { color: textColor }]}>Aucune donnée pour le moment</Text>;
   return (
     <View>
       <View style={styles.stack}>
@@ -312,7 +313,7 @@ export function StackedShare({ items = [], textColor = '#777' }) {
         {items.map((it) => (
           <View key={it.label} style={styles.legendItem}>
             <View style={[styles.dot, { backgroundColor: it.color }]} />
-            <Text style={[styles.legendText, { color: textColor }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.legendText, { color: textColor }]}>
               {it.label} {Math.round(((Number(it.value) || 0) / total) * 100)} %
             </Text>
           </View>
@@ -326,9 +327,9 @@ export function StackedShare({ items = [], textColor = '#777' }) {
 export function StatTile({ label, value, color = '#2E8B57', icon, bg = '#fff', textColor = '#222', sub, basis = '45%' }) {
   return (
     <View style={[styles.tile, { backgroundColor: bg, flexBasis: basis }]}>
-      <Text style={[styles.tileLabel, { color: textColor, opacity: 0.65 }]}>{label}</Text>
-      <Text style={[styles.tileValue, { color }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-      {sub ? <Text style={[styles.tileLabel, { color: textColor, opacity: 0.55 }]}>{sub}</Text> : null}
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tileLabel, { color: textColor, opacity: 0.65 }]}>{label}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tileValue, { color }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+      {sub ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tileLabel, { color: textColor, opacity: 0.55 }]}>{sub}</Text> : null}
     </View>
   );
 }
@@ -344,21 +345,21 @@ const styles = StyleSheet.create({
   legend: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   dot: { width: 9, height: 9, borderRadius: 5 },
-  legendText: { fontSize: 12, fontWeight: '400' },
-  tip: { fontSize: 12, marginVertical: 6, fontWeight: '400' },
+  legendText: { fontFamily: typography.fontFamily.regular, fontSize: 12, fontWeight: '400' },
+  tip: { fontFamily: typography.fontFamily.regular, fontSize: 12, marginVertical: 6, fontWeight: '400' },
   bubble: { backgroundColor: '#1F2A24', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginVertical: 6, maxWidth: '100%' },
-  bubbleTitle: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  bubbleText: { color: '#fff', fontSize: 12, fontWeight: '600', marginTop: 1 },
-  axis: { fontSize: 10, fontWeight: '400' },
-  valueLabel: { fontSize: 10, fontWeight: '400', marginBottom: 2 },
-  xLabel: { fontSize: 10, textAlign: 'center', marginTop: 4, fontWeight: '400' },
+  bubbleTitle: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 12, fontWeight: '700' },
+  bubbleText: { fontFamily: typography.fontFamily.semiBold, color: '#fff', fontSize: 12, fontWeight: '600', marginTop: 1 },
+  axis: { fontFamily: typography.fontFamily.regular, fontSize: 10, fontWeight: '400' },
+  valueLabel: { fontFamily: typography.fontFamily.regular, fontSize: 10, fontWeight: '400', marginBottom: 2 },
+  xLabel: { fontFamily: typography.fontFamily.regular, fontSize: 10, textAlign: 'center', marginTop: 4, fontWeight: '400' },
   hRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  hSub: { fontSize: 11, fontWeight: '400', flexShrink: 1, opacity: 0.85 },
-  hLabel: { fontSize: 12, fontWeight: '400', flexShrink: 1 },
+  hSub: { fontFamily: typography.fontFamily.regular, fontSize: 11, fontWeight: '400', flexShrink: 1, opacity: 0.85 },
+  hLabel: { fontFamily: typography.fontFamily.regular, fontSize: 12, fontWeight: '400', flexShrink: 1 },
   track: { height: 8, borderRadius: 4, overflow: 'hidden' },
   fill: { height: 8, borderRadius: 4 },
   stack: { flexDirection: 'row', height: 14, borderRadius: 7, overflow: 'hidden' },
   tile: { flexGrow: 1, flexBasis: '45%', borderRadius: 14, padding: 14, gap: 4, borderWidth: 1, borderColor: '#EEE' },
-  tileLabel: { fontSize: 12, fontWeight: '400' },
-  tileValue: { fontSize: 20, fontWeight: '400' },
+  tileLabel: { fontFamily: typography.fontFamily.regular, fontSize: 12, fontWeight: '400' },
+  tileValue: { fontFamily: typography.fontFamily.regular, fontSize: 20, fontWeight: '400' },
 });

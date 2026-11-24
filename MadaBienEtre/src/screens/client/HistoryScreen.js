@@ -699,11 +699,11 @@ const ConfirmModal = ({
           />
         </View>
 
-        <Text style={[styles.confirmTitle, { color: themeColors.text }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmTitle, { color: themeColors.text }]}>
           {title}
         </Text>
 
-        <Text style={[styles.confirmMessage, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmMessage, { color: themeColors.textSecondary }]}>
           {message}
         </Text>
 
@@ -718,7 +718,7 @@ const ConfirmModal = ({
               { borderColor: themeColors.border },
             ]}
           >
-            <Text style={[styles.confirmButtonGhostText, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmButtonGhostText, { color: themeColors.text }]}>
               {cancelLabel}
             </Text>
           </TouchableOpacity>
@@ -735,7 +735,7 @@ const ConfirmModal = ({
             {loading ? (
               <ActivityIndicator size="small" color={COLORS.white} />
             ) : (
-              <Text style={styles.confirmButtonText}>{confirmLabel}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmButtonText]}>{confirmLabel}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -784,11 +784,11 @@ const BookingActionSheet = ({
         >
           <View style={styles.actionSheetHandle} />
 
-          <Text numberOfLines={1} style={[styles.actionSheetTitle, { color: themeColors.text }]}>
+          <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.actionSheetTitle, { color: themeColors.text }]}>
             {booking?.massageType || 'Réservation'}
           </Text>
 
-          <Text style={[styles.actionSheetSubtitle, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionSheetSubtitle, { color: themeColors.textSecondary }]}>
             #{booking?.bookingId}
           </Text>
 
@@ -800,7 +800,7 @@ const BookingActionSheet = ({
             <View style={[styles.actionSheetIcon, { backgroundColor: softPrimary(isDark) }]}>
               <Ionicons name="eye-outline" size={18} color={COLORS.primary} />
             </View>
-            <Text style={[styles.actionSheetRowText, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionSheetRowText, { color: themeColors.text }]}>
               Voir les détails
             </Text>
           </TouchableOpacity>
@@ -814,7 +814,7 @@ const BookingActionSheet = ({
               <View style={[styles.actionSheetIcon, { backgroundColor: softPrimary(isDark) }]}>
                 <Ionicons name="chatbubble-ellipses-outline" size={18} color={COLORS.primary} />
               </View>
-              <Text style={[styles.actionSheetRowText, { color: themeColors.text }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionSheetRowText, { color: themeColors.text }]}>
                 Partager avec le thérapeute
               </Text>
             </TouchableOpacity>
@@ -829,7 +829,7 @@ const BookingActionSheet = ({
               <View style={[styles.actionSheetIcon, { backgroundColor: softRed(isDark) }]}>
                 <Ionicons name="close-circle-outline" size={18} color={COLORS.red} />
               </View>
-              <Text style={[styles.actionSheetRowText, { color: COLORS.red }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionSheetRowText, { color: COLORS.red }]}>
                 Annuler la réservation
               </Text>
             </TouchableOpacity>
@@ -840,7 +840,7 @@ const BookingActionSheet = ({
             onPress={onClose}
             style={styles.actionSheetCloseButton}
           >
-            <Text style={[styles.actionSheetCloseText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionSheetCloseText, { color: themeColors.textSecondary }]}>
               Fermer
             </Text>
           </TouchableOpacity>
@@ -949,7 +949,7 @@ const CalendarFilterModal = ({
         >
           <View style={styles.actionSheetHandle} />
 
-          <Text style={[styles.calendarModalTitle, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.calendarModalTitle, { color: themeColors.text }]}>
             Filtrer par période
           </Text>
 
@@ -963,10 +963,10 @@ const CalendarFilterModal = ({
                 },
               ]}
             >
-              <Text style={[styles.rangeFieldLabel, { color: themeColors.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rangeFieldLabel, { color: themeColors.textSecondary }]}>
                 Du
               </Text>
-              <Text numberOfLines={1} style={[styles.rangeFieldValue, { color: themeColors.text }]}>
+              <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.rangeFieldValue, { color: themeColors.text }]}>
                 {range?.start ? formatDate(range.start) : 'Choisir'}
               </Text>
             </View>
@@ -987,10 +987,10 @@ const CalendarFilterModal = ({
                 },
               ]}
             >
-              <Text style={[styles.rangeFieldLabel, { color: themeColors.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rangeFieldLabel, { color: themeColors.textSecondary }]}>
                 Au
               </Text>
-              <Text numberOfLines={1} style={[styles.rangeFieldValue, { color: themeColors.text }]}>
+              <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.rangeFieldValue, { color: themeColors.text }]}>
                 {range?.end ? formatDate(range.end) : 'Choisir'}
               </Text>
             </View>
@@ -1004,7 +1004,7 @@ const CalendarFilterModal = ({
               <Ionicons name="chevron-back" size={20} color={themeColors.text} />
             </TouchableOpacity>
 
-            <Text style={[styles.calendarHeaderTitle, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.calendarHeaderTitle, { color: themeColors.text }]}>
               {MONTH_LABELS[viewDate.getMonth()]} {viewDate.getFullYear()}
             </Text>
 
@@ -1020,7 +1020,7 @@ const CalendarFilterModal = ({
             {WEEKDAY_LABELS.map((label, index) => (
               <Text
                 key={`${label}-${index}`}
-                style={[styles.calendarWeekLabel, { color: themeColors.textSecondary }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.calendarWeekLabel, { color: themeColors.textSecondary }]}
               >
                 {label}
               </Text>
@@ -1072,7 +1072,7 @@ const CalendarFilterModal = ({
                     ]}
                   >
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.calendarDayText,
                         { color: isEdge ? COLORS.white : themeColors.text },
                       ]}
@@ -1089,7 +1089,7 @@ const CalendarFilterModal = ({
             })}
           </View>
 
-          <Text style={[styles.calendarHint, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.calendarHint, { color: themeColors.textSecondary }]}>
             {!range?.start
               ? 'Touchez un jour pour définir le début de la période.'
               : !range?.end
@@ -1107,7 +1107,7 @@ const CalendarFilterModal = ({
                 { borderColor: themeColors.border },
               ]}
             >
-              <Text style={[styles.confirmButtonGhostText, { color: themeColors.text }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmButtonGhostText, { color: themeColors.text }]}>
                 Réinitialiser
               </Text>
             </TouchableOpacity>
@@ -1121,7 +1121,7 @@ const CalendarFilterModal = ({
                 { backgroundColor: range?.start ? COLORS.primary : themeColors.border },
               ]}
             >
-              <Text style={styles.confirmButtonText}>Appliquer</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmButtonText]}>Appliquer</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -1150,7 +1150,7 @@ const FilterButton = ({ label, value, activeFilter, onPress, themeColors }) => {
       ]}
     >
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.filterButtonText,
           { color: isActive ? COLORS.white : themeColors.textSecondary },
         ]}
@@ -1179,7 +1179,7 @@ const Tag = ({ label, themeColors }) => {
         },
       ]}
     >
-      <Text numberOfLines={1} style={[styles.tagText, { color: themeColors.textSecondary }]}>
+      <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.tagText, { color: themeColors.textSecondary }]}>
         {label}
       </Text>
     </View>
@@ -1252,7 +1252,7 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
           <View style={styles.titleRow}>
             <Text
               numberOfLines={2}
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.cardMainTitle,
                 isWide && styles.cardMainTitleWide,
                 { color: themeColors.text },
@@ -1263,7 +1263,7 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
 
             <View style={[styles.statusPill, { backgroundColor: statusConfig.backgroundColor }]}>
               <View style={[styles.statusDot, { backgroundColor: statusConfig.color }]} />
-              <Text numberOfLines={1} style={[styles.statusPillText, { color: statusConfig.color }]}>
+              <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.statusPillText, { color: statusConfig.color }]}>
                 {statusConfig.label}
               </Text>
             </View>
@@ -1271,7 +1271,7 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
 
           {/* ✏️ NOUVEAU : numéro de réservation */}
           {booking.bookingId ? (
-            <Text numberOfLines={1} style={[styles.bookingNumber, { color: themeColors.textSecondary }]}>
+            <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.bookingNumber, { color: themeColors.textSecondary }]}>
               Réservation #{booking.bookingId}
             </Text>
           ) : null}
@@ -1280,7 +1280,7 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
             <Ionicons name="location-outline" size={13} color={themeColors.textSecondary} />
             <Text
               numberOfLines={1}
-              style={[styles.addressText, { color: themeColors.textSecondary }]}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.addressText, { color: themeColors.textSecondary }]}
             >
               {booking.address || 'Adresse non définie'}
             </Text>
@@ -1289,11 +1289,11 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
           {showTherapist && (
             <View style={styles.therapistRow}>
               <View style={styles.therapistAvatar}>
-                <Text style={styles.therapistAvatarText}>{therapistInitial}</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.therapistAvatarText]}>{therapistInitial}</Text>
               </View>
               <Text
                 numberOfLines={1}
-                style={[styles.therapistName, { color: themeColors.text }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.therapistName, { color: themeColors.text }]}
               >
                 {therapist.name}
               </Text>
@@ -1304,7 +1304,7 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
                 ]}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.roleBadgeText,
                     isDark && { color: '#C4B5FD' },
                   ]}
@@ -1347,7 +1347,7 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
                       color="#F5A623"
                     />
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.reviewChipText,
                         {
                           color: booking.hasReview
@@ -1371,11 +1371,11 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
 
           <View style={styles.priceRow}>
             <View style={styles.priceBox}>
-              <Text numberOfLines={1} style={styles.priceText}>
+              <Text numberOfLines={1} style={[{ fontFamily: typography.fontFamily.regular }, styles.priceText]}>
                 {formattedPrice || 'Prix à définir'}
               </Text>
               {!!formattedPrice && (
-                <Text style={[styles.priceUnit, { color: themeColors.textSecondary }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.priceUnit, { color: themeColors.textSecondary }]}>
                   /séance
                 </Text>
               )}
@@ -1423,7 +1423,7 @@ const BookingCard = ({ booking, themeColors, onPress, onMenuPress, onSharePress,
                 color={isDark ? '#5FD08C' : COLORS.primary}
               />
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.shareButtonText,
                   isDark && { color: '#5FD08C' },
                 ]}
@@ -1468,11 +1468,11 @@ const EmptyState = ({ activeFilter, onCreateBooking, themeColors }) => {
         />
       </View>
 
-      <Text style={[styles.emptyTitle, { color: themeColors.text }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyTitle, { color: themeColors.text }]}>
         {isFiltered ? 'Aucune réservation trouvée' : 'Aucune réservation'}
       </Text>
 
-      <Text style={[styles.emptyDescription, { color: themeColors.textSecondary }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyDescription, { color: themeColors.textSecondary }]}>
         {isFiltered
           ? 'Aucune réservation ne correspond à ce filtre.'
           : 'Vous n’avez pas encore effectué de demande de massage.'}
@@ -1485,7 +1485,7 @@ const EmptyState = ({ activeFilter, onCreateBooking, themeColors }) => {
           style={[styles.emptyActionButton, { backgroundColor: COLORS.primary }]}
         >
           <Ionicons name="add" size={19} color={COLORS.white} />
-          <Text style={styles.emptyActionButtonText}>Faire une demande</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyActionButtonText]}>Faire une demande</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -2031,7 +2031,7 @@ const HistoryScreen = ({ navigation }) => {
               onChangeText={setSearchQuery}
               placeholder="Rechercher (n°, massage, adresse…)"
               placeholderTextColor={themeColors.textSecondary}
-              style={[styles.searchInput, { color: themeColors.text }]}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.searchInput, { color: themeColors.text }]}
               returnKeyType="search"
               autoCorrect={false}
               accessibilityLabel="Rechercher une réservation"
@@ -2108,7 +2108,7 @@ const HistoryScreen = ({ navigation }) => {
                 { backgroundColor: softPrimary(isDark), borderColor: COLORS.primary },
               ]}
             >
-              <Text style={[styles.dateFilterChipText, { color: COLORS.primary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dateFilterChipText, { color: COLORS.primary }]}>
                 {appliedRange.end &&
                 toDateKey(appliedRange.end) !== toDateKey(appliedRange.start)
                   ? `${formatDate(appliedRange.start)} – ${formatDate(appliedRange.end)}`
@@ -2130,7 +2130,7 @@ const HistoryScreen = ({ navigation }) => {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={[styles.loadingText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText, { color: themeColors.textSecondary }]}>
               Chargement de vos réservations...
             </Text>
           </View>
@@ -2138,11 +2138,11 @@ const HistoryScreen = ({ navigation }) => {
           <View style={styles.errorContainer}>
             <Ionicons name="cloud-offline-outline" size={42} color={COLORS.red} />
 
-            <Text style={[styles.errorTitle, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorTitle, { color: themeColors.text }]}>
               Une erreur est survenue
             </Text>
 
-            <Text style={[styles.errorText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText, { color: themeColors.textSecondary }]}>
               {error}
             </Text>
 
@@ -2151,7 +2151,7 @@ const HistoryScreen = ({ navigation }) => {
               onPress={() => loadBookings(true)}
               style={[styles.retryButton, { backgroundColor: COLORS.primary }]}
             >
-              <Text style={styles.retryButtonText}>Réessayer</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.retryButtonText]}>Réessayer</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -2279,12 +2279,12 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 17,
     lineHeight: 22,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   pageCount: {
     fontSize: 12,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   pageHeaderActions: {
@@ -2332,7 +2332,7 @@ const styles = StyleSheet.create({
 
   dateFilterChipText: {
     fontSize: 12,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   filtersWrapper: {
@@ -2355,7 +2355,7 @@ const styles = StyleSheet.create({
 
   filterButtonText: {
     fontSize: 11,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   listContent: {
@@ -2455,10 +2455,10 @@ const styles = StyleSheet.create({
     minWidth: 0,
     fontSize: 14,
     lineHeight: 18,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
-  cardMainTitleWide: {
+  cardMainTitleWide: { fontFamily: typography.fontFamily.regular,
     fontSize: 15, // ✏️ MODIFIÉ (16 → 15)
     lineHeight: 19,
   },
@@ -2482,7 +2482,7 @@ const styles = StyleSheet.create({
   statusPillText: {
     fontSize: 10,
     lineHeight: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   bookingNumber: {
@@ -2536,7 +2536,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.12)',
   },
 
-  reviewChipText: {
+  reviewChipText: { fontFamily: typography.fontFamily.bold,
     fontSize: 10.5,
     fontWeight: '700',
   },
@@ -2553,13 +2553,13 @@ const styles = StyleSheet.create({
   therapistAvatarText: {
     color: COLORS.white,
     fontSize: 10,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   therapistName: {
     flexShrink: 1,
     fontSize: 12,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   roleBadge: {
@@ -2572,7 +2572,7 @@ const styles = StyleSheet.create({
   roleBadgeText: {
     fontSize: 9.5,
     color: '#5B3DE0',
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   priceRow: {
@@ -2594,7 +2594,7 @@ const styles = StyleSheet.create({
     fontSize: 15, // ✏️ MODIFIÉ (16 → 15)
     lineHeight: 19,
     color: COLORS.price,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   priceUnit: {
@@ -2645,7 +2645,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primarySoft,
   },
 
-  shareButtonText: {
+  shareButtonText: { fontFamily: typography.fontFamily.bold,
     color: COLORS.primary,
     fontSize: 12,
     fontWeight: '700',
@@ -2660,7 +2660,7 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 10.5,
     lineHeight: 14,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   // ---------- EMPTY / LOADING / ERROR ----------
@@ -2686,7 +2686,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 17,
     lineHeight: 23,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   emptyDescription: {
@@ -2711,7 +2711,7 @@ const styles = StyleSheet.create({
   emptyActionButtonText: {
     color: COLORS.white,
     fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   loadingContainer: {
@@ -2740,7 +2740,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 23,
     textAlign: 'center',
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   errorText: {
@@ -2763,7 +2763,7 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: COLORS.white,
     fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   // ---------- MODALS ----------
@@ -2803,7 +2803,7 @@ const styles = StyleSheet.create({
   confirmTitle: {
     fontSize: 16,
     textAlign: 'center',
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   confirmMessage: {
@@ -2836,13 +2836,13 @@ const styles = StyleSheet.create({
 
   confirmButtonGhostText: {
     fontSize: 13.5,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   confirmButtonText: {
     color: COLORS.white,
     fontSize: 13.5,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   actionSheet: {
@@ -2855,7 +2855,7 @@ const styles = StyleSheet.create({
 
   actionSheetTitle: {
     fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   actionSheetSubtitle: {
@@ -2882,7 +2882,7 @@ const styles = StyleSheet.create({
 
   actionSheetRowText: {
     fontSize: 13.5,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   actionSheetCloseButton: {
@@ -2893,7 +2893,7 @@ const styles = StyleSheet.create({
 
   actionSheetCloseText: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   actionSheetHandle: {
@@ -2928,7 +2928,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     marginBottom: 14,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   rangeFieldsRow: {
@@ -2949,13 +2949,13 @@ const styles = StyleSheet.create({
 
   rangeFieldLabel: {
     fontSize: 10,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   rangeFieldValue: {
     marginTop: 2,
     fontSize: 13,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   rangeFieldArrow: {
@@ -2981,7 +2981,7 @@ const styles = StyleSheet.create({
 
   calendarHeaderTitle: {
     fontSize: 15,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   calendarWeekRow: {
@@ -2994,7 +2994,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'center',
     fontSize: 11,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   calendarGrid: {
@@ -3022,7 +3022,7 @@ const styles = StyleSheet.create({
 
   calendarDayText: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   calendarDayDot: {

@@ -57,7 +57,7 @@ const LocationViewerModal = ({ visible, onClose, title, address, latitude, longi
           <TouchableOpacity onPress={onClose} accessibilityRole="button" accessibilityLabel="Fermer la carte">
             <Ionicons name="close" size={26} color={palette.text} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: palette.text }]} numberOfLines={1}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: palette.text }]} numberOfLines={1}>
             {title || 'Position partagée'}
           </Text>
           <View style={{ width: 26 }} />
@@ -76,7 +76,7 @@ const LocationViewerModal = ({ visible, onClose, title, address, latitude, longi
           ) : (
             <View style={styles.noMap}>
               <Ionicons name="map-outline" size={40} color={palette.textSecondary} />
-              <Text style={{ color: palette.textSecondary, textAlign: 'center' }}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.textSecondary, textAlign: 'center' }]}>
                 Pas de coordonnées GPS : ouvrez l'adresse dans Google Maps.
               </Text>
             </View>
@@ -85,7 +85,7 @@ const LocationViewerModal = ({ visible, onClose, title, address, latitude, longi
 
         <View style={[styles.foot, { backgroundColor: palette.surface, borderTopColor: palette.border, paddingBottom: 14 + insets.bottom }]}>
           <Ionicons name="location" size={20} color={palette.primary} />
-          <Text style={[styles.address, { color: palette.text }]} numberOfLines={3}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.address, { color: palette.text }]} numberOfLines={3}>
             {address || (hasCoords ? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}` : '')}
           </Text>
           <TouchableOpacity
@@ -95,7 +95,7 @@ const LocationViewerModal = ({ visible, onClose, title, address, latitude, longi
             accessibilityRole="button"
             accessibilityLabel="Ouvrir dans Google Maps"
           >
-            <Text style={styles.btnText}>Google Maps</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.btnText]}>Google Maps</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   },
   address: { flex: 1, fontSize: 14, fontFamily: typography.fontFamily.regular },
   btn: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12 },
-  btnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  btnText: { fontFamily: typography.fontFamily.bold, color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
 });
 
 export default LocationViewerModal;

@@ -25,6 +25,7 @@ import { useAuth } from '../../context/AuthContext';
 import cardService from '../../services/cardService';
 import StripeCardForm, { inlineCardFormSupported } from './StripeCardForm';
 import { confirmAsync as sharedConfirmAsync } from '../../utils/chatImage';
+import { typography } from '../../theme';
 
 const GREEN = '#2E8B57';
 const POLL_MS = 4000;
@@ -244,7 +245,7 @@ export default function SavedCardsManager({
       {!hideTitle ? (
         <View style={styles.titleRow}>
           <Ionicons name="card-outline" size={18} color={GREEN} />
-          <Text style={[styles.title, { color: theme.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: theme.text }]}>
             {isSelect ? 'Choisir ma carte' : 'Ma carte bancaire'}
           </Text>
         </View>
@@ -253,14 +254,14 @@ export default function SavedCardsManager({
       {!available ? (
         <View style={[styles.notice, { backgroundColor: '#FEF3C7' }]}>
           <Ionicons name="information-circle" size={18} color="#B45309" />
-          <Text style={styles.noticeText}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noticeText]}>
             Le paiement par carte n’est pas encore configuré par l’administrateur (clés Stripe).
           </Text>
         </View>
       ) : null}
 
       {cards.length === 0 && available && !waiting && !error ? (
-        <Text style={[styles.muted, { color: theme.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary }]}>
           Aucune carte enregistrée. Ajoutez-la une seule fois : elle sera utilisée pour vos paiements par carte.
         </Text>
       ) : null}
@@ -269,23 +270,23 @@ export default function SavedCardsManager({
         <View style={styles.visual}>
           <View style={styles.visualTop}>
             <Ionicons name="card" size={26} color="#fff" />
-            <Text style={styles.visualBrand}>{shownCard.brand_label}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.visualBrand]}>{shownCard.brand_label}</Text>
           </View>
-          <Text style={styles.visualNumber}>•••• •••• •••• {shownCard.last4}</Text>
-          <Text style={styles.visualMasked}>Numéro masqué pour votre sécurité · Statut : active</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.visualNumber]}>•••• •••• •••• {shownCard.last4}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.visualMasked]}>Numéro masqué pour votre sécurité · Statut : active</Text>
           <View style={styles.visualBottom}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.visualLabel}>TITULAIRE</Text>
-              <Text style={styles.visualValue} numberOfLines={1}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.visualLabel]}>TITULAIRE</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.visualValue]} numberOfLines={1}>
                 {shownCard.holder_name || '—'}
               </Text>
             </View>
             <View>
-              <Text style={styles.visualLabel}>EXPIRE</Text>
-              <Text style={styles.visualValue}>{shownCard.exp_label || '—'}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.visualLabel]}>EXPIRE</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.visualValue]}>{shownCard.exp_label || '—'}</Text>
             </View>
           </View>
-          <Text style={styles.visualFoot}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.visualFoot]}>
             {shownCard.funding_label}
             {shownCard.is_default ? ' · Carte par défaut' : ''}
             {shownCard.sandbox ? ' · test' : ''} · enregistrée via Stripe
@@ -308,10 +309,10 @@ export default function SavedCardsManager({
               <Ionicons name="card" size={22} color={color} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.cardLabel, { color: theme.text }]} numberOfLines={1}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardLabel, { color: theme.text }]} numberOfLines={1}>
                 {card.brand_label} •••• {card.last4}
               </Text>
-              <Text style={[styles.muted, { color: theme.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary }]}>
                 {card.exp_label ? `Expire ${card.exp_label}` : ''}
                 {card.is_default ? `${card.exp_label ? ' · ' : ''}Par défaut` : ''}
                 {card.sandbox ? ' · carte de test' : ''}
@@ -327,7 +328,7 @@ export default function SavedCardsManager({
               <View style={styles.rowActions}>
                 {!card.is_default ? (
                   <TouchableOpacity onPress={() => handleDefault(card)} disabled={busy} style={styles.smallBtn}>
-                    <Text style={styles.smallBtnText}>Par défaut</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.smallBtnText]}>Par défaut</Text>
                   </TouchableOpacity>
                 ) : null}
                 <TouchableOpacity
@@ -354,8 +355,8 @@ export default function SavedCardsManager({
             <Ionicons name="shield-checkmark-outline" size={22} color="#6B7280" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.cardLabel, { color: theme.text }]}>Une autre carte</Text>
-            <Text style={[styles.muted, { color: theme.textSecondary }]}>Formulaire sécurisé Stripe</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardLabel, { color: theme.text }]}>Une autre carte</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: theme.textSecondary }]}>Formulaire sécurisé Stripe</Text>
           </View>
           <Ionicons
             name={selectedId === 'other' ? 'radio-button-on' : 'radio-button-off'}
@@ -368,11 +369,11 @@ export default function SavedCardsManager({
       {waiting ? (
         <View style={[styles.notice, { backgroundColor: '#E8F3EC' }]}>
           <ActivityIndicator size="small" color={GREEN} />
-          <Text style={[styles.noticeText, { color: GREEN }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noticeText, { color: GREEN }]}>
             Terminez l’enregistrement dans la page Stripe… la carte apparaîtra ici automatiquement.
           </Text>
           <TouchableOpacity onPress={() => load({ silent: true })}>
-            <Text style={[styles.linkText, { color: GREEN }]}>Actualiser</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.linkText, { color: GREEN }]}>Actualiser</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -395,23 +396,23 @@ export default function SavedCardsManager({
           style={[styles.addBtn, (busy || waiting) && { opacity: 0.6 }]}
         >
           {busy ? <ActivityIndicator color={GREEN} /> : <Ionicons name="add-circle-outline" size={20} color={GREEN} />}
-          <Text style={styles.addBtnText}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.addBtnText]}>
             {cards.length ? 'Ajouter une autre carte' : 'Configurer ma carte bancaire'}
           </Text>
         </TouchableOpacity>
       ) : null}
 
       {sandbox ? (
-        <Text style={[styles.muted, { color: '#B45309', marginTop: 8 }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.muted, { color: '#B45309', marginTop: 8 }]}>
           ⚠️ Mode TEST : une carte de démonstration est ajoutée, aucun vrai débit.
         </Text>
       ) : null}
 
-      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      {error ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}>{error}</Text> : null}
 
       <View style={[styles.notice, { backgroundColor: `${GREEN}14`, marginTop: 12 }]}>
         <Ionicons name="lock-closed" size={16} color={GREEN} />
-        <Text style={[styles.noticeText, { color: theme.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.noticeText, { color: theme.textSecondary }]}>
           Le numéro de votre carte est saisi uniquement dans le formulaire sécurisé de Stripe. Mada Bien-Être ne
           conserve que la marque, les 4 derniers chiffres et la date d’expiration.
         </Text>
@@ -423,17 +424,17 @@ export default function SavedCardsManager({
 const styles = StyleSheet.create({
   visual: { backgroundColor: GREEN, borderRadius: 18, padding: 18, marginBottom: 14 },
   visualTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  visualBrand: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  visualNumber: { color: '#fff', fontSize: 20, fontWeight: '700', letterSpacing: 2, marginVertical: 18 },
-  visualMasked: { color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: -10, marginBottom: 14 },
+  visualBrand: { fontFamily: typography.fontFamily.bold, color: '#fff', fontWeight: '800', fontSize: 15 },
+  visualNumber: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 20, fontWeight: '700', letterSpacing: 2, marginVertical: 18 },
+  visualMasked: { fontFamily: typography.fontFamily.regular, color: 'rgba(255,255,255,0.75)', fontSize: 11, marginTop: -10, marginBottom: 14 },
   visualBottom: { flexDirection: 'row', gap: 16 },
-  visualLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 10, letterSpacing: 1 },
-  visualValue: { color: '#fff', fontSize: 14, fontWeight: '700', marginTop: 2 },
-  visualFoot: { color: 'rgba(255,255,255,0.8)', fontSize: 11.5, marginTop: 12 },
+  visualLabel: { fontFamily: typography.fontFamily.regular, color: 'rgba(255,255,255,0.7)', fontSize: 10, letterSpacing: 1 },
+  visualValue: { fontFamily: typography.fontFamily.bold, color: '#fff', fontSize: 14, fontWeight: '700', marginTop: 2 },
+  visualFoot: { fontFamily: typography.fontFamily.regular, color: 'rgba(255,255,255,0.8)', fontSize: 11.5, marginTop: 12 },
   center: { paddingVertical: 20, alignItems: 'center' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-  title: { fontSize: 15, fontWeight: '800' },
-  muted: { fontSize: 12.5, marginBottom: 6 },
+  title: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '800' },
+  muted: { fontFamily: typography.fontFamily.regular, fontSize: 12.5, marginBottom: 6 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -444,10 +445,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   brandBox: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  cardLabel: { fontSize: 15, fontWeight: '700' },
+  cardLabel: { fontFamily: typography.fontFamily.bold, fontSize: 15, fontWeight: '700' },
   rowActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   smallBtn: { borderWidth: 1, borderColor: GREEN, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  smallBtnText: { color: GREEN, fontSize: 11.5, fontWeight: '700' },
+  smallBtnText: { fontFamily: typography.fontFamily.bold, color: GREEN, fontSize: 11.5, fontWeight: '700' },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -460,9 +461,9 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     marginTop: 4,
   },
-  addBtnText: { color: GREEN, fontSize: 15, fontWeight: '800' },
+  addBtnText: { fontFamily: typography.fontFamily.bold, color: GREEN, fontSize: 15, fontWeight: '800' },
   notice: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 12, marginTop: 8, alignItems: 'center' },
-  noticeText: { flex: 1, fontSize: 12.5, color: '#92400E', lineHeight: 17 },
-  linkText: { fontWeight: '800', fontSize: 12.5 },
-  errorText: { color: '#D93636', fontSize: 13, marginTop: 10 },
+  noticeText: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 12.5, color: '#92400E', lineHeight: 17 },
+  linkText: { fontFamily: typography.fontFamily.bold, fontWeight: '800', fontSize: 12.5 },
+  errorText: { fontFamily: typography.fontFamily.regular, color: '#D93636', fontSize: 13, marginTop: 10 },
 });

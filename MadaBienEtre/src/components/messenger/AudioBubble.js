@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import { typography } from '../../theme';
 
 // expo-audio est facultatif au chargement : sans lui, l'application démarre quand même.
 let ExpoAudio = null;
@@ -69,7 +70,7 @@ const AudioPlayerInner = ({ uri, duration, color, trackColor }) => {
         <View style={[styles.track, { backgroundColor: trackColor }]}>
           <View style={[styles.fill, { width: `${ratio * 100}%`, backgroundColor: color }]} />
         </View>
-        <Text style={[styles.time, { color }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.time, { color }]}>
           {status.playing || status.currentTime ? fmt(status.currentTime) : fmt(total)}
         </Text>
       </View>
@@ -82,8 +83,8 @@ const AudioFallback = ({ uri, duration, color }) => (
   <TouchableOpacity style={styles.row} onPress={() => uri && Linking.openURL(uri)} accessibilityLabel="Écouter le message vocal">
     <Ionicons name="play-circle" size={38} color={color} />
     <View style={styles.mid}>
-      <Text style={{ color, fontWeight: '600' }}>Message vocal</Text>
-      <Text style={[styles.time, { color }]}>{fmt(duration || 0)} · Toucher pour écouter</Text>
+      <Text style={{ fontFamily: typography.fontFamily.semiBold, color, fontWeight: '600' }}>Message vocal</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.time, { color }]}>{fmt(duration || 0)} · Toucher pour écouter</Text>
     </View>
   </TouchableOpacity>
 );
@@ -95,7 +96,7 @@ const styles = StyleSheet.create({
   mid: { flex: 1 },
   track: { height: 4, borderRadius: 2, overflow: 'hidden' },
   fill: { height: 4 },
-  time: { fontSize: 11, marginTop: 4 },
+  time: { fontFamily: typography.fontFamily.regular, fontSize: 11, marginTop: 4 },
 });
 
 export default AudioBubble;

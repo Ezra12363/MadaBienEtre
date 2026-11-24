@@ -181,7 +181,7 @@ const WebDateInput = ({
           onChange(event.target.value);
         }
       }}
-      style={{
+      style={{ fontFamily: typography.fontFamily.regular,
         width: '100%',
         height: 46,
         borderRadius: 13,
@@ -222,7 +222,7 @@ const WebTimeInput = ({
           onChange(event.target.value);
         }
       }}
-      style={{
+      style={{ fontFamily: typography.fontFamily.regular,
         width: '100%',
         height: 46,
         borderRadius: 13,
@@ -340,7 +340,7 @@ const ConfirmDeleteModal = ({
           </View>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.confirmTitle,
               {
                 color: themeColors.text,
@@ -351,7 +351,7 @@ const ConfirmDeleteModal = ({
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.confirmMessage,
               {
                 color: themeColors.textSecondary,
@@ -381,7 +381,7 @@ const ConfirmDeleteModal = ({
 
             <View style={styles.confirmDateText}>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.confirmDate,
                   {
                     color: themeColors.text,
@@ -395,7 +395,7 @@ const ConfirmDeleteModal = ({
 
               {!!item.reason && (
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.confirmReason,
                     {
                       color:
@@ -426,7 +426,7 @@ const ConfirmDeleteModal = ({
                 ]}
               >
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.confirmCancelText,
                     {
                       color: themeColors.text,
@@ -462,7 +462,7 @@ const ConfirmDeleteModal = ({
                       color="#FFFFFF"
                     />
 
-                    <Text style={styles.confirmDeleteText}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmDeleteText]}>
                       Supprimer
                     </Text>
                   </>
@@ -1149,7 +1149,7 @@ const AvailabilityScreen = () => {
         />
 
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.loadingText,
             {
               color:
@@ -1231,7 +1231,7 @@ const AvailabilityScreen = () => {
 
             <View style={styles.flex1}>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.cardTitle,
                   {
                     color: themeColors.text,
@@ -1242,7 +1242,7 @@ const AvailabilityScreen = () => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.cardSub,
                   {
                     color:
@@ -1289,7 +1289,7 @@ const AvailabilityScreen = () => {
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.statusPillText,
                 {
                   color: isOnline
@@ -1336,7 +1336,7 @@ const AvailabilityScreen = () => {
 
             <View style={styles.flex1}>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.cardTitle,
                   {
                     color: themeColors.text,
@@ -1347,7 +1347,7 @@ const AvailabilityScreen = () => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.cardSub,
                   {
                     color:
@@ -1394,7 +1394,7 @@ const AvailabilityScreen = () => {
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.statusPillText,
                 {
                   color: isAvailable
@@ -1426,7 +1426,7 @@ const AvailabilityScreen = () => {
           <View style={styles.sectionHeader}>
             <View>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionTitle,
                   {
                     color: themeColors.text,
@@ -1437,7 +1437,7 @@ const AvailabilityScreen = () => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionSub,
                   {
                     color:
@@ -1478,7 +1478,7 @@ const AvailabilityScreen = () => {
                 >
                   <View style={styles.dayAvatar}>
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.dayAvatarText,
                         {
                           color: dayItem.is_available
@@ -1493,7 +1493,7 @@ const AvailabilityScreen = () => {
 
                   <View style={styles.dayNameWrap}>
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.dayName,
                         {
                           color:
@@ -1519,7 +1519,7 @@ const AvailabilityScreen = () => {
                         />
 
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.dayHours,
                             {
                               color:
@@ -1546,7 +1546,7 @@ const AvailabilityScreen = () => {
                           color={DANGER}
                         />
 
-                        <Text style={styles.dayClosed}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dayClosed]}>
                           Fermé
                         </Text>
                       </View>
@@ -1586,7 +1586,7 @@ const AvailabilityScreen = () => {
           <View style={styles.sectionHeader}>
             <View>
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionTitle,
                   {
                     color: themeColors.text,
@@ -1597,7 +1597,7 @@ const AvailabilityScreen = () => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.sectionSub,
                   {
                     color:
@@ -1652,7 +1652,7 @@ const AvailabilityScreen = () => {
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.emptyTitle,
                   {
                     color: themeColors.text,
@@ -1663,7 +1663,7 @@ const AvailabilityScreen = () => {
               </Text>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.emptyText,
                   {
                     color:
@@ -1713,7 +1713,7 @@ const AvailabilityScreen = () => {
 
                     <View style={styles.flex1}>
                       <Text
-                        style={[
+                        style={[{ fontFamily: typography.fontFamily.regular }, 
                           styles.blockedDates,
                           {
                             color:
@@ -1728,7 +1728,7 @@ const AvailabilityScreen = () => {
 
                       {item.reason ? (
                         <Text
-                          style={[
+                          style={[{ fontFamily: typography.fontFamily.regular }, 
                             styles.blockedReason,
                             {
                               color:
@@ -1751,7 +1751,7 @@ const AvailabilityScreen = () => {
                           ]}
                         >
                           <Text
-                            style={[
+                            style={[{ fontFamily: typography.fontFamily.regular }, 
                               styles.allDayLabel,
                               {
                                 color: PRIMARY,
@@ -1832,7 +1832,7 @@ const AvailabilityScreen = () => {
 
                 <View style={styles.flex1}>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.modalTitle,
                       {
                         color: themeColors.text,
@@ -1843,7 +1843,7 @@ const AvailabilityScreen = () => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.modalSubtitle,
                       {
                         color:
@@ -1883,7 +1883,7 @@ const AvailabilityScreen = () => {
               }
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.inputLabel,
                   {
                     color:
@@ -1932,7 +1932,7 @@ const AvailabilityScreen = () => {
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.dateButtonText,
                         {
                           color:
@@ -1975,7 +1975,7 @@ const AvailabilityScreen = () => {
               )}
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.inputLabel,
                   {
                     color:
@@ -2026,7 +2026,7 @@ const AvailabilityScreen = () => {
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.dateButtonText,
                         {
                           color:
@@ -2086,7 +2086,7 @@ const AvailabilityScreen = () => {
                 />
 
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.infoText,
                     {
                       color:
@@ -2101,7 +2101,7 @@ const AvailabilityScreen = () => {
               </View>
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.inputLabel,
                   {
                     color:
@@ -2110,14 +2110,14 @@ const AvailabilityScreen = () => {
                 ]}
               >
                 Raison
-                <Text style={styles.optionalText}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.optionalText]}>
                   {' '}
                   (optionnel)
                 </Text>
               </Text>
 
               <TextInput
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.textInput,
                   {
                     color: themeColors.text,
@@ -2164,7 +2164,7 @@ const AvailabilityScreen = () => {
                     ]}
                   >
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.cancelBtnText,
                         {
                           color:
@@ -2203,7 +2203,7 @@ const AvailabilityScreen = () => {
                           color="#FFFFFF"
                         />
 
-                        <Text style={styles.confirmBtnText}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmBtnText]}>
                           Bloquer la date
                         </Text>
                       </>
@@ -2254,7 +2254,7 @@ const AvailabilityScreen = () => {
 
                 <View style={styles.flex1}>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.modalTitle,
                       {
                         color: themeColors.text,
@@ -2265,7 +2265,7 @@ const AvailabilityScreen = () => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.modalSubtitle,
                       {
                         color:
@@ -2307,7 +2307,7 @@ const AvailabilityScreen = () => {
               }
             >
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.inputLabel,
                   {
                     color:
@@ -2353,7 +2353,7 @@ const AvailabilityScreen = () => {
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.dateButtonText,
                         {
                           color:
@@ -2392,7 +2392,7 @@ const AvailabilityScreen = () => {
               )}
 
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.inputLabel,
                   {
                     color:
@@ -2439,7 +2439,7 @@ const AvailabilityScreen = () => {
                     />
 
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.dateButtonText,
                         {
                           color:
@@ -2496,7 +2496,7 @@ const AvailabilityScreen = () => {
 
                 <View style={styles.previewTextWrap}>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.previewLabel,
                       {
                         color:
@@ -2508,7 +2508,7 @@ const AvailabilityScreen = () => {
                   </Text>
 
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.previewValue,
                       {
                         color: themeColors.text,
@@ -2535,7 +2535,7 @@ const AvailabilityScreen = () => {
                     color={DANGER}
                   />
 
-                  <Text style={styles.warningText}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.warningText]}>
                     L'heure de fin doit être après
                     l'heure de début.
                   </Text>
@@ -2560,7 +2560,7 @@ const AvailabilityScreen = () => {
                     ]}
                   >
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.cancelBtnText,
                         {
                           color:
@@ -2599,7 +2599,7 @@ const AvailabilityScreen = () => {
                           color="#FFFFFF"
                         />
 
-                        <Text style={styles.confirmBtnText}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.confirmBtnText]}>
                           Enregistrer
                         </Text>
                       </>
@@ -2690,7 +2690,7 @@ const styles = StyleSheet.create({
 
   cardTitle: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     marginBottom: 3,
   },
 
@@ -2719,7 +2719,7 @@ const styles = StyleSheet.create({
 
   statusPillText: {
     fontSize: 12,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   sectionHeader: {
@@ -2731,7 +2731,7 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   sectionSub: {
@@ -2762,7 +2762,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
 
-  dayAvatarText: {
+  dayAvatarText: { fontFamily: typography.fontFamily.bold,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -2774,7 +2774,7 @@ const styles = StyleSheet.create({
 
   dayName: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     marginBottom: 3,
   },
 
@@ -2800,7 +2800,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: DANGER,
     marginLeft: 4,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   addButtonWrapper: {
@@ -2833,7 +2833,7 @@ const styles = StyleSheet.create({
 
   emptyTitle: {
     fontSize: 14,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   emptyText: {
@@ -2867,7 +2867,7 @@ const styles = StyleSheet.create({
 
   blockedDates: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   blockedReason: {
@@ -2886,7 +2886,7 @@ const styles = StyleSheet.create({
 
   allDayLabel: {
     fontSize: 10,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   deleteButtonWrapper: {
@@ -2946,7 +2946,7 @@ const styles = StyleSheet.create({
 
   modalTitle: {
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   modalSubtitle: {
@@ -2957,7 +2957,7 @@ const styles = StyleSheet.create({
 
   inputLabel: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginBottom: 7,
     marginTop: spacing.sm,
   },
@@ -2982,7 +2982,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: typography.fontSize.md,
     marginLeft: 9,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   textInput: {
@@ -3034,7 +3034,7 @@ const styles = StyleSheet.create({
   previewValue: {
     fontSize: 18,
     marginTop: 3,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   warningBox: {
@@ -3053,7 +3053,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: DANGER,
     marginLeft: 8,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   modalActions: {
@@ -3083,12 +3083,12 @@ const styles = StyleSheet.create({
 
   cancelBtnText: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   confirmBtnText: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     color: '#FFFFFF',
   },
 
@@ -3125,13 +3125,13 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
 
-  confirmTitle: {
+  confirmTitle: { fontFamily: typography.fontFamily.bold,
     fontSize: 19,
     fontWeight: '700',
     textAlign: 'center',
   },
 
-  confirmMessage: {
+  confirmMessage: { fontFamily: typography.fontFamily.regular,
     fontSize: 13,
     lineHeight: 19,
     textAlign: 'center',
@@ -3152,12 +3152,12 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
 
-  confirmDate: {
+  confirmDate: { fontFamily: typography.fontFamily.bold,
     fontSize: 13,
     fontWeight: '700',
   },
 
-  confirmReason: {
+  confirmReason: { fontFamily: typography.fontFamily.regular,
     fontSize: 12,
     marginTop: 4,
   },
@@ -3182,7 +3182,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
 
-  confirmCancelText: {
+  confirmCancelText: { fontFamily: typography.fontFamily.semiBold,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -3191,7 +3191,7 @@ const styles = StyleSheet.create({
     backgroundColor: DANGER,
   },
 
-  confirmDeleteText: {
+  confirmDeleteText: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',

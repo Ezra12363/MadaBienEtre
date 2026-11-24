@@ -34,18 +34,18 @@ const DrawerHeader = ({ user, onClose }) => {
           <Ionicons name="close" size={24} color="#fff" />
         </TouchableOpacity>
         <View style={styles.drawerAvatar}>
-          <Text style={styles.drawerAvatarText}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.drawerAvatarText]}>
             {user?.fullname?.charAt(0) || 'U'}
           </Text>
         </View>
-        <Text style={styles.drawerName}>{user?.fullname || 'Utilisateur'}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.drawerName]}>{user?.fullname || 'Utilisateur'}</Text>
         <View style={styles.drawerBadge}>
-          <Text style={styles.drawerBadgeText}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.drawerBadgeText]}>
             {user?.role === 'THERAPIST' ? 'Thérapeute' : 
              user?.role === 'ADMIN' ? 'Administrateur' : 'Client'}
           </Text>
         </View>
-        <Text style={styles.drawerEmail}>{user?.email || 'email@exemple.com'}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.drawerEmail]}>{user?.email || 'email@exemple.com'}</Text>
       </View>
     </LinearGradient>
   );
@@ -59,13 +59,13 @@ const DrawerItem = ({ icon, label, onPress, badge, color }) => {
     <TouchableOpacity style={styles.drawerItem} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.drawerItemLeft}>
         <Ionicons name={icon} size={22} color={color || themeColors.text} />
-        <Text style={[styles.drawerItemLabel, { color: themeColors.text }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.drawerItemLabel, { color: themeColors.text }]}>
           {label}
         </Text>
       </View>
       {badge && (
         <View style={styles.drawerItemBadge}>
-          <Text style={styles.drawerItemBadgeText}>{badge}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.drawerItemBadgeText]}>{badge}</Text>
         </View>
       )}
     </TouchableOpacity>
@@ -141,7 +141,7 @@ const DrawerContent = ({ navigation }) => {
         <View style={styles.drawerThemeItem}>
           <View style={styles.drawerItemLeft}>
             <Ionicons name={isDark ? 'moon' : 'sunny'} size={22} color={themeColors.text} />
-            <Text style={[styles.drawerItemLabel, { color: themeColors.text }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.drawerItemLabel, { color: themeColors.text }]}>
               Mode {isDark ? 'sombre' : 'clair'}
             </Text>
           </View>
@@ -156,12 +156,12 @@ const DrawerContent = ({ navigation }) => {
         {/* Déconnexion */}
         <TouchableOpacity style={styles.drawerLogout} onPress={logout}>
           <Ionicons name="log-out-outline" size={22} color={colors.error} />
-          <Text style={[styles.drawerLogoutText, { color: colors.error }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.drawerLogoutText, { color: colors.error }]}>
             Se déconnecter
           </Text>
         </TouchableOpacity>
         
-        <Text style={[styles.drawerVersion, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.drawerVersion, { color: themeColors.textSecondary }]}>
           Mada Bien-être v1.0.0
         </Text>
       </View>
@@ -240,12 +240,12 @@ const styles = StyleSheet.create({
   },
   drawerAvatarText: {
     fontSize: typography.fontSize.xxl,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     color: '#fff',
   },
   drawerName: {
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     color: '#fff',
   },
   drawerBadge: {
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   drawerBadgeText: {
     fontSize: 10,
     color: '#fff',
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
   drawerEmail: {
     fontSize: typography.fontSize.sm,
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
   drawerItemBadgeText: {
     color: '#fff',
     fontSize: 10,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
   drawerDivider: {
     height: 1,
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   },
   drawerLogoutText: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
   drawerVersion: {
     textAlign: 'center',

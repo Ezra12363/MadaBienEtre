@@ -47,7 +47,7 @@ const PriceInput = ({
   return (
     <View style={styles.container}>
       {label && (
-        <Text style={[styles.label, { color: themeColors.text }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: themeColors.text }]}>
           {label}
         </Text>
       )}
@@ -61,11 +61,11 @@ const PriceInput = ({
           },
         ]}
       >
-        <Text style={[styles.currency, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.currency, { color: themeColors.textSecondary }]}>
           {currency}
         </Text>
         <TextInput
-          style={[styles.input, { color: themeColors.text }]}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.input, { color: themeColors.text }]}
           value={value ? formatPrice(value) : ''}
           onChangeText={handleChangeText}
           placeholder={placeholder}
@@ -78,14 +78,14 @@ const PriceInput = ({
       </View>
       
       {error && (
-        <Text style={[styles.errorText, { color: colors.error }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText, { color: colors.error }]}>
           {error}
         </Text>
       )}
       
       {suggestions.length > 0 && (
         <View style={styles.suggestionsContainer}>
-          <Text style={[styles.suggestionsLabel, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.suggestionsLabel, { color: themeColors.textSecondary }]}>
             Suggestions
           </Text>
           <View style={styles.suggestionsList}>
@@ -98,7 +98,7 @@ const PriceInput = ({
                 ]}
                 onPress={() => handleSuggestionPress(suggestion)}
               >
-                <Text style={[styles.suggestionText, { color: themeColors.text }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.suggestionText, { color: themeColors.text }]}>
                   {formatPrice(suggestion)} {currency}
                 </Text>
               </TouchableOpacity>
@@ -108,7 +108,7 @@ const PriceInput = ({
       )}
       
       {minPrice > 0 && (
-        <Text style={[styles.minPriceText, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.minPriceText, { color: themeColors.textSecondary }]}>
           Prix minimum conseillé: {formatPrice(minPrice)} {currency}
         </Text>
       )}
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
     marginBottom: 4,
   },
   inputContainer: {
@@ -135,14 +135,14 @@ const styles = StyleSheet.create({
   },
   currency: {
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     marginRight: spacing.sm,
   },
   input: {
     flex: 1,
     paddingVertical: spacing.sm,
     fontSize: typography.fontSize.lg,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
   errorText: {
     fontSize: typography.fontSize.xs,
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
   minPriceText: {
     fontSize: typography.fontSize.xs,

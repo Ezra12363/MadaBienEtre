@@ -80,14 +80,14 @@ const NotificationItem = ({ notification, onPress, onDelete }) => {
       
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: themeColors.text }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.title, { color: themeColors.text }]}>
             {notification.title}
           </Text>
-          <Text style={[styles.time, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.time, { color: themeColors.textSecondary }]}>
             {formatTime(notification.created_at)}
           </Text>
         </View>
-        <Text style={[styles.body, { color: themeColors.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.body, { color: themeColors.textSecondary }]}>
           {notification.body}
         </Text>
         {!notification.is_read && (
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: typography.fontSize.md,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     flex: 1,
     marginRight: spacing.sm,
   },

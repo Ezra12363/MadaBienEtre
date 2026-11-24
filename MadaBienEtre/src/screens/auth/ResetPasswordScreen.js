@@ -416,7 +416,7 @@ const ResetPasswordScreen = ({
         />
 
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.requirementText,
             {
               color:
@@ -484,7 +484,7 @@ const ResetPasswordScreen = ({
 
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.formTitle,
               {
                 color:
@@ -499,7 +499,7 @@ const ResetPasswordScreen = ({
 
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.formSubtitle,
               {
                 color:
@@ -628,7 +628,7 @@ const ResetPasswordScreen = ({
         >
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.requirementTitle,
               {
                 color:
@@ -766,7 +766,7 @@ const ResetPasswordScreen = ({
 
                 <Text
                   style={
-                    styles.loadingText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.loadingText]
                   }
                 >
                   Réinitialisation...
@@ -780,7 +780,7 @@ const ResetPasswordScreen = ({
 
                 <Text
                   style={
-                    styles.resetButtonText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.resetButtonText]
                   }
                 >
                   Réinitialiser
@@ -835,7 +835,7 @@ const ResetPasswordScreen = ({
 
           <Text
             style={
-              styles.backToLoginText
+              [{ fontFamily: typography.fontFamily.regular }, styles.backToLoginText]
             }
           >
             Retour à la connexion
@@ -863,7 +863,7 @@ const ResetPasswordScreen = ({
           />
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.infoText,
               {
                 color:
@@ -1095,7 +1095,7 @@ const ResetPasswordScreen = ({
 
                     <Text
                       style={
-                        styles.mobileBackText
+                        [{ fontFamily: typography.fontFamily.regular }, styles.mobileBackText]
                       }
                     >
                       Retour
@@ -1132,7 +1132,7 @@ const ResetPasswordScreen = ({
 
                     <Text
                       style={
-                        styles.mobileHeaderTitle
+                        [{ fontFamily: typography.fontFamily.regular }, styles.mobileHeaderTitle]
                       }
                     >
                       Nouveau mot de passe
@@ -1141,7 +1141,7 @@ const ResetPasswordScreen = ({
 
                     <Text
                       style={
-                        styles.mobileHeaderSubtitle
+                        [{ fontFamily: typography.fontFamily.regular }, styles.mobileHeaderSubtitle]
                       }
                     >
                       Créez un nouveau mot de passe sécurisé
@@ -1179,7 +1179,7 @@ const ResetPasswordScreen = ({
 
                     <Text
                       style={
-                        styles.mobileFooterText
+                        [{ fontFamily: typography.fontFamily.regular }, styles.mobileFooterText]
                       }
                     >
                       Une expérience bien-être sécurisée
@@ -1279,7 +1279,7 @@ const ResetPasswordScreen = ({
 
                   <Text
                     style={
-                      styles.desktopBrandTitle
+                      [{ fontFamily: typography.fontFamily.regular }, styles.desktopBrandTitle]
                     }
                   >
                     Créez un nouveau{"\n"}
@@ -1290,7 +1290,7 @@ const ResetPasswordScreen = ({
 
                   <Text
                     style={
-                      styles.desktopBrandDescription
+                      [{ fontFamily: typography.fontFamily.regular }, styles.desktopBrandDescription]
                     }
                   >
                     Utilisez le code OTP reçu
@@ -1339,7 +1339,7 @@ const ResetPasswordScreen = ({
 
                         <Text
                           style={
-                            styles.desktopFeatureTitle
+                            [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureTitle]
                           }
                         >
                           Vérification par OTP
@@ -1347,7 +1347,7 @@ const ResetPasswordScreen = ({
 
                         <Text
                           style={
-                            styles.desktopFeatureDescription
+                            [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureDescription]
                           }
                         >
                           Utilisez les 6 chiffres reçus par email
@@ -1389,7 +1389,7 @@ const ResetPasswordScreen = ({
 
                         <Text
                           style={
-                            styles.desktopFeatureTitle
+                            [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureTitle]
                           }
                         >
                           Protection renforcée
@@ -1397,7 +1397,7 @@ const ResetPasswordScreen = ({
 
                         <Text
                           style={
-                            styles.desktopFeatureDescription
+                            [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureDescription]
                           }
                         >
                           Votre compte reste protégé
@@ -1439,7 +1439,7 @@ const ResetPasswordScreen = ({
 
                         <Text
                           style={
-                            styles.desktopFeatureTitle
+                            [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureTitle]
                           }
                         >
                           Mot de passe sécurisé
@@ -1447,7 +1447,7 @@ const ResetPasswordScreen = ({
 
                         <Text
                           style={
-                            styles.desktopFeatureDescription
+                            [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureDescription]
                           }
                         >
                           Minimum 8 caractères et règles de sécurité
@@ -1472,7 +1472,7 @@ const ResetPasswordScreen = ({
 
                   <Text
                     style={
-                      styles.desktopCopyright
+                      [{ fontFamily: typography.fontFamily.regular }, styles.desktopCopyright]
                     }
                   >
                     © 2026 Tous droits réservés
@@ -1480,7 +1480,7 @@ const ResetPasswordScreen = ({
 
                   <Text
                     style={
-                      styles.desktopFooterRight
+                      [{ fontFamily: typography.fontFamily.regular }, styles.desktopFooterRight]
                     }
                   >
                     Bien-être • Confiance • Proximité
@@ -1568,7 +1568,7 @@ const ResetPasswordScreen = ({
 
                       <Text
                         style={
-                          styles.desktopBackText
+                          [{ fontFamily: typography.fontFamily.regular }, styles.desktopBackText]
                         }
                       >
                         Retour
@@ -1608,7 +1608,7 @@ const ResetPasswordScreen = ({
 
                       <Text
                         style={
-                          styles.desktopSecureText
+                          [{ fontFamily: typography.fontFamily.regular }, styles.desktopSecureText]
                         }
                       >
                         Une expérience bien-être sécurisée
@@ -1619,7 +1619,7 @@ const ResetPasswordScreen = ({
 
                     <Text
                       style={
-                        styles.desktopFooterCopyright
+                        [{ fontFamily: typography.fontFamily.regular }, styles.desktopFooterCopyright]
                       }
                     >
                       © 2026 Tous droits réservés
@@ -1818,7 +1818,7 @@ const styles =
       fontSize: 14,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
 
       marginLeft: 7,
     },
@@ -1870,7 +1870,7 @@ const styles =
       fontSize: 19,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
 
       textAlign: 'center',
     },
@@ -1951,7 +1951,7 @@ const styles =
         typography.fontSize.xl,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
 
       textAlign: 'center',
     },
@@ -2014,7 +2014,7 @@ const styles =
       fontSize: 13,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
 
       marginBottom: 6,
     },
@@ -2123,7 +2123,7 @@ const styles =
         typography.fontSize.lg,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
     },
 
     buttonIcon: {
@@ -2158,7 +2158,7 @@ const styles =
       fontSize: 14,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
 
       marginLeft: 9,
     },
@@ -2191,7 +2191,7 @@ const styles =
         typography.fontSize.md,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
     },
 
     // ==========================================================
@@ -2336,7 +2336,7 @@ const styles =
       lineHeight: 51,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
 
       marginBottom: 22,
     },
@@ -2396,7 +2396,7 @@ const styles =
       fontSize: 14,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
     },
 
     desktopFeatureDescription: {
@@ -2541,7 +2541,7 @@ const styles =
       fontSize: 13.5,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
 
       marginLeft: 6,
     },

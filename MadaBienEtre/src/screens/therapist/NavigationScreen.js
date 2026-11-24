@@ -852,8 +852,8 @@ export default function NavigationScreen({ route: navRoute }) {
 
         {navMode && navRemaining ? (
           <View style={styles.navChip} pointerEvents="none">
-            <Text style={styles.navChipMain}>{navRemaining.minText}</Text>
-            <Text style={styles.navChipSub}>{navRemaining.distText}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.navChipMain]}>{navRemaining.minText}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.navChipSub]}>{navRemaining.distText}</Text>
           </View>
         ) : null}
 
@@ -880,7 +880,7 @@ export default function NavigationScreen({ route: navRoute }) {
             disabled={!positionChip.action}
             activeOpacity={0.85}
           >
-            <Text style={styles.positionChipText} numberOfLines={2}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.positionChipText]} numberOfLines={2}>
               {positionChip.text}
             </Text>
           </TouchableOpacity>
@@ -899,9 +899,9 @@ export default function NavigationScreen({ route: navRoute }) {
           {gpsError && !therapistPosition ? (
             <View style={styles.gpsWarning}>
               <Ionicons name="warning-outline" size={14} color="#92400E" />
-              <Text style={styles.gpsWarningText}>{gpsError}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.gpsWarningText]}>{gpsError}</Text>
               <TouchableOpacity onPress={refreshGps}>
-                <Text style={styles.gpsWarningRetry}>Réessayer</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.gpsWarningRetry]}>Réessayer</Text>
               </TouchableOpacity>
             </View>
           ) : null}
@@ -949,7 +949,7 @@ export default function NavigationScreen({ route: navRoute }) {
 
               <View style={styles.addressTextWrap}>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.addressLabel,
                     { color: themeColors.textSecondary },
                   ]}
@@ -958,7 +958,7 @@ export default function NavigationScreen({ route: navRoute }) {
                 </Text>
 
                 <Text
-                  style={[styles.addressValue, { color: themeColors.text }]}
+                  style={[{ fontFamily: typography.fontFamily.regular }, styles.addressValue, { color: themeColors.text }]}
                   numberOfLines={2}
                 >
                   {currentAddress ||
@@ -982,7 +982,7 @@ export default function NavigationScreen({ route: navRoute }) {
 
               <View style={styles.addressTextWrap}>
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.addressLabel,
                     { color: themeColors.textSecondary },
                   ]}
@@ -991,7 +991,7 @@ export default function NavigationScreen({ route: navRoute }) {
                 </Text>
 
                 <Text
-                  style={[styles.addressValue, { color: themeColors.text }]}
+                  style={[{ fontFamily: typography.fontFamily.regular }, styles.addressValue, { color: themeColors.text }]}
                   numberOfLines={2}
                 >
                   {clientAddress}
@@ -999,7 +999,7 @@ export default function NavigationScreen({ route: navRoute }) {
 
                 {bookingId ? (
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.addressBookingId,
                       { color: themeColors.textSecondary },
                     ]}
@@ -1020,7 +1020,7 @@ export default function NavigationScreen({ route: navRoute }) {
               <View style={styles.routeInfoItem}>
                 <Ionicons name="navigate-outline" size={14} color={END_COLOR} />
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.routeInfoLabel,
                     { color: themeColors.textSecondary },
                   ]}
@@ -1028,7 +1028,7 @@ export default function NavigationScreen({ route: navRoute }) {
                   Distance
                 </Text>
                 <Text
-                  style={[styles.routeInfoValue, { color: themeColors.text }]}
+                  style={[{ fontFamily: typography.fontFamily.regular }, styles.routeInfoValue, { color: themeColors.text }]}
                 >
                   {routeInfo?.distanceText || formatDistance(straightDistance)}
                 </Text>
@@ -1044,7 +1044,7 @@ export default function NavigationScreen({ route: navRoute }) {
               <View style={styles.routeInfoItem}>
                 <Ionicons name="car-outline" size={14} color={PRIMARY} />
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.routeInfoLabel,
                     { color: themeColors.textSecondary },
                   ]}
@@ -1056,7 +1056,7 @@ export default function NavigationScreen({ route: navRoute }) {
                   <ActivityIndicator size="small" color={PRIMARY} />
                 ) : (
                   <Text
-                    style={[styles.routeInfoValue, { color: themeColors.text }]}
+                    style={[{ fontFamily: typography.fontFamily.regular }, styles.routeInfoValue, { color: themeColors.text }]}
                   >
                     {routeInfo?.drivingDurationText || '—'}
                   </Text>
@@ -1073,7 +1073,7 @@ export default function NavigationScreen({ route: navRoute }) {
               <View style={styles.routeInfoItem}>
                 <Ionicons name="walk-outline" size={14} color={PRIMARY} />
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.routeInfoLabel,
                     { color: themeColors.textSecondary },
                   ]}
@@ -1085,7 +1085,7 @@ export default function NavigationScreen({ route: navRoute }) {
                   <ActivityIndicator size="small" color={PRIMARY} />
                 ) : (
                   <Text
-                    style={[styles.routeInfoValue, { color: themeColors.text }]}
+                    style={[{ fontFamily: typography.fontFamily.regular }, styles.routeInfoValue, { color: themeColors.text }]}
                   >
                     {routeInfo?.walkingDurationText || '—'}
                   </Text>
@@ -1099,7 +1099,7 @@ export default function NavigationScreen({ route: navRoute }) {
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: ROUTE_COLOR }]} />
               <Text
-                style={[styles.legendText, { color: themeColors.textSecondary }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.legendText, { color: themeColors.textSecondary }]}
               >
                 Vous
               </Text>
@@ -1108,7 +1108,7 @@ export default function NavigationScreen({ route: navRoute }) {
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: DEST_COLOR }]} />
               <Text
-                style={[styles.legendText, { color: themeColors.textSecondary }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.legendText, { color: themeColors.textSecondary }]}
               >
                 Client
               </Text>
@@ -1138,7 +1138,7 @@ export default function NavigationScreen({ route: navRoute }) {
                   >
                     <Text
                       numberOfLines={1}
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.routeOptionTitle,
                         { color: themeColors.text },
                       ]}
@@ -1148,7 +1148,7 @@ export default function NavigationScreen({ route: navRoute }) {
 
                     <Text
                       numberOfLines={1}
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.routeOptionMeta,
                         { color: themeColors.textSecondary },
                       ]}
@@ -1179,7 +1179,7 @@ export default function NavigationScreen({ route: navRoute }) {
             accessibilityLabel="Partager dans la messagerie"
           >
             <Ionicons name="chatbubble-ellipses-outline" size={20} color={PRIMARY} />
-            <Text style={[styles.shareButtonText, { color: PRIMARY }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.shareButtonText, { color: PRIMARY }]}>
               Partager dans la messagerie
             </Text>
           </TouchableOpacity>
@@ -1202,7 +1202,7 @@ export default function NavigationScreen({ route: navRoute }) {
               color={isSharing ? '#FFFFFF' : START_COLOR}
             />
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.shareButtonText,
                 { color: isSharing ? '#FFFFFF' : START_COLOR },
               ]}
@@ -1215,7 +1215,7 @@ export default function NavigationScreen({ route: navRoute }) {
 
           {(isSharing || shareError) && shareStatusText ? (
             <Text
-              style={[styles.shareStatus, { color: themeColors.textSecondary }]}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.shareStatus, { color: themeColors.textSecondary }]}
             >
               {shareStatusText}
             </Text>
@@ -1233,7 +1233,7 @@ export default function NavigationScreen({ route: navRoute }) {
               end={{ x: 1, y: 0 }}
             >
               <Ionicons name="navigate" size={20} color="#FFFFFF" />
-              <Text style={styles.startButtonText}>Démarrer l'itinéraire</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.startButtonText]}>Démarrer l'itinéraire</Text>
             </LinearGradient>
           </TouchableOpacity>
     </>
@@ -1429,15 +1429,15 @@ const styles = StyleSheet.create({
 
   addressTextWrap: { flex: 1, minWidth: 0 },
 
-  addressLabel: { fontSize: 10, marginBottom: 2 },
+  addressLabel: { fontFamily: typography.fontFamily.regular, fontSize: 10, marginBottom: 2 },
 
   addressValue: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
     lineHeight: 18,
   },
 
-  addressBookingId: { fontSize: 10, marginTop: 3 },
+  addressBookingId: { fontFamily: typography.fontFamily.regular, fontSize: 10, marginTop: 3 },
 
   // --- Ligne Stats (Distance / Voiture / À pied) ---
   routeInfoRow: {
@@ -1457,11 +1457,11 @@ const styles = StyleSheet.create({
 
   routeInfoDivider: { width: 1, height: 20, marginHorizontal: 4 },
 
-  routeInfoLabel: { fontSize: 10 }, // Réduit
+  routeInfoLabel: { fontFamily: typography.fontFamily.regular, fontSize: 10 }, // Réduit
 
   routeInfoValue: {
     fontSize: typography.fontSize.xs, // Réduit
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   // ==========================================================
@@ -1500,8 +1500,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     elevation: 4,
   },
-  navChipMain: { color: '#FFFFFF', fontSize: 20, fontWeight: '800' },
-  navChipSub: { color: '#C8E6C9', fontSize: 12, fontWeight: '600' },
+  navChipMain: { fontFamily: typography.fontFamily.bold, color: '#FFFFFF', fontSize: 20, fontWeight: '800' },
+  navChipSub: { fontFamily: typography.fontFamily.semiBold, color: '#C8E6C9', fontSize: 12, fontWeight: '600' },
 
   positionChip: {
     position: 'absolute',
@@ -1515,7 +1515,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
 
-  positionChipText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  positionChipText: { fontFamily: typography.fontFamily.bold, color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
 
   // ✅ Conteneur du bouton SOS : ANCRÉ en absolu dans la carte (avant, ce
   // style n'existait pas -> le conteneur n'était pas positionné et le
@@ -1541,10 +1541,10 @@ const styles = StyleSheet.create({
 
   shareButtonText: {
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
-  shareStatus: {
+  shareStatus: { fontFamily: typography.fontFamily.regular,
     fontSize: 11,
     textAlign: 'center',
     marginBottom: spacing.sm,
@@ -1565,12 +1565,12 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
-  gpsWarningText: { flex: 1, color: '#92400E', fontSize: 11 },
+  gpsWarningText: { fontFamily: typography.fontFamily.regular, flex: 1, color: '#92400E', fontSize: 11 },
 
   gpsWarningRetry: {
     color: START_COLOR,
     fontSize: 11,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   // ==========================================================
@@ -1608,7 +1608,7 @@ const styles = StyleSheet.create({
 
   legendDot: { width: 8, height: 8, borderRadius: 4 },
 
-  legendText: { fontSize: typography.fontSize.xs },
+  legendText: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs },
 
   routeOptionsList: { marginBottom: spacing.md, gap: 6 },
 
@@ -1624,7 +1624,7 @@ const styles = StyleSheet.create({
 
   routeOptionTitle: {
     fontSize: typography.fontSize.xs,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   routeOptionMeta: {
@@ -1650,6 +1650,6 @@ const styles = StyleSheet.create({
   startButtonText: {
     color: '#FFFFFF',
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 });

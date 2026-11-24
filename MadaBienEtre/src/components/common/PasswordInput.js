@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { typography } from '../../theme';
 
 const PasswordInput = ({
   value,
@@ -32,7 +33,7 @@ const PasswordInput = ({
     <View style={[styles.wrap, { borderColor: border }, style]}>
       <TextInput
         ref={inputRef}
-        style={[styles.input, { color: text }, Platform.OS === 'web' && styles.inputWeb]}
+        style={[{ fontFamily: typography.fontFamily.regular }, styles.input, { color: text }, Platform.OS === 'web' && styles.inputWeb]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
@@ -72,7 +73,7 @@ const styles = StyleSheet.create({
     paddingLeft: 14,
     paddingRight: 8,
   },
-  input: { flex: 1, minWidth: 0, fontSize: 14, paddingVertical: 10 },
+  input: { fontFamily: typography.fontFamily.regular, flex: 1, minWidth: 0, fontSize: 14, paddingVertical: 10 },
   inputWeb: { outlineStyle: 'none', outlineWidth: 0 },
   eye: { padding: 6 },
 });

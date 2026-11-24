@@ -231,12 +231,12 @@ const ConversationsScreen = ({ navigation }) => {
         <View style={styles.body}>
           <View style={styles.line}>
             <Text
-              style={[styles.name, { color: palette.text }, unread > 0 && styles.bold]}
+              style={[{ fontFamily: typography.fontFamily.regular }, styles.name, { color: palette.text }, unread > 0 && styles.bold]}
               numberOfLines={1}
             >
               {name}
             </Text>
-            <Text style={[styles.time, { color: unread ? palette.primary : palette.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.time, { color: unread ? palette.primary : palette.textSecondary }]}>
               {formatListTime(last.created_at)}
             </Text>
           </View>
@@ -247,7 +247,7 @@ const ConversationsScreen = ({ navigation }) => {
                 <Ionicons name="ban-outline" size={14} color={palette.textSecondary} />
               )}
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.preview,
                   { color: unread ? palette.text : palette.textSecondary },
                   unread > 0 && styles.bold,
@@ -267,7 +267,7 @@ const ConversationsScreen = ({ navigation }) => {
 
               {unread > 0 && (
                 <View style={[styles.badge, { backgroundColor: palette.primary }]}>
-                  <Text style={styles.badgeText}>{unread > 99 ? '99+' : unread}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.badgeText]}>{unread > 99 ? '99+' : unread}</Text>
                 </View>
               )}
             </View>
@@ -303,7 +303,7 @@ const ConversationsScreen = ({ navigation }) => {
         >
           <Ionicons name="search-outline" size={20} color={palette.placeholder} />
           <TextInput
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.searchInput,
               { color: palette.text },
               Platform.OS === 'web' && styles.searchInputWeb,
@@ -371,11 +371,11 @@ const ConversationsScreen = ({ navigation }) => {
                   color={palette.primary}
                 />
               </View>
-              <Text style={[styles.emptyTitle, { color: palette.text }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyTitle, { color: palette.text }]}>
                 {error || (query ? 'Aucun résultat' : 'Aucune conversation')}
               </Text>
               {!error && (
-                <Text style={[styles.emptyText, { color: palette.textSecondary }]}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyText, { color: palette.textSecondary }]}>
                   {query
                     ? `Aucune conversation ne correspond à « ${query.trim()} ».`
                     : `Vos échanges avec ${isTherapistRole(user?.role) ? 'vos clients' : 'votre thérapeute'} apparaîtront ici.`}
@@ -387,7 +387,7 @@ const ConversationsScreen = ({ navigation }) => {
                   style={[styles.retry, { backgroundColor: palette.primary }]}
                   accessibilityRole="button"
                 >
-                  <Text style={styles.retryText}>Réessayer</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.retryText]}>Réessayer</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
   body: { flex: 1, minWidth: 0, gap: 5 },
   line: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   name: { flex: 1, fontSize: 15, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
-  bold: { fontWeight: '800' },
+  bold: { fontFamily: typography.fontFamily.bold, fontWeight: '800' },
   time: { fontSize: 12, fontFamily: typography.fontFamily.regular },
   previewWrap: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, minWidth: 0 },
   preview: { flexShrink: 1, fontSize: 13, fontFamily: typography.fontFamily.regular },
@@ -500,7 +500,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
+  badgeText: { fontFamily: typography.fontFamily.bold, color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
 
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 },
   emptyIcon: {
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 17, fontFamily: typography.fontFamily.semiBold, fontWeight: '700', textAlign: 'center' },
   emptyText: { fontSize: 14, textAlign: 'center', fontFamily: typography.fontFamily.regular },
   retry: { marginTop: 8, paddingHorizontal: 22, paddingVertical: 10, borderRadius: 12 },
-  retryText: { color: '#FFFFFF', fontWeight: '700' },
+  retryText: { fontFamily: typography.fontFamily.bold, color: '#FFFFFF', fontWeight: '700' },
 });
 
 export default ConversationsScreen;

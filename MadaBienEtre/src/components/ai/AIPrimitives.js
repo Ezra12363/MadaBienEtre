@@ -42,10 +42,10 @@ export const AICard = ({ title, subtitle, icon, right, children, style }) => {
           ) : null}
           <View style={styles.flex}>
             {title ? (
-              <Text style={[styles.cardTitle, { color: tc.text }]}>{title}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardTitle, { color: tc.text }]}>{title}</Text>
             ) : null}
             {subtitle ? (
-              <Text style={[styles.cardSubtitle, { color: tc.textSecondary }]}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardSubtitle, { color: tc.textSecondary }]}>
                 {subtitle}
               </Text>
             ) : null}
@@ -102,7 +102,7 @@ export const AIButton = ({
             />
           ) : null}
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.buttonText,
               { color: isPrimary ? '#fff' : colors.primary },
             ]}
@@ -140,7 +140,7 @@ export const AIChip = ({ label, active, onPress, icon }) => {
         />
       ) : null}
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.chipText,
           { color: active ? '#fff' : tc.text },
         ]}
@@ -169,7 +169,7 @@ export const AIField = ({
   return (
     <View style={[styles.fieldWrap, style]}>
       {label ? (
-        <Text style={[styles.fieldLabel, { color: tc.textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.fieldLabel, { color: tc.textSecondary }]}>
           {label}
         </Text>
       ) : null}
@@ -183,7 +183,7 @@ export const AIField = ({
         ]}
       >
         <TextInput
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.fieldInput,
             { color: tc.text },
             multiline && styles.fieldMultiline,
@@ -197,7 +197,7 @@ export const AIField = ({
           multiline={multiline}
         />
         {suffix ? (
-          <Text style={[styles.fieldSuffix, { color: tc.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.fieldSuffix, { color: tc.textSecondary }]}>
             {suffix}
           </Text>
         ) : null}
@@ -243,7 +243,7 @@ export const AITabs = ({ tabs, active, onChange }) => {
                 />
               ) : null}
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.tabText,
                   { color: isActive ? '#fff' : tc.textSecondary },
                 ]}
@@ -267,10 +267,10 @@ export const AIError = ({ message, onRetry }) => {
   return (
     <View style={styles.errorBox}>
       <Ionicons name="alert-circle-outline" size={18} color={colors.error} />
-      <Text style={[styles.errorText, { color: tc.text }]}>{message}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText, { color: tc.text }]}>{message}</Text>
       {onRetry ? (
         <TouchableOpacity onPress={onRetry}>
-          <Text style={styles.retryText}>Réessayer</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.retryText]}>Réessayer</Text>
         </TouchableOpacity>
       ) : null}
     </View>
@@ -282,7 +282,7 @@ export const AIEmpty = ({ text, icon = 'sparkles-outline' }) => {
   return (
     <View style={styles.empty}>
       <Ionicons name={icon} size={28} color={tc.textSecondary} />
-      <Text style={[styles.emptyText, { color: tc.textSecondary }]}>{text}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyText, { color: tc.textSecondary }]}>{text}</Text>
     </View>
   );
 };
@@ -293,7 +293,7 @@ export const AILoading = ({ text }) => {
     <View style={styles.empty}>
       <ActivityIndicator color={colors.primary} />
       {text ? (
-        <Text style={[styles.emptyText, { color: tc.textSecondary }]}>{text}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyText, { color: tc.textSecondary }]}>{text}</Text>
       ) : null}
     </View>
   );
@@ -306,12 +306,12 @@ export const AIStatRow = ({ label, value, bold, color }) => {
   const { colors: tc } = useTheme();
   return (
     <View style={styles.statRow}>
-      <Text style={[styles.statLabel, { color: tc.textSecondary }]}>{label}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.statLabel, { color: tc.textSecondary }]}>{label}</Text>
       <Text
-        style={[
+        style={[{ fontFamily: typography.fontFamily.regular }, 
           styles.statValue,
           { color: color || tc.text },
-          bold && { fontFamily: font.bold },
+          bold && { fontFamily: font.bold, fontWeight: '700' },
         ]}
       >
         {value}
@@ -351,7 +351,7 @@ export const AIMassageTypePicker = ({ value, onChange, label = 'Type de massage'
 
   return (
     <View style={styles.fieldWrap}>
-      <Text style={[styles.fieldLabel, { color: tc.textSecondary }]}>{label}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.fieldLabel, { color: tc.textSecondary }]}>{label}</Text>
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ alignSelf: 'flex-start' }} />
       ) : error ? (
@@ -403,7 +403,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardTitle: { fontSize: typography.fontSize.lg, fontFamily: font.bold },
+  cardTitle: { fontSize: typography.fontSize.lg, fontFamily: font.bold, fontWeight: '700' },
   cardSubtitle: { fontSize: typography.fontSize.sm, fontFamily: font.regular },
   button: {
     flexDirection: 'row',
@@ -415,7 +415,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     minHeight: 44,
   },
-  buttonText: { fontSize: typography.fontSize.md, fontFamily: font.semiBold },
+  buttonText: { fontSize: typography.fontSize.md, fontFamily: font.semiBold, fontWeight: '600' },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -424,12 +424,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
-  chipText: { fontSize: typography.fontSize.sm, fontFamily: font.medium },
+  chipText: { fontSize: typography.fontSize.sm, fontFamily: font.medium, fontWeight: '500' },
   chipRow: { gap: spacing.sm, paddingVertical: 2 },
   fieldWrap: { marginBottom: spacing.sm },
   fieldLabel: {
     fontSize: typography.fontSize.sm,
-    fontFamily: font.medium,
+    fontFamily: font.medium, fontWeight: '500',
     marginBottom: 4,
   },
   fieldBox: {
@@ -448,7 +448,7 @@ const styles = StyleSheet.create({
   },
   fieldMultiline: { minHeight: 70, textAlignVertical: 'top' },
   fieldInputWeb: { outlineStyle: 'none', outlineWidth: 0 },
-  fieldSuffix: { fontSize: typography.fontSize.sm, fontFamily: font.medium },
+  fieldSuffix: { fontSize: typography.fontSize.sm, fontFamily: font.medium, fontWeight: '500' },
   tabs: {
     borderRadius: 14,
     borderWidth: 1,
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   tabFill: { flex: 1, justifyContent: 'center' },
-  tabText: { fontSize: typography.fontSize.sm, fontFamily: font.semiBold },
+  tabText: { fontSize: typography.fontSize.sm, fontFamily: font.semiBold, fontWeight: '600' },
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   retryText: {
     color: colors.primary,
     fontSize: typography.fontSize.sm,
-    fontFamily: font.semiBold,
+    fontFamily: font.semiBold, fontWeight: '600',
   },
   empty: { alignItems: 'center', paddingVertical: spacing.lg, gap: spacing.sm },
   emptyText: {
@@ -499,5 +499,5 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   statLabel: { fontSize: typography.fontSize.sm, fontFamily: font.regular },
-  statValue: { fontSize: typography.fontSize.md, fontFamily: font.semiBold },
+  statValue: { fontSize: typography.fontSize.md, fontFamily: font.semiBold, fontWeight: '600' },
 });

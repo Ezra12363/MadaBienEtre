@@ -811,7 +811,7 @@ const OTPVerificationScreen = ({
 
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.title,
               {
                 color:
@@ -826,7 +826,7 @@ const OTPVerificationScreen = ({
 
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.subtitle,
               {
                 color:
@@ -872,7 +872,7 @@ const OTPVerificationScreen = ({
                     ref;
                 }}
 
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.otpInput,
                   {
                     width:
@@ -975,7 +975,7 @@ const OTPVerificationScreen = ({
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.errorText,
                 {
                   color:
@@ -1018,7 +1018,7 @@ const OTPVerificationScreen = ({
             />
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.timerText,
                 {
                   color:
@@ -1033,7 +1033,7 @@ const OTPVerificationScreen = ({
                 ? (
                   <Text
                     style={
-                      styles.resendAvailable
+                      [{ fontFamily: typography.fontFamily.regular }, styles.resendAvailable]
                     }
                   >
                     Vous pouvez renvoyer
@@ -1060,7 +1060,7 @@ const OTPVerificationScreen = ({
           >
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.resendText,
 
                 canResend &&
@@ -1159,7 +1159,7 @@ const OTPVerificationScreen = ({
 
                 <Text
                   style={
-                    styles.loadingText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.loadingText]
                   }
                 >
                   Vérification...
@@ -1173,7 +1173,7 @@ const OTPVerificationScreen = ({
 
                 <Text
                   style={
-                    styles.verifyButtonText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.verifyButtonText]
                   }
                 >
                   Vérifier
@@ -1229,7 +1229,7 @@ const OTPVerificationScreen = ({
           </View>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.infoText,
               {
                 color:
@@ -1436,7 +1436,7 @@ const OTPVerificationScreen = ({
 
                   <Text
                     style={
-                      styles.mobileBackText
+                      [{ fontFamily: typography.fontFamily.regular }, styles.mobileBackText]
                     }
                   >
                     Retour
@@ -1473,7 +1473,7 @@ const OTPVerificationScreen = ({
 
                   <Text
                     style={
-                      styles.mobileHeaderTitle
+                      [{ fontFamily: typography.fontFamily.regular }, styles.mobileHeaderTitle]
                     }
                   >
                     Vérification OTP
@@ -1482,7 +1482,7 @@ const OTPVerificationScreen = ({
 
                   <Text
                     style={
-                      styles.mobileHeaderSubtitle
+                      [{ fontFamily: typography.fontFamily.regular }, styles.mobileHeaderSubtitle]
                     }
                   >
                     Un code a été envoyé à {email}
@@ -1526,7 +1526,7 @@ const OTPVerificationScreen = ({
 
                   <Text
                     style={
-                      styles.mobileFooterText
+                      [{ fontFamily: typography.fontFamily.regular }, styles.mobileFooterText]
                     }
                   >
                     Une expérience bien-être sécurisée
@@ -1629,7 +1629,7 @@ const OTPVerificationScreen = ({
 
                   <Text
                     style={
-                      styles.desktopBrandTitle
+                      [{ fontFamily: typography.fontFamily.regular }, styles.desktopBrandTitle]
                     }
                   >
                     Vérifiez votre{"\n"}
@@ -1640,7 +1640,7 @@ const OTPVerificationScreen = ({
 
                   <Text
                     style={
-                      styles.desktopBrandDescription
+                      [{ fontFamily: typography.fontFamily.regular }, styles.desktopBrandDescription]
                     }
                   >
                     Un code de vérification
@@ -1688,7 +1688,7 @@ const OTPVerificationScreen = ({
 
                         <Text
                           style={
-                            styles.desktopFeatureTitle
+                            [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureTitle]
                           }
                         >
                           Vérification sécurisée
@@ -1696,7 +1696,7 @@ const OTPVerificationScreen = ({
 
                         <Text
                           style={
-                            styles.desktopFeatureDescription
+                            [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureDescription]
                           }
                         >
                           Votre compte est protégé
@@ -1737,7 +1737,7 @@ const OTPVerificationScreen = ({
 
                         <Text
                           style={
-                            styles.desktopFeatureTitle
+                            [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureTitle]
                           }
                         >
                           Code envoyé par email
@@ -1745,7 +1745,7 @@ const OTPVerificationScreen = ({
 
                         <Text
                           style={
-                            styles.desktopFeatureDescription
+                            [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureDescription]
                           }
                         >
                           Saisissez les 6 chiffres reçus
@@ -1786,7 +1786,7 @@ const OTPVerificationScreen = ({
 
                         <Text
                           style={
-                            styles.desktopFeatureTitle
+                            [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureTitle]
                           }
                         >
                           Protection de vos données
@@ -1794,7 +1794,7 @@ const OTPVerificationScreen = ({
 
                         <Text
                           style={
-                            styles.desktopFeatureDescription
+                            [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureDescription]
                           }
                         >
                           Une expérience fiable et sécurisée
@@ -1819,7 +1819,7 @@ const OTPVerificationScreen = ({
 
                   <Text
                     style={
-                      styles.desktopCopyright
+                      [{ fontFamily: typography.fontFamily.regular }, styles.desktopCopyright]
                     }
                   >
                     © 2026 Tous droits réservés
@@ -1827,7 +1827,7 @@ const OTPVerificationScreen = ({
 
                   <Text
                     style={
-                      styles.desktopFooterRight
+                      [{ fontFamily: typography.fontFamily.regular }, styles.desktopFooterRight]
                     }
                   >
                     Bien-être • Confiance • Proximité
@@ -1919,7 +1919,7 @@ const OTPVerificationScreen = ({
 
                       <Text
                         style={
-                          styles.desktopBackText
+                          [{ fontFamily: typography.fontFamily.regular }, styles.desktopBackText]
                         }
                       >
                         Retour
@@ -1959,7 +1959,7 @@ const OTPVerificationScreen = ({
 
                       <Text
                         style={
-                          styles.desktopSecureText
+                          [{ fontFamily: typography.fontFamily.regular }, styles.desktopSecureText]
                         }
                       >
                         Une expérience bien-être sécurisée
@@ -1970,7 +1970,7 @@ const OTPVerificationScreen = ({
 
                     <Text
                       style={
-                        styles.desktopFooterCopyright
+                        [{ fontFamily: typography.fontFamily.regular }, styles.desktopFooterCopyright]
                       }
                     >
                       © 2026 Tous droits réservés
@@ -2123,7 +2123,7 @@ const styles =
       fontSize: 14,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
 
       marginLeft: 7,
     },
@@ -2174,7 +2174,7 @@ const styles =
       fontSize: 19,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
 
       textAlign: 'center',
     },
@@ -2250,7 +2250,7 @@ const styles =
         typography.fontSize.xl,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
 
       textAlign: 'center',
     },
@@ -2296,7 +2296,7 @@ const styles =
         typography.fontSize.xxl,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
 
       shadowColor: '#000',
 
@@ -2386,7 +2386,7 @@ const styles =
         '#FF0000',
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
     },
 
     resendText: {
@@ -2394,7 +2394,7 @@ const styles =
         typography.fontSize.sm,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
     },
 
     resendInactive: {
@@ -2484,7 +2484,7 @@ const styles =
         typography.fontSize.lg,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
     },
 
     verifyArrow: {
@@ -2519,7 +2519,7 @@ const styles =
         typography.fontSize.md,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
 
       marginLeft: 9,
     },
@@ -2674,7 +2674,7 @@ const styles =
       lineHeight: 51,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
 
       marginBottom: 22,
     },
@@ -2734,7 +2734,7 @@ const styles =
       fontSize: 14,
 
       fontFamily:
-        typography.fontFamily.bold,
+        typography.fontFamily.bold, fontWeight: '700',
     },
 
     desktopFeatureDescription: {
@@ -2878,7 +2878,7 @@ const styles =
       fontSize: 13.5,
 
       fontFamily:
-        typography.fontFamily.medium,
+        typography.fontFamily.medium, fontWeight: '500',
 
       marginLeft: 6,
     },

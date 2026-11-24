@@ -11,6 +11,7 @@ import reviewService from '../../services/reviewService';
 import ReviewCard from './ReviewCard';
 import ReviewActionModal from './ReviewActionModal';
 import ConfirmDialog from '../common/ConfirmDialog';
+import { typography } from '../../theme';
 
 export default function BookingReviewSection({ bookingId, status, role = 'client', navigation, style }) {
   const { colors: c } = useTheme();
@@ -59,7 +60,7 @@ export default function BookingReviewSection({ bookingId, status, role = 'client
 
   return (
     <View style={style}>
-      <Text style={[s.title, { color: c.text }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, s.title, { color: c.text }]}>
         {role === 'client' ? 'Mon avis' : 'Avis du client'}
       </Text>
 
@@ -67,8 +68,8 @@ export default function BookingReviewSection({ bookingId, status, role = 'client
         <TouchableOpacity onPress={openRating} style={[s.cta, { backgroundColor: c.primary }]} activeOpacity={0.85}>
           <Ionicons name="star" size={20} color="#fff" />
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#fff', fontWeight: '800', fontSize: 15 }}>Donner mon avis</Text>
-            <Text style={{ color: '#ffffffcc', fontSize: 12 }}>Notez votre massage et votre thérapeute</Text>
+            <Text style={{ fontFamily: typography.fontFamily.bold, color: '#fff', fontWeight: '800', fontSize: 15 }}>Donner mon avis</Text>
+            <Text style={{ fontFamily: typography.fontFamily.regular, color: '#ffffffcc', fontSize: 12 }}>Notez votre massage et votre thérapeute</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#fff" />
         </TouchableOpacity>
@@ -77,7 +78,7 @@ export default function BookingReviewSection({ bookingId, status, role = 'client
       {!review && role !== 'client' && (
         <View style={[s.empty, { backgroundColor: c.surface }]}>
           <Ionicons name="star-outline" size={20} color={c.textSecondary} />
-          <Text style={{ color: c.textSecondary, flex: 1 }}>Le client n'a pas encore donné son avis.</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: c.textSecondary, flex: 1 }]}>Le client n'a pas encore donné son avis.</Text>
         </View>
       )}
 
@@ -119,7 +120,7 @@ export default function BookingReviewSection({ bookingId, status, role = 'client
 }
 
 const s = StyleSheet.create({
-  title: { fontSize: 16, fontWeight: '800', marginBottom: 10 },
+  title: { fontFamily: typography.fontFamily.bold, fontSize: 16, fontWeight: '800', marginBottom: 10 },
   cta: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 16 },
   empty: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 14 },
 });

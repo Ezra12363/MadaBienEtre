@@ -112,7 +112,7 @@ const AIPriceEstimateCard = ({ onReserve }) => {
         />
       </View>
 
-      <Text style={[styles.label, { color: tc.textSecondary }]}>Demande actuelle</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.label, { color: tc.textSecondary }]}>Demande actuelle</Text>
       <View style={styles.chips}>
         {DEMAND_LEVELS.map((l) => (
           <AIChip key={l.id} label={l.label} active={demand === l.id} onPress={() => setDemand(l.id)} />
@@ -133,17 +133,17 @@ const AIPriceEstimateCard = ({ onReserve }) => {
         <View style={[styles.result, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }]}>
           {mainPrice !== null && (
             <>
-              <Text style={[styles.resultLabel, { color: tc.textSecondary }]}>Prix estimé</Text>
-              <Text style={styles.resultPrice}>{formatAr(mainPrice)}</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.resultLabel, { color: tc.textSecondary }]}>Prix estimé</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.resultPrice]}>{formatAr(mainPrice)}</Text>
             </>
           )}
           {minPrice !== null && maxPrice !== null && (
-            <Text style={[styles.range, { color: tc.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.range, { color: tc.textSecondary }]}>
               Fourchette : {formatAr(minPrice)} – {formatAr(maxPrice)}
             </Text>
           )}
           {confidence !== null && (
-            <Text style={[styles.range, { color: tc.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.range, { color: tc.textSecondary }]}>
               Fiabilité : {formatPercent(confidence)}
             </Text>
           )}
@@ -175,12 +175,12 @@ const AIPriceEstimateCard = ({ onReserve }) => {
 const styles = StyleSheet.create({
   twoCols: { flexDirection: 'row', gap: spacing.sm },
   col: { flex: 1 },
-  label: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, marginBottom: 4 },
+  label: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500', marginBottom: 4 },
   chips: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
   result: { borderWidth: 1, borderRadius: 14, padding: spacing.md, marginTop: spacing.md },
-  resultLabel: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium },
-  resultPrice: { fontSize: typography.fontSize.xxl, fontFamily: typography.fontFamily.bold, color: colors.primary },
-  range: { fontSize: typography.fontSize.sm, marginTop: 2 },
+  resultLabel: { fontSize: typography.fontSize.sm, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
+  resultPrice: { fontSize: typography.fontSize.xxl, fontFamily: typography.fontFamily.bold, fontWeight: '700', color: colors.primary },
+  range: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, marginTop: 2 },
   breakdown: { marginTop: spacing.sm, paddingTop: spacing.sm },
 });
 

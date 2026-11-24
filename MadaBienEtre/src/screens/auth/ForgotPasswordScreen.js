@@ -454,7 +454,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.title,
               {
                 color: isDark
@@ -468,7 +468,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.subtitle,
               {
                 color: isDark
@@ -576,7 +576,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                 <Text
                   style={
-                    styles.loadingText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.loadingText]
                   }
                 >
                   Envoi en cours...
@@ -590,7 +590,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                 <Text
                   style={
-                    styles.resetButtonText
+                    [{ fontFamily: typography.fontFamily.regular }, styles.resetButtonText]
                   }
                 >
                   Envoyer le code
@@ -648,7 +648,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
           <Text
             style={
-              styles.backToLoginText
+              [{ fontFamily: typography.fontFamily.regular }, styles.backToLoginText]
             }
           >
             Retour à la connexion
@@ -696,7 +696,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.infoText,
               {
                 color: isDark
@@ -940,7 +940,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                   <Text
                     style={
-                      styles.mobileBackText
+                      [{ fontFamily: typography.fontFamily.regular }, styles.mobileBackText]
                     }
                   >
                     Retour
@@ -980,7 +980,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                     <Text
                       style={
-                        styles.mobileHeaderTitle
+                        [{ fontFamily: typography.fontFamily.regular }, styles.mobileHeaderTitle]
                       }
                     >
                       Mot de passe oublié
@@ -989,7 +989,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                     <Text
                       style={
-                        styles.mobileHeaderSubtitle
+                        [{ fontFamily: typography.fontFamily.regular }, styles.mobileHeaderSubtitle]
                       }
                     >
                       Nous allons vous aider à récupérer
@@ -1044,7 +1044,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                     <Text
                       style={
-                        styles.mobileFooterText
+                        [{ fontFamily: typography.fontFamily.regular }, styles.mobileFooterText]
                       }
                     >
                       Une expérience bien-être sécurisée
@@ -1147,7 +1147,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                 <Text
                   style={
-                    styles.desktopBrandTitle
+                    [{ fontFamily: typography.fontFamily.regular }, styles.desktopBrandTitle]
                   }
                 >
                   Réinitialisez votre{'\n'}
@@ -1160,7 +1160,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                 <Text
                   style={
-                    styles.desktopBrandDescription
+                    [{ fontFamily: typography.fontFamily.regular }, styles.desktopBrandDescription]
                   }
                 >
                   Entrez votre adresse email et
@@ -1209,7 +1209,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                       <Text
                         style={
-                          styles.desktopFeatureTitle
+                          [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureTitle]
                         }
                       >
                         Code envoyé par email
@@ -1217,7 +1217,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                       <Text
                         style={
-                          styles.desktopFeatureDescription
+                          [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureDescription]
                         }
                       >
                         Recevez votre code OTP à 6 chiffres
@@ -1259,7 +1259,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                       <Text
                         style={
-                          styles.desktopFeatureTitle
+                          [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureTitle]
                         }
                       >
                         Vérification sécurisée
@@ -1267,7 +1267,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                       <Text
                         style={
-                          styles.desktopFeatureDescription
+                          [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureDescription]
                         }
                       >
                         Votre identité est protégée
@@ -1309,7 +1309,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                       <Text
                         style={
-                          styles.desktopFeatureTitle
+                          [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureTitle]
                         }
                       >
                         Nouveau mot de passe
@@ -1317,7 +1317,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                       <Text
                         style={
-                          styles.desktopFeatureDescription
+                          [{ fontFamily: typography.fontFamily.regular }, styles.desktopFeatureDescription]
                         }
                       >
                         Récupérez votre compte facilement
@@ -1342,7 +1342,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                 <Text
                   style={
-                    styles.desktopCopyright
+                    [{ fontFamily: typography.fontFamily.regular }, styles.desktopCopyright]
                   }
                 >
                   © 2026 Tous droits réservés
@@ -1351,7 +1351,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                 <Text
                   style={
-                    styles.desktopFooterRight
+                    [{ fontFamily: typography.fontFamily.regular }, styles.desktopFooterRight]
                   }
                 >
                   Bien-être • Confiance • Proximité
@@ -1439,7 +1439,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                     <Text
                       style={
-                        styles.desktopBackText
+                        [{ fontFamily: typography.fontFamily.regular }, styles.desktopBackText]
                       }
                     >
                       Retour
@@ -1479,7 +1479,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                     <Text
                       style={
-                        styles.desktopSecureText
+                        [{ fontFamily: typography.fontFamily.regular }, styles.desktopSecureText]
                       }
                     >
                       Une expérience bien-être sécurisée
@@ -1490,7 +1490,7 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
                   <Text
                     style={
-                      styles.desktopFooterCopyright
+                      [{ fontFamily: typography.fontFamily.regular }, styles.desktopFooterCopyright]
                     }
                   >
                     © 2026 Tous droits réservés
@@ -1694,7 +1694,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
 
     marginLeft: 7,
   },
@@ -1746,7 +1746,7 @@ const styles = StyleSheet.create({
     fontSize: 19,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
 
     textAlign: 'center',
   },
@@ -1827,7 +1827,7 @@ const styles = StyleSheet.create({
       typography.fontSize.xl,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
 
     textAlign: 'center',
   },
@@ -1948,7 +1948,7 @@ const styles = StyleSheet.create({
       typography.fontSize.lg,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   resetArrow: {
@@ -1983,7 +1983,7 @@ const styles = StyleSheet.create({
       typography.fontSize.md,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
 
     marginLeft: 9,
   },
@@ -2026,7 +2026,7 @@ const styles = StyleSheet.create({
       typography.fontSize.md,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
   },
 
   // ==========================================================
@@ -2176,7 +2176,7 @@ const styles = StyleSheet.create({
     lineHeight: 51,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
 
     marginBottom: 22,
   },
@@ -2236,7 +2236,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
 
     fontFamily:
-      typography.fontFamily.bold,
+      typography.fontFamily.bold, fontWeight: '700',
   },
 
   desktopFeatureDescription: {
@@ -2380,7 +2380,7 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
 
     fontFamily:
-      typography.fontFamily.medium,
+      typography.fontFamily.medium, fontWeight: '500',
 
     marginLeft: 6,
   },

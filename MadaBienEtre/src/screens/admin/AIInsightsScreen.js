@@ -61,11 +61,11 @@ const Kpi = ({ icon, label, value, hint }) => {
       <View style={styles.kpiIcon}>
         <Ionicons name={icon} size={18} color={colors.primary} />
       </View>
-      <Text style={[styles.kpiValue, { color: tc.text }]} numberOfLines={1} adjustsFontSizeToFit>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.kpiValue, { color: tc.text }]} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </Text>
-      <Text style={[styles.kpiLabel, { color: tc.textSecondary }]}>{label}</Text>
-      {hint ? <Text style={[styles.kpiHint, { color: tc.textSecondary }]}>{hint}</Text> : null}
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.kpiLabel, { color: tc.textSecondary }]}>{label}</Text>
+      {hint ? <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.kpiHint, { color: tc.textSecondary }]}>{hint}</Text> : null}
     </View>
   );
 };
@@ -193,7 +193,7 @@ const AIInsightsScreen = () => {
                     <AIError message={insightsError} onRetry={load} />
                     {insights && (
                       <>
-                        <Text style={[styles.period, { color: themeColors.textSecondary }]}>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.period, { color: themeColors.textSecondary }]}>
                           Période : 30 derniers jours
                         </Text>
                         <View style={styles.kpiGrid}>
@@ -232,7 +232,7 @@ const AIInsightsScreen = () => {
               <>
                 <AIFraudPanel />
                 <AICard icon="information-circle-outline" title="À savoir">
-                  <Text style={{ color: themeColors.textSecondary, fontSize: typography.fontSize.sm }}>
+                  <Text style={{ fontFamily: typography.fontFamily.regular, color: themeColors.textSecondary, fontSize: typography.fontSize.sm }}>
                     L'IA signale des réservations à vérifier ; la décision finale (blocage, suspension)
                     reste à l'administrateur.
                   </Text>
@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   // verticalement (haut <-> bas) sur Android, iOS et web.
   scrollView: { flex: 1, minHeight: 0, width: '100%' },
   scroll: { flexGrow: 1, paddingBottom: spacing.xxl },
-  period: { fontSize: typography.fontSize.sm, marginBottom: spacing.sm },
+  period: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.sm, marginBottom: spacing.sm },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
   kpi: {
     flexGrow: 1,
@@ -281,9 +281,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 6,
   },
-  kpiValue: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold },
-  kpiLabel: { fontSize: typography.fontSize.xs, marginTop: 2 },
-  kpiHint: { fontSize: typography.fontSize.xs },
+  kpiValue: { fontSize: typography.fontSize.xl, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
+  kpiLabel: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs, marginTop: 2 },
+  kpiHint: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.xs },
 });
 
 export default AIInsightsScreen;

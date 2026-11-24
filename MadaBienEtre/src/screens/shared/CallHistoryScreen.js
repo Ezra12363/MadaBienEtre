@@ -13,6 +13,7 @@ import { useTheme } from '../../context/ThemeContext';
 import messengerService from '../../services/messengerService';
 import { formatListTime, resolvePhotoUrl } from '../../utils/chatUi';
 import { formatDuration } from '../../utils/messengerUtils';
+import { typography } from '../../theme';
 
 const CallHistoryScreen = ({ navigation }) => {
   const { colors: themeColors, isDark } = useTheme();
@@ -39,7 +40,7 @@ const CallHistoryScreen = ({ navigation }) => {
       {loading ? <ActivityIndicator color={palette.primary} style={{ marginTop: 40 }} /> : (
         <FlatList
           data={items} keyExtractor={(c) => String(c.id)} contentContainerStyle={{ padding: 12, gap: 6 }}
-          ListEmptyComponent={<Text style={{ color: palette.textSecondary, textAlign: 'center', marginTop: 40 }}>Aucun appel pour le moment.</Text>}
+          ListEmptyComponent={<Text style={[{ fontFamily: typography.fontFamily.regular }, { color: palette.textSecondary, textAlign: 'center', marginTop: 40 }]}>Aucun appel pour le moment.</Text>}
           renderItem={({ item: c }) => (
             <TouchableOpacity
               style={[styles.row, { backgroundColor: palette.surface, borderColor: palette.border }]}
@@ -47,13 +48,13 @@ const CallHistoryScreen = ({ navigation }) => {
             >
               <ChatAvatar uri={resolvePhotoUrl(c.peer.profile_image)} name={c.peer.fullname} size={46} palette={palette} />
               <View style={{ flex: 1 }}>
-                <Text style={{ color: c.missed ? palette.danger : palette.text, fontWeight: '700' }} numberOfLines={1}>{c.peer.fullname}</Text>
+                <Text style={{ fontFamily: typography.fontFamily.bold, color: c.missed ? palette.danger : palette.text, fontWeight: '700' }} numberOfLines={1}>{c.peer.fullname}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   <Ionicons name={c.direction === 'outgoing' ? 'arrow-up' : 'arrow-down'} size={12} color={c.missed ? palette.danger : palette.textSecondary} />
-                  <Text style={{ color: palette.textSecondary, fontSize: 12 }}>{c.direction === 'outgoing' ? 'Sortant' : c.missed ? 'Manqué' : 'Entrant'} · {label(c)}</Text>
+                  <Text style={{ fontFamily: typography.fontFamily.regular, color: palette.textSecondary, fontSize: 12 }}>{c.direction === 'outgoing' ? 'Sortant' : c.missed ? 'Manqué' : 'Entrant'} · {label(c)}</Text>
                 </View>
               </View>
-              <Text style={{ color: palette.textSecondary, fontSize: 12 }}>{formatListTime(c.created_at)}</Text>
+              <Text style={{ fontFamily: typography.fontFamily.regular, color: palette.textSecondary, fontSize: 12 }}>{formatListTime(c.created_at)}</Text>
             </TouchableOpacity>
           )}
         />
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   head: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 8 },
   back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
-  h1: { fontSize: 22, fontWeight: '800' },
+  h1: { fontFamily: typography.fontFamily.bold, fontSize: 22, fontWeight: '800' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
 });
 

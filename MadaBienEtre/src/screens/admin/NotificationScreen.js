@@ -566,7 +566,7 @@ const NotificationScreen = ({ navigation }) => {
             <View style={styles.itemTitleRow}>
               <Text
                 numberOfLines={1}
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.itemTitle,
                   { color: themeColors.text },
                   isUnread && styles.itemTitleUnread,
@@ -581,11 +581,11 @@ const NotificationScreen = ({ navigation }) => {
             {badge ? (
               <View style={styles.badgeRow}>
                 <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-                  <Text style={[styles.badgeText, { color: badge.fg }]}>{data.badge}</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.badgeText, { color: badge.fg }]}>{data.badge}</Text>
                 </View>
                 {handled ? (
                   <View style={[styles.badge, { backgroundColor: '#E4F4EA' }]}>
-                    <Text style={[styles.badgeText, { color: '#2E8B57' }]}>Traité ✓</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.badgeText, { color: '#2E8B57' }]}>Traité ✓</Text>
                   </View>
                 ) : null}
               </View>
@@ -594,7 +594,7 @@ const NotificationScreen = ({ navigation }) => {
             {item.message || item.body ? (
               <Text
                 numberOfLines={3}
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.itemMessage,
                   { color: themeColors.textSecondary || '#718078' },
                 ]}
@@ -604,7 +604,7 @@ const NotificationScreen = ({ navigation }) => {
             ) : null}
 
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.itemTime,
                 { color: themeColors.textSecondary || '#9AA5A0' },
               ]}
@@ -668,7 +668,7 @@ const NotificationScreen = ({ navigation }) => {
                   ) : (
                     <Ionicons name={def.icon} size={15} color={action === 'approve' ? '#fff' : def.color} />
                   )}
-                  <Text style={[styles.actionText, { color: action === 'approve' ? '#fff' : def.color }]}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionText, { color: action === 'approve' ? '#fff' : def.color }]}>
                     {actionLabel(item, action)}
                   </Text>
                 </TouchableOpacity>
@@ -704,7 +704,7 @@ const NotificationScreen = ({ navigation }) => {
         </View>
 
         <Text
-          style={[
+          style={[{ fontFamily: typography.fontFamily.regular }, 
             styles.emptyText,
             { color: themeColors.textSecondary || '#718078' },
           ]}
@@ -722,7 +722,7 @@ const NotificationScreen = ({ navigation }) => {
             onPress={() => loadNotifications()}
             style={styles.retryButton}
           >
-            <Text style={styles.retryText}>Réessayer</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.retryText]}>Réessayer</Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -757,7 +757,7 @@ const NotificationScreen = ({ navigation }) => {
             >
               <Text
                 numberOfLines={1}
-                style={[styles.chipText, { color: active ? '#FFFFFF' : themeColors.text }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.chipText, { color: active ? '#FFFFFF' : themeColors.text }]}
               >
                 {f.label}
               </Text>
@@ -843,7 +843,7 @@ const NotificationScreen = ({ navigation }) => {
           style={styles.disabledBanner}
         >
           <Ionicons name="notifications-off-outline" size={16} color="#FFFFFF" />
-          <Text style={styles.disabledBannerText}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.disabledBannerText]}>
             Notifications désactivées — toucher pour réactiver
           </Text>
         </TouchableOpacity>
@@ -931,7 +931,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
 
-  chipText: {
+  chipText: { fontFamily: typography.fontFamily.bold,
     fontSize: 12.5,
     fontWeight: '700',
   },
@@ -967,7 +967,7 @@ const styles = StyleSheet.create({
     backgroundColor: WARNING,
   },
 
-  disabledBannerText: {
+  disabledBannerText: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
@@ -1022,7 +1022,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
 
-  badgeText: {
+  badgeText: { fontFamily: typography.fontFamily.bold,
     fontSize: 11,
     fontWeight: '700',
   },
@@ -1044,7 +1044,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
 
-  actionText: {
+  actionText: { fontFamily: typography.fontFamily.bold,
     fontSize: 12.5,
     fontWeight: '700',
   },
@@ -1089,11 +1089,11 @@ const styles = StyleSheet.create({
   itemTitle: {
     flex: 1,
     fontSize: 13.5,
-    fontFamily: typography.fontFamily.semiBold || typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.semiBold || typography.fontFamily.bold, fontWeight: '600',
   },
 
   itemTitleUnread: {
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
   },
 
   unreadDot: {
@@ -1138,7 +1138,7 @@ const styles = StyleSheet.create({
 
   emptyText: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   retryButton: {
@@ -1149,7 +1149,7 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY,
   },
 
-  retryText: {
+  retryText: { fontFamily: typography.fontFamily.bold,
     color: '#FFFFFF',
     fontWeight: '800',
     fontSize: 13,

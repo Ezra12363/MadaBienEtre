@@ -14,6 +14,7 @@ import TherapistReviewHeader from './TherapistReviewHeader';
 import ReviewCard from './ReviewCard';
 import ReviewActionModal from './ReviewActionModal';
 import { SORT_OPTIONS } from './reviewUtils';
+import { typography } from '../../theme';
 
 const PAGE = 10;
 
@@ -130,7 +131,7 @@ export default function TherapistReviewsPanel({ therapistId, mode = 'public', on
       ]}
     >
       {!!icon && <Ionicons name={icon} size={14} color={active ? c.primary : c.textSecondary} />}
-      <Text style={{ color: active ? c.primary : c.text, fontSize: 12, fontWeight: '600' }}>{label}</Text>
+      <Text style={{ fontFamily: typography.fontFamily.semiBold, color: active ? c.primary : c.text, fontSize: 12, fontWeight: '600' }}>{label}</Text>
     </TouchableOpacity>
   );
 
@@ -146,7 +147,7 @@ export default function TherapistReviewsPanel({ therapistId, mode = 'public', on
     <View>
       {!!banner && (
         <View style={[s.banner, { backgroundColor: banner.type === 'error' ? '#FEE2E2' : '#E8F5E9' }]}>
-          <Text style={{ color: banner.type === 'error' ? '#B91C1C' : '#2E8B57', fontWeight: '600', fontSize: 13 }}>{banner.message}</Text>
+          <Text style={{ fontFamily: typography.fontFamily.semiBold, color: banner.type === 'error' ? '#B91C1C' : '#2E8B57', fontWeight: '600', fontSize: 13 }}>{banner.message}</Text>
         </View>
       )}
 
@@ -179,18 +180,18 @@ export default function TherapistReviewsPanel({ therapistId, mode = 'public', on
       {!!error && (
         <TouchableOpacity onPress={load} style={[s.empty, { backgroundColor: c.surface }]}>
           <Ionicons name="cloud-offline-outline" size={30} color={c.textSecondary} />
-          <Text style={{ color: c.textSecondary, marginTop: 6, textAlign: 'center' }}>{error}</Text>
-          <Text style={{ color: c.primary, fontWeight: '700', marginTop: 6 }}>Réessayer</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, { color: c.textSecondary, marginTop: 6, textAlign: 'center' }]}>{error}</Text>
+          <Text style={{ fontFamily: typography.fontFamily.bold, color: c.primary, fontWeight: '700', marginTop: 6 }}>Réessayer</Text>
         </TouchableOpacity>
       )}
 
       {!error && shown.length === 0 && (
         <View style={[s.empty, { backgroundColor: c.surface }]}>
           <Ionicons name="star-outline" size={34} color={c.textSecondary} />
-          <Text style={{ color: c.text, fontWeight: '700', marginTop: 8 }}>
+          <Text style={{ fontFamily: typography.fontFamily.bold, color: c.text, fontWeight: '700', marginTop: 8 }}>
             {star || onlyComments || unanswered ? 'Aucun avis pour ce filtre' : 'Aucun avis pour le moment'}
           </Text>
-          <Text style={{ color: c.textSecondary, marginTop: 4, textAlign: 'center', fontSize: 13 }}>
+          <Text style={{ fontFamily: typography.fontFamily.regular, color: c.textSecondary, marginTop: 4, textAlign: 'center', fontSize: 13 }}>
             {mode === 'therapist'
               ? 'Les avis de vos clients apparaîtront ici après vos séances.'
               : 'Les avis apparaissent après les séances terminées.'}
@@ -211,7 +212,7 @@ export default function TherapistReviewsPanel({ therapistId, mode = 'public', on
 
       {hasMore && (
         <TouchableOpacity onPress={() => setLimit(limit + PAGE)} style={[s.more, { borderColor: c.primary }]}>
-          <Text style={{ color: c.primary, fontWeight: '700' }}>Voir plus d'avis</Text>
+          <Text style={{ fontFamily: typography.fontFamily.bold, color: c.primary, fontWeight: '700' }}>Voir plus d'avis</Text>
         </TouchableOpacity>
       )}
 

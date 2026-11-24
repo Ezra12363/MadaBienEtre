@@ -49,8 +49,8 @@ const AIFeatureButton = ({
           <Ionicons name="sparkles" size={compact ? 15 : 24} color={colors.primary} />
         </View>
         <View style={styles.bannerText}>
-          <Text style={[styles.bannerTitle, compact && styles.bannerTitleCompact]}>{title}</Text>
-          <Text style={[styles.bannerSubtitle, compact && styles.bannerSubtitleCompact]}>{subtitle}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bannerTitle, compact && styles.bannerTitleCompact]}>{title}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bannerSubtitle, compact && styles.bannerSubtitleCompact]}>{subtitle}</Text>
         </View>
         {compact ? null : <Ionicons name="arrow-forward-circle" size={28} color="#fff" />}
       </LinearGradient>
@@ -83,8 +83,8 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   bannerIconCompact: { width: 28, height: 28, borderRadius: 14 },
-  bannerTitleCompact: { fontSize: typography.fontSize.md, lineHeight: 18 },
-  bannerSubtitleCompact: { fontSize: 10, lineHeight: 13, marginTop: 1 },
+  bannerTitleCompact: { fontFamily: typography.fontFamily.regular, fontSize: typography.fontSize.md, lineHeight: 18 },
+  bannerSubtitleCompact: { fontFamily: typography.fontFamily.regular, fontSize: 10, lineHeight: 13, marginTop: 1 },
   bannerIcon: {
     width: 46,
     height: 46,

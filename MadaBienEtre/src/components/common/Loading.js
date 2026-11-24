@@ -214,7 +214,7 @@ const Loading = ({
       {text ? (
         <View style={styles.textContainer}>
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.title,
               {
                 color: themeColors.text,
@@ -226,7 +226,7 @@ const Loading = ({
           </Text>
 
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.subtitle,
               {
                 color: themeColors.textSecondary,
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
 
     textAlign: 'center',
 
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 
   subtitle: {

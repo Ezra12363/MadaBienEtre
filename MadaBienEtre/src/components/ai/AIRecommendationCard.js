@@ -58,7 +58,7 @@ const AIRecommendationCard = ({
       <View style={styles.header}>
         {rank ? (
           <View style={styles.rank}>
-            <Text style={styles.rankText}>{rank}</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.rankText]}>{rank}</Text>
           </View>
         ) : null}
 
@@ -67,7 +67,7 @@ const AIRecommendationCard = ({
             <Image source={{ uri: normalizeMediaUrl(therapist.profile_image) }} style={styles.avatar} />
           ) : (
             <View style={styles.avatarFallback}>
-              <Text style={styles.avatarText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.avatarText]}>
                 {(therapist.fullname || 'T').charAt(0).toUpperCase()}
               </Text>
             </View>
@@ -75,12 +75,12 @@ const AIRecommendationCard = ({
         </View>
 
         <View style={styles.info}>
-          <Text style={[styles.name, { color: themeColors.text }]} numberOfLines={1}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.name, { color: themeColors.text }]} numberOfLines={1}>
             {therapist.fullname || 'Thérapeute'}
           </Text>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={13} color="#FFB300" />
-            <Text style={[styles.ratingText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.ratingText, { color: themeColors.textSecondary }]}>
               {rating.toFixed(1)} ({therapist.total_reviews || 0} avis)
             </Text>
           </View>
@@ -93,10 +93,10 @@ const AIRecommendationCard = ({
               { borderColor: scoreColor(score), backgroundColor: scoreColor(score) + '14' },
             ]}
           >
-            <Text style={[styles.scoreText, { color: scoreColor(score) }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.scoreText, { color: scoreColor(score) }]}>
               {Math.round(score)}%
             </Text>
-            <Text style={[styles.scoreLabel, { color: scoreColor(score) }]}>Match</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.scoreLabel, { color: scoreColor(score) }]}>Match</Text>
           </View>
         )}
       </View>
@@ -105,7 +105,7 @@ const AIRecommendationCard = ({
         {Number.isFinite(distance) && distance > 0 && (
           <View style={styles.detailRow}>
             <Ionicons name="location-outline" size={14} color={themeColors.textSecondary} />
-            <Text style={[styles.detailText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.detailText, { color: themeColors.textSecondary }]}>
               {distance.toFixed(1)} km
             </Text>
           </View>
@@ -113,7 +113,7 @@ const AIRecommendationCard = ({
         {therapist.experience_years ? (
           <View style={styles.detailRow}>
             <Ionicons name="briefcase-outline" size={14} color={themeColors.textSecondary} />
-            <Text style={[styles.detailText, { color: themeColors.textSecondary }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.detailText, { color: themeColors.textSecondary }]}>
               {therapist.experience_years} ans d'exp.
             </Text>
           </View>
@@ -121,7 +121,7 @@ const AIRecommendationCard = ({
         {hasPrice && (
           <View style={styles.detailRow}>
             <Ionicons name="cash-outline" size={14} color={colors.primary} />
-            <Text style={[styles.detailText, { color: colors.primary, fontFamily: typography.fontFamily.semiBold }]}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.detailText, { color: colors.primary, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' }]}>
               {formatAr(price)}
             </Text>
           </View>
@@ -131,7 +131,7 @@ const AIRecommendationCard = ({
       {showReason && !!therapist.reason && (
         <View style={[styles.reasonContainer, { backgroundColor: colors.primary + '12' }]}>
           <Ionicons name="bulb-outline" size={15} color={colors.primary} />
-          <Text style={[styles.reason, { color: themeColors.textSecondary }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.reason, { color: themeColors.textSecondary }]}>
             {therapist.reason}
           </Text>
         </View>
@@ -152,7 +152,7 @@ const AIRecommendationCard = ({
               ]}
             />
             <Text
-              style={[
+              style={[{ fontFamily: typography.fontFamily.regular }, 
                 styles.availabilityText,
                 { color: available ? colors.success : colors.error },
               ]}
@@ -171,7 +171,7 @@ const AIRecommendationCard = ({
             activeOpacity={0.85}
           >
             <Ionicons name="calendar-outline" size={15} color="#fff" />
-            <Text style={styles.bookText}>Réserver</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.bookText]}>Réserver</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rankText: { color: '#fff', fontSize: 12, fontFamily: typography.fontFamily.bold },
+  rankText: { color: '#fff', fontSize: 12, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
   avatarContainer: {},
   avatar: { width: 46, height: 46, borderRadius: 23 },
   avatarFallback: {
@@ -209,11 +209,11 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     fontSize: typography.fontSize.xl,
-    fontFamily: typography.fontFamily.bold,
+    fontFamily: typography.fontFamily.bold, fontWeight: '700',
     color: colors.primary,
   },
   info: { flex: 1 },
-  name: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold },
+  name: { fontSize: typography.fontSize.md, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 },
   ratingText: { fontSize: typography.fontSize.xs, fontFamily: typography.fontFamily.regular },
   scoreBadge: {
@@ -223,8 +223,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: 'center',
   },
-  scoreText: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold },
-  scoreLabel: { fontSize: 9, fontFamily: typography.fontFamily.medium },
+  scoreText: { fontSize: typography.fontSize.lg, fontFamily: typography.fontFamily.bold, fontWeight: '700' },
+  scoreLabel: { fontSize: 9, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   details: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: 8,
   },
-  reason: { flex: 1, fontSize: typography.fontSize.sm, lineHeight: 18 },
+  reason: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: typography.fontSize.sm, lineHeight: 18 },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   availabilityDot: { width: 6, height: 6, borderRadius: 3 },
-  availabilityText: { fontSize: 11, fontFamily: typography.fontFamily.medium },
+  availabilityText: { fontSize: 11, fontFamily: typography.fontFamily.medium, fontWeight: '500' },
   bookButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   bookText: {
     color: '#fff',
     fontSize: typography.fontSize.sm,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 });
 

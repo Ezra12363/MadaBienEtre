@@ -306,7 +306,7 @@ const TherapistPublicationsScreen = ({ navigation }) => {
           onChangeText={setQuery}
           placeholder="Rechercher un thérapeute, un massage, un quartier…"
           placeholderTextColor={textSecondary}
-          style={[styles.searchInput, { color: text }]}
+          style={[{ fontFamily: typography.fontFamily.regular }, styles.searchInput, { color: text }]}
           returnKeyType="search"
         />
 
@@ -346,7 +346,7 @@ const TherapistPublicationsScreen = ({ navigation }) => {
                 color={active ? '#FFFFFF' : PRIMARY}
               />
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.chipText,
                   { color: active ? '#FFFFFF' : text },
                 ]}
@@ -359,7 +359,7 @@ const TherapistPublicationsScreen = ({ navigation }) => {
       </ScrollView>
 
       {!loading && !error && (
-        <Text style={[styles.count, { color: textSecondary }]}>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.count, { color: textSecondary }]}>
           {filtered.length} publication{filtered.length > 1 ? 's' : ''}
         </Text>
       )}
@@ -369,23 +369,23 @@ const TherapistPublicationsScreen = ({ navigation }) => {
   const Empty = loading ? (
     <View style={styles.stateBox}>
       <ActivityIndicator size="large" color={PRIMARY} />
-      <Text style={[styles.stateText, { color: textSecondary }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.stateText, { color: textSecondary }]}>
         Chargement des publications…
       </Text>
     </View>
   ) : error ? (
     <View style={styles.stateBox}>
       <Ionicons name="cloud-offline-outline" size={40} color={textSecondary} />
-      <Text style={[styles.stateText, { color: textSecondary }]}>{error}</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.stateText, { color: textSecondary }]}>{error}</Text>
       <TouchableOpacity onPress={onRefresh} style={styles.retryBtn}>
         <Ionicons name="refresh" size={16} color="#FFFFFF" />
-        <Text style={styles.retryText}>Réessayer</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.retryText]}>Réessayer</Text>
       </TouchableOpacity>
     </View>
   ) : (
     <View style={styles.stateBox}>
       <Ionicons name="people-outline" size={40} color={textSecondary} />
-      <Text style={[styles.stateText, { color: textSecondary }]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.stateText, { color: textSecondary }]}>
         Aucune publication ne correspond à votre recherche
       </Text>
     </View>
@@ -473,12 +473,12 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
   },
-  chipText: { fontSize: 12, fontFamily: typography.fontFamily.semiBold },
+  chipText: { fontSize: 12, fontFamily: typography.fontFamily.semiBold, fontWeight: '600' },
 
   count: {
     fontSize: 11,
     marginBottom: 8,
-    fontFamily: typography.fontFamily.medium,
+    fontFamily: typography.fontFamily.medium, fontWeight: '500',
   },
 
   columnWrapper: {
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   retryText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontFamily: typography.fontFamily.semiBold,
+    fontFamily: typography.fontFamily.semiBold, fontWeight: '600',
   },
 });
 

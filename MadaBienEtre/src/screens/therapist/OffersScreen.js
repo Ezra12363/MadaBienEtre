@@ -75,6 +75,7 @@ import {
 } from '../../utils/timeAgo';
 
 import { toastAdapters } from "../../utils/toast";
+import { typography } from '../../theme';
 
 // ============================================================
 // ANDROID STATUS BAR
@@ -177,14 +178,14 @@ function ConfirmationModal({
               color={destructive ? COLORS.red : COLORS.primary}
             />
           </View>
-          <Text style={confirmationStyles.title}>{title}</Text>
-          <Text style={confirmationStyles.message}>{message}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, confirmationStyles.title]}>{title}</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, confirmationStyles.message]}>{message}</Text>
           <View style={confirmationStyles.buttons}>
             <Pressable
               style={confirmationStyles.cancelButton}
               onPress={onCancel}
             >
-              <Text style={confirmationStyles.cancelText}>Annuler</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, confirmationStyles.cancelText]}>Annuler</Text>
             </Pressable>
             <Pressable
               style={[
@@ -193,7 +194,7 @@ function ConfirmationModal({
               ]}
               onPress={onConfirm}
             >
-              <Text style={confirmationStyles.confirmText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, confirmationStyles.confirmText]}>
                 {confirmLabel}
               </Text>
             </Pressable>
@@ -247,13 +248,13 @@ const createConfirmationStyles = (colors, isDark) =>
       alignSelf: 'center',
       marginBottom: 14,
     },
-    title: {
+    title: { fontFamily: typography.fontFamily.bold,
       fontSize: 18,
       fontWeight: '900',
       color: colors.text,
       textAlign: 'center',
     },
-    message: {
+    message: { fontFamily: typography.fontFamily.regular,
       marginTop: 8,
       fontSize: 13,
       lineHeight: 20,
@@ -278,8 +279,8 @@ const createConfirmationStyles = (colors, isDark) =>
       justifyContent: 'center',
     },
     confirmDanger: { backgroundColor: COLORS.red },
-    cancelText: { color: colors.text, fontSize: 13, fontWeight: '800' },
-    confirmText: { color: COLORS.white, fontSize: 13, fontWeight: '800' },
+    cancelText: { fontFamily: typography.fontFamily.bold, color: colors.text, fontSize: 13, fontWeight: '800' },
+    confirmText: { fontFamily: typography.fontFamily.bold, color: COLORS.white, fontSize: 13, fontWeight: '800' },
   });
 
 // ============================================================
@@ -1095,13 +1096,13 @@ function TabButton({ label, count, active, onPress }) {
         pressed && styles.pressed,
       ]}
     >
-      <Text style={[styles.tabText, active && styles.tabTextActive]}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.tabText, active && styles.tabTextActive]}>
         {label}
       </Text>
       {count > 0 ? (
         <View style={[styles.tabCount, active && styles.tabCountActive]}>
           <Text
-            style={[
+            style={[{ fontFamily: typography.fontFamily.regular }, 
               styles.tabCountText,
               active && styles.tabCountTextActive,
             ]}
@@ -1168,7 +1169,7 @@ function ClientAvatar({ photoUrl, name, size = 52, isOnline = false }) {
             { width: size, height: size, borderRadius: radius },
           ]}
         >
-          <Text style={[styles.avatarText, { fontSize: size * 0.42 }]}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.avatarText, { fontFamily: typography.fontFamily.regular, fontSize: size * 0.42 }]}>
             {getInitial(name)}
           </Text>
         </View>
@@ -2167,14 +2168,14 @@ export default function OffersScreen({ navigation, route }) {
                 />
                 {badgeCount > 1 ? (
                   <View style={styles.cCountBadge}>
-                    <Text style={styles.cCountBadgeText}>{badgeCount}</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cCountBadgeText]}>{badgeCount}</Text>
                   </View>
                 ) : null}
               </View>
 
               <View style={styles.cardTopInfo}>
                 <View style={styles.cardNameRow}>
-                  <Text style={styles.cardName} numberOfLines={1}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardName]} numberOfLines={1}>
                     {getClientName(booking)}
                   </Text>
                   <View
@@ -2190,7 +2191,7 @@ export default function OffersScreen({ navigation, route }) {
                       ]}
                     />
                     <Text
-                      style={[styles.cardStatusText, { color: statusUI.color }]}
+                      style={[{ fontFamily: typography.fontFamily.regular }, styles.cardStatusText, { color: statusUI.color }]}
                       numberOfLines={1}
                     >
                       {statusUI.label}
@@ -2200,14 +2201,14 @@ export default function OffersScreen({ navigation, route }) {
 
                 <View style={styles.cLineRow}>
                   <Text
-                    style={[styles.cardMetaText, styles.cMetaFlex]}
+                    style={[{ fontFamily: typography.fontFamily.regular }, styles.cardMetaText, styles.cMetaFlex]}
                     numberOfLines={1}
                   >
                     #{booking.id} · {getMassageName(booking)} ·{' '}
                     {getDuration(booking)} min
                   </Text>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.cardPrice,
                       displayPrice.kind === 'final' && styles.cardPriceFinal,
                       displayPrice.kind === 'negotiation' && {
@@ -2226,11 +2227,11 @@ export default function OffersScreen({ navigation, route }) {
                     size={11}
                     color={colors.textSecondary}
                   />
-                  <Text style={styles.cardSubText} numberOfLines={1}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardSubText]} numberOfLines={1}>
                     {getAddress(booking)}
                   </Text>
                   {distance !== null ? (
-                    <Text style={styles.cardDistanceText} numberOfLines={1}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardDistanceText]} numberOfLines={1}>
                       ~{formatDistance(distance)}
                     </Text>
                   ) : null}
@@ -2243,7 +2244,7 @@ export default function OffersScreen({ navigation, route }) {
                       size={11}
                       color={colors.textSecondary}
                     />
-                    <Text style={styles.cardDateText} numberOfLines={1}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardDateText]} numberOfLines={1}>
                       {plannedDateLabel}
                       {plannedTimeLabel ? ` · ${plannedTimeLabel}` : ''}
                     </Text>
@@ -2258,7 +2259,7 @@ export default function OffersScreen({ navigation, route }) {
                       color={expired ? COLORS.red : COLORS.orange}
                     />
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.cardExpiryText,
                         expired && styles.cardExpiryTextUrgent,
                       ]}
@@ -2326,7 +2327,7 @@ export default function OffersScreen({ navigation, route }) {
                       ) : (
                         <>
                           <Ionicons name="checkmark" size={14} color={COLORS.primary} />
-                          <Text style={styles.cardSmallActionText}>Accepter</Text>
+                          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardSmallActionText]}>Accepter</Text>
                         </>
                       )}
                     </Pressable>
@@ -2340,7 +2341,7 @@ export default function OffersScreen({ navigation, route }) {
                       hitSlop={6}
                     >
                       <Ionicons name="close" size={14} color={COLORS.red} />
-                      <Text style={[styles.cardSmallActionText, { color: COLORS.red }]}>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardSmallActionText, { color: COLORS.red }]}>
                         Refuser
                       </Text>
                     </Pressable>
@@ -2355,7 +2356,7 @@ export default function OffersScreen({ navigation, route }) {
                     hitSlop={6}
                   >
                     <Ionicons name="swap-horizontal" size={14} color={COLORS.primary} />
-                    <Text style={styles.cardSmallActionText}>Négocier</Text>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardSmallActionText]}>Négocier</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -2409,7 +2410,7 @@ export default function OffersScreen({ navigation, route }) {
                     size={9}
                     color={COLORS.primary}
                   />
-                  <Text style={styles.clientCountBadgeText} numberOfLines={1}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.clientCountBadgeText]} numberOfLines={1}>
                     {badgeCount} demande{badgeCount > 1 ? 's' : ''}
                   </Text>
                 </View>
@@ -2418,7 +2419,7 @@ export default function OffersScreen({ navigation, route }) {
 
             <View style={styles.cardTopInfo}>
               <View style={styles.cardNameRow}>
-                <Text style={styles.cardName} numberOfLines={1}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardName]} numberOfLines={1}>
                   {getClientName(booking)}
                 </Text>
                 <View
@@ -2434,7 +2435,7 @@ export default function OffersScreen({ navigation, route }) {
                     ]}
                   />
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.cardStatusText,
                       { color: statusUI.color },
                     ]}
@@ -2445,7 +2446,7 @@ export default function OffersScreen({ navigation, route }) {
                 </View>
               </View>
 
-              <Text style={styles.cardBookingId} numberOfLines={1}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardBookingId]} numberOfLines={1}>
                 Réservation #{booking.id}
               </Text>
 
@@ -2455,17 +2456,17 @@ export default function OffersScreen({ navigation, route }) {
                   size={12}
                   color={colors.textSecondary}
                 />
-                <Text style={styles.cardSubText} numberOfLines={1}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardSubText]} numberOfLines={1}>
                   {getAddress(booking)}
                 </Text>
               </View>
 
               <View style={styles.cardMetaRow}>
-                <Text style={styles.cardMetaText} numberOfLines={1}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardMetaText]} numberOfLines={1}>
                   {getMassageName(booking)}
                 </Text>
                 <View style={styles.cardMetaDot} />
-                <Text style={styles.cardMetaText} numberOfLines={1}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardMetaText]} numberOfLines={1}>
                   {getDuration(booking)} min
                 </Text>
               </View>
@@ -2477,7 +2478,7 @@ export default function OffersScreen({ navigation, route }) {
                     size={11}
                     color={COLORS.primary}
                   />
-                  <Text style={styles.cardPublishedText} numberOfLines={1}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardPublishedText]} numberOfLines={1}>
                     {publishedLabel}
                   </Text>
                 </View>
@@ -2490,7 +2491,7 @@ export default function OffersScreen({ navigation, route }) {
                     size={11}
                     color={colors.textSecondary}
                   />
-                  <Text style={styles.cardDateText} numberOfLines={1}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardDateText]} numberOfLines={1}>
                     {plannedDateLabel}
                     {plannedTimeLabel ? ` · ${plannedTimeLabel}` : ''}
                   </Text>
@@ -2505,7 +2506,7 @@ export default function OffersScreen({ navigation, route }) {
                       size={11}
                       color={COLORS.red}
                     />
-                    <Text style={styles.cardDistanceText} numberOfLines={1}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardDistanceText]} numberOfLines={1}>
                       ~{formatDistance(distance)}
                     </Text>
                   </View>
@@ -2525,7 +2526,7 @@ export default function OffersScreen({ navigation, route }) {
                       />
                     ) : null}
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.cardPriceLabel,
                         displayPrice.kind === 'final' &&
                           styles.cardPriceLabelFinal,
@@ -2538,7 +2539,7 @@ export default function OffersScreen({ navigation, route }) {
                     </Text>
                   </View>
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.cardPrice,
                       displayPrice.kind === 'final' && styles.cardPriceFinal,
                     ]}
@@ -2567,7 +2568,7 @@ export default function OffersScreen({ navigation, route }) {
                     color={expired ? COLORS.red : COLORS.orange}
                   />
                   <Text
-                    style={[
+                    style={[{ fontFamily: typography.fontFamily.regular }, 
                       styles.cardExpiryText,
                       expired && styles.cardExpiryTextUrgent,
                     ]}
@@ -2604,7 +2605,7 @@ export default function OffersScreen({ navigation, route }) {
                     size={13}
                     color={COLORS.primary}
                   />
-                  <Text style={styles.cardSmallActionText}>Appeler</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardSmallActionText]}>Appeler</Text>
                 </Pressable>
               ) : null}
 
@@ -2621,7 +2622,7 @@ export default function OffersScreen({ navigation, route }) {
                   size={13}
                   color={COLORS.primary}
                 />
-                <Text style={styles.cardSmallActionText}>Itinéraire</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardSmallActionText]}>Itinéraire</Text>
               </Pressable>
 
               {actionState.showAcceptReject ? (
@@ -2644,7 +2645,7 @@ export default function OffersScreen({ navigation, route }) {
                           size={13}
                           color={COLORS.primary}
                         />
-                        <Text style={styles.cardSmallActionText}>Accepter</Text>
+                        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardSmallActionText]}>Accepter</Text>
                       </>
                     )}
                   </Pressable>
@@ -2660,7 +2661,7 @@ export default function OffersScreen({ navigation, route }) {
                   >
                     <Ionicons name="close" size={13} color={COLORS.red} />
                     <Text
-                      style={[
+                      style={[{ fontFamily: typography.fontFamily.regular }, 
                         styles.cardSmallActionText,
                         { color: COLORS.red },
                       ]}
@@ -2683,7 +2684,7 @@ export default function OffersScreen({ navigation, route }) {
                     size={13}
                     color={COLORS.primary}
                   />
-                  <Text style={styles.cardSmallActionText}>Négocier</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.cardSmallActionText]}>Négocier</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -2704,7 +2705,7 @@ export default function OffersScreen({ navigation, route }) {
                 color={colors.textSecondary}
               />
               <Text
-                style={[
+                style={[{ fontFamily: typography.fontFamily.regular }, 
                   styles.cardSmallActionText,
                   { color: colors.textSecondary },
                 ]}
@@ -2782,7 +2783,7 @@ export default function OffersScreen({ navigation, route }) {
             onChangeText={setSearchQuery}
             placeholder="Rechercher un client, une adresse..."
             placeholderTextColor={colors.textSecondary}
-            style={styles.searchInput}
+            style={[{ fontFamily: typography.fontFamily.regular }, styles.searchInput]}
             returnKeyType="search"
           />
           {searchQuery ? (
@@ -2804,7 +2805,7 @@ export default function OffersScreen({ navigation, route }) {
                 size={14}
                 color={COLORS.primary}
               />
-              <Text style={styles.webInlineDateLabel}>Du</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.webInlineDateLabel]}>Du</Text>
               <input
                 type="date"
                 value={dateFrom ? formatDateOnly(dateFrom) : ''}
@@ -2825,7 +2826,7 @@ export default function OffersScreen({ navigation, route }) {
                     setDateTo(selected);
                   }
                 }}
-                style={{
+                style={{ fontFamily: typography.fontFamily.regular,
                   flex: 1,
                   minWidth: 0,
                   height: 34,
@@ -2844,7 +2845,7 @@ export default function OffersScreen({ navigation, route }) {
                 size={14}
                 color={COLORS.primary}
               />
-              <Text style={styles.webInlineDateLabel}>Au</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.webInlineDateLabel]}>Au</Text>
               <input
                 type="date"
                 value={dateTo ? formatDateOnly(dateTo) : ''}
@@ -2862,7 +2863,7 @@ export default function OffersScreen({ navigation, route }) {
                     setDateFrom(selected);
                   }
                 }}
-                style={{
+                style={{ fontFamily: typography.fontFamily.regular,
                   flex: 1,
                   minWidth: 0,
                   height: 34,
@@ -2957,7 +2958,7 @@ export default function OffersScreen({ navigation, route }) {
           onPress={() => setShowDateModal(true)}
         >
           <Ionicons name="funnel-outline" size={13} color={COLORS.primary} />
-          <Text style={styles.dateFilterSummaryText}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dateFilterSummaryText]}>
             {dateFrom ? formatDateLabel(dateFrom) : 'Toutes les dates'}
             {'  →  '}
             {dateTo ? formatDateLabel(dateTo) : 'Toutes les dates'}
@@ -3069,7 +3070,7 @@ export default function OffersScreen({ navigation, route }) {
           <View style={styles.sheetHandle} />
 
           <View style={styles.sheetHeaderRow}>
-            <Text style={styles.sheetTitle}>Filtrer par date</Text>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sheetTitle]}>Filtrer par date</Text>
             <Pressable onPress={() => setShowDateModal(false)} hitSlop={8}>
               <Ionicons
                 name="close"
@@ -3081,7 +3082,7 @@ export default function OffersScreen({ navigation, route }) {
 
           <View style={styles.dateFieldsRow}>
             <View style={styles.dateFieldWrap}>
-              <Text style={styles.dateFieldLabel}>Du</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dateFieldLabel]}>Du</Text>
               <Pressable
                 style={styles.nativeDateButton}
                 onPress={() => {
@@ -3095,7 +3096,7 @@ export default function OffersScreen({ navigation, route }) {
                   color={COLORS.primary}
                 />
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.nativeDateText,
                     !dateFrom && styles.nativeDatePlaceholder,
                   ]}
@@ -3136,7 +3137,7 @@ export default function OffersScreen({ navigation, route }) {
             </View>
 
             <View style={styles.dateFieldWrap}>
-              <Text style={styles.dateFieldLabel}>Au</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dateFieldLabel]}>Au</Text>
               <Pressable
                 style={styles.nativeDateButton}
                 onPress={() => {
@@ -3150,7 +3151,7 @@ export default function OffersScreen({ navigation, route }) {
                   color={COLORS.primary}
                 />
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.nativeDateText,
                     !dateTo && styles.nativeDatePlaceholder,
                   ]}
@@ -3199,7 +3200,7 @@ export default function OffersScreen({ navigation, route }) {
                 size={16}
                 color={COLORS.red}
               />
-              <Text style={styles.dateSheetClearText}>Effacer</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dateSheetClearText]}>Effacer</Text>
             </Pressable>
 
             <Pressable
@@ -3207,7 +3208,7 @@ export default function OffersScreen({ navigation, route }) {
               onPress={() => setShowDateModal(false)}
             >
               <Ionicons name="checkmark" size={16} color={COLORS.white} />
-              <Text style={styles.dateSheetApplyText}>Appliquer</Text>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.dateSheetApplyText]}>Appliquer</Text>
             </Pressable>
           </View>
         </View>
@@ -3245,10 +3246,10 @@ export default function OffersScreen({ navigation, route }) {
 
             <View style={styles.sheetHeaderRow}>
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.sheetTitle} numberOfLines={1}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.sheetTitle]} numberOfLines={1}>
                   {getClientName(booking)}
                 </Text>
-                <Text style={styles.actionsSheetSubtitle}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionsSheetSubtitle]}>
                   Réservation #{booking.id}
                 </Text>
               </View>
@@ -3284,7 +3285,7 @@ export default function OffersScreen({ navigation, route }) {
                         size={17}
                         color={COLORS.primary}
                       />
-                      <Text style={styles.actionTextLabel}>Accepter</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionTextLabel]}>Accepter</Text>
                     </>
                   )}
                 </Pressable>
@@ -3304,7 +3305,7 @@ export default function OffersScreen({ navigation, route }) {
                     size={17}
                     color={COLORS.primary}
                   />
-                  <Text style={styles.actionTextLabel}>Négociation</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.actionTextLabel]}>Négociation</Text>
                 </Pressable>
               ) : null}
 
@@ -3324,7 +3325,7 @@ export default function OffersScreen({ navigation, route }) {
                     color={COLORS.red}
                   />
                   <Text
-                    style={[styles.actionTextLabel, { color: COLORS.red }]}
+                    style={[{ fontFamily: typography.fontFamily.regular }, styles.actionTextLabel, { color: COLORS.red }]}
                   >
                     Refuser
                   </Text>
@@ -3345,7 +3346,7 @@ export default function OffersScreen({ navigation, route }) {
                   color={colors.textSecondary}
                 />
                 <Text
-                  style={[
+                  style={[{ fontFamily: typography.fontFamily.regular }, 
                     styles.actionTextLabel,
                     { color: colors.textSecondary },
                   ]}
@@ -3371,8 +3372,8 @@ export default function OffersScreen({ navigation, route }) {
           <View style={styles.mapEmptyIcon}>
             <Ionicons name="map-outline" size={32} color={COLORS.primary} />
           </View>
-          <Text style={styles.mapEmptyTitle}>Aucune adresse localisée</Text>
-          <Text style={styles.mapEmptyText}>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mapEmptyTitle]}>Aucune adresse localisée</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mapEmptyText]}>
             Les demandes de cet onglet n'ont pas encore de coordonnées GPS
             valides.
           </Text>
@@ -3438,7 +3439,7 @@ export default function OffersScreen({ navigation, route }) {
               size={12}
               color={COLORS.primary}
             />
-            <Text style={styles.mapTopBadgeText}>
+            <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mapTopBadgeText]}>
               {geolocatedBookings.length} client
               {geolocatedBookings.length > 1 ? 's' : ''} localisé
               {geolocatedBookings.length > 1 ? 's' : ''}
@@ -3455,7 +3456,7 @@ export default function OffersScreen({ navigation, route }) {
                 style={[styles.positionChipDot, { backgroundColor: positionChip.color }]}
               />
               <Text
-                style={[styles.positionChipText, { color: positionChip.color }]}
+                style={[{ fontFamily: typography.fontFamily.regular }, styles.positionChipText, { color: positionChip.color }]}
                 numberOfLines={1}
               >
                 {positionChip.text}
@@ -3486,7 +3487,7 @@ export default function OffersScreen({ navigation, route }) {
                 size={13}
                 color={COLORS.orange}
               />
-              <Text style={styles.locationWarningText} numberOfLines={2}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.locationWarningText]} numberOfLines={2}>
                 Activez la localisation pour voir votre position et
                 l'itinéraire.
               </Text>
@@ -3520,14 +3521,14 @@ export default function OffersScreen({ navigation, route }) {
                   isOnline={getClientOnline(selectedRouteBooking)}
                 />
                 <View style={styles.clientDetailInfo}>
-                  <Text style={styles.routePanelName} numberOfLines={1}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routePanelName]} numberOfLines={1}>
                     {getClientName(selectedRouteBooking)}
                   </Text>
-                  <Text style={styles.routePanelAddress} numberOfLines={1}>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routePanelAddress]} numberOfLines={1}>
                     {getAddress(selectedRouteBooking)}
                   </Text>
                   <Text
-                    style={styles.routePanelSubMeta}
+                    style={[{ fontFamily: typography.fontFamily.regular }, styles.routePanelSubMeta]}
                     numberOfLines={1}
                   >
                     {getMassageName(selectedRouteBooking)} ·{' '}
@@ -3551,19 +3552,19 @@ export default function OffersScreen({ navigation, route }) {
               {routeLoading && !modeEtas ? (
                 <View style={styles.routePanelLoadingRow}>
                   <ActivityIndicator size="small" color={COLORS.red} />
-                  <Text style={styles.routePanelMeta}>Calcul...</Text>
+                  <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routePanelMeta]}>Calcul...</Text>
                 </View>
               ) : !therapistPosition ? (
-                <Text style={styles.routePanelMeta}>GPS indisponible</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routePanelMeta]}>GPS indisponible</Text>
               ) : (
                 <>
                   <View style={styles.routeDistanceRow}>
                     <Ionicons name="navigate" size={14} color={COLORS.red} />
-                    <Text style={styles.routeDistanceValue}>
+                    <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routeDistanceValue]}>
                       {routeInfo?.distanceText || '—'}
                     </Text>
                     {routeInfo?.isFallback ? (
-                      <Text style={styles.routePanelEstimateTag}>≈</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.routePanelEstimateTag]}>≈</Text>
                     ) : null}
                   </View>
 
@@ -3586,7 +3587,7 @@ export default function OffersScreen({ navigation, route }) {
                             color={isActive ? COLORS.red : colors.textSecondary}
                           />
                           <Text
-                            style={[
+                            style={[{ fontFamily: typography.fontFamily.regular }, 
                               styles.etaChipTime,
                               isActive && styles.etaChipTimeActive,
                             ]}
@@ -3611,7 +3612,7 @@ export default function OffersScreen({ navigation, route }) {
                   size={13}
                   color={COLORS.primary}
                 />
-                <Text style={styles.mapFocusLinkText}>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mapFocusLinkText]}>
                   Centrer sur la carte
                 </Text>
               </Pressable>
@@ -3657,7 +3658,7 @@ export default function OffersScreen({ navigation, route }) {
                 size={13}
                 color={colors.textSecondary}
               />
-              <Text style={styles.mapHintText}>
+              <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.mapHintText]}>
                 Touchez un repère pour voir le client
               </Text>
             </View>
@@ -3680,8 +3681,8 @@ export default function OffersScreen({ navigation, route }) {
           color={COLORS.primary}
         />
       </View>
-      <Text style={styles.emptyTitle}>Aucune réservation</Text>
-      <Text style={styles.emptyText}>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyTitle]}>Aucune réservation</Text>
+      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyText]}>
         {activeTab === 'pending'
           ? 'Aucune demande en attente.'
           : activeTab === 'negotiating'
@@ -3704,7 +3705,7 @@ export default function OffersScreen({ navigation, route }) {
       </Text>
       <Pressable style={styles.emptyRefresh} onPress={handleRefresh}>
         <Ionicons name="refresh-outline" size={17} color={COLORS.white} />
-        <Text style={styles.emptyRefreshText}>Actualiser</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.emptyRefreshText]}>Actualiser</Text>
       </Pressable>
     </View>
   );
@@ -3714,9 +3715,9 @@ export default function OffersScreen({ navigation, route }) {
     return (
       <View style={styles.errorBox}>
         <Ionicons name="warning-outline" size={20} color={COLORS.red} />
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.errorText]}>{error}</Text>
         <Pressable onPress={() => loadBookings(true)}>
-          <Text style={styles.retryText}>Réessayer</Text>
+          <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.retryText]}>Réessayer</Text>
         </Pressable>
       </View>
     );
@@ -3780,7 +3781,7 @@ export default function OffersScreen({ navigation, route }) {
                   {loading && bookings.length === 0 ? (
                     <View style={styles.loadingContainer}>
                       <ActivityIndicator size="large" color={COLORS.primary} />
-                      <Text style={styles.loadingText}>Chargement...</Text>
+                      <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText]}>Chargement...</Text>
                     </View>
                   ) : (
                     <FlatList
@@ -3869,7 +3870,7 @@ export default function OffersScreen({ navigation, route }) {
             {loading && bookings.length === 0 ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={COLORS.primary} />
-                <Text style={styles.loadingText}>Chargement...</Text>
+                <Text style={[{ fontFamily: typography.fontFamily.regular }, styles.loadingText]}>Chargement...</Text>
               </View>
             ) : (
               <FlatList
@@ -3974,7 +3975,7 @@ const createStyles = (colors, isDark) => {
       gap: 5,
     },
 
-    webInlineDateLabel: {
+    webInlineDateLabel: { fontFamily: typography.fontFamily.bold,
       fontSize: 10,
       fontWeight: '800',
       color: colors.textSecondary,
@@ -4004,7 +4005,7 @@ const createStyles = (colors, isDark) => {
       }),
     },
 
-    searchInput: {
+    searchInput: { fontFamily: typography.fontFamily.regular,
       flex: 1,
       minWidth: 0,
       height: 36,
@@ -4055,7 +4056,7 @@ const createStyles = (colors, isDark) => {
       gap: 6,
     },
 
-    dateFilterSummaryText: {
+    dateFilterSummaryText: { fontFamily: typography.fontFamily.bold,
       flex: 1,
       fontSize: 9,
       fontWeight: '700',
@@ -4109,7 +4110,7 @@ const createStyles = (colors, isDark) => {
       borderColor: COLORS.primary,
     },
 
-    tabText: {
+    tabText: { fontFamily: typography.fontFamily.bold,
       fontSize: 11,
       fontWeight: '700',
       color: colors.textSecondary,
@@ -4129,7 +4130,7 @@ const createStyles = (colors, isDark) => {
 
     tabCountActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
 
-    tabCountText: {
+    tabCountText: { fontFamily: typography.fontFamily.bold,
       fontSize: 9,
       fontWeight: '800',
       color: colors.textSecondary,
@@ -4160,7 +4161,7 @@ const createStyles = (colors, isDark) => {
       justifyContent: 'space-between',
       marginBottom: 16,
     },
-    sheetTitle: { fontSize: 16, fontWeight: '900', color: colors.text },
+    sheetTitle: { fontFamily: typography.fontFamily.bold, fontSize: 16, fontWeight: '900', color: colors.text },
 
     dateSheet: {
       backgroundColor: colors.card,
@@ -4194,7 +4195,7 @@ const createStyles = (colors, isDark) => {
 
     clientGroupHeaderTextWrap: { flex: 1, minWidth: 0 },
 
-    clientGroupSubtitle: {
+    clientGroupSubtitle: { fontFamily: typography.fontFamily.bold,
       fontSize: 11.5,
       fontWeight: '700',
       color: colors.textSecondary,
@@ -4215,7 +4216,7 @@ const createStyles = (colors, isDark) => {
       justifyContent: 'center',
       gap: 6,
     },
-    dateSheetClearText: { fontSize: 13, fontWeight: '800', color: COLORS.red },
+    dateSheetClearText: { fontFamily: typography.fontFamily.bold, fontSize: 13, fontWeight: '800', color: COLORS.red },
     dateSheetApplyButton: {
       flex: 1,
       minHeight: 46,
@@ -4226,7 +4227,7 @@ const createStyles = (colors, isDark) => {
       justifyContent: 'center',
       gap: 6,
     },
-    dateSheetApplyText: {
+    dateSheetApplyText: { fontFamily: typography.fontFamily.bold,
       fontSize: 13,
       fontWeight: '800',
       color: COLORS.white,
@@ -4240,7 +4241,7 @@ const createStyles = (colors, isDark) => {
       paddingTop: 14,
       paddingBottom: 28,
     },
-    actionsSheetSubtitle: {
+    actionsSheetSubtitle: { fontFamily: typography.fontFamily.regular,
       marginTop: 2,
       fontSize: 12,
       color: colors.textSecondary,
@@ -4263,7 +4264,7 @@ const createStyles = (colors, isDark) => {
       paddingHorizontal: 4,
       flexShrink: 1,
     },
-    actionTextLabel: {
+    actionTextLabel: { fontFamily: typography.fontFamily.bold,
       fontSize: 12.5,
       fontWeight: '800',
       color: COLORS.primary,
@@ -4279,7 +4280,7 @@ const createStyles = (colors, isDark) => {
       width: '100%',
     },
     dateFieldWrap: { flex: 1, minWidth: 0 },
-    dateFieldLabel: {
+    dateFieldLabel: { fontFamily: typography.fontFamily.bold,
       marginBottom: 6,
       fontSize: 10,
       fontWeight: '800',
@@ -4296,14 +4297,14 @@ const createStyles = (colors, isDark) => {
       alignItems: 'center',
       gap: 7,
     },
-    nativeDateText: {
+    nativeDateText: { fontFamily: typography.fontFamily.bold,
       flex: 1,
       minWidth: 0,
       fontSize: 12,
       fontWeight: '700',
       color: colors.text,
     },
-    nativeDatePlaceholder: {
+    nativeDatePlaceholder: { fontFamily: typography.fontFamily.semiBold,
       color: colors.textSecondary,
       fontWeight: '600',
     },
@@ -4330,8 +4331,8 @@ const createStyles = (colors, isDark) => {
       alignItems: 'center',
       gap: 8,
     },
-    errorText: { flex: 1, fontSize: 12, color: COLORS.red },
-    retryText: { fontSize: 12, fontWeight: '800', color: COLORS.primary },
+    errorText: { fontFamily: typography.fontFamily.regular, flex: 1, fontSize: 12, color: COLORS.red },
+    retryText: { fontFamily: typography.fontFamily.bold, fontSize: 12, fontWeight: '800', color: COLORS.primary },
 
     loadingContainer: {
       flex: 1,
@@ -4340,7 +4341,7 @@ const createStyles = (colors, isDark) => {
       justifyContent: 'center',
       gap: 10,
     },
-    loadingText: { fontSize: 13, color: colors.textSecondary },
+    loadingText: { fontFamily: typography.fontFamily.regular, fontSize: 13, color: colors.textSecondary },
 
     listEmptyContent: { flexGrow: 1 },
 
@@ -4360,13 +4361,13 @@ const createStyles = (colors, isDark) => {
       justifyContent: 'center',
       marginBottom: 14,
     },
-    emptyTitle: {
+    emptyTitle: { fontFamily: typography.fontFamily.bold,
       fontSize: 17,
       fontWeight: '800',
       color: colors.text,
       marginBottom: 6,
     },
-    emptyText: {
+    emptyText: { fontFamily: typography.fontFamily.regular,
       fontSize: 12.5,
       color: colors.textSecondary,
       textAlign: 'center',
@@ -4383,7 +4384,7 @@ const createStyles = (colors, isDark) => {
       alignItems: 'center',
       gap: 7,
     },
-    emptyRefreshText: {
+    emptyRefreshText: { fontFamily: typography.fontFamily.bold,
       color: COLORS.white,
       fontSize: 12.5,
       fontWeight: '700',
@@ -4427,7 +4428,7 @@ const createStyles = (colors, isDark) => {
       gap: 6,
     },
 
-    cardName: {
+    cardName: { fontFamily: typography.fontFamily.bold,
       flex: 1,
       minWidth: 0,
       fontSize: 13,
@@ -4446,9 +4447,9 @@ const createStyles = (colors, isDark) => {
     },
 
     cardStatusDot: { width: 5, height: 5, borderRadius: 3 },
-    cardStatusText: { fontSize: 9, fontWeight: '800' },
+    cardStatusText: { fontFamily: typography.fontFamily.bold, fontSize: 9, fontWeight: '800' },
 
-    cardBookingId: {
+    cardBookingId: { fontFamily: typography.fontFamily.semiBold,
       fontSize: 10.5,
       color: colors.textSecondary,
       fontWeight: '600',
@@ -4462,7 +4463,7 @@ const createStyles = (colors, isDark) => {
       marginTop: 3,
     },
 
-    cardSubText: {
+    cardSubText: { fontFamily: typography.fontFamily.regular,
       flex: 1,
       minWidth: 0,
       fontSize: 11,
@@ -4476,7 +4477,7 @@ const createStyles = (colors, isDark) => {
       marginTop: 4,
     },
 
-    cardMetaText: {
+    cardMetaText: { fontFamily: typography.fontFamily.bold,
       fontSize: 10.5,
       fontWeight: '700',
       color: colors.text,
@@ -4498,7 +4499,7 @@ const createStyles = (colors, isDark) => {
       marginTop: 4,
     },
 
-    cardPublishedText: {
+    cardPublishedText: { fontFamily: typography.fontFamily.bold,
       fontSize: 10.5,
       fontWeight: '700',
       color: COLORS.primary,
@@ -4511,7 +4512,7 @@ const createStyles = (colors, isDark) => {
       marginTop: 3,
     },
 
-    cardDateText: {
+    cardDateText: { fontFamily: typography.fontFamily.semiBold,
       fontSize: 10.5,
       color: colors.textSecondary,
       fontWeight: '600',
@@ -4530,13 +4531,13 @@ const createStyles = (colors, isDark) => {
       gap: 3,
     },
 
-    cardDistanceText: {
+    cardDistanceText: { fontFamily: typography.fontFamily.bold,
       fontSize: 10.5,
       fontWeight: '800',
       color: COLORS.red,
     },
 
-    cardPrice: {
+    cardPrice: { fontFamily: typography.fontFamily.bold,
       fontSize: 14,
       fontWeight: '900',
       color: COLORS.primary,
@@ -4558,7 +4559,7 @@ const createStyles = (colors, isDark) => {
       gap: 3,
     },
 
-    cardPriceLabel: {
+    cardPriceLabel: { fontFamily: typography.fontFamily.bold,
       fontSize: 9.5,
       fontWeight: '700',
       color: colors.textSecondary,
@@ -4579,7 +4580,7 @@ const createStyles = (colors, isDark) => {
       marginTop: 3,
     },
 
-    cardExpiryText: {
+    cardExpiryText: { fontFamily: typography.fontFamily.bold,
       fontSize: 10,
       fontWeight: '700',
       color: COLORS.orange,
@@ -4625,7 +4626,7 @@ const createStyles = (colors, isDark) => {
       marginLeft: 'auto',
     },
 
-    cardSmallActionText: {
+    cardSmallActionText: { fontFamily: typography.fontFamily.bold,
       fontSize: 11,
       fontWeight: '800',
       color: COLORS.primary,
@@ -4656,7 +4657,7 @@ const createStyles = (colors, isDark) => {
       alignItems: 'center',
       justifyContent: 'center',
     },
-    cCountBadgeText: { fontSize: 9, fontWeight: '800', color: '#FFFFFF' },
+    cCountBadgeText: { fontFamily: typography.fontFamily.bold, fontSize: 9, fontWeight: '800', color: '#FFFFFF' },
     cLineRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -4709,7 +4710,7 @@ const createStyles = (colors, isDark) => {
       maxWidth: 72,
     },
 
-    clientCountBadgeText: {
+    clientCountBadgeText: { fontFamily: typography.fontFamily.bold,
       fontSize: 9,
       fontWeight: '800',
       color: COLORS.primary,
@@ -4724,7 +4725,7 @@ const createStyles = (colors, isDark) => {
       overflow: 'hidden',
     },
 
-    avatarText: { fontWeight: '800', color: COLORS.primary },
+    avatarText: { fontFamily: typography.fontFamily.bold, fontWeight: '800', color: COLORS.primary },
     avatarImage: { backgroundColor: avatarBg },
 
     onlineIndicator: {
@@ -4764,7 +4765,7 @@ const createStyles = (colors, isDark) => {
       gap: 6,
     },
 
-    confirmedRowText: {
+    confirmedRowText: { fontFamily: typography.fontFamily.bold,
       fontSize: 12.5,
       fontWeight: '800',
       color: COLORS.primary,
@@ -4812,7 +4813,7 @@ const createStyles = (colors, isDark) => {
       borderBottomColor: colors.border,
     },
 
-    groupPageSubHeaderText: {
+    groupPageSubHeaderText: { fontFamily: typography.fontFamily.bold,
       fontSize: 12.5,
       fontWeight: '800',
       color: colors.textSecondary,
@@ -4861,7 +4862,7 @@ const createStyles = (colors, isDark) => {
       }),
     },
 
-    mapTopBadgeText: {
+    mapTopBadgeText: { fontFamily: typography.fontFamily.bold,
       fontSize: 11,
       fontWeight: '800',
       color: COLORS.text,
@@ -4888,7 +4889,7 @@ const createStyles = (colors, isDark) => {
 
     positionChipDot: { width: 8, height: 8, borderRadius: 4 },
 
-    positionChipText: { fontSize: 11, fontWeight: '800', flexShrink: 1 },
+    positionChipText: { fontFamily: typography.fontFamily.bold, fontSize: 11, fontWeight: '800', flexShrink: 1 },
 
     pickPositionButton: {
       position: 'absolute',
@@ -4924,33 +4925,33 @@ const createStyles = (colors, isDark) => {
       }),
     },
 
-    locationWarningText: {
+    locationWarningText: { fontFamily: typography.fontFamily.bold,
       flex: 1,
       fontSize: 10,
       fontWeight: '700',
       color: '#92400E',
     },
 
-    routePanelName: {
+    routePanelName: { fontFamily: typography.fontFamily.bold,
       fontSize: 13,
       fontWeight: '800',
       color: COLORS.text,
     },
 
-    routePanelAddress: {
+    routePanelAddress: { fontFamily: typography.fontFamily.regular,
       marginTop: 1,
       fontSize: 10.5,
       color: colors.textSecondary,
     },
 
-    routePanelSubMeta: {
+    routePanelSubMeta: { fontFamily: typography.fontFamily.semiBold,
       marginTop: 2,
       fontSize: 10,
       fontWeight: '600',
       color: colors.textSecondary,
     },
 
-    routePanelMeta: {
+    routePanelMeta: { fontFamily: typography.fontFamily.bold,
       marginTop: 6,
       fontSize: 11,
       fontWeight: '700',
@@ -4971,14 +4972,14 @@ const createStyles = (colors, isDark) => {
       marginTop: 8,
     },
 
-    routeDistanceValue: {
+    routeDistanceValue: { fontFamily: typography.fontFamily.bold,
       fontSize: 15,
       fontWeight: '900',
       color: COLORS.red,
       letterSpacing: 0.1,
     },
 
-    routePanelEstimateTag: {
+    routePanelEstimateTag: { fontFamily: typography.fontFamily.bold,
       fontSize: 9.5,
       fontWeight: '700',
       color: '#92400E',
@@ -5005,13 +5006,13 @@ const createStyles = (colors, isDark) => {
 
     etaChipActive: {},
 
-    etaChipTime: {
+    etaChipTime: { fontFamily: typography.fontFamily.bold,
       fontSize: 12.5,
       fontWeight: '800',
       color: colors.textSecondary,
     },
 
-    etaChipTimeActive: {
+    etaChipTimeActive: { fontFamily: typography.fontFamily.bold,
       color: COLORS.red,
       fontWeight: '900',
     },
@@ -5024,7 +5025,7 @@ const createStyles = (colors, isDark) => {
       paddingVertical: 4,
     },
 
-    mapFocusLinkText: {
+    mapFocusLinkText: { fontFamily: typography.fontFamily.bold,
       fontSize: 11.5,
       fontWeight: '800',
       color: COLORS.primary,
@@ -5111,7 +5112,7 @@ const createStyles = (colors, isDark) => {
       }),
     },
 
-    mapHintText: {
+    mapHintText: { fontFamily: typography.fontFamily.semiBold,
       fontSize: 10.5,
       fontWeight: '600',
       color: colors.textSecondary,
@@ -5137,13 +5138,13 @@ const createStyles = (colors, isDark) => {
       marginBottom: 12,
     },
 
-    mapEmptyTitle: {
+    mapEmptyTitle: { fontFamily: typography.fontFamily.bold,
       fontSize: 14,
       fontWeight: '800',
       color: colors.text,
     },
 
-    mapEmptyText: {
+    mapEmptyText: { fontFamily: typography.fontFamily.regular,
       fontSize: 11,
       color: colors.textSecondary,
       textAlign: 'center',
